@@ -238,20 +238,16 @@ func NewVmContextQuery(
 	return ctx, nil
 }
 
-func (ctx *vmContext) IsGasSystem() bool {
-	return !ctx.isQuery && PubNet && ctx.blockInfo.ForkVersion >= 2
-}
-
 // get the remaining gas from the given LState
 func (ctx *vmContext) refreshRemainingGas(L *LState) {
-	if ctx.IsGasSystem() {
+	if fee.IsVmGasSystem(ctx.blockInfo.ForkVersion, ctx.isQuery) {
 		ctx.remainedGas = uint64(C.lua_gasget(L))
 	}
 }
 
 // set the remaining gas on the given LState
 func (ctx *vmContext) setRemainingGas(L *LState) {
-	if ctx.IsGasSystem() {
+	if fee.IsVmGasSystem(ctx.blockInfo.ForkVersion, ctx.isQuery) {
 		C.lua_gasset(L, C.ulonglong(ctx.remainedGas))
 	}
 }
@@ -260,7 +256,7 @@ func (ctx *vmContext) usedFee() *big.Int {
 	if fee.IsZeroFee() {
 		return fee.NewZeroFee()
 	}
-	if ctx.IsGasSystem() {
+	if fee.IsVmGasSystem(ctx.blockInfo.ForkVersion, ctx.isQuery) {
 		usedGas := ctx.usedGas()
 		if ctrLgr.IsDebugEnabled() {
 			ctrLgr.Debug().Uint64("gas used", usedGas).Str("lua vm", "executed").Msg("gas information")
@@ -271,7 +267,7 @@ func (ctx *vmContext) usedFee() *big.Int {
 }
 
 func (ctx *vmContext) usedGas() uint64 {
-	if fee.IsZeroFee() || !ctx.IsGasSystem() {
+	if fee.IsZeroFee() || !fee.IsVmGasSystem(ctx.blockInfo.ForkVersion, ctx.isQuery) {
 		return 0
 	}
 	return ctx.gasLimit - ctx.remainedGas
@@ -381,7 +377,7 @@ func newExecutor(
 		C.luaL_set_hardforkversion(ce.L, C.int(ctx.blockInfo.ForkVersion))
 	}
 
-	if ctx.IsGasSystem() {
+	if fee.IsVmGasSystem(ctx.blockInfo.ForkVersion, ctx.isQuery) {
 		ce.setGas()
 		defer func() {
 			ce.refreshRemainingGas()
@@ -944,7 +940,7 @@ func PreCall(
 
 	ctx.gasLimit = gasLimit
 	ctx.remainedGas = gasLimit
-	if ctx.IsGasSystem() {
+	if fee.IsVmGasSystem(ctx.blockInfo.ForkVersion, ctx.isQuery) {
 		ce.setGas()
 	}
 

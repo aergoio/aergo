@@ -324,7 +324,7 @@ func checkExecution(txType types.TxType, amount *big.Int, payloadSize int, versi
 
 func GasLimit(version int32, isFeeDelegation bool, txGasLimit uint64, payloadSize int, gasPrice, usedFee, senderBalance, receiverBalance *big.Int) (gasLimit uint64, err error) {
 	// 1. no gas limit
-	if useGas(version) != true {
+	if fee.IsUseTxGas(version) != true {
 		return
 	}
 
@@ -389,17 +389,6 @@ func checkRedeploy(sender, receiver *state.V, contractState *state.ContractState
 	}
 	// no problem found
 	return nil
-}
-
-func useGas(version int32) bool {
-	return version >= 2 && PubNet
-}
-
-func GasUsed(txFee, gasPrice *big.Int, txType types.TxType, version int32) uint64 {
-	if fee.IsZeroFee() || txType == types.TxType_GOVERNANCE || version < 2 {
-		return 0
-	}
-	return new(big.Int).Div(txFee, gasPrice).Uint64()
 }
 
 func SetStateSQLMaxDBSize(size uint64) {

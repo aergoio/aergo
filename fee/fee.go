@@ -1,0 +1,43 @@
+package fee
+
+import "math/big"
+
+const (
+	baseTxFee            = "2000000000000000" // 0.002 AERGO
+	payloadMaxSize       = 200 * 1024
+	StateDbMaxUpdateSize = payloadMaxSize
+	freeByteSize         = 200
+)
+
+var (
+	baseTxAergo   *big.Int
+	zeroFee       bool
+	stateDbMaxFee *big.Int
+	aerPerByte    *big.Int
+)
+
+func init() {
+	baseTxAergo, _ = new(big.Int).SetString(baseTxFee, 10)
+	zeroFee = false
+	aerPerByte = big.NewInt(5000000000000) // 5,000 GAER, feePerBytes * PayloadMaxBytes = 1 AERGO
+	stateDbMaxFee = new(big.Int).Mul(aerPerByte, big.NewInt(StateDbMaxUpdateSize-freeByteSize))
+}
+
+//---------------------------------------------------------------//
+// zerofee
+
+func EnableZeroFee() {
+	zeroFee = true
+}
+
+func DisableZeroFee() {
+	zeroFee = false
+}
+
+func IsZeroFee() bool {
+	return zeroFee
+}
+
+func NewZeroFee() *big.Int {
+	return big.NewInt(0)
+}

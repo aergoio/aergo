@@ -18,6 +18,7 @@ import (
 	"github.com/aergoio/aergo/v2/contract"
 	"github.com/aergoio/aergo/v2/contract/name"
 	"github.com/aergoio/aergo/v2/contract/system"
+	"github.com/aergoio/aergo/v2/fee"
 	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/message"
 	"github.com/aergoio/aergo/v2/state"
@@ -1035,7 +1036,8 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 	receipt.TxHash = tx.GetHash()
 	receipt.Events = events
 	receipt.FeeDelegation = txBody.Type == types.TxType_FEEDELEGATION
-	receipt.GasUsed = contract.GasUsed(txFee, bs.GasPrice, txBody.Type, bi.ForkVersion)
+	isGovernance := txBody.Type == types.TxType_GOVERNANCE
+	receipt.GasUsed = fee.ReceiptGasUsed(bi.ForkVersion, isGovernance, txFee, bs.GasPrice)
 
 	return bs.AddReceipt(receipt)
 }

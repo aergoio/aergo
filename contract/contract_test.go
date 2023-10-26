@@ -114,34 +114,34 @@ func TestCheckExecution(t *testing.T) {
 		isDeploy    bool
 		isContract  bool
 
-		expectErr   error
+		expectErr  error
 		expectExec bool
 	}{
 		// deploy
-		{version:2, txType:types.TxType_NORMAL, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:true, isContract:false, expectErr:nil, expectExec:true},
-		{version:2, txType:types.TxType_DEPLOY, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:true, isContract:false, expectErr:nil, expectExec:true},
-		{version:2, txType:types.TxType_REDEPLOY, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:true, isContract:false, expectErr:nil, expectExec:true},
-		{version:3, txType:types.TxType_NORMAL, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:true, isContract:false, expectErr:nil, expectExec:true},
-		{version:3, txType:types.TxType_DEPLOY, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:true, isContract:false, expectErr:nil, expectExec:true},
-		{version:3, txType:types.TxType_REDEPLOY, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:true, isContract:false, expectErr:nil, expectExec:true},
+		{version: 2, txType: types.TxType_NORMAL, amount: types.NewAmount(1, types.Aergo), payloadSize: 1000, isDeploy: true, isContract: false, expectErr: nil, expectExec: true},
+		{version: 2, txType: types.TxType_DEPLOY, amount: types.NewAmount(1, types.Aergo), payloadSize: 1000, isDeploy: true, isContract: false, expectErr: nil, expectExec: true},
+		{version: 2, txType: types.TxType_REDEPLOY, amount: types.NewAmount(1, types.Aergo), payloadSize: 1000, isDeploy: true, isContract: false, expectErr: nil, expectExec: true},
+		{version: 3, txType: types.TxType_NORMAL, amount: types.NewAmount(1, types.Aergo), payloadSize: 1000, isDeploy: true, isContract: false, expectErr: nil, expectExec: true},
+		{version: 3, txType: types.TxType_DEPLOY, amount: types.NewAmount(1, types.Aergo), payloadSize: 1000, isDeploy: true, isContract: false, expectErr: nil, expectExec: true},
+		{version: 3, txType: types.TxType_REDEPLOY, amount: types.NewAmount(1, types.Aergo), payloadSize: 1000, isDeploy: true, isContract: false, expectErr: nil, expectExec: true},
 		// recipient is contract
-		{version:2, txType:types.TxType_NORMAL, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:true, expectErr:nil, expectExec:true},
-		{version:2, txType:types.TxType_TRANSFER, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:true, expectErr:nil, expectExec:true},
-		{version:2, txType:types.TxType_CALL, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:true, expectErr:nil, expectExec:true},
-		{version:2, txType:types.TxType_FEEDELEGATION, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:true, expectErr:nil, expectExec:true},
-		{version:3, txType:types.TxType_NORMAL, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:true, expectErr:nil, expectExec:true},
-		{version:3, txType:types.TxType_TRANSFER, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:true, expectErr:nil, expectExec:true},
-		{version:3, txType:types.TxType_CALL, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:true, expectErr:nil, expectExec:true},
-		{version:3, txType:types.TxType_FEEDELEGATION, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:true, expectErr:nil, expectExec:true},
+		{version: 2, txType: types.TxType_NORMAL, amount: types.NewAmount(1, types.Aergo), payloadSize: 1000, isDeploy: false, isContract: true, expectErr: nil, expectExec: true},
+		{version: 2, txType: types.TxType_TRANSFER, amount: types.NewAmount(1, types.Aergo), payloadSize: 1000, isDeploy: false, isContract: true, expectErr: nil, expectExec: true},
+		{version: 2, txType: types.TxType_CALL, amount: types.NewAmount(1, types.Aergo), payloadSize: 1000, isDeploy: false, isContract: true, expectErr: nil, expectExec: true},
+		{version: 2, txType: types.TxType_FEEDELEGATION, amount: types.NewAmount(1, types.Aergo), payloadSize: 1000, isDeploy: false, isContract: true, expectErr: nil, expectExec: true},
+		{version: 3, txType: types.TxType_NORMAL, amount: types.NewAmount(1, types.Aergo), payloadSize: 1000, isDeploy: false, isContract: true, expectErr: nil, expectExec: true},
+		{version: 3, txType: types.TxType_TRANSFER, amount: types.NewAmount(1, types.Aergo), payloadSize: 1000, isDeploy: false, isContract: true, expectErr: nil, expectExec: true},
+		{version: 3, txType: types.TxType_CALL, amount: types.NewAmount(1, types.Aergo), payloadSize: 1000, isDeploy: false, isContract: true, expectErr: nil, expectExec: true},
+		{version: 3, txType: types.TxType_FEEDELEGATION, amount: types.NewAmount(1, types.Aergo), payloadSize: 1000, isDeploy: false, isContract: true, expectErr: nil, expectExec: true},
 		// recipient is not a contract
-		{version:2, txType:types.TxType_NORMAL, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:false, expectErr:nil, expectExec:false},
-		{version:2, txType:types.TxType_TRANSFER, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:false, expectErr:nil, expectExec:false},
-		{version:2, txType:types.TxType_CALL, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:false, expectErr:nil, expectExec:false},
-		{version:2, txType:types.TxType_FEEDELEGATION, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:false, expectErr:nil, expectExec:false},
-		{version:3, txType:types.TxType_NORMAL, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:false, expectErr:nil, expectExec:false},
-		{version:3, txType:types.TxType_TRANSFER, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:false, expectErr:nil, expectExec:false},
-		{version:3, txType:types.TxType_CALL, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:false, expectErr:nil, expectExec:true},
-		{version:3, txType:types.TxType_FEEDELEGATION, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:false, expectErr:nil, expectExec:false},
+		{version: 2, txType: types.TxType_NORMAL, amount: types.NewAmount(1, types.Aergo), payloadSize: 1000, isDeploy: false, isContract: false, expectErr: nil, expectExec: false},
+		{version: 2, txType: types.TxType_TRANSFER, amount: types.NewAmount(1, types.Aergo), payloadSize: 1000, isDeploy: false, isContract: false, expectErr: nil, expectExec: false},
+		{version: 2, txType: types.TxType_CALL, amount: types.NewAmount(1, types.Aergo), payloadSize: 1000, isDeploy: false, isContract: false, expectErr: nil, expectExec: false},
+		{version: 2, txType: types.TxType_FEEDELEGATION, amount: types.NewAmount(1, types.Aergo), payloadSize: 1000, isDeploy: false, isContract: false, expectErr: nil, expectExec: false},
+		{version: 3, txType: types.TxType_NORMAL, amount: types.NewAmount(1, types.Aergo), payloadSize: 1000, isDeploy: false, isContract: false, expectErr: nil, expectExec: false},
+		{version: 3, txType: types.TxType_TRANSFER, amount: types.NewAmount(1, types.Aergo), payloadSize: 1000, isDeploy: false, isContract: false, expectErr: nil, expectExec: false},
+		{version: 3, txType: types.TxType_CALL, amount: types.NewAmount(1, types.Aergo), payloadSize: 1000, isDeploy: false, isContract: false, expectErr: nil, expectExec: true},
+		{version: 3, txType: types.TxType_FEEDELEGATION, amount: types.NewAmount(1, types.Aergo), payloadSize: 1000, isDeploy: false, isContract: false, expectErr: nil, expectExec: false},
 	} {
 		do_execute, err := checkExecution(test.txType, test.amount, test.payloadSize, test.version, test.isDeploy, test.isContract)
 		assert.Equal(t, test.expectErr, err, "checkExecution(version:%d, txType:%d, amount:%s, payloadSize:%d)", test.version, test.txType, test.amount, test.payloadSize)
@@ -169,31 +169,5 @@ func TestCreateContractID(t *testing.T) {
 	} {
 		resultContractID := CreateContractID(test.account, test.nonce)
 		assert.Equal(t, test.expectContractID, resultContractID, "CreateContractID(account:%x, nonce:%d)", test.account, test.nonce)
-	}
-}
-
-func TestGasUsed(t *testing.T) {
-	initContractTest(t)
-	defer deinitContractTest(t)
-
-	for _, test := range []struct {
-		version       int32
-		txType        types.TxType
-		txFee         *big.Int
-		gasPrice      *big.Int
-		expectGasUsed uint64
-	}{
-		// no gas used
-		{1, types.TxType_NORMAL, types.NewAmount(100, types.Gaer), types.NewAmount(5, types.Gaer), 0},     // v1
-		{2, types.TxType_GOVERNANCE, types.NewAmount(100, types.Gaer), types.NewAmount(5, types.Gaer), 0}, // governance
-
-		// gas used
-		{2, types.TxType_NORMAL, types.NewAmount(10, types.Gaer), types.NewAmount(1, types.Gaer), 10},
-		{2, types.TxType_NORMAL, types.NewAmount(10, types.Gaer), types.NewAmount(5, types.Gaer), 2},
-		{2, types.TxType_NORMAL, types.NewAmount(100, types.Gaer), types.NewAmount(1, types.Gaer), 100},
-		{2, types.TxType_NORMAL, types.NewAmount(100, types.Gaer), types.NewAmount(5, types.Gaer), 20},
-	} {
-		resultGasUsed := GasUsed(test.txFee, test.gasPrice, test.txType, test.version)
-		assert.Equal(t, test.expectGasUsed, resultGasUsed, "GasUsed(txFee:%s, gasPrice:%s, txType:%d, version:%d)", test.txFee, test.gasPrice, test.txType, test.version)
 	}
 }
