@@ -8,8 +8,8 @@ import (
 )
 
 func TestReceiptGasUsed(t *testing.T) {
-	// disable zero fee
 	DisableZeroFee()
+	defer EnableZeroFee()
 
 	for _, test := range []struct {
 		version       int32

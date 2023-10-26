@@ -78,7 +78,7 @@ func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, t
 	)
 
 	// compute the base fee
-	usedFee = TxFee(len(txBody.GetPayload()), bs.GasPrice, bi.ForkVersion)
+	usedFee = fee.TxBaseFee(bi.ForkVersion, bs.GasPrice, len(txPayload))
 
 	// check if sender and receiver are not the same
 	if sender.AccountID() != receiver.AccountID() {
@@ -200,17 +200,6 @@ func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, t
 
 	// return the result
 	return rv, events, usedFee, nil
-}
-
-// compute the base fee for a transaction
-func TxFee(payloadSize int, GasPrice *big.Int, version int32) *big.Int {
-	if version < 2 {
-		return fee.PayloadTxFee(payloadSize)
-	}
-	// get the amount of gas needed for the payload
-	txGas := fee.TxGas(payloadSize)
-	// multiply the amount of gas with the gas price
-	return new(big.Int).Mul(new(big.Int).SetUint64(txGas), GasPrice)
 }
 
 // send a request to preload an executor for the next tx

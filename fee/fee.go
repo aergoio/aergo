@@ -49,3 +49,30 @@ func NewZeroFee() *big.Int {
 func CalcFee(gasPrice *big.Int, gas uint64) *big.Int {
 	return new(big.Int).Mul(gasPrice, new(big.Int).SetUint64(gas))
 }
+
+// compute the base fee for a transaction
+func TxBaseFee(version int32, gasPrice *big.Int, payloadSize int) *big.Int {
+	if IsZeroFee() {
+		return NewZeroFee()
+	}
+
+	if IsUseTxGas(version) {
+		// get the amount of gas needed for the payload
+		txGas := TxGas(payloadSize)
+		// multiply the amount of gas with the gas price
+		return CalcFee(gasPrice, txGas)
+	}
+	return PayloadTxFee(payloadSize)
+}
+
+// compute the execute fee for a transaction
+func TxExecuteFee(version int32, isQuery bool, gasPrice *big.Int, usedGas uint64, dbUpdateTotalSize int64) *big.Int {
+	if IsZeroFee() {
+		return NewZeroFee()
+	}
+
+	if IsVmGasSystem(version, isQuery) {
+		return CalcFee(gasPrice, usedGas)
+	}
+	return PaymentDataFee(dbUpdateTotalSize)
+}

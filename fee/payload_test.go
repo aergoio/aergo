@@ -7,6 +7,9 @@ import (
 )
 
 func TestPayloadTxFee(t *testing.T) {
+	DisableZeroFee()
+	defer EnableZeroFee()
+
 	type args struct {
 		payloadSize int
 	}

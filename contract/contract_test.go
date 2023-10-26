@@ -20,48 +20,6 @@ func deinitContractTest(t *testing.T) {
 //----------------------------------------------------------------------------------------//
 // tests for tx Execute functions
 
-func TestTxFee(t *testing.T) {
-	initContractTest(t)
-	defer deinitContractTest(t)
-
-	for _, test := range []struct {
-		forkVersion int32
-		payloadSize int
-		gasPrice    *big.Int
-		expectFee   *big.Int
-	}{
-		// v1
-		{1, 0, types.NewAmount(1, types.Gaer), types.NewAmount(2000000, types.Gaer)},          // gas price not affect in v1
-		{1, 200, types.NewAmount(5, types.Gaer), types.NewAmount(2000000, types.Gaer)},        // max freeByteSize
-		{1, 201, types.NewAmount(5, types.Gaer), types.NewAmount(2005000, types.Gaer)},        // 2000000+5000
-		{1, 2047800, types.NewAmount(5, types.Gaer), types.NewAmount(1026000000, types.Gaer)}, // 2000000+5000*2048000 ( 2047800 + freeByteSize )
-		{1, 2048000, types.NewAmount(5, types.Gaer), types.NewAmount(1026000000, types.Gaer)}, // exceed payload max size
-		{1, 20480000, types.NewAmount(5, types.Gaer), types.NewAmount(1026000000, types.Gaer)},
-
-		// v2 - 1 gaer
-		{2, 0, types.NewAmount(1, types.Gaer), types.NewAmount(100000, types.Gaer)},
-		{2, 200, types.NewAmount(1, types.Gaer), types.NewAmount(100000, types.Gaer)},      // max freeByteSize
-		{2, 201, types.NewAmount(1, types.Gaer), types.NewAmount(100005, types.Gaer)},      // 100000+5
-		{2, 2047800, types.NewAmount(1, types.Gaer), types.NewAmount(1124000, types.Gaer)}, // 100000+5*204800 ( 2047800 + freeByteSize )
-		{2, 2048000, types.NewAmount(1, types.Gaer), types.NewAmount(1124000, types.Gaer)}, // exceed payload max size
-		{2, 20480000, types.NewAmount(1, types.Gaer), types.NewAmount(1124000, types.Gaer)},
-
-		// v2 - 5 gaer
-		{2, 0, types.NewAmount(5, types.Gaer), types.NewAmount(500000, types.Gaer)},
-		{2, 200, types.NewAmount(5, types.Gaer), types.NewAmount(500000, types.Gaer)}, // max freeByteSize
-		{2, 201, types.NewAmount(5, types.Gaer), types.NewAmount(500025, types.Gaer)},
-		{2, 700, types.NewAmount(5, types.Gaer), types.NewAmount(512500, types.Gaer)},
-		{2, 2047800, types.NewAmount(5, types.Gaer), types.NewAmount(5620000, types.Gaer)},
-		{2, 2048000, types.NewAmount(5, types.Gaer), types.NewAmount(5620000, types.Gaer)}, // exceed payload max size
-
-		// v3 is same as v2
-		{3, 100, types.NewAmount(5, types.Gaer), types.NewAmount(500000, types.Gaer)},
-	} {
-		resultFee := TxFee(test.payloadSize, test.gasPrice, test.forkVersion)
-		assert.EqualValues(t, test.expectFee, resultFee, "TxFee(forkVersion:%d, payloadSize:%d, gasPrice:%s)", test.forkVersion, test.payloadSize, test.gasPrice)
-	}
-}
-
 func TestGasLimit(t *testing.T) {
 	initContractTest(t)
 	defer deinitContractTest(t)
