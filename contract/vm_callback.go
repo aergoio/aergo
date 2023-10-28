@@ -1045,7 +1045,8 @@ func parseDecimalAmount(str string, digits int) string {
 	if to_add > 0 {
 		p2 = p2 + strings.Repeat("0", to_add)
 	} else if to_add < 0 {
-		p2 = p2[0:digits]
+		//p2 = p2[0:digits]
+		return "error"
 	}
 	str = p1 + p2
 
@@ -1068,6 +1069,7 @@ func transformAmount(amountStr string, forkVersion int32) (*big.Int, error) {
 		if strings.Contains(amountStr,".") && strings.HasSuffix(amountStr,"aergo") {
 			// Extract the part before the unit
 			decimalAmount := strings.TrimSuffix(amountStr, "aergo")
+			decimalAmount = strings.TrimRight(decimalAmount, " ")
 			// Parse the decimal amount
 			decimalAmount = parseDecimalAmount(decimalAmount, 18)
 			if decimalAmount == "error" {
