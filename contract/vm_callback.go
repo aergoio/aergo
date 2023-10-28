@@ -1030,33 +1030,6 @@ func luaCryptoKeccak256(data unsafe.Pointer, dataLen C.int) (unsafe.Pointer, int
 	}
 }
 
-func parseDecimalAmount(str string, digits int) string {
-	idx := strings.Index(str, ".")
-	if idx == -1 {
-		return str
-	}
-	p1 := str[0:idx]
-	p2 := str[idx+1:]
-	if strings.Index(p2, ".") != -1 {
-		return "error"
-	}
-
-	to_add := digits - len(p2)
-	if to_add > 0 {
-		p2 = p2 + strings.Repeat("0", to_add)
-	} else if to_add < 0 {
-		//p2 = p2[0:digits]
-		return "error"
-	}
-	str = p1 + p2
-
-	str = strings.TrimLeft(str, "0")
-	if str == "" {
-		str = "0"
-	}
-	return str
-}
-
 // transformAmount processes the input string to calculate the total amount,
 // taking into account the different units ("aergo", "gaer", "aer")
 func transformAmount(amountStr string, forkVersion int32) (*big.Int, error) {
@@ -1126,6 +1099,41 @@ func transformAmount(amountStr string, forkVersion int32) (*big.Int, error) {
 	}
 
 	return totalAmount, nil
+}
+
+// convert decimal amount into big integer string
+func parseDecimalAmount(str string, num_decimals int) string {
+	// Get the integer and decimal parts
+	idx := strings.Index(str, ".")
+	if idx == -1 {
+		return str
+	}
+	p1 := str[0:idx]
+	p2 := str[idx+1:]
+
+	// Check for another decimal point
+	if strings.Index(p2, ".") != -1 {
+		return "error"
+	}
+
+	// Compute the amount of zero digits to add
+	to_add := num_decimals - len(p2)
+	if to_add > 0 {
+		p2 = p2 + strings.Repeat("0", to_add)
+	} else if to_add < 0 {
+		// Do not truncate decimal amounts
+		return "error"
+	}
+
+	// Join the integer and decimal parts
+	str = p1 + p2
+
+	// Remove leading zeros
+	str = strings.TrimLeft(str, "0")
+	if str == "" {
+		str = "0"
+	}
+	return str
 }
 
 // parseAndConvert is a helper function to parse the substring as a big integer
