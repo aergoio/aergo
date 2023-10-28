@@ -403,6 +403,9 @@ func TestContractSystem(t *testing.T) {
 			expected := fmt.Sprintf(`%d`, version)
 			assert.Equal(t, expected, receipt.GetRet(), "receipt ret error")
 
+			err = bc.Query("system", `{"Name":"get_version", "Args":[]}`, "", expected)
+			require.NoErrorf(t, err, "failed to query")
+
 		}
 
 	}
