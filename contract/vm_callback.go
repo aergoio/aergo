@@ -255,7 +255,7 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 	aid := types.ToAccountID(cid)
 
 	// read the amount for the contract call
-	amountBig, err := transformAmount(C.GoString(amount), ctx)
+	amountBig, err := transformAmount(C.GoString(amount), ctx.blockInfo.ForkVersion)
 	if err != nil {
 		return -1, C.CString("[Contract.LuaCallContract] invalid amount: " + err.Error())
 	}
@@ -483,7 +483,7 @@ func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char)
 	}
 
 	// read the amount to be sent
-	amountBig, err := transformAmount(C.GoString(amount), ctx)
+	amountBig, err := transformAmount(C.GoString(amount), ctx.blockInfo.ForkVersion)
 	if err != nil {
 		return C.CString("[Contract.LuaSendAmount] invalid amount: " + err.Error())
 	}
@@ -1058,12 +1058,12 @@ func parseDecimalAmount(str string, digits int) string {
 
 // transformAmount processes the input string to calculate the total amount,
 // taking into account the different units ("aergo", "gaer", "aer")
-func transformAmount(amountStr string, ctx *vmContext) (*big.Int, error) {
+func transformAmount(amountStr string, forkVersion int32) (*big.Int, error) {
 	if len(amountStr) == 0 {
 		return zeroBig, nil
 	}
 
-	if ctx.blockInfo.ForkVersion >= 4 {
+	if forkVersion >= 4 {
 		// Check for amount in decimal format
 		if strings.Contains(amountStr,".") && strings.HasSuffix(amountStr,"aergo") {
 			// Extract the part before the unit
@@ -1071,11 +1071,11 @@ func transformAmount(amountStr string, ctx *vmContext) (*big.Int, error) {
 			// Parse the decimal amount
 			decimalAmount = parseDecimalAmount(decimalAmount, 18)
 			if decimalAmount == "error" {
-				return nil, errors.New(amountStr)
+				return nil, errors.New("converting error for BigNum: " + amountStr)
 			}
 			amount, valid := new(big.Int).SetString(decimalAmount, 10)
 			if !valid {
-				return nil, errors.New(amountStr)
+				return nil, errors.New("converting error for BigNum: " + amountStr)
 			}
 			return amount, nil
 		}
@@ -1235,7 +1235,7 @@ func luaDeployContract(
 	ctx.callState[newContract.AccountID()] = cs
 
 	// read the amount transferred to the contract
-	amountBig, err := transformAmount(C.GoString(amount), ctx)
+	amountBig, err := transformAmount(C.GoString(amount), ctx.blockInfo.ForkVersion)
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDeployContract]value not proper format:" + err.Error())
 	}
@@ -1437,7 +1437,7 @@ func luaGovernance(L *LState, service C.int, gType C.char, arg *C.char) *C.char 
 	switch gType {
 	case 'S', 'U':
 		var err error
-		amountBig, err = transformAmount(C.GoString(arg), ctx)
+		amountBig, err = transformAmount(C.GoString(arg), ctx.blockInfo.ForkVersion)
 		if err != nil {
 			return C.CString("[Contract.LuaGovernance] invalid amount: " + err.Error())
 		}
