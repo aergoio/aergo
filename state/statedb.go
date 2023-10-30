@@ -224,6 +224,10 @@ func (v *V) IsNew() bool {
 	return v.newOne
 }
 
+func (v *V) IsContract() bool {
+	return len(v.State().CodeHash) > 0
+}
+
 func (v *V) IsDeploy() bool {
 	return v.deploy&deployFlag != 0
 }
