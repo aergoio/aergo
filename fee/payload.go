@@ -8,20 +8,12 @@ func PayloadTxFee(payloadSize int) *big.Int {
 	if IsZeroFee() {
 		return NewZeroFee()
 	}
-	if payloadSize == 0 {
-		return new(big.Int).Set(baseTxAergo)
-	}
-	size := paymentDataSize(int64(payloadSize))
-	if size > payloadMaxSize {
-		size = payloadMaxSize
-	}
-	return new(big.Int).Add(
-		baseTxAergo,
-		new(big.Int).Mul(
-			aerPerByte,
-			big.NewInt(size),
-		),
-	)
+
+	// set data fee
+	dataFee := PaymentDataFee(int64(payloadSize))
+
+	// return base fee + data fee
+	return new(big.Int).Add(baseTxAergo, dataFee)
 }
 
 func MaxPayloadTxFee(payloadSize int) *big.Int {
@@ -29,7 +21,7 @@ func MaxPayloadTxFee(payloadSize int) *big.Int {
 		return NewZeroFee()
 	}
 	if payloadSize == 0 {
-		return new(big.Int).Set(baseTxAergo)
+		return PayloadTxFee(payloadSize)
 	}
 	return new(big.Int).Add(PayloadTxFee(payloadSize), stateDbMaxFee)
 }
@@ -43,5 +35,5 @@ func paymentDataSize(dataSize int64) int64 {
 }
 
 func PaymentDataFee(dataSize int64) *big.Int {
-	return new(big.Int).Mul(big.NewInt(paymentDataSize(dataSize)), aerPerByte)
+	return CalcFee(aerPerByte, uint64(paymentDataSize(dataSize)))
 }
