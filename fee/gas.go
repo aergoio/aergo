@@ -31,7 +31,7 @@ func CalcGas(fee, gasPrice *big.Int) *big.Int {
 }
 
 func ReceiptGasUsed(version int32, isGovernance bool, txFee, gasPrice *big.Int) uint64 {
-	if IsReceiptGasUsed(version, isGovernance) != true {
+	if !IsReceiptGasUsed(version, isGovernance) {
 		return 0
 	}
 	return CalcGas(txFee, gasPrice).Uint64()

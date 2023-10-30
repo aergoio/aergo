@@ -45,8 +45,32 @@ func TestTxBaseFee(t *testing.T) {
 		{3, Gaer(5), 100, Gaer(500000)},
 	} {
 		resultFee := TxBaseFee(test.forkVersion, test.gasPrice, test.payloadSize)
-		assert.EqualValues(t, test.expectFee, resultFee, "TxFee(forkVersion:%d, payloadSize:%d, gasPrice:%s)", test.forkVersion, test.payloadSize, test.gasPrice)
+		assert.EqualValues(t, test.expectFee, resultFee, "TxBaseFee(forkVersion:%d, payloadSize:%d, gasPrice:%s)", test.forkVersion, test.payloadSize, test.gasPrice)
 	}
+}
+
+func TestTxExecuteFee(t *testing.T) {
+	DisableZeroFee()
+	defer EnableZeroFee()
+
+	for _, test := range []struct {
+		forkVersion       int32
+		isQuery           bool
+		gasPrice          *big.Int
+		usedGas           uint64
+		dbUpdateTotalSize int64
+		expectFee         *big.Int
+	}{
+		// TODO
+	} {
+
+		resultFee := TxExecuteFee(test.forkVersion, test.isQuery, test.gasPrice, test.usedGas, test.dbUpdateTotalSize)
+		assert.EqualValues(t, test.expectFee, resultFee, "TxExecuteFee(forkVersion:%d, isQuery:%t, gasPrice:%s, usedGas:%d, dbUpdateTotalSize:%d)", test.forkVersion, test.isQuery, test.gasPrice, test.usedGas, test.dbUpdateTotalSize)
+	}
+}
+
+func TestTxMaxFee(t *testing.T) {
+
 }
 
 // TODO : replace to types.NewAmount after resolve cycling import
