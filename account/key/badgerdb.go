@@ -14,7 +14,7 @@ import (
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 )
 
 type BadgerStorage struct {
@@ -94,7 +94,7 @@ func (ks *BadgerStorage) Load(identity Identity, password string) (*PrivateKey, 
 		return nil, types.ErrWrongAddressOrPassWord
 	}
 
-	privateKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), decrypted)
+	privateKey := secp256k1.PrivKeyFromBytes(decrypted)
 	return privateKey, nil
 }
 

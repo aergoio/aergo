@@ -12,7 +12,7 @@ import (
 	keycrypto "github.com/aergoio/aergo/v2/account/key/crypto"
 	"github.com/aergoio/aergo/v2/p2p/p2putil"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/spf13/cobra"
 )
@@ -137,8 +137,8 @@ func saveFilesFromKeys(priv crypto.PrivKey, pub crypto.PubKey, prefix string) er
 		if err != nil {
 			return err
 		}
-		_, pubkey := btcec.PrivKeyFromBytes(btcec.S256(), pkBytes)
-		address := keycrypto.GenerateAddress(pubkey.ToECDSA())
+		privkey := secp256k1.PrivKeyFromBytes(pkBytes)
+		address := keycrypto.GenerateAddress(privkey.PubKey().ToECDSA())
 		addrf.WriteString(types.EncodeAddress(address))
 		addrf.Sync()
 

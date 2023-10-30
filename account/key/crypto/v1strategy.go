@@ -17,7 +17,7 @@ import (
 	"reflect"
 
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"golang.org/x/crypto/scrypt"
 )
 
@@ -179,7 +179,7 @@ func (ks *v1Strategy) Decrypt(encrypted []byte, passphrase string) (*PrivateKey,
 		return nil, err
 	}
 
-	privateKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), plaintext)
+	privateKey := secp256k1.PrivKeyFromBytes(plaintext)
 
 	rawAddress := GenerateAddress(&(privateKey.ToECDSA().PublicKey))
 	encodedAddress := types.EncodeAddress(rawAddress)

@@ -9,12 +9,12 @@ import (
 	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/golang/protobuf/proto"
 )
 
 func TestNewAgentCertV1(t *testing.T) {
-	pk, _ := btcec.NewPrivateKey(btcec.S256())
+	pk, _ := secp256k1.GeneratePrivateKey()
 	pid1, pid2 := types.RandomPeerID(), types.RandomPeerID()
 	addr0 := "192.168.0.2"
 	addr1 := "2001:0db8:85a3:08d3:1319:8a2e:370:7334"
@@ -23,7 +23,7 @@ func TestNewAgentCertV1(t *testing.T) {
 	type args struct {
 		bpID    types.PeerID
 		agentID types.PeerID
-		bpKey   *btcec.PrivateKey
+		bpKey   *secp256k1.PrivateKey
 		addrs   []string
 		ttl     time.Duration
 	}
@@ -63,9 +63,9 @@ func TestNewAgentCertV1(t *testing.T) {
 }
 
 func TestCheckAndGetV1(t *testing.T) {
-	pk1, _ := btcec.NewPrivateKey(btcec.S256())
+	pk1, _ := secp256k1.GeneratePrivateKey()
 	libp2pKey1 := ConvertPKToLibP2P(pk1)
-	//pk2, _ := btcec.NewPrivateKey(btcec.S256())
+	//pk2, _ := secp256k1.GeneratePrivateKey()
 	pid1, _ := types.IDFromPrivateKey(libp2pKey1)
 	pid2 := types.RandomPeerID()
 	addrs := []string{"192.168.0.2", "2001:0db8:85a3:08d3:1319:8a2e:370:7334", "tester.aergo.io"}
@@ -177,8 +177,8 @@ func (b *cb) Build() *types.AgentCertificate {
 }
 
 func TestAgentCertificateV1_Convert(t *testing.T) {
-	pk1, _ := btcec.NewPrivateKey(btcec.S256())
-	//pk2, _ := btcec.NewPrivateKey(btcec.S256())
+	pk1, _ := secp256k1.GeneratePrivateKey()
+	//pk2, _ := secp256k1.GeneratePrivateKey()
 
 	pid1, _ := types.IDFromPrivateKey(ConvertPKToLibP2P(pk1))
 	pid2 := types.RandomPeerID()
@@ -191,7 +191,7 @@ func TestAgentCertificateV1_Convert(t *testing.T) {
 
 	type args struct {
 		BPID         types.PeerID
-		pk           *btcec.PrivateKey
+		pk           *secp256k1.PrivateKey
 		ttl          time.Duration
 		AgentID      types.PeerID
 		AgentAddress []string
@@ -234,8 +234,8 @@ func TestAgentCertificateV1_Convert(t *testing.T) {
 }
 
 func Test_calculateCertificateHash(t *testing.T) {
-	pk1, _ := btcec.NewPrivateKey(btcec.S256())
-	//pk2, _ := btcec.NewPrivateKey(btcec.S256())
+	pk1, _ := secp256k1.GeneratePrivateKey()
+	//pk2, _ := secp256k1.GeneratePrivateKey()
 	pid1, pid2 := types.RandomPeerID(), types.RandomPeerID()
 	addrs := []string{"192.168.0.2", "2001:0db8:85a3:08d3:1319:8a2e:370:7334", "tester.aergo.io"}
 	DAY := time.Hour * 24

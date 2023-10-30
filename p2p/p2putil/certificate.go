@@ -7,7 +7,8 @@ import (
 	"github.com/aergoio/aergo/v2/internal/network"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4/ecdsa"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/minio/sha256-simd"
 )
@@ -57,7 +58,7 @@ func ConvertCertsToProto(cs []*p2pcommon.AgentCertificateV1) ([]*types.AgentCert
 }
 
 // NewAgentCertV1 create certificate object
-func NewAgentCertV1(bpID, agentID types.PeerID, bpKey *btcec.PrivateKey, addrs []string, ttl time.Duration) (*p2pcommon.AgentCertificateV1, error) {
+func NewAgentCertV1(bpID, agentID types.PeerID, bpKey *secp256k1.PrivateKey, addrs []string, ttl time.Duration) (*p2pcommon.AgentCertificateV1, error) {
 	// need to truncate monotonic clock
 	now := time.Now().Truncate(0)
 	c := &p2pcommon.AgentCertificateV1{Version: p2pcommon.CertVersion0001, BPID: bpID, BPPubKey: bpKey.PubKey(),
@@ -86,7 +87,7 @@ func CheckAndGetV1(cert *types.AgentCertificate) (*p2pcommon.AgentCertificateV1,
 	if err != nil {
 		return nil, p2pcommon.ErrInvalidPeerID
 	}
-	wrap.BPPubKey, err = btcec.ParsePubKey(cert.BPPubKey, btcec.S256())
+	wrap.BPPubKey, err = secp256k1.ParsePubKey(cert.BPPubKey)
 	if err != nil {
 		return nil, p2pcommon.ErrInvalidKey
 	}
@@ -121,7 +122,7 @@ func CheckAndGetV1(cert *types.AgentCertificate) (*p2pcommon.AgentCertificateV1,
 		}
 		wrap.AgentAddress[i] = addrStr
 	}
-	wrap.Signature, err = btcec.ParseSignature(cert.Signature, btcec.S256())
+	wrap.Signature, err = ecdsa.ParseDERSignature(cert.Signature)
 	if err != nil {
 		return nil, p2pcommon.ErrInvalidCertField
 	}
@@ -133,15 +134,12 @@ func CheckAndGetV1(cert *types.AgentCertificate) (*p2pcommon.AgentCertificateV1,
 	return wrap, nil
 }
 
-func SignCert(key *btcec.PrivateKey, wrap *p2pcommon.AgentCertificateV1) error {
+func SignCert(key *secp256k1.PrivateKey, wrap *p2pcommon.AgentCertificateV1) error {
 	hash, err := calculateCertificateHash(wrap)
 	if err != nil {
 		return err
 	}
-	sign, err := key.Sign(hash)
-	if err != nil {
-		return err
-	}
+	sign := ecdsa.Sign(key, hash)
 	wrap.BPPubKey = key.PubKey()
 	wrap.Signature = sign
 	return nil

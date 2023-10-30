@@ -11,7 +11,7 @@ import (
 	"github.com/aergoio/aergo/v2/p2p/p2pkey"
 	"github.com/aergoio/aergo/v2/p2p/p2putil"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 )
 
 var emptyIDArr []types.PeerID
@@ -75,7 +75,7 @@ func (cm *baseCertManager) CanHandle(bpID types.PeerID) bool {
 
 type bpCertificateManager struct {
 	baseCertManager
-	key *btcec.PrivateKey
+	key *secp256k1.PrivateKey
 }
 
 func (cm *bpCertificateManager) CreateCertificate(remoteMeta p2pcommon.PeerMeta) (*p2pcommon.AgentCertificateV1, error) {

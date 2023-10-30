@@ -6,10 +6,10 @@
 package key
 
 import (
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 )
 
-type PrivateKey = btcec.PrivateKey
+type PrivateKey = secp256k1.PrivateKey
 
 type KeyCryptoStrategy interface {
 	Encrypt(key *PrivateKey, passphrase string) ([]byte, error)

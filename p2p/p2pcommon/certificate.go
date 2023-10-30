@@ -5,7 +5,8 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4/ecdsa"
 )
 
 var (
@@ -30,12 +31,12 @@ const (
 type AgentCertificateV1 struct {
 	Version      uint32
 	BPID         types.PeerID
-	BPPubKey     *btcec.PublicKey
+	BPPubKey     *secp256k1.PublicKey
 	CreateTime   time.Time
 	ExpireTime   time.Time
 	AgentID      types.PeerID
 	AgentAddress []string
-	Signature    *btcec.Signature
+	Signature    *ecdsa.Signature
 }
 
 // IsValidInTime check if this certificate is expired

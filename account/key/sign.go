@@ -9,7 +9,8 @@ import (
 	"encoding/binary"
 
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4/ecdsa"
 	sha256 "github.com/minio/sha256-simd"
 )
 
@@ -19,20 +20,14 @@ func (ks *Store) Sign(addr Identity, pass string, hash []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	sign, err := key.Sign(hash)
-	if err != nil {
-		return nil, err
-	}
+	sign := ecdsa.Sign(key, hash)
 	return sign.Serialize(), nil
 }
 
 // SignTx return tx signature using stored key
 func SignTx(tx *types.Tx, key *aergokey) error {
 	hash := CalculateHashWithoutSign(tx.Body)
-	sign, err := key.Sign(hash)
-	if err != nil {
-		return err
-	}
+	sign := ecdsa.Sign(key, hash)
 	tx.Body.Sign = sign.Serialize()
 	tx.Hash = tx.CalculateTxHash()
 	return nil
@@ -59,11 +54,11 @@ func VerifyTx(tx *types.Tx) error {
 func VerifyTxWithAddress(tx *types.Tx, address []byte) error {
 	txBody := tx.Body
 	hash := CalculateHashWithoutSign(txBody)
-	sign, err := btcec.ParseSignature(txBody.Sign, btcec.S256())
+	sign, err := ecdsa.ParseDERSignature(txBody.Sign)
 	if err != nil {
 		return err
 	}
-	pubkey, err := btcec.ParsePubKey(address, btcec.S256())
+	pubkey, err := secp256k1.ParsePubKey(address)
 	if err != nil {
 		return err
 	}

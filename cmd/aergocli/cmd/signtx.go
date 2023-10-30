@@ -9,7 +9,7 @@ import (
 	crypto "github.com/aergoio/aergo/v2/account/key/crypto"
 	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
 )
@@ -50,13 +50,13 @@ var signCmd = &cobra.Command{
 				return
 			}
 			tx := &types.Tx{Body: param}
-			signKey, pubkey := btcec.PrivKeyFromBytes(btcec.S256(), rawKey)
+			signKey := secp256k1.PrivKeyFromBytes(rawKey)
 			err = key.SignTx(tx, signKey)
 			if err != nil {
 				cmd.Printf("Failed: %s\n", err.Error())
 				return
 			}
-			cmd.Println(types.EncodeAddress(crypto.GenerateAddress(pubkey.ToECDSA())))
+			cmd.Println(types.EncodeAddress(crypto.GenerateAddress(signKey.PubKey().ToECDSA())))
 			msg = tx
 		} else if rootConfig.KeyStorePath == "" {
 			msg, err = client.SignTX(context.Background(), &types.Tx{Body: param})

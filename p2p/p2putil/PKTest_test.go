@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/libp2p/go-libp2p-core/crypto"
 )
 
@@ -31,14 +31,14 @@ func PrintLibP2PKey(priv crypto.Key, marshaled []byte, t *testing.T) {
 	}
 }
 
-func PrintBTCPKey(priv *btcec.PrivateKey, t *testing.T) {
+func PrintBTCPKey(priv *secp256k1.PrivateKey, t *testing.T) {
 	oldBytes := priv.Serialize()
 	t.Logf("PRIV   %v", hex.EncodeToString(oldBytes))
 	t.Logf("PUBLIC %v", hex.EncodeToString(priv.PubKey().SerializeCompressed()))
 }
 
 func TestLibs(t *testing.T) {
-	btcKey, err := btcec.NewPrivateKey(btcec.S256())
+	btcKey, err := secp256k1.GeneratePrivateKey()
 	if err != nil {
 		t.Fatalf("Failed to generate btcec key : %s ", err)
 	}
@@ -56,7 +56,7 @@ func TestLibs(t *testing.T) {
 }
 
 func TestLibs2(t *testing.T) {
-	btcKey, err := btcec.NewPrivateKey(btcec.S256())
+	btcKey, err := secp256k1.GeneratePrivateKey()
 	if err != nil {
 		t.Fatalf("Failed to generate btcec key : %s ", err)
 	}

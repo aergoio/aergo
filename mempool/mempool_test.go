@@ -17,7 +17,7 @@ import (
 	"github.com/aergoio/aergo/v2/cmd/aergocli/util/encoding/json"
 	"github.com/aergoio/aergo/v2/config"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -30,7 +30,7 @@ const (
 var (
 	pool      *MemPool
 	accs      [maxAccount][]byte
-	sign      [maxAccount]*btcec.PrivateKey
+	sign      [maxAccount]*secp256k1.PrivateKey
 	recipient [maxRecipient][]byte
 )
 
@@ -75,12 +75,12 @@ func initTest(t *testing.T) {
 	pool = newTestPool()
 
 	for i := 0; i < maxAccount; i++ {
-		privkey, err := btcec.NewPrivateKey(btcec.S256())
+		privkey, err := secp256k1.GeneratePrivateKey()
 		if err != nil {
 			t.Fatalf("failed to init test (%s)", err)
 		}
 		//gen new address
-		accs[i] = crypto.GenerateAddress(&privkey.PublicKey)
+		accs[i] = crypto.GenerateAddress(privkey.PubKey().ToECDSA())
 		sign[i] = privkey
 		recipient[i] = _itobU32(uint32(i))
 	}
