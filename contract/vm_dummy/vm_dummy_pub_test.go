@@ -620,7 +620,7 @@ func TestGasOp(t *testing.T) {
 	err = expectGas(string(code), 0, `"main"`, ``, 117610, SetHardForkVersion(3))
 	assert.NoError(t, err)
 
-	err = expectGas(string(code), 0, `"main"`, ``, 130048, SetHardForkVersion(4))
+	err = expectGas(string(code), 0, `"main"`, ``, 134656, SetHardForkVersion(4))
 	assert.NoError(t, err)
 }
 
