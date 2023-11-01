@@ -20,34 +20,46 @@ func ParseFirstWord(input string) (string, string) {
 
 func ParseDecimalAmount(str string, digits int) string {
 
-	idx := strings.Index(str, ".")
-
-	str = strings.ToLower(str)
-	if strings.HasSuffix(str, " aergo") {
-		str = str[:len(str)-6]
-		if idx == -1 {
-			return str + strings.Repeat("0", digits)
-		}
-	}
-
-	if idx == -1 {
+	// if there is no 'aergo' unit, just return the amount str
+	if !strings.HasSuffix(strings.ToLower(str), "aergo") {
 		return str
 	}
+
+	// remove the 'aergo' unit
+	str = str[:len(str)-5]
+	// trim trailing spaces
+	str = strings.TrimRight(str, " ")
+
+	// get the position of the decimal point
+	idx := strings.Index(str, ".")
+
+	// if not found, just add the leading zeros
+	if idx == -1 {
+		return str + strings.Repeat("0", digits)
+	}
+
+	// Get the integer and decimal parts
 	p1 := str[0:idx]
 	p2 := str[idx+1:]
+
+	// Check for another decimal point
 	if strings.Index(p2, ".") != -1 {
 		return "error"
 	}
 
+	// Compute the amount of zero digits to add
 	to_add := digits - len(p2)
 	if to_add > 0 {
 		p2 = p2 + strings.Repeat("0", to_add)
 	} else if to_add < 0 {
-		//p2 = p2[0:digits]
+		// Do not truncate decimal amounts
 		return "error"
 	}
+
+	// Join the integer and decimal parts
 	str = p1 + p2
 
+	// Remove leading zeros
 	str = strings.TrimLeft(str, "0")
 	if str == "" {
 		str = "0"
