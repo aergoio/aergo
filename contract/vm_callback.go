@@ -29,14 +29,12 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/aergoio/aergo-lib/log"
-	"index/suffixarray"
 	"math/big"
-	"regexp"
 	"strconv"
 	"strings"
 	"unsafe"
 
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/v2/cmd/aergoluac/util"
 	"github.com/aergoio/aergo/v2/contract/name"
 	"github.com/aergoio/aergo/v2/contract/system"
@@ -44,13 +42,13 @@ import (
 	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/dbkey"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/minio/sha256-simd"
 )
 
 var (
 	mulAergo, mulGaer, zeroBig *big.Int
-	creatorMetaKey             = []byte("Creator")
 	vmLogger                   = log.NewLogger("contract.vm")
 )
 
@@ -1058,83 +1056,101 @@ func parseDecimalAmount(str string, digits int) string {
 	return str
 }
 
+// transformAmount processes the input string to calculate the total amount,
+// taking into account the different units ("aergo", "gaer", "aer")
 func transformAmount(amountStr string, ctx *vmContext) (*big.Int, error) {
-	var ret *big.Int
-	var prev int
 	if len(amountStr) == 0 {
 		return zeroBig, nil
 	}
-	index := suffixarray.New([]byte(amountStr))
-	r := regexp.MustCompile("(?i)aergo|gaer|aer")
 
-	res := index.FindAllIndex(r, -1)
-	for _, pair := range res {
-		parsedAmount := strings.TrimSpace(amountStr[prev:pair[0]])
-		if HardforkConfig.IsV4Fork(ctx.blockInfo.No) {
-			if strings.Contains(parsedAmount,".") && pair[1] - pair[0] == 5 {
-				parsedAmount = parseDecimalAmount(parsedAmount, 18)
-				if parsedAmount == "error" {
-					return nil, errors.New(amountStr[prev:])
-				}
-				pair[0] += 2 // from aergo to aer
+	if ctx.blockInfo.ForkVersion >= 4 {
+		// Check for amount in decimal format
+		if strings.Contains(amountStr,".") && strings.HasSuffix(amountStr,"aergo") {
+			// Extract the part before the unit
+			decimalAmount := strings.TrimSuffix(amountStr, "aergo")
+			// Parse the decimal amount
+			decimalAmount = parseDecimalAmount(decimalAmount, 18)
+			if decimalAmount == "error" {
+				return nil, errors.New(amountStr)
 			}
-		}
-		amountBig, _ := new(big.Int).SetString(parsedAmount, 10)
-		if amountBig == nil {
-			return nil, errors.New("converting error for BigNum: " + amountStr[prev:])
-		}
-		cmp := amountBig.Cmp(zeroBig)
-		if cmp < 0 {
-			return nil, errors.New("negative amount not allowed")
-		} else if cmp == 0 {
-			prev = pair[1]
-			continue
-		}
-		switch pair[1] - pair[0] {
-		case 3:
-		case 4:
-			amountBig = new(big.Int).Mul(amountBig, mulGaer)
-		case 5:
-			amountBig = new(big.Int).Mul(amountBig, mulAergo)
-		}
-		if ret != nil {
-			ret = new(big.Int).Add(ret, amountBig)
-		} else {
-			ret = amountBig
-		}
-		prev = pair[1]
-	}
-
-	if prev >= len(amountStr) {
-		if ret != nil {
-			return ret, nil
-		} else {
-			return zeroBig, nil
-		}
-	}
-	num := strings.TrimSpace(amountStr[prev:])
-	if len(num) == 0 {
-		if ret != nil {
-			return ret, nil
-		} else {
-			return zeroBig, nil
+			amount, valid := new(big.Int).SetString(decimalAmount, 10)
+			if !valid {
+				return nil, errors.New(amountStr)
+			}
+			return amount, nil
 		}
 	}
 
-	amountBig, _ := new(big.Int).SetString(num, 10)
+	totalAmount := new(big.Int)
+	remainingStr := amountStr
 
-	if amountBig == nil {
-		return nil, errors.New("converting error for Integer: " + amountStr[prev:])
+	// Define the units and corresponding multipliers
+	for _, data := range []struct {
+		unit       string
+		multiplier *big.Int
+	}{
+		{"aergo", mulAergo},
+		{"gaer", mulGaer},
+		{"aer", zeroBig},
+	} {
+		idx := strings.Index(strings.ToLower(remainingStr), data.unit)
+		if idx != -1 {
+			// Extract the part before the unit
+			subStr := remainingStr[:idx]
+
+			// Parse and convert the amount
+			partialAmount, err := parseAndConvert(subStr, data.unit, data.multiplier, amountStr)
+			if err != nil {
+				return nil, err
+			}
+
+			// Add to the total amount
+			totalAmount.Add(totalAmount, partialAmount)
+
+			// Adjust the remaining string to process
+			remainingStr = remainingStr[idx+len(data.unit):]
+		}
 	}
+
+	// Process the rest of the string, if there is some
+	if len(remainingStr) > 0 {
+		partialAmount, err := parseAndConvert(remainingStr, "", zeroBig, amountStr)
+		if err != nil {
+			return nil, err
+		}
+
+		// Add to the total amount
+		totalAmount.Add(totalAmount, partialAmount)
+	}
+
+	return totalAmount, nil
+}
+
+// parseAndConvert is a helper function to parse the substring as a big integer
+// and apply the necessary multiplier based on the unit.
+func parseAndConvert(subStr, unit string, mulUnit *big.Int, fullStr string) (*big.Int, error) {
+	subStr = strings.TrimSpace(subStr)
+
+	// Convert the string to a big integer
+	amountBig, valid := new(big.Int).SetString(subStr, 10)
+	if !valid {
+		// Emits a backwards compatible error message
+		// the same as: dataType := len(unit) > 0 ? "BigNum" : "Integer"
+		dataType := map[bool]string{true: "BigNum", false: "Integer"}[len(unit) > 0]
+		return nil, errors.New("converting error for " + dataType + ": " + strings.TrimSpace(fullStr))
+	}
+
+	// Check for negative amounts
 	if amountBig.Cmp(zeroBig) < 0 {
 		return nil, errors.New("negative amount not allowed")
 	}
-	if ret != nil {
-		ret = new(big.Int).Add(ret, amountBig)
-	} else {
-		ret = amountBig
+
+	// Apply multiplier based on unit
+	if mulUnit != zeroBig {
+		amountBig.Mul(amountBig, mulUnit)
 	}
-	return ret, nil
+
+	return amountBig, nil
 }
 
 //export luaDeployContract
@@ -1271,7 +1287,7 @@ func luaDeployContract(
 	}
 
 	// save the contract creator
-	err = contractState.SetData(creatorMetaKey, []byte(types.EncodeAddress(prevContractInfo.contractId)))
+	err = contractState.SetData(dbkey.CreatorMeta(), []byte(types.EncodeAddress(prevContractInfo.contractId)))
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDeployContract]:" + err.Error())
 	}
