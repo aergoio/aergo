@@ -9,25 +9,17 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/dbkey"
 )
 
-var consensusType string
-
 var (
-	stakingKey      = []byte("staking")
-	stakingTotalKey = []byte("stakingtotal")
-
 	ErrInvalidCandidate = errors.New("invalid candidate")
 )
 
 const StakingDelay = 60 * 60 * 24 //block interval
 //const StakingDelay = 5
-
-func InitGovernance(consensus string) {
-	consensusType = consensus
-}
 
 type stakeCmd struct {
 	*SystemContext
@@ -61,23 +53,18 @@ func (c *stakeCmd) run() (*types.Event, error) {
 	}
 	sender.SubBalance(amount)
 	receiver.AddBalance(amount)
+
+	jsonArgs := ""
 	if c.SystemContext.BlockInfo.ForkVersion < 2 {
-		return &types.Event{
-			ContractAddress: receiver.ID(),
-			EventIdx:        0,
-			EventName:       "stake",
-			JsonArgs: `{"who":"` +
-				types.EncodeAddress(sender.ID()) +
-				`", "amount":"` + amount.String() + `"}`,
-		}, nil
+		jsonArgs = `{"who":"` + types.EncodeAddress(sender.ID()) + `", "amount":"` + amount.String() + `"}`
+	} else {
+		jsonArgs = `["` + types.EncodeAddress(sender.ID()) + `", {"_bignum":"` + amount.String() + `"}]`
 	}
 	return &types.Event{
 		ContractAddress: receiver.ID(),
 		EventIdx:        0,
 		EventName:       "stake",
-		JsonArgs: `["` +
-			types.EncodeAddress(sender.ID()) +
-			`", {"_bignum":"` + amount.String() + `"}]`,
+		JsonArgs:        jsonArgs,
 	}, nil
 }
 
@@ -114,34 +101,27 @@ func (c *unstakeCmd) run() (*types.Event, error) {
 	}
 	sender.AddBalance(balanceAdjustment)
 	receiver.SubBalance(balanceAdjustment)
+
+	jsonArgs := ""
 	if c.SystemContext.BlockInfo.ForkVersion < 2 {
-		return &types.Event{
-			ContractAddress: receiver.ID(),
-			EventIdx:        0,
-			EventName:       "unstake",
-			JsonArgs: `{"who":"` +
-				types.EncodeAddress(sender.ID()) +
-				`", "amount":"` + balanceAdjustment.String() + `"}`,
-		}, nil
+		jsonArgs = `{"who":"` + types.EncodeAddress(sender.ID()) + `", "amount":"` + balanceAdjustment.String() + `"}`
+	} else {
+		jsonArgs = `["` + types.EncodeAddress(sender.ID()) + `", {"_bignum":"` + balanceAdjustment.String() + `"}]`
 	}
 	return &types.Event{
 		ContractAddress: receiver.ID(),
 		EventIdx:        0,
 		EventName:       "unstake",
-		JsonArgs: `["` +
-			types.EncodeAddress(sender.ID()) +
-			`", {"_bignum":"` + balanceAdjustment.String() + `"}]`,
+		JsonArgs:        jsonArgs,
 	}, nil
 }
 
-func setStaking(scs *state.ContractState, who []byte, staking *types.Staking) error {
-	key := append(stakingKey, who...)
-	return scs.SetData(key, serializeStaking(staking))
+func setStaking(scs *state.ContractState, account []byte, staking *types.Staking) error {
+	return scs.SetData(dbkey.SystemStaking(account), serializeStaking(staking))
 }
 
-func getStaking(scs *state.ContractState, who []byte) (*types.Staking, error) {
-	key := append(stakingKey, who...)
-	data, err := scs.GetData(key)
+func getStaking(scs *state.ContractState, account []byte) (*types.Staking, error) {
+	data, err := scs.GetData(dbkey.SystemStaking(account))
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +148,7 @@ func GetStakingTotal(ar AccountStateReader) (*big.Int, error) {
 }
 
 func getStakingTotal(scs *state.ContractState) (*big.Int, error) {
-	data, err := scs.GetData(stakingTotalKey)
+	data, err := scs.GetData(dbkey.SystemStakingTotal())
 	if err != nil {
 		return nil, err
 	}
@@ -176,21 +156,21 @@ func getStakingTotal(scs *state.ContractState) (*big.Int, error) {
 }
 
 func addTotal(scs *state.ContractState, amount *big.Int) error {
-	data, err := scs.GetData(stakingTotalKey)
+	data, err := scs.GetData(dbkey.SystemStakingTotal())
 	if err != nil {
 		return err
 	}
 	total := new(big.Int).SetBytes(data)
-	return scs.SetData(stakingTotalKey, new(big.Int).Add(total, amount).Bytes())
+	return scs.SetData(dbkey.SystemStakingTotal(), new(big.Int).Add(total, amount).Bytes())
 }
 
 func subTotal(scs *state.ContractState, amount *big.Int) error {
-	data, err := scs.GetData(stakingTotalKey)
+	data, err := scs.GetData(dbkey.SystemStakingTotal())
 	if err != nil {
 		return err
 	}
 	total := new(big.Int).SetBytes(data)
-	return scs.SetData(stakingTotalKey, new(big.Int).Sub(total, amount).Bytes())
+	return scs.SetData(dbkey.SystemStakingTotal(), new(big.Int).Sub(total, amount).Bytes())
 }
 
 func serializeStaking(v *types.Staking) []byte {

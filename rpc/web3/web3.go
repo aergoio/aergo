@@ -8,9 +8,9 @@ import (
 	"strconv"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/rpc"
+	"github.com/aergoio/aergo/v2/rpc"
 
-	"github.com/aergoio/aergo/config"
+	"github.com/aergoio/aergo/v2/config"
 	"github.com/didip/tollbooth"
 	"github.com/rs/cors"
 )

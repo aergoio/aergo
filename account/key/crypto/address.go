@@ -10,7 +10,7 @@ import (
 	"crypto/ecdsa"
 	"encoding/binary"
 
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 // GenerateAddress calculates the raw (not-encoded) address for a private key.

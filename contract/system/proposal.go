@@ -6,10 +6,8 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/types"
 )
-
-const proposalPrefixKey = "proposal" //aergo proposal format
 
 func (i sysParamIndex) ID() string {
 	return strings.ToUpper(i.String())
@@ -81,12 +79,6 @@ func (a *Proposal) GetKey() []byte {
 func GenProposalKey(id string) []byte {
 	return []byte(strings.ToUpper(id))
 }
-
-/*
-func ProposalIDfromKey(key []byte) string {
-	return strings.Replace(string(key), proposalPrefixKey+"\\", "", 1)
-}
-*/
 
 // getProposal find proposal using id
 func getProposal(id string) (*Proposal, error) {

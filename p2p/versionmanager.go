@@ -10,11 +10,11 @@ import (
 	"io"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/chain"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	v030 "github.com/aergoio/aergo/p2p/v030"
-	v200 "github.com/aergoio/aergo/p2p/v200"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/chain"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	v030 "github.com/aergoio/aergo/v2/p2p/v030"
+	v200 "github.com/aergoio/aergo/v2/p2p/v200"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 type defaultVersionManager struct {

@@ -13,10 +13,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/aergoio/aergo/cmd/aergocli/util"
-	"github.com/aergoio/aergo/internal/common"
-	"github.com/aergoio/aergo/rpc"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
+	"github.com/aergoio/aergo/v2/internal/common"
+	"github.com/aergoio/aergo/v2/rpc"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/asaskevich/govalidator"
 	"github.com/mr-tron/base58"
 )

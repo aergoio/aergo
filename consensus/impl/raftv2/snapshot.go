@@ -6,13 +6,12 @@ import (
 	"sync"
 	"time"
 
-	chainsvc "github.com/aergoio/aergo/chain"
-	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/consensus/chain"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo/types"
+	chainsvc "github.com/aergoio/aergo/v2/chain"
+	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/consensus/chain"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/pkg/component"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/etcd/raft/raftpb"
 )
 
@@ -182,12 +181,12 @@ func (chainsnap *ChainSnapshotter) requestSync(snap *consensus.ChainSnapshot) er
 				break
 			}
 
-			logger.Debug().Str("peer", p2putil.ShortForm(peerID)).Str("leader", EtcdIDToString(leader)).Msg("peer is not alive")
+			logger.Debug().Stringer("peer", types.LogPeerShort(peerID)).Str("leader", EtcdIDToString(leader)).Msg("peer is not alive")
 
 			time.Sleep(DfltTimeWaitPeerLive)
 		}
 
-		logger.Debug().Str("peer", p2putil.ShortForm(peerID)).Str("leader", EtcdIDToString(leader)).Msg("target peer to sync")
+		logger.Debug().Stringer("peer", types.LogPeerShort(peerID)).Str("leader", EtcdIDToString(leader)).Msg("target peer to sync")
 
 		return peerID, err
 	}

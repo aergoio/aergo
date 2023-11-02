@@ -8,7 +8,7 @@ package key
 import (
 	"encoding/binary"
 
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/btcsuite/btcd/btcec"
 	sha256 "github.com/minio/sha256-simd"
 )

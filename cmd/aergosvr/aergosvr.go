@@ -11,20 +11,19 @@ import (
 	"os"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/account"
-	"github.com/aergoio/aergo/chain"
-	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/consensus/impl"
-	"github.com/aergoio/aergo/internal/common"
-	"github.com/aergoio/aergo/mempool"
-	"github.com/aergoio/aergo/p2p"
-	"github.com/aergoio/aergo/p2p/p2pkey"
-	"github.com/aergoio/aergo/pkg/component"
-	polarisclient "github.com/aergoio/aergo/polaris/client"
-	"github.com/aergoio/aergo/rpc"
-	"github.com/aergoio/aergo/rpc/web3"
-	"github.com/aergoio/aergo/syncer"
+	"github.com/aergoio/aergo/v2/account"
+	"github.com/aergoio/aergo/v2/chain"
+	"github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/consensus/impl"
+	"github.com/aergoio/aergo/v2/internal/common"
+	"github.com/aergoio/aergo/v2/mempool"
+	"github.com/aergoio/aergo/v2/p2p"
+	"github.com/aergoio/aergo/v2/p2p/p2pkey"
+	"github.com/aergoio/aergo/v2/pkg/component"
+	polarisclient "github.com/aergoio/aergo/v2/polaris/client"
+	"github.com/aergoio/aergo/v2/rpc"
+	"github.com/aergoio/aergo/v2/syncer"
 	"github.com/spf13/cobra"
 )
 
@@ -124,8 +123,7 @@ func rootRun(cmd *cobra.Command, args []string) {
 	syncSvc := syncer.NewSyncer(cfg, chainSvc, nil)
 	p2pSvc := p2p.NewP2P(cfg, chainSvc)
 	pmapSvc := polarisclient.NewPolarisConnectSvc(cfg.P2P, p2pSvc)
-	web3.NewWeb3(cfg, rpcSvc.GetActualServer())
-	
+
 	var accountSvc component.IComponent
 	if cfg.Personal {
 		accountSvc = account.NewAccountService(cfg, chainSvc.SDB())

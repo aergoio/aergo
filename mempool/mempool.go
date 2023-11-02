@@ -20,19 +20,19 @@ import (
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-actor/router"
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/account/key"
-	"github.com/aergoio/aergo/chain"
-	cfg "github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/contract/enterprise"
-	"github.com/aergoio/aergo/contract/name"
-	"github.com/aergoio/aergo/contract/system"
-	"github.com/aergoio/aergo/fee"
-	"github.com/aergoio/aergo/internal/common"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/account/key"
+	"github.com/aergoio/aergo/v2/chain"
+	cfg "github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/contract/enterprise"
+	"github.com/aergoio/aergo/v2/contract/name"
+	"github.com/aergoio/aergo/v2/contract/system"
+	"github.com/aergoio/aergo/v2/fee"
+	"github.com/aergoio/aergo/v2/internal/common"
+	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/pkg/component"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/golang/protobuf/proto"
 )
 
@@ -586,12 +586,7 @@ func (mp *MemPool) getNameDest(account []byte, owner bool) []byte {
 		return account
 	}
 
-	nameState, err := mp.getAccountState([]byte(types.AergoName))
-	if err != nil {
-		mp.Error().Str("for name", string(account)).Msgf("failed to get state %s", types.AergoName)
-		return nil
-	}
-	scs, err := mp.stateDB.OpenContractState(types.ToAccountID([]byte(types.AergoName)), nameState)
+	scs, err := mp.stateDB.GetNameAccountState()
 	if err != nil {
 		mp.Error().Str("for name", string(account)).Msgf("failed to open contract %s", types.AergoName)
 		return nil
@@ -681,19 +676,15 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 				return err
 			}
 		case types.AergoName:
-			systemcs, err := mp.stateDB.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
-			if err != nil {
-				return err
-			}
 			sender, err := mp.stateDB.GetAccountStateV(account)
 			if err != nil {
 				return err
 			}
-			if _, err := name.ValidateNameTx(tx.GetBody(), sender, scs, systemcs); err != nil {
+			if _, err := name.ValidateNameTx(tx.GetBody(), sender, scs); err != nil {
 				return err
 			}
 		case types.AergoEnterprise:
-			enterprisecs, err := mp.stateDB.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoEnterprise)))
+			enterprisecs, err := mp.stateDB.GetEnterpriseAccountState()
 			if err != nil {
 				return err
 			}

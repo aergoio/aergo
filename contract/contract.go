@@ -3,14 +3,16 @@ package contract
 import "C"
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"math/big"
 	"regexp"
 	"strconv"
 
-	"github.com/aergoio/aergo/fee"
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/fee"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/dbkey"
 	"github.com/minio/sha256-simd"
 )
 
@@ -64,17 +66,16 @@ func SetPreloadTx(tx *types.Tx, service int) {
 	preloaders[service].requestedTx = tx
 }
 
-func Execute(
-	bs *state.BlockState,
-	cdb ChainAccessor,
-	tx *types.Tx,
-	sender, receiver *state.V,
-	bi *types.BlockHeaderInfo,
-	preloadService int,
-	isFeeDelegation bool,
-) (rv string, events []*types.Event, usedFee *big.Int, err error) {
+// Execute executes a normal transaction which is possibly executing smart contract.
+func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, tx *types.Tx, sender, receiver *state.V, bi *types.BlockHeaderInfo, preloadService int, isFeeDelegation bool) (rv string, events []*types.Event, usedFee *big.Int, err error) {
 
-	txBody := tx.GetBody()
+	var (
+		txBody     = tx.GetBody()
+		txType     = txBody.GetType()
+		txPayload  = txBody.GetPayload()
+		txAmount   = txBody.GetAmountBigInt()
+		txGasLimit = txBody.GetGasLimit()
+	)
 
 	// compute the base fee
 	usedFee = TxFee(len(txBody.GetPayload()), bs.GasPrice, bi.ForkVersion)
@@ -91,53 +92,16 @@ func Execute(
 		receiver.AddBalance(txBody.GetAmountBigInt())
 	}
 
-	// check if the receiver is a not contract
-	if !receiver.IsDeploy() && len(receiver.State().CodeHash) == 0 {
-		// Before the chain version 3, any tx with no code hash is
-		// unconditionally executed as a simple Aergo transfer. Since this
-		// causes confusion, emit error for call-type tx with a wrong address
-		// from the chain version 3 by not returning error but fall-through for
-		// correct gas estimation.
-		if !(bi.ForkVersion >= 3 && txBody.Type == types.TxType_CALL) {
-			// Here, the condition for fee delegation TX essentially being
-			// call-type, is not necessary, because it is rejected from the
-			// mempool without code hash.
-			return
-		}
+	// check if the tx is valid and if the code should be executed
+	var do_execute bool
+	if do_execute, err = checkExecution(txType, txAmount, len(txPayload), bi.ForkVersion, receiver.IsDeploy(), receiver.IsContract()); do_execute != true {
+		return
 	}
 
+	// compute gas limit
 	var gasLimit uint64
-	if useGas(bi.ForkVersion) {
-		if isFeeDelegation {
-			// check if the contract has enough balance for fee
-			balance := new(big.Int).Sub(receiver.Balance(), usedFee)
-			gasLimit = fee.MaxGasLimit(balance, bs.GasPrice)
-			if gasLimit == 0 {
-				err = newVmError(types.ErrNotEnoughGas)
-				return
-			}
-		} else {
-			// read the gas limit from the tx
-			gasLimit = txBody.GetGasLimit()
-			if gasLimit == 0 {
-				// no gas limit specified, the limit is the sender's balance
-				balance := new(big.Int).Sub(sender.Balance(), usedFee)
-				gasLimit = fee.MaxGasLimit(balance, bs.GasPrice)
-				if gasLimit == 0 {
-					err = newVmError(types.ErrNotEnoughGas)
-					return
-				}
-			} else {
-				// check if the sender has enough balance for gas
-				usedGas := fee.TxGas(len(txBody.GetPayload()))
-				if gasLimit <= usedGas {
-					err = newVmError(types.ErrNotEnoughGas)
-					return
-				}
-				// subtract the used gas from the gas limit
-				gasLimit -= usedGas
-			}
-		}
+	if gasLimit, err = GasLimit(bi.ForkVersion, isFeeDelegation, txGasLimit, len(txPayload), bs.GasPrice, usedFee, sender.Balance(), receiver.Balance()); err != nil {
+		return
 	}
 
 	// open the contract state
@@ -187,9 +151,7 @@ func Execute(
 		rv, events, ctrFee, err = PreCall(ex, bs, sender, contractState, receiver.RP(), gasLimit)
 	} else {
 		// create a new context
-		ctx := NewVmContext(bs, cdb, sender, receiver, contractState, sender.ID(),
-			tx.GetHash(), bi, "", true, false, receiver.RP(),
-			preloadService, txBody.GetAmountBigInt(), gasLimit, isFeeDelegation)
+		ctx := NewVmContext(execCtx, bs, cdb, sender, receiver, contractState, sender.ID(), tx.GetHash(), bi, "", true, false, receiver.RP(), preloadService, txBody.GetAmountBigInt(), gasLimit, isFeeDelegation)
 
 		// execute the transaction
 		if receiver.IsDeploy() {
@@ -309,7 +271,7 @@ func preloadWorker() {
 		}
 
 		// when deploy and call in same block and not deployed yet
-		if receiver.IsNew() || len(receiver.State().CodeHash) == 0 {
+		if receiver.IsNew() || !receiver.IsContract() {
 			// do not preload an executor for a contract that is not deployed yet
 			replyCh <- &preloadReply{tx, nil, nil}
 			continue
@@ -323,10 +285,8 @@ func preloadWorker() {
 		}
 
 		// create a new context
-		ctx := NewVmContext(bs, nil, nil, receiver, contractState, txBody.GetAccount(),
-			tx.GetHash(), request.bi, "", false, false, receiver.RP(),
-			request.preloadService, txBody.GetAmountBigInt(), txBody.GetGasLimit(),
-			txBody.Type == types.TxType_FEEDELEGATION)
+		// FIXME need valid context
+		ctx := NewVmContext(context.Background(), bs, nil, nil, receiver, contractState, txBody.GetAccount(), tx.GetHash(), request.bi, "", false, false, receiver.RP(), request.preloadService, txBody.GetAmountBigInt(), txBody.GetGasLimit(), txBody.Type == types.TxType_FEEDELEGATION)
 
 		// load a new executor
 		ex, err := PreloadExecutor(bs, contractState, txBody.Payload, receiver.ID(), ctx)
@@ -339,6 +299,70 @@ func preloadWorker() {
 	}
 }
 
+// check if the tx is valid and if the code should be executed
+func checkExecution(txType types.TxType, amount *big.Int, payloadSize int, version int32, isDeploy, isContract bool) (do_execute bool, err error) {
+
+	// check if the receiver is a not contract
+	if !isDeploy && !isContract {
+		// before the hardfork version 3, all transactions in which the recipient
+		// is not a contract were processed as a simple Aergo transfer, including
+		// type CALL and FEEDELEGATION.
+		// starting from hardfork version 3, transactions expected to CALL a
+		// contract but without a valid recipient will emit an error.
+		// FEEDELEGATION txns with invalid recipient are rejected on mempool.
+		if version >= 3 && txType == types.TxType_CALL {
+			// continue and emit an error for correct gas estimation
+			// it will fail because there is no code to execute
+		} else {
+			// no code to execute, just return
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
+
+func GasLimit(version int32, isFeeDelegation bool, txGasLimit uint64, payloadSize int, gasPrice, usedFee, senderBalance, receiverBalance *big.Int) (gasLimit uint64, err error) {
+	// 1. no gas limit
+	if useGas(version) != true {
+		return
+	}
+
+	// 2. fee delegation
+	if isFeeDelegation {
+		// check if the contract has enough balance for fee
+		balance := new(big.Int).Sub(receiverBalance, usedFee)
+		gasLimit = fee.MaxGasLimit(balance, gasPrice)
+		if gasLimit == 0 {
+			err = newVmError(types.ErrNotEnoughGas)
+		}
+		return
+	}
+
+	// read the gas limit from the tx
+	gasLimit = txGasLimit
+	// 3. no gas limit specified, the limit is the sender's balance
+	if gasLimit == 0 {
+		balance := new(big.Int).Sub(senderBalance, usedFee)
+		gasLimit = fee.MaxGasLimit(balance, gasPrice)
+		if gasLimit == 0 {
+			err = newVmError(types.ErrNotEnoughGas)
+		}
+		return
+	}
+
+	// 4. check if the sender has enough balance for gas
+	usedGas := fee.TxGas(payloadSize)
+	if gasLimit <= usedGas {
+		err = newVmError(types.ErrNotEnoughGas)
+		return
+	}
+	// subtract the used gas from the gas limit
+	gasLimit -= usedGas
+
+	return gasLimit, nil
+}
+
 func CreateContractID(account []byte, nonce uint64) []byte {
 	h := sha256.New()
 	h.Write(account)
@@ -349,13 +373,13 @@ func CreateContractID(account []byte, nonce uint64) []byte {
 
 func checkRedeploy(sender, receiver *state.V, contractState *state.ContractState) error {
 	// check if the contract exists
-	if len(receiver.State().CodeHash) == 0 || receiver.IsNew() {
+	if !receiver.IsContract() || receiver.IsNew() {
 		receiverAddr := types.EncodeAddress(receiver.ID())
 		ctrLgr.Warn().Str("error", "not found contract").Str("contract", receiverAddr).Msg("redeploy")
 		return newVmError(fmt.Errorf("not found contract %s", receiverAddr))
 	}
 	// get the contract creator
-	creator, err := contractState.GetData(creatorMetaKey)
+	creator, err := contractState.GetData(dbkey.CreatorMeta())
 	if err != nil {
 		return err
 	}
@@ -369,10 +393,6 @@ func checkRedeploy(sender, receiver *state.V, contractState *state.ContractState
 
 func useGas(version int32) bool {
 	return version >= 2 && PubNet
-}
-
-func SetBPTimeout(timeout <-chan struct{}) {
-	bpTimeout = timeout
 }
 
 func GasUsed(txFee, gasPrice *big.Int, txType types.TxType, version int32) uint64 {

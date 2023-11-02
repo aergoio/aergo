@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 const (
@@ -75,7 +75,7 @@ func (dp *dynamicPeerFinder) OnPeerDisconnect(peer p2pcommon.RemotePeer) {
 }
 
 func (dp *dynamicPeerFinder) OnPeerConnect(pid types.PeerID) {
-	dp.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(pid)).Msg("check and remove peerID in pool")
+	dp.logger.Debug().Stringer(p2putil.LogPeerID, types.LogPeerShort(pid)).Msg("check and remove peerID in pool")
 	if stat := dp.qStats[pid]; stat == nil {
 		// first query will be sent quickly
 		dp.qStats[pid] = &queryStat{pid: pid, nextTurn: time.Now().Add(p2pcommon.PeerFirstInterval)}

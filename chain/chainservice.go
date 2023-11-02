@@ -17,19 +17,19 @@ import (
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
-	cfg "github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/contract"
-	"github.com/aergoio/aergo/contract/enterprise"
-	"github.com/aergoio/aergo/contract/name"
-	"github.com/aergoio/aergo/contract/system"
-	"github.com/aergoio/aergo/fee"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	cfg "github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/contract"
+	"github.com/aergoio/aergo/v2/contract/enterprise"
+	"github.com/aergoio/aergo/v2/contract/name"
+	"github.com/aergoio/aergo/v2/contract/system"
+	"github.com/aergoio/aergo/v2/fee"
+	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/pkg/component"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/dbkey"
 	lru "github.com/hashicorp/golang-lru"
 )
 
@@ -294,7 +294,6 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 
 	// For a strict governance transaction validation.
 	types.InitGovernance(cs.ConsensusType(), cs.IsPublic())
-	system.InitGovernance(cs.ConsensusType())
 
 	//reset parameter of aergo.system
 	systemState, err := cs.SDB().GetSystemAccountState()
@@ -571,7 +570,7 @@ func (cs *ChainService) getNameInfo(qname string, blockNo types.BlockNo) (*types
 
 func (cs *ChainService) getEnterpriseConf(key string) (*types.EnterpriseConfig, error) {
 	sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
-	if strings.ToUpper(key) != enterprise.AdminsKey {
+	if strings.ToUpper(key) != string(dbkey.EnterpriseAdmins()) {
 		return enterprise.GetConf(sdb, key)
 	}
 	return enterprise.GetAdmin(sdb)
@@ -639,7 +638,7 @@ func (cm *ChainManager) Receive(context actor.Context) {
 
 		block := msg.Block
 		logger.Debug().Str("hash", block.ID()).Str("prev", block.PrevID()).Uint64("bestno", cm.cdb.getBestBlockNo()).
-			Uint64("no", block.GetHeader().GetBlockNo()).Str("peer", p2putil.ShortForm(msg.PeerID)).Bool("syncer", msg.IsSync).Msg("add block chainservice")
+			Uint64("no", block.GetHeader().GetBlockNo()).Stringer("peer", types.LogPeerShort(msg.PeerID)).Bool("syncer", msg.IsSync).Msg("add block chainservice")
 
 		var bstate *state.BlockState
 		if msg.Bstate != nil {
@@ -689,7 +688,7 @@ func (cm *ChainManager) Receive(context actor.Context) {
 
 func getAddressNameResolved(sdb *state.StateDB, account []byte) ([]byte, error) {
 	if len(account) == types.NameLength {
-		scs, err := sdb.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoName)))
+		scs, err := sdb.GetNameAccountState()
 		if err != nil {
 			logger.Error().Str("hash", enc.ToString(account)).Err(err).Msg("failed to get state for account")
 			return nil, err

@@ -23,6 +23,22 @@ static int state_map_delete(lua_State *L);
 static int state_array_append(lua_State *L);
 static int state_array_pairs(lua_State *L);
 
+/*
+** If this is a sub-element, update the index at position 2 with
+** the parent's element key.
+*/
+static void update_key_with_parent(lua_State *L, char *parent_key) {
+	if (parent_key != NULL) {
+		// concatenate the key at this level with the given index
+		lua_pushstring(L, parent_key);
+		lua_pushstring(L, "-");
+		lua_pushvalue(L, 2);
+		lua_concat(L, 3);
+		// update the index at position 2
+		lua_replace(L, 2);
+	}
+}
+
 /* map */
 
 typedef struct {
@@ -33,7 +49,7 @@ typedef struct {
 } state_map_t;
 
 static int state_map(lua_State *L) {
-	int argn = lua_gettop(L);
+	int nargs = lua_gettop(L);
 
 	state_map_t *m = lua_newuserdata(L, sizeof(state_map_t)); /* m */
 	m->id = NULL;
@@ -42,7 +58,7 @@ static int state_map(lua_State *L) {
 
 	if (luaL_isinteger(L, 1))
 		m->dimension = luaL_checkint(L, 1);
-	else if (argn == 0)
+	else if (nargs == 0)
 		m->dimension = 1;
 	else
 		luaL_typerror(L, 1, "integer");
@@ -57,32 +73,46 @@ static int state_map(lua_State *L) {
 	return 1;
 }
 
-static void state_map_check_index(lua_State *L, state_map_t *m) {
-	/* m key */
-	int key_type = lua_type(L, 2);
+/*
+** Once a state map is accessed with one type, it can only
+** be used with that type (string or number).
+** Probably to make it more compatible with Lua tables,
+** where m[1] ~= m['1']
+*/
+static void state_map_check_index_type(lua_State *L, state_map_t *m) {
+	// get the type used for the key on the current access
+	int key_type = lua_type(L, 2);             /* m key */
+	// get the type used on the given map
 	int stored_type = m->key_type;
-
+	// maps can be accessed with only string and number
 	if (key_type != LUA_TNUMBER && key_type != LUA_TSTRING) {
 		luaL_error(L, "invalid key type: " LUA_QS ", state.map: " LUA_QS,
 		           lua_typename(L, key_type), m->id);
 	}
+	// if the key type for this map is not loaded yet...
 	if (stored_type == LUA_TNONE) {
+		// load it from state
 		lua_pushcfunction(L, getItemWithPrefix); /* m key f */
-		lua_pushstring(L, m->id);           /* m key f id */
-		lua_pushstring(L, STATE_VAR_META_TYPE); /* m key f id prefix */
-		lua_call(L, 2, 1);                  /* m key t */
+		lua_pushstring(L, m->id);                /* m key f id */
+		lua_pushstring(L, STATE_VAR_META_TYPE);  /* m key f id prefix */
+		lua_call(L, 2, 1);                       /* m key t */
+		// is any type stored for this map?
 		if (!lua_isnil(L, -1)) {
+			// if yes, check the type
 			stored_type = luaL_checkint(L, -1);
 			if (stored_type != LUA_TNUMBER && stored_type != LUA_TSTRING) {
 				luaL_error(L, "invalid stored key type: " LUA_QS ", state.map:",
 				           lua_typename(L, stored_type), m->id);
 			}
 		}
+		// store the type on the map
 		if (vm_is_hardfork(L, 2)) {
 			m->key_type = stored_type;
 		}
+		// remove it from stack
 		lua_pop(L, 1);
 	}
+	// make sure the map is accessed with the same type
 	if (stored_type != LUA_TNONE && key_type != stored_type) {
 		luaL_typerror(L, 2, lua_typename(L, stored_type));
 	}
@@ -90,15 +120,15 @@ static void state_map_check_index(lua_State *L, state_map_t *m) {
 
 static void state_map_push_key(lua_State *L, state_map_t *m) {
 	lua_pushstring(L, m->id);                   /* m key value f id */
-	lua_pushstring(L, "-");
+	lua_pushstring(L, "-");                     /* m key value f id '-' */
 	lua_pushvalue(L, 2);                        /* m key value f id '-' key */
 	lua_concat(L, 3);                           /* m key value f id-key */
 }
 
 static int state_map_get(lua_State *L) {
 	int key_type = LUA_TNONE;
-	int arg = lua_gettop(L);
-	state_map_t *m = luaL_checkudata(L, 1, STATE_MAP_ID); /* m key */
+	int nargs = lua_gettop(L);  /* map key [blockheight] */
+	state_map_t *m = luaL_checkudata(L, 1, STATE_MAP_ID);
 
 	key_type = lua_type(L, 2);
 	if (key_type == LUA_TSTRING) {
@@ -109,7 +139,7 @@ static int state_map_get(lua_State *L) {
 		}
 	}
 
-	state_map_check_index(L, m);
+	state_map_check_index_type(L, m);
 
 	if (m->dimension > 1) {
 		state_map_t *subm = lua_newuserdata(L, sizeof(state_map_t)); /* m */
@@ -117,37 +147,32 @@ static int state_map_get(lua_State *L) {
 		subm->key_type = m->key_type;
 		subm->dimension = m->dimension - 1;
 
-		luaL_getmetatable(L, STATE_MAP_ID);                 /* m mt */
-		lua_setmetatable(L, -2);                            /* m */
-		if (m->key == NULL) {
+		luaL_getmetatable(L, STATE_MAP_ID);  /* m mt */
+		lua_setmetatable(L, -2);             /* m */
+
+		if (m->key == NULL) {                /* m key */
 			subm->key = strdup(lua_tostring(L, 2));
 		} else {
-			lua_pushstring(L, m->key); /* a key value f id '-' */
-			lua_pushstring(L, "-"); /* a key value f id '-' */
-			lua_pushvalue(L, 2); /* m key f id-key prefix */
-			lua_concat(L, 3); /* m key value f id-key */
+			lua_pushstring(L, m->key);   /* m key id */
+			lua_pushstring(L, "-");      /* m key id '-' */
+			lua_pushvalue(L, 2);         /* m key id '-' key */
+			lua_concat(L, 3);            /* m key id-key */
 			subm->key = strdup(lua_tostring(L, -1));
-			lua_pop(L, 1);
+			lua_pop(L, 1);               /* m key */
 		}
 		return 1;
 	}
 
+	// read the value associated with the given key
 	lua_pushcfunction(L, getItemWithPrefix);    /* m key f */
-	if (m->key != NULL) {
-		lua_pushstring(L, m->key);
-		lua_pushstring(L, "-");
-		lua_pushvalue(L, 2);
-		lua_concat(L, 3);
-		lua_replace(L, 2);
-	}
-
+	// if this is a sub-map, update the index with the parent's map key
+	update_key_with_parent(L, m->key);
 	state_map_push_key(L, m);                   /* m key f id-key */
-	if (arg == 3) {
-		lua_pushvalue(L, 3);
+	if (nargs == 3) {                           /* m key h f id-key */
+		lua_pushvalue(L, 3);                /* m key h f id-key h */
 	}
-
-	lua_pushstring(L, STATE_VAR_KEY_PREFIX);    /* m key value f id-key value prefix */
-	lua_call(L, arg, 1);                        /* m key rv */
+	lua_pushstring(L, STATE_VAR_KEY_PREFIX);    /* m key f id-key prefix */
+	lua_call(L, nargs, 1);                      /* m key value */
 	return 1;
 }
 
@@ -168,28 +193,24 @@ static int state_map_set(lua_State *L) {
 		}
 	}
 
-	state_map_check_index(L, m);
+	state_map_check_index_type(L, m);
 
+	// store the data type used for keys on this map
 	if (m->key_type == LUA_TNONE) {
-		lua_pushcfunction(L, setItemWithPrefix); /* m key f */
-		lua_pushstring(L, m->id);           /* m key f id */
-		lua_pushinteger(L, key_type);       /* m key f id type */
-		lua_pushstring(L, STATE_VAR_META_TYPE); /* m key f id type prefix */
-		lua_call(L, 3, 0);                  /* m key */
+		lua_pushcfunction(L, setItemWithPrefix);  /* m key value f */
+		lua_pushstring(L, m->id);                 /* m key value f id */
+		lua_pushinteger(L, key_type);             /* m key value f id type */
+		lua_pushstring(L, STATE_VAR_META_TYPE);   /* m key value f id type prefix */
+		lua_call(L, 3, 0);                        /* m key value */
 		m->key_type = key_type;
 	}
 
 	luaL_checkany(L, 3);
+
+	// save the value with the given key
 	lua_pushcfunction(L, setItemWithPrefix);    /* m key value f */
-
-	if (m->key != NULL) {
-		lua_pushstring(L, m->key);
-		lua_pushstring(L, "-");
-		lua_pushvalue(L, 2);
-		lua_concat(L, 3);
-		lua_replace(L, 2);
-	}
-
+	// if this is a sub-map, update the index with the parent's map key
+	update_key_with_parent(L, m->key);
 	state_map_push_key(L, m);                   /* m key value f id-key */
 	lua_pushvalue(L, 3);                        /* m key value f id-key value */
 	lua_pushstring(L, STATE_VAR_KEY_PREFIX);    /* m key value f id-key value prefix */
@@ -205,16 +226,12 @@ static int state_map_delete(lua_State *L) {
 		luaL_error(L, "not permitted to set intermediate dimension of map");
 	}
 
-	state_map_check_index(L, m);
-	lua_pushcfunction(L, delItemWithPrefix);    /* m key f */
+	state_map_check_index_type(L, m);
 
-	if (m->key != NULL) {
-		lua_pushstring(L, m->key);
-		lua_pushstring(L, "-");
-		lua_pushvalue(L, 2);
-		lua_concat(L, 3);
-		lua_replace(L, 2);
-	}
+	// delete the item with the given key
+	lua_pushcfunction(L, delItemWithPrefix);    /* m key f */
+	// if this is a sub-map, update the index with the parent's map key
+	update_key_with_parent(L, m->key);
 	state_map_push_key(L, m);                   /* m key f id-key */
 	lua_pushstring(L, STATE_VAR_KEY_PREFIX);    /* m key f id-key prefix */
 	lua_call(L, 2, 1);                          /* m key rv */
@@ -292,9 +309,9 @@ static int state_array_len(lua_State *L) {
 static void state_array_load_len(lua_State *L, state_array_t *arr) {
 	if (!arr->is_fixed && arr->lens == NULL) {
 		lua_pushcfunction(L, getItemWithPrefix); /* a i f */
-		lua_pushstring(L, arr->id);         /* a i f id */
-		lua_pushstring(L, STATE_VAR_META_LEN); /* a i f id prefix */
-		lua_call(L, 2, 1);                  /* a i n */
+		lua_pushstring(L, arr->id);              /* a i f id */
+		lua_pushstring(L, STATE_VAR_META_LEN);   /* a i f id prefix */
+		lua_call(L, 2, 1);                       /* a i n */
 		arr->lens = malloc(sizeof(int32_t));
 		arr->lens[0] = luaL_optinteger(L, -1, 0);
 		lua_pop(L, 1);
@@ -311,15 +328,15 @@ static void state_array_checkarg(lua_State *L, state_array_t *arr) {
 }
 
 static void state_array_push_key(lua_State *L, const char *id) {
-	lua_pushstring(L, id);  /* a key value f id */
-	lua_pushstring(L, "-"); /* a key value f id '-' */
-	lua_pushvalue(L, 2);    /* m key value f id '-' key */
-	lua_concat(L, 3);       /* m key value f id-key */
+	lua_pushstring(L, id);  /* a i value f id */
+	lua_pushstring(L, "-"); /* a i value f id '-' */
+	lua_pushvalue(L, 2);    /* a i value f id '-' key */
+	lua_concat(L, 3);       /* a i value f id-key */
 }
 
 static int state_array_get(lua_State *L) {
 	state_array_t *arr;
-	int arg = lua_gettop(L);
+	int nargs = lua_gettop(L);    /* arr index [blockheight] */
 	int key_type = LUA_TNONE;
 
 	arr = luaL_checkudata(L, 1, STATE_ARRAY_ID);
@@ -339,6 +356,7 @@ static int state_array_get(lua_State *L) {
 		}
 		luaL_typerror(L, 2, "integer");
 	}
+
 	if (arr->dimension > 1) {
 		state_array_t *suba = lua_newuserdata(L, sizeof(state_array_t)); /* m */
 		suba->id = strdup(arr->id);
@@ -348,38 +366,36 @@ static int state_array_get(lua_State *L) {
 		memcpy(suba->lens, arr->lens + 1, sizeof(int32_t) * suba->dimension);
 
 		luaL_getmetatable(L, STATE_ARRAY_ID);                 /* m mt */
-		lua_setmetatable(L, -2);                            /* m */
-		if (arr->key == NULL) {
+		lua_setmetatable(L, -2);                              /* m */
+
+		if (arr->key == NULL) {              /* a i */
 			suba->key = strdup(lua_tostring(L, 2));
 		} else {
-			lua_pushstring(L, arr->key); /* a key value f id '-' */
-			lua_pushstring(L, "-"); /* a key value f id '-' */
-			lua_pushvalue(L, 2); /* m key f id-key prefix */
-			lua_concat(L, 3); /* m key value f id-key */
+			lua_pushstring(L, arr->key); /* a i key */
+			lua_pushstring(L, "-");      /* a i key '-' */
+			lua_pushvalue(L, 2);         /* a i key '-' i */
+			lua_concat(L, 3);            /* a i key-i */
 			suba->key = strdup(lua_tostring(L, -1));
-			lua_pop(L, 1);
+			lua_pop(L, 1);               /* a i */
 		}
 		return 1;
 	}
-	if (arg == 3) {
-		lua_pushvalue(L, 2);
+
+	if (nargs == 3) {
+		lua_pushvalue(L, 2);  //? why?
 	}
 	state_array_checkarg(L, arr);               /* a i */
-	lua_pushcfunction(L, getItemWithPrefix);    /* a i f */
 
-	if (arr->key != NULL) {
-		lua_pushstring(L, arr->key);
-		lua_pushstring(L, "-");
-		lua_pushvalue(L, 2);
-		lua_concat(L, 3);
-		lua_replace(L, 2);
+	// read the value at the given position
+	lua_pushcfunction(L, getItemWithPrefix);    /* a i f */
+	// if this is a sub-array, update the index with the parent's array key
+	update_key_with_parent(L, arr->key);
+	state_array_push_key(L, arr->id);           /* a i [h] f id-i */
+	if (nargs == 3) {                           /* a i h f id-i */
+		lua_pushvalue(L, 3);                /* a i h f id-i h */
 	}
-	state_array_push_key(L, arr->id);           /* a i f id-i */
-	if (arg == 3) {
-		lua_pushvalue(L, 3);                /* a i s i f id-i s */
-	}
-	lua_pushstring(L, STATE_VAR_KEY_PREFIX);    /* a i f id-i prefix */
-	lua_call(L, arg, 1);                          /* a i rv */
+	lua_pushstring(L, STATE_VAR_KEY_PREFIX);    /* a i [h] f id-i [h] prefix */
+	lua_call(L, nargs, 1);                      /* a i value */
 	return 1;
 }
 
@@ -394,41 +410,48 @@ static int state_array_set(lua_State *L) {
 	state_array_load_len(L, arr);
 
 	state_array_checkarg(L, arr);               /* a i v */
-	if (arr->key != NULL) {
-		lua_pushstring(L, arr->key);
-		lua_pushstring(L, "-");
-		lua_pushvalue(L, 2);
-		lua_concat(L, 3);
-		lua_replace(L, 2);
-	}
+
+	// if this is a sub-array, update the index with the parent's array key
+	update_key_with_parent(L, arr->key);
+
+	// save the value at the given position
 	lua_pushcfunction(L, setItemWithPrefix);    /* a i v f */
 	state_array_push_key(L, arr->id);           /* a i v f id-i */
 	lua_pushvalue(L, 3);                        /* a i v f id-i v */
 	lua_pushstring(L, STATE_VAR_KEY_PREFIX);    /* a i v f id-i v prefix */
 	lua_call(L, 3, 0);                          /* a i v */
+
 	return 0;
 }
 
 static int state_array_append(lua_State *L) {
+	// get reference to the array
 	state_array_t *arr = luaL_checkudata(L, 1, STATE_ARRAY_ID);
-	luaL_checkany(L, 2);
+	// ensure there is a value of any type
+	luaL_checkany(L, 2);                        /* a v */
+	// append() function only allowed on variable size arrays
 	if (arr->is_fixed) {
 		luaL_error(L, "the fixed array cannot use " LUA_QL("append") " method");
 	}
+	// check for overflow in size
 	if (arr->lens[0] + 1 <= 0) {
 		luaL_error(L, "state.array " LUA_QS " overflow", arr->id);
 	}
+	// increment the size of the array
 	arr->lens[0]++;
+	// save the value at the given position
 	lua_pushcfunction(L, state_array_set);      /* a v f */
 	lua_pushvalue(L, 1);                        /* a v f a */
-	lua_pushinteger(L, arr->lens[0]);               /* a v f a i */
+	lua_pushinteger(L, arr->lens[0]);           /* a v f a i */
 	lua_pushvalue(L, 2);                        /* a v f a i v */
 	lua_call(L, 3, 0);
-	lua_pushcfunction(L, setItemWithPrefix);
-	lua_pushstring(L, arr->id);
-	lua_pushinteger(L, arr->lens[0]);
-	lua_pushstring(L, STATE_VAR_META_LEN);
+	// save the new array size on the state
+	lua_pushcfunction(L, setItemWithPrefix);    /* a v f */
+	lua_pushstring(L, arr->id);                 /* a v f id */
+	lua_pushinteger(L, arr->lens[0]);           /* a v f id size */
+	lua_pushstring(L, STATE_VAR_META_LEN);      /* a v f id size prefix */
 	lua_call(L, 3, 0);
+	// nothing to return
 	return 0;
 }
 
@@ -496,29 +519,29 @@ static int state_value_get(lua_State *L) {
 }
 
 static int state_value_snapget(lua_State *L) {
-	int arg = lua_gettop(L);
+	int nargs = lua_gettop(L);
 	state_value_t *v = luaL_checkudata(L, 1, STATE_VALUE_ID); /* v */
 	lua_pushcfunction(L, getItemWithPrefix);                /* v f */
 	lua_pushstring(L, v->id);                               /* v f id */
-	if (arg == 2) {
+	if (nargs == 2) {
 		lua_pushvalue(L, 2);
 	}
 	lua_pushstring(L, STATE_VAR_KEY_PREFIX);                /* v f id prefix */
-	lua_call(L, arg + 1, 1);                                /* v rv */
+	lua_call(L, nargs + 1, 1);                              /* v rv */
 	return 1;
 }
 
 static int state_value_set(lua_State *L) {
-	state_value_t *v = luaL_checkudata(L, 1, STATE_VALUE_ID); /* v */
-	luaL_checkany(L, 2);
-	lua_pushcfunction(L, setItemWithPrefix);    /* t f */
+	state_value_t *v = luaL_checkudata(L, 1, STATE_VALUE_ID);
+	luaL_checkany(L, 2);                        /* s v */
+	lua_pushcfunction(L, setItemWithPrefix);    /* s v f */
 	if (v->id == NULL) {
 		luaL_error(L, "invalid state.value: (nil)");
 	}
-	lua_pushstring(L, v->id);                   /* v f id */
-	lua_pushvalue(L, 2);                        /* t f id value */
-	lua_pushstring(L, STATE_VAR_KEY_PREFIX);    /* v f id value prefix */
-	lua_call(L, 3, 0);                          /* v */
+	lua_pushstring(L, v->id);                   /* s v f id */
+	lua_pushvalue(L, 2);                        /* s v f id value */
+	lua_pushstring(L, STATE_VAR_KEY_PREFIX);    /* s v f id value prefix */
+	lua_call(L, 3, 0);                          /* s v */
 	return 0;
 }
 
@@ -669,5 +692,6 @@ int luaopen_state(lua_State *L) {
 
 	luaL_register(L, "state", state_lib);
 
+	lua_pop(L, 1);
 	return 1;
 }

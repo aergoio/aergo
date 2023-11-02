@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 // readGenesis is based on code in cmd/aergosvr/cmd.go .

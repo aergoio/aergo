@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/cmd/brick/context"
-	"github.com/aergoio/aergo/cmd/brick/exec"
+	"github.com/aergoio/aergo/v2/cmd/brick/context"
+	"github.com/aergoio/aergo/v2/cmd/brick/exec"
 	prompt "github.com/c-bata/go-prompt"
 )
 

@@ -8,8 +8,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 var ErrTxSystemOperatorIsNotSet = errors.New("operator is not set")
@@ -130,7 +130,7 @@ func validateForStaking(account []byte, txBody *types.TxBody, scs *state.Contrac
 		return nil, types.ErrLessTimeHasPassed
 	}
 	toBe := new(big.Int).Add(staked.GetAmountBigInt(), txBody.GetAmountBigInt())
-	stakingMin := GetStakingMinimumFromState(scs)
+	stakingMin := GetStakingMinimum()
 	if stakingMin.Cmp(toBe) > 0 {
 		return nil, types.ErrTooSmallAmount
 	}
@@ -164,7 +164,7 @@ func validateForUnstaking(account []byte, txBody *types.TxBody, scs *state.Contr
 		return nil, types.ErrLessTimeHasPassed
 	}
 	toBe := new(big.Int).Sub(staked.GetAmountBigInt(), txBody.GetAmountBigInt())
-	stakingMin := GetStakingMinimumFromState(scs)
+	stakingMin := GetStakingMinimum()
 	if toBe.Cmp(big.NewInt(0)) != 0 && stakingMin.Cmp(toBe) > 0 {
 		return nil, types.ErrTooSmallAmount
 	}

@@ -14,10 +14,10 @@ import (
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/internal/common"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/pkg/trie"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/internal/common"
+	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/pkg/trie"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 const (
@@ -222,6 +222,10 @@ func (v *V) RP() uint64 {
 
 func (v *V) IsNew() bool {
 	return v.newOne
+}
+
+func (v *V) IsContract() bool {
+	return len(v.State().CodeHash) > 0
 }
 
 func (v *V) IsDeploy() bool {

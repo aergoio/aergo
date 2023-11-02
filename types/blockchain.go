@@ -16,9 +16,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/aergoio/aergo/internal/common"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/internal/merkle"
+	"github.com/aergoio/aergo/v2/internal/common"
+	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/merkle"
 	"github.com/golang/protobuf/proto"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/minio/sha256-simd"
@@ -121,9 +121,9 @@ const (
 )
 
 /*
-func (s SystemValue) String() string {
-	return [...]string{"StakingTotal", "StakingMin", "GasPrice", "NamePrice"}[s]
-}
+  func (s SystemValue) String() string {
+	  return [...]string{"StakingTotal", "StakingMin", "GasPrice", "NamePrice"}[s]
+  }
 */
 
 // ChainAccessor is an interface for a another actor module to get info of chain
@@ -257,50 +257,13 @@ func (block *Block) Localtime() time.Time {
 // calculateBlockHash computes sha256 hash of block header.
 func (block *Block) calculateBlockHash() []byte {
 	digest := sha256.New()
-	serializeBH(digest, block.Header)
-
+	writeBlockHeader(digest, block.Header)
 	return digest.Sum(nil)
 }
 
-func serializeStructOmit(w io.Writer, s interface{}, stopIndex int, omit string) error {
-	v := reflect.Indirect(reflect.ValueOf(s))
-
-	var i int
-	for i = 0; i <= stopIndex; i++ {
-		if v.Type().Field(i).Name == omit {
-			continue
-		}
-		if err := binary.Write(w, binary.LittleEndian, v.Field(i).Interface()); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func serializeStruct(w io.Writer, s interface{}, stopIndex int) error {
-	v := reflect.Indirect(reflect.ValueOf(s))
-
-	var i int
-	for i = 0; i <= stopIndex; i++ {
-		if err := binary.Write(w, binary.LittleEndian, v.Field(i).Interface()); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func serializeBH(w io.Writer, bh *BlockHeader) error {
-	return serializeStruct(w, bh, lastIndexOfBH)
-}
-
-func serializeBhForDigest(w io.Writer, bh *BlockHeader) error {
-	return serializeStructOmit(w, bh, lastIndexOfBH, "Sign")
-}
-
-func writeBlockHeaderOld(w io.Writer, bh *BlockHeader) error {
+func writeBlockHeader(w io.Writer, bh *BlockHeader) error {
 	for _, f := range []interface{}{
+		bh.ChainID,
 		bh.PrevBlockHash,
 		bh.BlockNo,
 		bh.Timestamp,
@@ -309,7 +272,31 @@ func writeBlockHeaderOld(w io.Writer, bh *BlockHeader) error {
 		bh.ReceiptsRootHash,
 		bh.Confirms,
 		bh.PubKey,
+		bh.CoinbaseAccount,
 		bh.Sign,
+		bh.Consensus,
+	} {
+		if err := binary.Write(w, binary.LittleEndian, f); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func writeBlockHeaderOmitSign(w io.Writer, bh *BlockHeader) error {
+	for _, f := range []interface{}{
+		bh.ChainID,
+		bh.PrevBlockHash,
+		bh.BlockNo,
+		bh.Timestamp,
+		bh.BlocksRootHash,
+		bh.TxsRootHash,
+		bh.ReceiptsRootHash,
+		bh.Confirms,
+		bh.PubKey,
+		bh.CoinbaseAccount,
+		// bh.Sign, // omit ignore sign value
 		bh.Consensus,
 	} {
 		if err := binary.Write(w, binary.LittleEndian, f); err != nil {
@@ -418,7 +405,7 @@ func (block *Block) Sign(privKey crypto.PrivKey) error {
 func (bh *BlockHeader) bytesForDigest() ([]byte, error) {
 	var buf bytes.Buffer
 
-	if err := serializeBhForDigest(&buf, bh); err != nil {
+	if err := writeBlockHeaderOmitSign(&buf, bh); err != nil {
 		return nil, err
 	}
 

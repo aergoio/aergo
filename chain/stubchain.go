@@ -6,8 +6,8 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 // StubSyncer receive Syncer, P2P, Chain Service actor message

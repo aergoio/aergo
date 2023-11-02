@@ -16,7 +16,7 @@ import (
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/etcd/raft"
 	"github.com/aergoio/etcd/raft/raftpb"
 )
@@ -69,6 +69,8 @@ type Consensus interface {
 	ChainConsensus
 	ConsensusAccessor
 	Ticker() *time.Ticker
+	// QueueJob queues block generation job.
+	// It waits until next block generation time is reached in raft consensus and sbp.
 	QueueJob(now time.Time, jq chan<- interface{})
 	BlockFactory() BlockFactory
 	QuitChan() chan interface{}

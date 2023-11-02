@@ -12,11 +12,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	v030 "github.com/aergoio/aergo/p2p/v030"
-	"github.com/aergoio/aergo/polaris/common"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+	v030 "github.com/aergoio/aergo/v2/p2p/v030"
+	"github.com/aergoio/aergo/v2/polaris/common"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 type PeerHealth int
@@ -73,7 +73,7 @@ func (hc *peerState) check(wg *sync.WaitGroup, timeout time.Duration) {
 }
 
 func (hc *peerState) checkConnect(timeout time.Duration) (*types.Ping, error) {
-	hc.Logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(hc.meta.ID)).Msg("staring up healthcheck")
+	hc.Logger.Debug().Stringer(p2putil.LogPeerID, types.LogPeerShort(hc.meta.ID)).Msg("staring up healthcheck")
 	hc.lCheckTime = time.Now()
 	s, err := hc.nt.GetOrCreateStreamWithTTL(hc.meta, PolarisPingTTL, common.PolarisPingSub)
 	if err != nil {
@@ -171,7 +171,7 @@ func (pc *pingChecker) DoCall(done chan<- interface{}) {
 		return
 	}
 
-	pc.Logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(pc.meta.ID)).Interface("ping_resp", pingResp).Msg("Healthcheck finished successful")
+	pc.Logger.Debug().Stringer(p2putil.LogPeerID, types.LogPeerShort(pc.meta.ID)).Interface("ping_resp", pingResp).Msg("Healthcheck finished successful")
 	return
 
 }

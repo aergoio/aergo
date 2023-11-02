@@ -6,11 +6,13 @@
 package metric
 
 import (
-	"fmt"
+	"github.com/aergoio/aergo-lib/log"
 	"math"
 	"math/rand"
 	"testing"
 )
+
+var logger = log.NewLogger("metric")
 
 func TestExponentMetric_Calculate(t *testing.T) {
 	lenIn := 200
@@ -43,7 +45,7 @@ func TestExponentMetric_Calculate(t *testing.T) {
 				realbps := total / int64(i+1)
 				m.Calculate()
 				diffRatio := math.Abs(float64(realbps-m.APS()) / float64(realbps))
-				fmt.Printf("%03d: in %10d, Total %11d, expectBps %9d, aps %9d, diffR %.4f loadScore %10d \n", i, in, total, realbps, m.APS(), diffRatio, m.LoadScore())
+				logger.Debug().Msgf("%03d: in %10d, Total %11d, expectBps %9d, aps %9d, diffR %.4f loadScore %10d \n", i, in, total, realbps, m.APS(), diffRatio, m.LoadScore())
 				//assert.Equal(t, realbps, m.APS())
 				// assert.True(t, diffRatio <= errorRatio)
 				//errorRatio = diffRatio

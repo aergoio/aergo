@@ -2,6 +2,7 @@ package vm_dummy
 
 // helper functions
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math"
@@ -14,14 +15,14 @@ import (
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/cmd/aergoluac/util"
-	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/contract"
-	"github.com/aergoio/aergo/contract/system"
-	"github.com/aergoio/aergo/fee"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/cmd/aergoluac/util"
+	"github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/contract"
+	"github.com/aergoio/aergo/v2/contract/system"
+	"github.com/aergoio/aergo/v2/fee"
+	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
 	sha256 "github.com/minio/sha256-simd"
 )
 
@@ -31,6 +32,9 @@ var (
 
 const (
 	lStateMaxSize = 10 * 7
+
+	dummyBlockIntervalSec = 1
+	dummyBlockExecTimeMs  = (dummyBlockIntervalSec * 1000) >> 2
 )
 
 func init() {
@@ -76,23 +80,15 @@ func SetPubNet() DummyChainOptions {
 		// private chains have the db module and public ones don't.
 		// this is why we need to flush all Lua states and recreate
 		// them when moving to and from public chain.
-		flushLState := func() {
-			for i := 0; i <= lStateMaxSize; i++ {
-				s := contract.GetLState(contract.LStateDefault)
-				contract.FreeLState(s, contract.LStateDefault)
-				s = contract.GetLState(contract.LStateVer3)
-				contract.FreeLState(s, contract.LStateVer3)
-			}
-		}
 
 		contract.PubNet = true
 		fee.DisableZeroFee()
-		flushLState()
+		contract.FlushLStates()
 
 		dc.clearLState = func() {
 			contract.PubNet = false
 			fee.EnableZeroFee()
-			flushLState()
+			contract.FlushLStates()
 		}
 	}
 }
@@ -106,6 +102,7 @@ func LoadDummyChain(opts ...DummyChainOptions) (*DummyChain, error) {
 		sdb:      state.NewChainStateDB(),
 		tmpDir:   dataPath,
 		gasPrice: types.NewAmount(1, types.Aer),
+		timeout:  dummyBlockExecTimeMs,
 	}
 	defer func() {
 		if err != nil {
@@ -137,10 +134,9 @@ func LoadDummyChain(opts ...DummyChainOptions) (*DummyChain, error) {
 
 	// To pass the governance tests.
 	types.InitGovernance("dpos", true)
-	system.InitGovernance("dpos")
 
 	// To pass dao parameters test
-	scs, err := bc.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("aergo.system")))
+	scs, err := bc.sdb.GetStateDB().GetSystemAccountState()
 	system.InitSystemParams(scs, 3)
 
 	fee.EnableZeroFee()
@@ -232,7 +228,7 @@ func (bc *DummyChain) GetAccountState(name string) (*types.State, error) {
 }
 
 func (bc *DummyChain) GetStaking(name string) (*types.Staking, error) {
-	scs, err := bc.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
+	scs, err := bc.sdb.GetStateDB().GetSystemAccountState()
 	if err != nil {
 		return nil, err
 	}
@@ -248,7 +244,7 @@ func (bc *DummyChain) GetBestBlock() (*types.Block, error) {
 }
 
 type LuaTxTester interface {
-	run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error
+	run(execCtx context.Context, bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error
 	Hash() []byte
 	okMsg() string
 }
@@ -281,7 +277,7 @@ func (l *luaTxAccount) okMsg() string {
 	return "SUCCESS"
 }
 
-func (l *luaTxAccount) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error {
+func (l *luaTxAccount) run(execCtx context.Context, bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error {
 	id := types.ToAccountID(l.name)
 	accountState, err := bs.GetAccountState(id)
 	if err != nil {
@@ -319,7 +315,7 @@ func (l *luaTxSend) okMsg() string {
 	return "SUCCESS"
 }
 
-func (l *luaTxSend) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error {
+func (l *luaTxSend) run(execCtx context.Context, bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error {
 	senderID := types.ToAccountID(l.sender)
 	receiverID := types.ToAccountID(l.receiver)
 
@@ -530,7 +526,7 @@ func contractFrame(l luaTxContract, bs *state.BlockState, cdb contract.ChainAcce
 
 }
 
-func (l *luaTxDeploy) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error {
+func (l *luaTxDeploy) run(execCtx context.Context, bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error {
 	if l.cErr != nil {
 		return l.cErr
 	}
@@ -538,8 +534,7 @@ func (l *luaTxDeploy) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockH
 		func(sender, contractV *state.V, contractId types.AccountID, eContractState *state.ContractState) (string, []*types.Event, *big.Int, error) {
 			contractV.State().SqlRecoveryPoint = 1
 
-			ctx := contract.NewVmContext(bs, nil, sender, contractV, eContractState, sender.ID(), l.Hash(), bi, "", true,
-				false, contractV.State().SqlRecoveryPoint, contract.BlockFactory, l.amount(), math.MaxUint64, false)
+			ctx := contract.NewVmContext(execCtx, bs, nil, sender, contractV, eContractState, sender.ID(), l.Hash(), bi, "", true, false, contractV.State().SqlRecoveryPoint, contract.BlockFactory, l.amount(), math.MaxUint64, false)
 
 			rv, events, ctrFee, err := contract.Create(eContractState, l.payload(), l.recipient(), ctx)
 			if err != nil {
@@ -568,11 +563,11 @@ func NewLuaTxCall(sender, recipient string, amount uint64, payload string) *luaT
 func NewLuaTxCallBig(sender, recipient string, amount *big.Int, payload string) *luaTxCall {
 	return &luaTxCall{
 		luaTxContractCommon: luaTxContractCommon{
-			_sender:   contract.StrHash(sender),
+			_sender:    contract.StrHash(sender),
 			_recipient: contract.StrHash(recipient),
-			_amount:   amount,
-			_payload:  []byte(payload),
-			txId:      newTxId(),
+			_amount:    amount,
+			_payload:   []byte(payload),
+			txId:       newTxId(),
 		},
 	}
 }
@@ -581,7 +576,7 @@ func NewLuaTxCallFeeDelegate(sender, recipient string, amount uint64, payload st
 	return &luaTxCall{
 		luaTxContractCommon: luaTxContractCommon{
 			_sender:     contract.StrHash(sender),
-			_recipient:   contract.StrHash(recipient),
+			_recipient:  contract.StrHash(recipient),
 			_amount:     types.NewAmount(amount, types.Aer),
 			_payload:    []byte(payload),
 			txId:        newTxId(),
@@ -595,11 +590,10 @@ func (l *luaTxCall) Fail(expectedErr string) *luaTxCall {
 	return l
 }
 
-func (l *luaTxCall) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error {
+func (l *luaTxCall) run(execCtx context.Context, bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error {
 	err := contractFrame(l, bs, bc, receiptTx,
 		func(sender, contractV *state.V, contractId types.AccountID, eContractState *state.ContractState) (string, []*types.Event, *big.Int, error) {
-			ctx := contract.NewVmContext(bs, bc, sender, contractV, eContractState, sender.ID(), l.Hash(), bi, "", true,
-				false, contractV.State().SqlRecoveryPoint, contract.BlockFactory, l.amount(), math.MaxUint64, l.feeDelegate)
+			ctx := contract.NewVmContext(execCtx, bs, bc, sender, contractV, eContractState, sender.ID(), l.Hash(), bi, "", true, false, contractV.State().SqlRecoveryPoint, contract.BlockFactory, l.amount(), math.MaxUint64, l.feeDelegate)
 
 			rv, events, ctrFee, err := contract.Call(eContractState, l.payload(), l.recipient(), ctx)
 			if err != nil {
@@ -634,16 +628,11 @@ func (bc *DummyChain) ConnectBlock(txs ...LuaTxTester) error {
 	defer tx.Commit()
 	defer contract.CloseDatabase()
 
-	timeout := make(chan struct{})
-	go func() {
-		if bc.timeout != 0 {
-			<-time.Tick(time.Duration(bc.timeout) * time.Millisecond)
-			timeout <- struct{}{}
-		}
-	}()
-	contract.SetBPTimeout(timeout)
+	//timeout := make(chan struct{})
+	blockContext, _ := context.WithTimeout(context.Background(), time.Duration(bc.timeout)*time.Millisecond)
+	//contract.SetBPTimeout(timeout)
 	for _, x := range txs {
-		if err := x.run(blockState, bc, types.NewBlockHeaderInfo(bc.cBlock), tx); err != nil {
+		if err := x.run(blockContext, blockState, bc, types.NewBlockHeaderInfo(bc.cBlock), tx); err != nil {
 			return err
 		}
 	}

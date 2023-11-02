@@ -5,13 +5,13 @@ import (
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/account/key"
-	cfg "github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/contract/name"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/account/key"
+	cfg "github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/contract/name"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/pkg/component"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 type AccountService struct {
@@ -63,7 +63,7 @@ func (as *AccountService) Statistics() *map[string]interface{} {
 	}
 }
 func (as *AccountService) resolveName(namedAddress []byte) ([]byte, error) {
-	scs, err := as.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte(types.AergoName)))
+	scs, err := as.sdb.GetStateDB().GetNameAccountState()
 	if err != nil {
 		return nil, err
 	}

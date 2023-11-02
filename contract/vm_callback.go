@@ -29,27 +29,27 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"index/suffixarray"
 	"math/big"
-	"regexp"
 	"strconv"
 	"strings"
 	"unsafe"
 
-	"github.com/aergoio/aergo/cmd/aergoluac/util"
-	"github.com/aergoio/aergo/contract/name"
-	"github.com/aergoio/aergo/contract/system"
-	"github.com/aergoio/aergo/internal/common"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/v2/cmd/aergoluac/util"
+	"github.com/aergoio/aergo/v2/contract/name"
+	"github.com/aergoio/aergo/v2/contract/system"
+	"github.com/aergoio/aergo/v2/internal/common"
+	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/dbkey"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/minio/sha256-simd"
 )
 
 var (
 	mulAergo, mulGaer, zeroBig *big.Int
-	creatorMetaKey             = []byte("Creator")
+	vmLogger                   = log.NewLogger("contract.vm")
 )
 
 const (
@@ -65,14 +65,14 @@ func init() {
 	zeroBig = types.NewZeroAmount()
 }
 
-func addUpdateSize(s *vmContext, updateSize int64) error {
-	if s.IsGasSystem() {
+func addUpdateSize(ctx *vmContext, updateSize int64) error {
+	if ctx.IsGasSystem() {
 		return nil
 	}
-	if s.dbUpdateTotalSize+updateSize > dbUpdateMaxLimit {
+	if ctx.dbUpdateTotalSize+updateSize > dbUpdateMaxLimit {
 		return errors.New("exceeded size of updates in the state database")
 	}
-	s.dbUpdateTotalSize += updateSize
+	ctx.dbUpdateTotalSize += updateSize
 	return nil
 }
 
@@ -283,7 +283,7 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 	}
 
 	// get the remaining gas from the parent LState
-	ctx.getRemainingGas(L)
+	ctx.refreshRemainingGas(L)
 	// create a new executor with the remaining gas on the child LState
 	ce := newExecutor(callee, cid, ctx, &ci, amountBig, false, false, cs.ctrState)
 	defer func() {
@@ -341,7 +341,13 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 		if ctx.traceFile != nil {
 			_, _ = ctx.traceFile.WriteString(fmt.Sprintf("recovery snapshot: %d\n", seq))
 		}
-		return -1, C.CString("[Contract.LuaCallContract] call err: " + ce.err.Error())
+		switch ceErr := ce.err.(type) {
+		case *VmTimeoutError:
+			return -1, C.CString(ceErr.Error())
+		default:
+			return -1, C.CString("[Contract.LuaCallContract] call err: " + ceErr.Error())
+
+		}
 	}
 
 	if seq == 1 {
@@ -402,7 +408,7 @@ func luaDelegateCallContract(L *LState, service C.int, contractId *C.char,
 	}
 
 	// get the remaining gas from the parent LState
-	ctx.getRemainingGas(L)
+	ctx.refreshRemainingGas(L)
 	// create a new executor with the remaining gas on the child LState
 	ce := newExecutor(contract, cid, ctx, &ci, zeroBig, false, false, contractState)
 	defer func() {
@@ -525,7 +531,7 @@ func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char)
 		}
 
 		// get the remaining gas from the parent LState
-		ctx.getRemainingGas(L)
+		ctx.refreshRemainingGas(L)
 		// create a new executor with the remaining gas on the child LState
 		ce := newExecutor(code, cid, ctx, &ci, amountBig, false, false, cs.ctrState)
 		defer func() {
@@ -1024,73 +1030,83 @@ func luaCryptoKeccak256(data unsafe.Pointer, dataLen C.int) (unsafe.Pointer, int
 	}
 }
 
+// transformAmount processes the input string to calculate the total amount,
+// taking into account the different units ("aergo", "gaer", "aer")
 func transformAmount(amountStr string) (*big.Int, error) {
-	var ret *big.Int
-	var prev int
 	if len(amountStr) == 0 {
 		return zeroBig, nil
 	}
-	index := suffixarray.New([]byte(amountStr))
-	r := regexp.MustCompile("(?i)aergo|gaer|aer")
 
-	res := index.FindAllIndex(r, -1)
-	for _, pair := range res {
-		amountBig, _ := new(big.Int).SetString(strings.TrimSpace(amountStr[prev:pair[0]]), 10)
-		if amountBig == nil {
-			return nil, errors.New("converting error for BigNum: " + amountStr[prev:])
-		}
-		cmp := amountBig.Cmp(zeroBig)
-		if cmp < 0 {
-			return nil, errors.New("negative amount not allowed")
-		} else if cmp == 0 {
-			prev = pair[1]
-			continue
-		}
-		switch pair[1] - pair[0] {
-		case 3:
-		case 4:
-			amountBig = new(big.Int).Mul(amountBig, mulGaer)
-		case 5:
-			amountBig = new(big.Int).Mul(amountBig, mulAergo)
-		}
-		if ret != nil {
-			ret = new(big.Int).Add(ret, amountBig)
-		} else {
-			ret = amountBig
-		}
-		prev = pair[1]
-	}
+	totalAmount := new(big.Int)
+	remainingStr := amountStr
 
-	if prev >= len(amountStr) {
-		if ret != nil {
-			return ret, nil
-		} else {
-			return zeroBig, nil
-		}
-	}
-	num := strings.TrimSpace(amountStr[prev:])
-	if len(num) == 0 {
-		if ret != nil {
-			return ret, nil
-		} else {
-			return zeroBig, nil
+	// Define the units and corresponding multipliers
+	for _, data := range []struct {
+		unit       string
+		multiplier *big.Int
+	}{
+		{"aergo", mulAergo},
+		{"gaer", mulGaer},
+		{"aer", zeroBig},
+	} {
+		idx := strings.Index(strings.ToLower(remainingStr), data.unit)
+		if idx != -1 {
+			// Extract the part before the unit
+			subStr := remainingStr[:idx]
+
+			// Parse and convert the amount
+			partialAmount, err := parseAndConvert(subStr, data.unit, data.multiplier, amountStr)
+			if err != nil {
+				return nil, err
+			}
+
+			// Add to the total amount
+			totalAmount.Add(totalAmount, partialAmount)
+
+			// Adjust the remaining string to process
+			remainingStr = remainingStr[idx+len(data.unit):]
 		}
 	}
 
-	amountBig, _ := new(big.Int).SetString(num, 10)
+	// Process the rest of the string, if there is some
+	if len(remainingStr) > 0 {
+		partialAmount, err := parseAndConvert(remainingStr, "", zeroBig, amountStr)
+		if err != nil {
+			return nil, err
+		}
 
-	if amountBig == nil {
-		return nil, errors.New("converting error for Integer: " + amountStr[prev:])
+		// Add to the total amount
+		totalAmount.Add(totalAmount, partialAmount)
 	}
+
+	return totalAmount, nil
+}
+
+// parseAndConvert is a helper function to parse the substring as a big integer
+// and apply the necessary multiplier based on the unit.
+func parseAndConvert(subStr, unit string, mulUnit *big.Int, amountStr string) (*big.Int, error) {
+	trimmedStr := strings.TrimSpace(subStr)
+
+	// Convert the trimmed string to a big integer
+	amountBig, valid := new(big.Int).SetString(trimmedStr, 10)
+	if !valid {
+		// Emits a backwards compatible error message
+		// the same as: dataType := len(unit) > 0 ? "BigNum" : "Integer"
+		dataType := map[bool]string{true: "BigNum", false: "Integer"}[len(unit) > 0]
+		return nil, errors.New("converting error for " + dataType + ": " + strings.TrimSpace(amountStr))
+	}
+
+	// Check for negative amounts
 	if amountBig.Cmp(zeroBig) < 0 {
 		return nil, errors.New("negative amount not allowed")
 	}
-	if ret != nil {
-		ret = new(big.Int).Add(ret, amountBig)
-	} else {
-		ret = amountBig
+
+	// Apply multiplier based on unit
+	if mulUnit != zeroBig {
+		amountBig.Mul(amountBig, mulUnit)
 	}
-	return ret, nil
+
+	return amountBig, nil
 }
 
 //export luaDeployContract
@@ -1227,13 +1243,13 @@ func luaDeployContract(
 	}
 
 	// save the contract creator
-	err = contractState.SetData(creatorMetaKey, []byte(types.EncodeAddress(prevContractInfo.contractId)))
+	err = contractState.SetData(dbkey.CreatorMeta(), []byte(types.EncodeAddress(prevContractInfo.contractId)))
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDeployContract]:" + err.Error())
 	}
 
 	// get the remaining gas from the parent LState
-	ctx.getRemainingGas(L)
+	ctx.refreshRemainingGas(L)
 	// create a new executor with the remaining gas on the child LState
 	ce := newExecutor(runCode, newContract.ID(), ctx, &ci, amountBig, true, false, contractState)
 	defer func() {
@@ -1492,6 +1508,8 @@ func luaCheckView(service C.int) C.int {
 	return C.int(ctx.nestedView)
 }
 
+// luaCheckTimeout checks whether the block creation timeout occurred.
+//
 //export luaCheckTimeout
 func luaCheckTimeout(service C.int) C.int {
 
@@ -1511,27 +1529,13 @@ func luaCheckTimeout(service C.int) C.int {
 		return 0
 	}
 
+	ctx := contexts[service]
 	select {
-	case <-bpTimeout:
+	case <-ctx.execCtx.Done():
 		return 1
 	default:
 		return 0
 	}
-
-	// Temporarily disable timeout check to prevent contract timeout raised from chain service
-	// if service < BlockFactory {
-	// 	service = service + MaxVmService
-	// }
-	// if service != BlockFactory {
-	// 	return 0
-	// }
-	// select {
-	// case <-bpTimeout:
-	// 	return 1
-	// default:
-	// 	return 0
-	// }
-	//return 0
 }
 
 //export luaIsFeeDelegation
@@ -1582,13 +1586,6 @@ func LuaGetDbSnapshot(service C.int) *C.char {
 	curContract := stateSet.curContract
 
 	return C.CString(strconv.FormatUint(curContract.rp, 10))
-}
-
-// set the remaining gas on the given LState
-func (ctx *vmContext) setRemainingGas(L *LState) {
-	if ctx.IsGasSystem() {
-		C.lua_gasset(L, C.ulonglong(ctx.remainedGas))
-	}
 }
 
 //export luaGetStaking

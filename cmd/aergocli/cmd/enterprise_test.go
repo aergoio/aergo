@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	aergorpc "github.com/aergoio/aergo/types"
+	aergorpc "github.com/aergoio/aergo/v2/types"
 	"github.com/golang/mock/gomock"
 	"github.com/mr-tron/base58/base58"
 	"github.com/stretchr/testify/assert"

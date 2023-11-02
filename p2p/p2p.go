@@ -13,21 +13,21 @@ import (
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/chain"
-	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/internal/network"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/p2p/list"
-	"github.com/aergoio/aergo/p2p/metric"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2pkey"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/p2p/raftsupport"
-	"github.com/aergoio/aergo/p2p/subproto"
-	"github.com/aergoio/aergo/p2p/transport"
-	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/chain"
+	"github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/internal/network"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/p2p/list"
+	"github.com/aergoio/aergo/v2/p2p/metric"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2pkey"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+	"github.com/aergoio/aergo/v2/p2p/raftsupport"
+	"github.com/aergoio/aergo/v2/p2p/subproto"
+	"github.com/aergoio/aergo/v2/p2p/transport"
+	"github.com/aergoio/aergo/v2/pkg/component"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/rs/zerolog"
 )
 
@@ -521,7 +521,7 @@ func (p2ps *P2P) initLocalSettings(conf *config.P2PConfig) {
 			if err != nil {
 				panic("invalid agentID " + conf.Agent + " : " + err.Error())
 			}
-			p2ps.Logger.Info().Str("fullID", pid.String()).Str("agentID", p2putil.ShortForm(pid)).Msg("found agent setting. use peer as agent if connected")
+			p2ps.Logger.Info().Str("fullID", pid.String()).Stringer("agentID", types.LogPeerShort(pid)).Msg("found agent setting. use peer as agent if connected")
 			p2ps.localSettings.AgentID = pid
 		} else {
 			p2ps.Logger.Debug().Msg("no agent was set. local peer is standalone producer.")

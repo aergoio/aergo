@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aergoio/aergo/chain"
-	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/v2/chain"
+	"github.com/aergoio/aergo/v2/message"
 )
 
 func testFullscanSucceed(t *testing.T, expAncestor uint64) {

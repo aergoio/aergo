@@ -12,9 +12,10 @@ import (
 	"reflect"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/dbkey"
 	rb "github.com/emirpasic/gods/trees/redblacktree"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/sanity-io/litter"
@@ -37,7 +38,6 @@ var (
 	ErrNoVotingRewardRank   = errors.New("voting reward rank: not initialized")
 
 	zeroValue     = types.NewZeroAmount()
-	vprKeyPrefix  = []byte("VotingPowerBucket/")
 	million       = types.NewAmount(1e6, types.Aer)          // 1,000,000 Aer
 	annualRewardM = types.NewAmount(5045760000, types.Gaer)  // 5,045,760,000 Gaer
 	annualReward  = new(big.Int).Mul(annualRewardM, million) // 5,045,760 AERGO
@@ -281,11 +281,11 @@ func (b *vprStore) write(s dataSetter, i uint8) error {
 		buf.Write(toVotingPower(e).marshal())
 	}
 
-	return s.SetData(vprKey(i), buf.Bytes())
+	return s.SetData(dbkey.SystemVpr(i), buf.Bytes())
 }
 
 func (b *vprStore) read(s dataGetter, i uint8) ([]*votingPower, error) {
-	buf, err := s.GetData(vprKey(i))
+	buf, err := s.GetData(dbkey.SystemVpr(i))
 	if err != nil {
 		return nil, err
 	}
@@ -721,11 +721,6 @@ func (v *vpr) pickVotingRewardWinner(seed int64) (types.Address, error) {
 	}
 
 	return nil, ErrNoVotingRewardWinner
-}
-
-func vprKey(i uint8) []byte {
-	var vk []byte = vprKeyPrefix
-	return append(vk, []byte(fmt.Sprintf("%v", i))...)
 }
 
 func toVotingPower(e *list.Element) *votingPower {

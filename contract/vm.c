@@ -67,13 +67,9 @@ static int loadLibs(lua_State *L) {
 	return 0;
 }
 
-lua_State *vm_newstate(uint8_t use_lock) {
-	lua_State *L = NULL;
-	if (use_lock)
-		L = luaL_newstate_lock();
-	else
-		L = luaL_newstate();
+lua_State *vm_newstate(int hardfork_version) {
 	int status;
+	lua_State *L = luaL_newstate(hardfork_version);
 	if (L == NULL)
 		return NULL;
 	status = lua_cpcall(L, loadLibs, NULL);
@@ -122,17 +118,20 @@ const char *vm_loadcall(lua_State *L) {
 		}
 		luaL_enablemaxmem(L);
 	}
+
 	err = lua_pcall(L, 0, 0, 0);
+
 	if (lua_usegas(L)) {
 		lua_disablegas(L);
 	} else {
 		luaL_disablemaxmem(L);
 	}
+
 	lua_sethook(L, NULL, 0, 0);
+
 	if (err != 0) {
 		return lua_tostring(L, -1);
 	}
-
 	return NULL;
 }
 

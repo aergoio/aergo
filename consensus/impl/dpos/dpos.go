@@ -6,6 +6,7 @@
 package dpos
 
 import (
+	"context"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -13,16 +14,16 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/chain"
-	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/consensus/impl/dpos/bp"
-	"github.com/aergoio/aergo/consensus/impl/dpos/slot"
-	"github.com/aergoio/aergo/contract/system"
-	"github.com/aergoio/aergo/p2p/p2pkey"
-	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/chain"
+	"github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/consensus/impl/dpos/bp"
+	"github.com/aergoio/aergo/v2/consensus/impl/dpos/slot"
+	"github.com/aergoio/aergo/v2/contract/system"
+	"github.com/aergoio/aergo/v2/p2p/p2pkey"
+	"github.com/aergoio/aergo/v2/pkg/component"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 var (
@@ -77,6 +78,11 @@ func (bi *bpInfo) updateBestBlock() *types.Block {
 	}
 
 	return block
+}
+
+type bfWork struct {
+	execCtx context.Context
+	bpi     *bpInfo
 }
 
 // GetName returns the name of the consensus.
@@ -207,7 +213,7 @@ func sendVotingReward(bState *state.BlockState, dummy []byte) error {
 }
 
 func InitVPR(sdb *state.StateDB) error {
-	s, err := sdb.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
+	s, err := sdb.GetSystemAccountState()
 	if err != nil {
 		return err
 	}
