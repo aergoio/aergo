@@ -781,13 +781,13 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		receipts, err := cw.getReceipts(msg.BlockHash)
 		context.Respond(message.GetReceiptsRsp{
 			Receipts: receipts,
-			Err:     err,
+			Err:      err,
 		})
 	case *message.GetReceiptsByNo:
 		receipts, err := cw.getReceiptsByNo(msg.BlockNo)
 		context.Respond(message.GetReceiptsByNoRsp{
 			Receipts: receipts,
-			Err:     err,
+			Err:      err,
 		})
 	case *message.GetABI:
 		sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetRoot())

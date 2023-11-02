@@ -16,7 +16,7 @@ import (
 )
 
 type RestAPI struct {
-	rpc *rpc.AergoRPCService
+	rpc     *rpc.AergoRPCService
 	request *http.Request
 }
 
@@ -30,33 +30,33 @@ var (
 
 func NewWeb3(cfg *config.Config, rpc *rpc.AergoRPCService) {
 	mux := http.NewServeMux()
-	
+
 	// set limit per second
 	maxLimit := float64(1)
-    if cfg.Web3.MaxLimit != 0 {
+	if cfg.Web3.MaxLimit != 0 {
 		maxLimit = float64(cfg.Web3.MaxLimit)
 	}
 
 	limiter := tollbooth.NewLimiter(maxLimit, nil)
-    limiter.SetIPLookups([]string{"RemoteAddr", "X-Forwarded-For", "X-Real-IP"})
+	limiter.SetIPLookups([]string{"RemoteAddr", "X-Forwarded-For", "X-Real-IP"})
 
 	// swagger
 	mux.HandleFunc("/swagger.yaml", serveSwaggerYAML)
 	mux.HandleFunc("/swagger", serveSwaggerUI)
 
 	c := cors.New(cors.Options{
-		AllowedOrigins: []string{"*"},
-		AllowedMethods: []string{"GET", "POST"},
-		AllowedHeaders: []string{"*"},
+		AllowedOrigins:   []string{"*"},
+		AllowedMethods:   []string{"GET", "POST"},
+		AllowedHeaders:   []string{"*"},
 		AllowCredentials: true,
 	})
-	
+
 	// API v1
 	web3svcV1 := &Web3APIv1{rpc: rpc}
 	mux.Handle("/v1/", tollbooth.LimitHandler(limiter, c.Handler(http.HandlerFunc(web3svcV1.handler))))
 
-	go func() {		
-		fmt.Println("Web3 Server is listening on port "+ strconv.Itoa(cfg.Web3.NetServicePort)+"...")
+	go func() {
+		fmt.Println("Web3 Server is listening on port " + strconv.Itoa(cfg.Web3.NetServicePort) + "...")
 		http.ListenAndServe(":"+strconv.Itoa(cfg.Web3.NetServicePort), mux)
 	}()
 }
@@ -96,7 +96,6 @@ func commonResponseHandler(response interface{}, err error) http.Handler {
 			return
 		}
 
-
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(jsonResponse)
 	})
@@ -119,4 +118,3 @@ func stringResponseHandler(response string, err error) http.Handler {
 		w.Write([]byte(response))
 	})
 }
-

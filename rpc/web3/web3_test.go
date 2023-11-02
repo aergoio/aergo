@@ -8,7 +8,7 @@ import (
 
 func TestRateLimitMiddleware(t *testing.T) {
 	url := "http://localhost/v1/getBlock?number=1"
-		
+
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		t.Fatal(err)

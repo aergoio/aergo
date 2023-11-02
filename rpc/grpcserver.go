@@ -77,7 +77,7 @@ const defaultActorTimeout = time.Second * 3
 var _ types.AergoRPCServiceServer = (*AergoRPCService)(nil)
 
 func (ns *AergoRPCService) GetActorHelper() p2pcommon.ActorService {
-    return ns.actorHelper
+	return ns.actorHelper
 }
 
 func (rpc *AergoRPCService) SetConsensusAccessor(ca consensus.ConsensusAccessor) {
@@ -668,7 +668,7 @@ func (rpc *AergoRPCService) CommitTX(ctx context.Context, in *types.TxList) (*ty
 	if in.Txs == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "input tx is empty")
 	}
-	
+
 	rpc.hub.Get(message.MemPoolSvc)
 	p := newPutter(ctx, in.Txs, rpc.hub, defaultActorTimeout<<2)
 	err := p.Commit()
@@ -1092,8 +1092,7 @@ func (rpc *AergoRPCService) GetReceipts(ctx context.Context, in *types.SingleByt
 	if err != nil {
 		return nil, err
 	}
-	
-	
+
 	switch result.(type) {
 	case message.GetReceiptsRsp:
 		rsp, ok := result.(message.GetReceiptsRsp)

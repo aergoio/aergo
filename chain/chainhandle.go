@@ -160,18 +160,18 @@ func (cs *ChainService) getReceipts(blockHash []byte) (*types.Receipts, error) {
 			}
 		}
 	}
-	
-	return receipts, nil	
+
+	return receipts, nil
 }
 
 func (cs *ChainService) getReceiptsByNo(blockNo types.BlockNo) (*types.Receipts, error) {
 	blockInMainChain, err := cs.cdb.GetBlockByNo(blockNo)
-	
+
 	block, err := cs.cdb.getBlock(blockInMainChain.BlockHash())
 	if !bytes.Equal(block.BlockHash(), blockInMainChain.BlockHash()) {
 		return nil, errors.New("cannot find a receipt")
 	}
-	
+
 	receipts, err := cs.cdb.getReceipts(block.BlockHash(), block.GetHeader().BlockNo, cs.cfg.Hardfork)
 	if err != nil {
 		return nil, err
@@ -190,8 +190,8 @@ func (cs *ChainService) getReceiptsByNo(blockNo types.BlockNo) (*types.Receipts,
 			}
 		}
 	}
-	
-	return receipts, nil	
+
+	return receipts, nil
 }
 
 func (cs *ChainService) getEvents(events *[]*types.Event, blkNo types.BlockNo, filter *types.FilterInfo,
