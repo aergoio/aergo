@@ -12,8 +12,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/jsonrpc"
 	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
 )
@@ -136,7 +136,7 @@ func execVoteStat(cmd *cobra.Command, args []string) {
 			cmd.Printf("Failed: %s\n", err.Error())
 			return
 		}
-		cmd.Println(util.JSON(msg))
+		cmd.Println(jsonrpc.JSON(msg))
 		return
 	} else if fflags.Changed("id") == true {
 		msg, err := client.GetVotes(context.Background(), &types.VoteParams{

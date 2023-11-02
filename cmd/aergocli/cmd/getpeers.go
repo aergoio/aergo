@@ -12,8 +12,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/jsonrpc"
 	"github.com/spf13/cobra"
 )
 
@@ -59,12 +59,12 @@ func execGetPeers(cmd *cobra.Command, args []string) {
 	// address and peerid should be encoded, respectively
 	sorter.Sort(msg.Peers)
 	if detailed == 0 {
-		cmd.Println(util.PeerListToString(msg))
+		cmd.Println(jsonrpc.PeerListToString(msg))
 	} else if detailed > 0 {
 		// TODO show long fields
-		cmd.Println(util.LongPeerListToString(msg))
+		cmd.Println(jsonrpc.LongPeerListToString(msg))
 	} else {
-		cmd.Println(util.ShortPeerListToString(msg))
+		cmd.Println(jsonrpc.ShortPeerListToString(msg))
 	}
 }
 

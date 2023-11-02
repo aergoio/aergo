@@ -9,8 +9,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/jsonrpc"
 	"github.com/mr-tron/base58"
 	"github.com/spf13/cobra"
 )
@@ -46,7 +46,7 @@ func execSendTX(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.New("Wrong address in --to flag\n" + err.Error())
 	}
-	amountBigInt, err := util.ParseUnit(amount)
+	amountBigInt, err := jsonrpc.ParseUnit(amount)
 	if err != nil {
 		return errors.New("Wrong value in --amount flag\n" + err.Error())
 	}
@@ -100,12 +100,12 @@ func sendTX(cmd *cobra.Command, tx *types.Tx, account []byte) string {
 		if err != nil {
 			return "Failed request to aergo server: " + err.Error()
 		}
-		return util.JSON(msgs.Results[0])
+		return jsonrpc.JSON(msgs.Results[0])
 	} else {
 		msg, err := client.SendTX(context.Background(), tx)
 		if err != nil {
 			return "Failed request to aergo sever: " + err.Error()
 		}
-		return util.JSON(msg)
+		return jsonrpc.JSON(msg)
 	}
 }

@@ -3,14 +3,13 @@ package web3
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
+	"os"
 	"strconv"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/v2/rpc"
-
 	"github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/rpc"
 	"github.com/didip/tollbooth"
 	"github.com/rs/cors"
 )
@@ -62,7 +61,7 @@ func NewWeb3(cfg *config.Config, rpc *rpc.AergoRPCService) {
 }
 
 func serveSwaggerYAML(w http.ResponseWriter, r *http.Request) {
-	yamlContent, err := ioutil.ReadFile("./swagger/swagger.yaml")
+	yamlContent, err := os.ReadFile("./swagger/swagger.yaml")
 	if err != nil {
 		http.Error(w, "Failed to read YAML file", http.StatusInternalServerError)
 		return
@@ -73,7 +72,7 @@ func serveSwaggerYAML(w http.ResponseWriter, r *http.Request) {
 }
 
 func serveSwaggerUI(w http.ResponseWriter, r *http.Request) {
-	htmlContent, err := ioutil.ReadFile("./swagger/swagger-ui.html")
+	htmlContent, err := os.ReadFile("./swagger/swagger-ui.html")
 	if err != nil {
 		http.Error(w, "Failed to read HTML file", http.StatusInternalServerError)
 		return

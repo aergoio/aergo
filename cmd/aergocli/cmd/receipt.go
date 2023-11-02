@@ -9,8 +9,8 @@ import (
 	"context"
 	"log"
 
-	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
 	aergorpc "github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/jsonrpc"
 	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
 )
@@ -36,7 +36,7 @@ func init() {
 				if err != nil {
 					log.Fatal(err)
 				}
-				cmd.Println(util.JSON(msg))
+				cmd.Println(jsonrpc.JSON(msg))
 			},
 		},
 	)

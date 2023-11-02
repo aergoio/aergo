@@ -14,9 +14,9 @@ import (
 	"time"
 
 	crypto "github.com/aergoio/aergo/v2/account/key/crypto"
-	"github.com/aergoio/aergo/v2/cmd/aergocli/util/encoding/json"
 	"github.com/aergoio/aergo/v2/config"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/jsonrpc/encoding/json"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/stretchr/testify/assert"
 )
