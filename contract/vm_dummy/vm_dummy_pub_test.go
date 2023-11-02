@@ -365,7 +365,6 @@ func TestGasPerFunction(t *testing.T) {
 		{"function_header_ops", "", 0, 143016},
 
 		{"assert", "", 0, 143146},
-		{"getfenv", "", 0, 143041},
 		{"metatable", "", 0, 143988},
 		{"ipairs", "", 0, 143039},
 		{"pairs", "", 0, 143039},
@@ -374,7 +373,6 @@ func TestGasPerFunction(t *testing.T) {
 		{"rawget", "", 0, 143087},
 		{"rawset", "", 0, 143941},
 		{"select", "", 0, 143166},
-		{"setfenv", "", 0, 143076},
 		{"tonumber", "", 0, 143186},
 		{"tostring", "", 0, 143457},
 		{"type", "", 0, 143285},
@@ -628,18 +626,19 @@ func TestGasBF(t *testing.T) {
 	skipNotOnAmd64(t)
 
 	var err error
-	code := readLuaCode(t, "gas_bf.lua")
+	code2 := readLuaCode(t, "gas_bf_v2.lua")
+	code4 := readLuaCode(t, "gas_bf_v4.lua")
 
 	// err = expectGas(t, string(code), 0, `"main"`, ``, 100000, SetHardForkVersion(1))
 	// assert.NoError(t, err)
 
-	err = expectGas(string(code), 0, `"main"`, ``, 47456244, SetHardForkVersion(2))
+	err = expectGas(string(code2), 0, `"main"`, ``, 47456244, SetHardForkVersion(2))
 	assert.NoError(t, err)
 
-	err = expectGas(string(code), 0, `"main"`, ``, 47456046, SetHardForkVersion(3))
+	err = expectGas(string(code2), 0, `"main"`, ``, 47456046, SetHardForkVersion(3))
 	assert.NoError(t, err)
 
-	err = expectGas(string(code), 0, `"main"`, ``, 57105265, SetHardForkVersion(4))
+	err = expectGas(string(code4), 0, `"main"`, ``, 57053355, SetHardForkVersion(4))
 	assert.NoError(t, err)
 }
 
