@@ -8,8 +8,8 @@ package cmd
 import (
 	"context"
 
-	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/jsonrpc"
 	"github.com/spf13/cobra"
 )
 
@@ -40,5 +40,5 @@ func execMetric(cmd *cobra.Command, args []string) {
 		return
 	}
 	// address and peerid should be encoded, respectively
-	cmd.Println(util.JSON(msg))
+	cmd.Println(jsonrpc.JSON(msg))
 }

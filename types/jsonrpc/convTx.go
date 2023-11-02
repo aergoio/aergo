@@ -1,4 +1,4 @@
-package util
+package jsonrpc
 
 import "github.com/aergoio/aergo/v2/types"
 

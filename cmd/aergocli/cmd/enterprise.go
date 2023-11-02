@@ -13,11 +13,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
-	"github.com/aergoio/aergo/v2/cmd/aergocli/util/encoding/json"
 	"github.com/aergoio/aergo/v2/contract/enterprise"
 	"github.com/aergoio/aergo/v2/types"
 	aergorpc "github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/jsonrpc"
+	"github.com/aergoio/aergo/v2/types/jsonrpc/encoding/json"
 	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
 )
@@ -67,7 +67,7 @@ var enterpriseKeyCmd = &cobra.Command{
 		if strings.ToUpper(args[0]) != "PERMISSIONS" {
 			out.On = &msg.On //it's for print false
 		}
-		cmd.Println(util.B58JSON(out))
+		cmd.Println(jsonrpc.B58JSON(out))
 	},
 }
 

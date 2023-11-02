@@ -3,13 +3,13 @@
  *  @copyright defined in aergo/LICENSE.txt
  */
 
-package util
+package jsonrpc
 
 import (
 	"fmt"
 
-	"github.com/aergoio/aergo/v2/cmd/aergocli/util/encoding/json"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/jsonrpc/encoding/json"
 	protobuf "github.com/golang/protobuf/proto"
 	"google.golang.org/grpc"
 )

@@ -9,11 +9,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
-
-	"github.com/mr-tron/base58/base58"
-
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/jsonrpc"
+	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
 )
 
@@ -63,7 +61,7 @@ func execCurrentPeers(cmd *cobra.Command, args []string) {
 	for i, p := range msg.Peers {
 		ppList[i] = NewJSONPolarisPeer(p)
 	}
-	cmd.Println(util.B58JSON(ppList))
+	cmd.Println(jsonrpc.B58JSON(ppList))
 }
 
 type PolarisPeerAlias types.PolarisPeer

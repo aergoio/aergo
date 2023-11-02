@@ -7,16 +7,16 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 
-	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
 	"github.com/aergoio/aergo/v2/internal/common"
 	"github.com/aergoio/aergo/v2/rpc"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/jsonrpc"
 	"github.com/asaskevich/govalidator"
 	"github.com/mr-tron/base58"
 )
@@ -166,7 +166,7 @@ func (api *Web3APIv1) GetState() (handler http.Handler, ok bool) {
 	if err != nil {
 		return commonResponseHandler(&types.Empty{}, err), true
 	}
-	balance, err := util.ConvertUnit(msg.GetBalanceBigInt(), "aergo")
+	balance, err := jsonrpc.ConvertUnit(msg.GetBalanceBigInt(), "aergo")
 	if err != nil {
 		return commonResponseHandler(&types.Empty{}, err), true
 	}
@@ -208,7 +208,7 @@ func (api *Web3APIv1) GetStateAndProof() (handler http.Handler, ok bool) {
 	if err != nil {
 		return commonResponseHandler(&types.Empty{}, err), true
 	}
-	balance, err := util.ConvertUnit(msg.GetState().GetBalanceBigInt(), "aergo")
+	balance, err := jsonrpc.ConvertUnit(msg.GetState().GetBalanceBigInt(), "aergo")
 	if err != nil {
 		return commonResponseHandler(&types.Empty{}, err), true
 	}
@@ -323,7 +323,7 @@ func (api *Web3APIv1) GetBlock() (handler http.Handler, ok bool) {
 		return commonResponseHandler(&types.Empty{}, err), true
 	}
 
-	return stringResponseHandler(util.JSON(result), nil), true
+	return stringResponseHandler(jsonrpc.JSON(result), nil), true
 }
 
 func (api *Web3APIv1) GetBlockTransactionCount() (handler http.Handler, ok bool) {
@@ -400,7 +400,7 @@ func (api *Web3APIv1) Blockchain() (handler http.Handler, ok bool) {
 		ChainInfo:       chainInfo,
 	}
 
-	return stringResponseHandler(util.JSON(result), nil), true
+	return stringResponseHandler(jsonrpc.JSON(result), nil), true
 }
 
 func (api *Web3APIv1) GetBlockBody() (handler http.Handler, ok bool) {
@@ -463,7 +463,7 @@ func (api *Web3APIv1) GetBlockBody() (handler http.Handler, ok bool) {
 		return commonResponseHandler(&types.Empty{}, err), true
 	}
 
-	return stringResponseHandler(util.JSON(result), nil), true
+	return stringResponseHandler(jsonrpc.JSON(result), nil), true
 }
 
 func (api *Web3APIv1) ListBlockHeaders() (handler http.Handler, ok bool) {
@@ -520,7 +520,7 @@ func (api *Web3APIv1) ListBlockHeaders() (handler http.Handler, ok bool) {
 		return commonResponseHandler(&types.Empty{}, err), true
 	}
 
-	return stringResponseHandler(util.JSON(result), nil), true
+	return stringResponseHandler(jsonrpc.JSON(result), nil), true
 }
 
 func (api *Web3APIv1) GetBlockMetadata() (handler http.Handler, ok bool) {
@@ -562,7 +562,7 @@ func (api *Web3APIv1) GetBlockMetadata() (handler http.Handler, ok bool) {
 		return commonResponseHandler(&types.Empty{}, err), true
 	}
 
-	return stringResponseHandler(util.JSON(result), nil), true
+	return stringResponseHandler(jsonrpc.JSON(result), nil), true
 }
 
 func (api *Web3APIv1) ListBlockMetadata() (handler http.Handler, ok bool) {
@@ -707,14 +707,14 @@ func (api *Web3APIv1) GetTX() (handler http.Handler, ok bool) {
 
 	msg, err := api.rpc.GetTX(api.request.Context(), request)
 	if err == nil {
-		return commonResponseHandler(util.ConvTxEx(msg, util.Base58), nil), true
+		return commonResponseHandler(jsonrpc.ConvTxEx(msg, jsonrpc.Base58), nil), true
 	} else {
 		msgblock, err := api.rpc.GetBlockTX(api.request.Context(), request)
 
 		if err != nil {
 			return commonResponseHandler(&types.Empty{}, err), true
 		}
-		return commonResponseHandler(util.ConvTxInBlockEx(msgblock, util.Base58), nil), true
+		return commonResponseHandler(jsonrpc.ConvTxInBlockEx(msgblock, jsonrpc.Base58), nil), true
 	}
 
 }
@@ -741,14 +741,14 @@ func (api *Web3APIv1) GetBlockTX() (handler http.Handler, ok bool) {
 
 	msg, err := api.rpc.GetTX(api.request.Context(), request)
 	if err == nil {
-		return commonResponseHandler(util.ConvTxEx(msg, util.Base58), nil), true
+		return commonResponseHandler(jsonrpc.ConvTxEx(msg, jsonrpc.Base58), nil), true
 
 	} else {
 		msgblock, err := api.rpc.GetBlockTX(api.request.Context(), request)
 		if err != nil {
 			return commonResponseHandler(&types.Empty{}, err), true
 		}
-		return commonResponseHandler(util.ConvTxInBlockEx(msgblock, util.Base58), nil), true
+		return commonResponseHandler(jsonrpc.ConvTxInBlockEx(msgblock, jsonrpc.Base58), nil), true
 	}
 }
 
@@ -966,7 +966,7 @@ func (api *Web3APIv1) QueryContractState() (handler http.Handler, ok bool) {
 		return commonResponseHandler(&types.Empty{}, err), true
 	}
 
-	return stringResponseHandler(util.JSON(result), nil), true
+	return stringResponseHandler(jsonrpc.JSON(result), nil), true
 }
 
 func (api *Web3APIv1) NodeState() (handler http.Handler, ok bool) {
@@ -1036,7 +1036,7 @@ func (api *Web3APIv1) GetPeers() (handler http.Handler, ok bool) {
 		return commonResponseHandler(&types.Empty{}, err), true
 	}
 
-	return stringResponseHandler(util.JSON(result), nil), true
+	return stringResponseHandler(jsonrpc.JSON(result), nil), true
 }
 
 func (api *Web3APIv1) GetServerInfo() (handler http.Handler, ok bool) {
@@ -1060,7 +1060,7 @@ func (api *Web3APIv1) GetServerInfo() (handler http.Handler, ok bool) {
 		return commonResponseHandler(&types.Empty{}, err), true
 	}
 
-	return stringResponseHandler(util.JSON(result), nil), true
+	return stringResponseHandler(jsonrpc.JSON(result), nil), true
 }
 
 func (api *Web3APIv1) GetStaking() (handler http.Handler, ok bool) {
@@ -1150,7 +1150,7 @@ func (api *Web3APIv1) Metric() (handler http.Handler, ok bool) {
 		return commonResponseHandler(&types.Empty{}, err), true
 	}
 
-	return stringResponseHandler(util.JSON(result), nil), true
+	return stringResponseHandler(jsonrpc.JSON(result), nil), true
 }
 
 func (api *Web3APIv1) GetEnterpriseConfig() (handler http.Handler, ok bool) {
@@ -1188,7 +1188,7 @@ func (api *Web3APIv1) GetEnterpriseConfig() (handler http.Handler, ok bool) {
 		out.On = &msg.On
 	}
 
-	return stringResponseHandler(util.B58JSON(out), nil), true
+	return stringResponseHandler(jsonrpc.B58JSON(out), nil), true
 }
 
 func (api *Web3APIv1) GetConfChangeProgress() (handler http.Handler, ok bool) {
@@ -1223,12 +1223,12 @@ func (api *Web3APIv1) GetConfChangeProgress() (handler http.Handler, ok bool) {
 }
 
 func (api *Web3APIv1) CommitTX() (handler http.Handler, ok bool) {
-	body, err := ioutil.ReadAll(api.request.Body)
+	body, err := io.ReadAll(api.request.Body)
 	if err != nil {
 		return commonResponseHandler(&types.Empty{}, err), true
 	}
 
-	txs, err := util.ParseBase58Tx([]byte(body))
+	txs, err := jsonrpc.ParseBase58Tx([]byte(body))
 	if err != nil {
 		return commonResponseHandler(&types.Empty{}, err), true
 	}

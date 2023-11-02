@@ -9,12 +9,11 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 
-	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/jsonrpc"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
@@ -143,7 +142,7 @@ func connectAergo(cmd *cobra.Command, args []string) {
 			log.Fatal("wrong tls setting : ", err)
 		}
 		certPool := x509.NewCertPool()
-		ca, err := ioutil.ReadFile(rootConfig.TLS.CACert)
+		ca, err := os.ReadFile(rootConfig.TLS.CACert)
 		if err != nil {
 			log.Fatal("could not read server certification file : ", err)
 		}
@@ -160,7 +159,7 @@ func connectAergo(cmd *cobra.Command, args []string) {
 		opts = append(opts, grpc.WithInsecure())
 	}
 	var ok bool
-	client, ok = util.GetClient(serverAddr, opts).(*util.ConnClient)
+	client, ok = jsonrpc.GetClient(serverAddr, opts).(*jsonrpc.ConnClient)
 	if !ok {
 		log.Fatal("internal error. wrong RPC client type")
 	}

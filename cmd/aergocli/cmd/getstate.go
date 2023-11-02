@@ -8,8 +8,8 @@ package cmd
 import (
 	"context"
 
-	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/jsonrpc"
 	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
 )
@@ -53,7 +53,7 @@ func execGetState(cmd *cobra.Command, args []string) {
 			cmd.Printf("Failed: %s", err.Error())
 			return
 		}
-		amount, err := util.ConvertUnit(msg.GetAmountBigInt(), unit)
+		amount, err := jsonrpc.ConvertUnit(msg.GetAmountBigInt(), unit)
 		if err != nil {
 			cmd.Printf("Failed: %s", err.Error())
 			return
@@ -73,7 +73,7 @@ func execGetState(cmd *cobra.Command, args []string) {
 			cmd.Printf("Failed: %s", err.Error())
 			return
 		}
-		balance, err := util.ConvertUnit(msg.GetBalanceBigInt(), unit)
+		balance, err := jsonrpc.ConvertUnit(msg.GetBalanceBigInt(), unit)
 		if err != nil {
 			cmd.Printf("Failed: %s", err.Error())
 			return
@@ -89,7 +89,7 @@ func execGetState(cmd *cobra.Command, args []string) {
 			cmd.Printf("Failed: %s", err.Error())
 			return
 		}
-		balance, err := util.ConvertUnit(msg.GetState().GetBalanceBigInt(), unit)
+		balance, err := jsonrpc.ConvertUnit(msg.GetState().GetBalanceBigInt(), unit)
 		if err != nil {
 			cmd.Printf("Failed: %s", err.Error())
 			return

@@ -7,8 +7,8 @@ import (
 
 	"github.com/aergoio/aergo/v2/account/key"
 	crypto "github.com/aergoio/aergo/v2/account/key/crypto"
-	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/jsonrpc"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
@@ -36,7 +36,7 @@ var signCmd = &cobra.Command{
 			cmd.Printf("need to transaction json input")
 			return
 		}
-		param, err := util.ParseBase58TxBody([]byte(jsonTx))
+		param, err := jsonrpc.ParseBase58TxBody([]byte(jsonTx))
 		if err != nil {
 			cmd.Printf("Failed: %s\n", err.Error())
 			return
@@ -89,7 +89,7 @@ var signCmd = &cobra.Command{
 		}
 
 		if nil == err && msg != nil {
-			cmd.Println(util.TxConvBase58Addr(msg))
+			cmd.Println(jsonrpc.TxConvBase58Addr(msg))
 		} else {
 			cmd.Printf("Failed: %s\n", err.Error())
 		}
@@ -105,7 +105,7 @@ var verifyCmd = &cobra.Command{
 			cmd.Printf("need to transaction json input")
 			return
 		}
-		param, err := util.ParseBase58Tx([]byte(jsonTx))
+		param, err := jsonrpc.ParseBase58Tx([]byte(jsonTx))
 		if err != nil {
 			cmd.Printf("Failed: %s\n", err.Error())
 			return
@@ -117,7 +117,7 @@ var verifyCmd = &cobra.Command{
 				return
 			}
 			if msg.Tx != nil {
-				cmd.Println(util.TxConvBase58Addr(msg.Tx))
+				cmd.Println(jsonrpc.TxConvBase58Addr(msg.Tx))
 			} else {
 				cmd.Println(msg.Error)
 			}
@@ -127,7 +127,7 @@ var verifyCmd = &cobra.Command{
 				cmd.Printf("Failed: %s\n", err.Error())
 				return
 			}
-			cmd.Println(util.TxConvBase58Addr(param[0]))
+			cmd.Println(jsonrpc.TxConvBase58Addr(param[0]))
 		}
 	},
 }
