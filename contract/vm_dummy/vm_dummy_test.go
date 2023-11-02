@@ -22,6 +22,27 @@ import (
 const min_version int32 = 2
 const max_version int32 = 4
 
+func TestDisabledFunctions(t *testing.T) {
+	code := readLuaCode(t, "disabled-functions.lua")
+
+	for version := int32(4); version <= max_version; version++ {
+		bc, err := LoadDummyChain(SetHardForkVersion(version), SetPubNet())
+		require.NoErrorf(t, err, "failed to create dummy chain")
+		defer bc.Release()
+
+		err = bc.ConnectBlock(
+			NewLuaTxAccount("user", 1, types.Aergo),
+			NewLuaTxDeploy("user", "test", 0, code),
+		)
+		assert.NoErrorf(t, err, "failed to deploy contract")
+
+		err = bc.ConnectBlock(
+			NewLuaTxCall("user", "test", 0, `{"Name":"check_disabled_functions","Args":[]}`),
+		)
+		assert.NoErrorf(t, err, "failed execution")
+	}
+}
+
 func TestMaxCallDepth(t *testing.T) {
 	//code := readLuaCode(t, "maxcalldepth_1.lua")
 	// this contract receives a list of contract IDs to be called
