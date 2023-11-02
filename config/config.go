@@ -42,6 +42,7 @@ func (ctx *ServerContext) GetDefaultConfig() interface{} {
 	return &Config{
 		BaseConfig: ctx.GetDefaultBaseConfig(),
 		RPC:        ctx.GetDefaultRPCConfig(),
+		Web3:       ctx.GetDefaultWeb3Config(),
 		P2P:        ctx.GetDefaultP2PConfig(),
 		Blockchain: ctx.GetDefaultBlockchainConfig(),
 		Mempool:    ctx.GetDefaultMempoolConfig(),
@@ -75,6 +76,13 @@ func (ctx *ServerContext) GetDefaultRPCConfig() *RPCConfig {
 		NetServicePort:  7845,
 		NetServiceTrace: false,
 		NSKey:           "",
+	}
+}
+
+func (ctx *ServerContext) GetDefaultWeb3Config() *Web3Config {
+	return &Web3Config{
+		NetServicePort: 7847,
+		MaxLimit:       0,
 	}
 }
 

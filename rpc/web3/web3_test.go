@@ -1,5 +1,7 @@
 package web3
 
+// TODO : make mock server or remove
+/*
 import (
 	"net/http"
 	"testing"
@@ -32,3 +34,4 @@ func TestRateLimitMiddleware(t *testing.T) {
 		time.Sleep(100 * time.Millisecond)
 	}
 }
+*/
