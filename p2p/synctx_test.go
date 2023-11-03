@@ -285,7 +285,7 @@ func Test_txSyncManager_refineFrontCacheConsumption(t *testing.T) {
 					}
 				}
 				if w == nil {
-					t.Fatalf("unexpected sent request %v", enc.ToString(hashes[i]))
+					t.Fatalf("unexpected sent request %v", enc.B58Encode(hashes[i]))
 				}
 				wTids := w.txIDs
 				if len(hashes) != len(wTids) {
@@ -422,7 +422,7 @@ func Test_txSyncManager_refineFrontCache(t *testing.T) {
 							}
 						}
 						if !found {
-							t.Errorf("req hash %v, is not in wanted hash %v", enc.ToString(hash), tt.wantSend)
+							t.Errorf("req hash %v, is not in wanted hash %v", enc.B58Encode(hash), tt.wantSend)
 						}
 						sentMap[types.ToTxID(hash)] = 1
 					}
@@ -583,7 +583,7 @@ func Test_syncTxManager_handleTxReq(t *testing.T) {
 	var sampleTxs = make([][]byte, len(sampleTxsB58))
 	var sampleTxHashes = make([]types.TxID, len(sampleTxsB58))
 	for i, hashb58 := range sampleTxsB58 {
-		hash, _ := enc.ToBytes(hashb58)
+		hash, _ := enc.B58Decode(hashb58)
 		sampleTxs[i] = hash
 		copy(sampleTxHashes[i][:], hash)
 	}

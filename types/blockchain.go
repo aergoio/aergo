@@ -452,14 +452,14 @@ func (block *Block) BPID2Str() string {
 		return ""
 	}
 
-	return enc.ToString([]byte(id))
+	return enc.B58Encode([]byte(id))
 }
 
 // ID returns the base64 encoded formated ID (hash) of block.
 func (block *Block) ID() string {
 	hash := block.BlockHash()
 	if hash != nil {
-		return enc.ToString(hash)
+		return enc.B58Encode(hash)
 	}
 
 	return ""
@@ -470,7 +470,7 @@ func (block *Block) ID() string {
 func (block *Block) PrevID() string {
 	hash := block.GetHeader().GetPrevBlockHash()
 	if hash != nil {
-		return enc.ToString(hash)
+		return enc.B58Encode(hash)
 	}
 
 	return ""

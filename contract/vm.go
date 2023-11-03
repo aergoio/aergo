@@ -174,7 +174,7 @@ func newContractInfo(cs *callState, sender, contractId []byte, rp uint64, amount
 func getTraceFile(blkno uint64, tx []byte) *os.File {
 	f, _ := os.OpenFile(fmt.Sprintf("%s%s%d.trace", os.TempDir(), string(os.PathSeparator), blkno), os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 	if f != nil {
-		_, _ = f.WriteString(fmt.Sprintf("[START TX]: %s\n", enc.ToString(tx)))
+		_, _ = f.WriteString(fmt.Sprintf("[START TX]: %s\n", enc.B58Encode(tx)))
 	}
 	return f
 }
@@ -914,8 +914,8 @@ func setRandomSeed(ctx *vmContext) {
 	if ctx.isQuery {
 		randSrc = rand.NewSource(ctx.blockInfo.Ts)
 	} else {
-		b, _ := new(big.Int).SetString(enc.ToString(ctx.blockInfo.PrevBlockHash[:7]), 62)
-		t, _ := new(big.Int).SetString(enc.ToString(ctx.txHash[:7]), 62)
+		b, _ := new(big.Int).SetString(enc.B58Encode(ctx.blockInfo.PrevBlockHash[:7]), 62)
+		t, _ := new(big.Int).SetString(enc.B58Encode(ctx.txHash[:7]), 62)
 		b.Add(b, t)
 		randSrc = rand.NewSource(b.Int64())
 	}

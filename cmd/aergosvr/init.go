@@ -36,7 +36,7 @@ var initGenesis = &cobra.Command{
 		if core != nil {
 			exist := core.GetGenesisInfo()
 			if exist != nil {
-				fmt.Printf("genesis block(%s) is already initialized\n", enc.ToString(exist.Block().GetHash()))
+				fmt.Printf("genesis block(%s) is already initialized\n", enc.B58Encode(exist.Block().GetHash()))
 				core.Close()
 				return
 			}
@@ -71,7 +71,7 @@ var initGenesis = &cobra.Command{
 			}
 
 			g := core.GetGenesisInfo()
-			fmt.Printf("genesis block[%s] is created in (%s)\n", enc.ToString(g.Block().GetHash()), cfg.DataDir)
+			fmt.Printf("genesis block[%s] is created in (%s)\n", enc.B58Encode(g.Block().GetHash()), cfg.DataDir)
 		}
 	},
 }

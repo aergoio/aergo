@@ -120,7 +120,7 @@ func TestBlockHashesReceiver_ReceiveResp(t *testing.T) {
 							for _, h := range arg.Hashes {
 								_, err := types.ParseToBlockID(h)
 								if err != nil {
-									t.Fatalf("Wrong block hash %s, err %v)", enc.ToString(h), err.Error())
+									t.Fatalf("Wrong block hash %s, err %v)", enc.B58Encode(h), err.Error())
 								}
 							}
 						}

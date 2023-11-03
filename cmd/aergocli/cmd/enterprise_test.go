@@ -5,9 +5,9 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/aergoio/aergo/v2/internal/enc"
 	aergorpc "github.com/aergoio/aergo/v2/types"
 	"github.com/golang/mock/gomock"
-	"github.com/mr-tron/base58/base58"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -17,9 +17,9 @@ func TestGetConfChangeWithMock(t *testing.T) {
 
 	var (
 		testTxHashString    = "HB44gJvHhVoEfgiGq3VZmV9VUXfBXhHjcEvroBMkJGnY"
-		testTxHash, _       = base58.Decode(testTxHashString)
+		testTxHash, _       = enc.B58Decode(testTxHashString)
 		testBlockHashString = "56Qy6MQei9KM13rqEq1jiJ7Da21Kcq9KdmYWcnPLtxS3"
-		testBlockHash, _    = base58.Decode(testBlockHashString)
+		testBlockHash, _    = enc.B58Decode(testBlockHashString)
 
 		tx           *aergorpc.Tx        = &aergorpc.Tx{Hash: testTxHash, Body: &aergorpc.TxBody{Payload: []byte(string("{ \"name\": \"GetConfTest\" }"))}}
 		resTxInBlock *aergorpc.TxInBlock = &aergorpc.TxInBlock{TxIdx: &aergorpc.TxIdx{BlockHash: testBlockHash, Idx: 1}, Tx: tx}

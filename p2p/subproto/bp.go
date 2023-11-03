@@ -48,7 +48,7 @@ func (h *blockProducedNoticeHandler) Handle(msg p2pcommon.Message, msgBody p2pco
 	block := data.Block
 	if blockID, err := types.ParseToBlockID(data.GetBlock().GetHash()); err != nil {
 		// TODO add penalty score
-		h.logger.Info().Str(p2putil.LogPeerName, remotePeer.Name()).Str("hash", enc.ToString(data.GetBlock().GetHash())).Msg("malformed blockHash")
+		h.logger.Info().Str(p2putil.LogPeerName, remotePeer.Name()).Str("hash", enc.B58Encode(data.GetBlock().GetHash())).Msg("malformed blockHash")
 		return
 	} else {
 		bpID, err := block.BPID()
@@ -107,7 +107,7 @@ func (h *toAgentBPNoticeHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon
 	block := data.Block
 	if blockID, err := types.ParseToBlockID(data.GetBlock().GetHash()); err != nil {
 		// TODO add penalty score
-		h.logger.Info().Str(p2putil.LogPeerName, remotePeer.Name()).Str("hash", enc.ToString(data.GetBlock().GetHash())).Msg("malformed blockHash")
+		h.logger.Info().Str(p2putil.LogPeerName, remotePeer.Name()).Str("hash", enc.B58Encode(data.GetBlock().GetHash())).Msg("malformed blockHash")
 		return
 	} else {
 		bpID, err := block.BPID()

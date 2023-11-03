@@ -76,7 +76,7 @@ func (h *V033Handshaker) checkRemoteStatus(remotePeerStatus *types.Status) error
 	genHash := h.localGenesisHash
 	if !bytes.Equal(genHash, remotePeerStatus.Genesis) {
 		h.sendGoAway("different genesis block")
-		return fmt.Errorf("different genesis block local: %v , remote %v", enc.ToString(genHash), enc.ToString(remotePeerStatus.Genesis))
+		return fmt.Errorf("different genesis block local: %v , remote %v", enc.B58Encode(genHash), enc.B58Encode(remotePeerStatus.Genesis))
 	}
 
 	return nil

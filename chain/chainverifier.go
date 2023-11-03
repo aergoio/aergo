@@ -189,14 +189,14 @@ func (cv *ChainVerifier) report(prevBlock *types.Block, targetBlock *types.Block
 	switch cv.stage {
 	case TestPrevBlock:
 		report += fmt.Sprintf("[description] prev block hash=%s, prev stage root=%s", prevBlock.ID(),
-			enc.ToString(prevBlock.GetHeader().GetBlocksRootHash()))
+			enc.B58Encode(prevBlock.GetHeader().GetBlocksRootHash()))
 
 	case TestCurBlock:
 		report += fmt.Sprintf("[description] target block hash=%s", targetBlock.ID())
 
 	case TestBlockExecute:
-		report += fmt.Sprintf("[description] tx Merkle = %s", enc.ToString(targetBlock.GetHeader().GetTxsRootHash()))
-		report += fmt.Sprintf(", state Root = %s", enc.ToString(targetBlock.GetHeader().GetBlocksRootHash()))
+		report += fmt.Sprintf("[description] tx Merkle = %s", enc.B58Encode(targetBlock.GetHeader().GetTxsRootHash()))
+		report += fmt.Sprintf(", state Root = %s", enc.B58Encode(targetBlock.GetHeader().GetBlocksRootHash()))
 		report += fmt.Sprintf(", all transaction passed")
 	}
 

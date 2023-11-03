@@ -202,7 +202,7 @@ func (s *SimpleBlockFactory) Start() {
 					continue
 				}
 				logger.Info().Uint64("no", block.GetHeader().GetBlockNo()).Str("hash", block.ID()).
-					Str("TrieRoot", enc.ToString(block.GetHeader().GetBlocksRootHash())).
+					Str("TrieRoot", enc.B58Encode(block.GetHeader().GetBlocksRootHash())).
 					Err(err).Msg("block produced")
 
 				chain.ConnectBlock(s, block, blockState, time.Second)

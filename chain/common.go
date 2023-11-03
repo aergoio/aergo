@@ -48,7 +48,7 @@ func Init(maxBlkBodySize uint32, coinbaseAccountStr string, isBp bool, maxAnchor
 			if err != nil {
 				return ErrInvalidCoinbaseAccount
 			}
-			logger.Info().Str("account", enc.ToString(CoinbaseAccount)).Str("str", coinbaseAccountStr).
+			logger.Info().Str("account", enc.B58Encode(CoinbaseAccount)).Str("str", coinbaseAccountStr).
 				Msg("set coinbase account")
 
 		} else {

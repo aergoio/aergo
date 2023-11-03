@@ -401,7 +401,7 @@ func (states *StateDB) GetVarAndProof(id []byte, root []byte, compressed bool) (
 		Height:    uint32(height),
 		AuditPath: ap,
 	}
-	logger.Debug().Str("contract root : ", enc.ToString(root)).Msg("Get contract variable and Proof")
+	logger.Debug().Str("contract root : ", enc.B58Encode(root)).Msg("Get contract variable and Proof")
 	return contractVarProof, nil
 
 }
@@ -431,7 +431,7 @@ func (states *StateDB) GetAccountAndProof(id []byte, root []byte, compressed boo
 		Height:    uint32(height),
 		AuditPath: ap,
 	}
-	logger.Debug().Str("state root : ", enc.ToString(root)).Msg("Get Account and Proof")
+	logger.Debug().Str("state root : ", enc.B58Encode(root)).Msg("Get Account and Proof")
 	return accountProof, nil
 }
 

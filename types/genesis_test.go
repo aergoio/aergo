@@ -36,7 +36,7 @@ func TestGenesisChainID(t *testing.T) {
 	a.Nil(err)
 	a.True(g.ID.Equals(&defaultChainID))
 	fmt.Println("len:", len(chainID))
-	fmt.Println("chain_id: ", enc.ToString(chainID))
+	fmt.Println("chain_id: ", enc.B58Encode(chainID))
 }
 
 func TestGenesisBytes(t *testing.T) {

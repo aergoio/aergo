@@ -14,9 +14,9 @@ import (
 	luacEncoding "github.com/aergoio/aergo/v2/cmd/aergoluac/encoding"
 	luac "github.com/aergoio/aergo/v2/cmd/aergoluac/util"
 	"github.com/aergoio/aergo/v2/internal/common"
+	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/types"
 	aergorpc "github.com/aergoio/aergo/v2/types"
-	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
 )
 
@@ -311,7 +311,7 @@ func runCallCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	if chainIdHash != "" {
-		rawCidHash, err := base58.Decode(chainIdHash)
+		rawCidHash, err := enc.B58Decode(chainIdHash)
 		if err != nil {
 			return fmt.Errorf("failed to parse chainidhash: %v", err.Error())
 		}
@@ -414,7 +414,7 @@ func runQueryStateCmd(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to decode address: %v", err.Error())
 	}
 	if len(stateroot) != 0 {
-		root, err = base58.Decode(stateroot)
+		root, err = enc.B58Decode(stateroot)
 		if err != nil {
 			return fmt.Errorf("failed to decode stateroot: %v", err.Error())
 		}

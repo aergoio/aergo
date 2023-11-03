@@ -541,7 +541,7 @@ func (bf *BlockFactory) generateBlock(work *Work) (*types.Block, *state.BlockSta
 	}
 
 	logger.Info().Str("blockProducer", bf.ID).Str("raftID", EtcdIDToString(bf.bpc.NodeID())).
-		Str("sroot", enc.ToString(block.GetHeader().GetBlocksRootHash())).
+		Str("sroot", enc.B58Encode(block.GetHeader().GetBlocksRootHash())).
 		Uint64("no", block.GetHeader().GetBlockNo()).
 		Str("hash", block.ID()).
 		Msg("block produced")

@@ -134,8 +134,8 @@ func (storage *bufferedStorage) update() error {
 		return err
 	}
 	if !bytes.Equal(before, storage.trie.Root) {
-		logger.Debug().Str("before", enc.ToString(before)).
-			Str("after", enc.ToString(storage.trie.Root)).Msg("Changed storage trie root")
+		logger.Debug().Str("before", enc.B58Encode(before)).
+			Str("after", enc.B58Encode(storage.trie.Root)).Msg("Changed storage trie root")
 		storage.dirty = true
 	}
 	return nil

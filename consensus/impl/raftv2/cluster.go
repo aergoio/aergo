@@ -409,7 +409,7 @@ func (cl *Cluster) isValidMember(member *consensus.Member) error {
 	}
 
 	// check if peerID of this node is valid
-	if cl.NodeName() == member.Name && enc.ToString([]byte(member.GetPeerID())) != cl.NodePeerID() {
+	if cl.NodeName() == member.Name && enc.B58Encode([]byte(member.GetPeerID())) != cl.NodePeerID() {
 		logger.Error().Str("config", member.GetPeerID().String()).Str("cluster peerid", cl.NodePeerID()).Msg("peerID value is not matched with P2P")
 		return ErrInvalidRaftPeerID
 	}
@@ -433,7 +433,7 @@ func (cl *Cluster) addMember(member *consensus.Member, applied bool) error {
 		// notify to p2p TODO temporary code
 		peerID, err := types.IDFromBytes(member.PeerID)
 		if err != nil {
-			logger.Panic().Err(err).Str("peerid", enc.ToString(member.PeerID)).Msg("invalid member peerid")
+			logger.Panic().Err(err).Str("peerid", enc.B58Encode(member.PeerID)).Msg("invalid member peerid")
 		}
 
 		if cl.notifyFn != nil {
@@ -466,7 +466,7 @@ func (cl *Cluster) removeMember(member *consensus.Member) error {
 	// notify to p2p TODO temporary code
 	peerID, err := types.IDFromBytes(member.PeerID)
 	if err != nil {
-		logger.Panic().Err(err).Str("peerid", enc.ToString(member.PeerID)).Msg("invalid member peerid")
+		logger.Panic().Err(err).Str("peerid", enc.B58Encode(member.PeerID)).Msg("invalid member peerid")
 	}
 
 	if cl.notifyFn != nil {
@@ -494,7 +494,7 @@ func (cl *Cluster) ValidateAndMergeExistingCluster(existingCl *Cluster) bool {
 	}
 
 	// TODO check my network config is equal to member of remote
-	if enc.ToString(remoteMember.PeerID) != cl.NodePeerID() {
+	if enc.B58Encode(remoteMember.PeerID) != cl.NodePeerID() {
 		logger.Error().Msg("peerid is different with peerid of member of existing cluster")
 	}
 

@@ -9,8 +9,8 @@ import (
 	"context"
 
 	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
+	"github.com/aergoio/aergo/v2/internal/enc"
 	aergorpc "github.com/aergoio/aergo/v2/types"
-	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
 )
 
@@ -30,7 +30,7 @@ func init() {
 }
 
 func execGetTX(cmd *cobra.Command, args []string) {
-	txHash, err := base58.Decode(args[0])
+	txHash, err := enc.B58Decode(args[0])
 	if err != nil {
 		cmd.Printf("Failed decode: %s", err.Error())
 		return

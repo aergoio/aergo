@@ -8,9 +8,9 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/p2p/p2putil"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/mr-tron/base58/base58"
 )
 
 type InOutBlockHeader struct {
@@ -102,7 +102,7 @@ func FillTxBody(source *InOutTxBody, target *types.TxBody) error {
 		target.Amount = amount.Bytes()
 	}
 	if source.Payload != "" {
-		target.Payload, err = base58.Decode(source.Payload)
+		target.Payload, err = enc.B58Decode(source.Payload)
 		if err != nil {
 			return err
 		}
@@ -116,13 +116,13 @@ func FillTxBody(source *InOutTxBody, target *types.TxBody) error {
 		target.GasPrice = price.Bytes()
 	}
 	if source.ChainIdHash != "" {
-		target.ChainIdHash, err = base58.Decode(source.ChainIdHash)
+		target.ChainIdHash, err = enc.B58Decode(source.ChainIdHash)
 		if err != nil {
 			return err
 		}
 	}
 	if source.Sign != "" {
-		target.Sign, err = base58.Decode(source.Sign)
+		target.Sign, err = enc.B58Decode(source.Sign)
 		if err != nil {
 			return err
 		}
@@ -146,7 +146,7 @@ func ParseBase58Tx(jsonTx []byte) ([]*types.Tx, error) {
 	for i, in := range inputlist {
 		tx := &types.Tx{Body: &types.TxBody{}}
 		if in.Hash != "" {
-			tx.Hash, err = base58.Decode(in.Hash)
+			tx.Hash, err = enc.B58Decode(in.Hash)
 			if err != nil {
 				return nil, err
 			}
@@ -183,7 +183,7 @@ func ConvTxEx(tx *types.Tx, payloadType EncodingType) *InOutTx {
 	if tx == nil {
 		return out
 	}
-	out.Hash = base58.Encode(tx.Hash)
+	out.Hash = enc.B58Encode(tx.Hash)
 	out.Body.Nonce = tx.Body.Nonce
 	if tx.Body.Account != nil {
 		out.Body.Account = types.EncodeAddress(tx.Body.Account)
@@ -198,21 +198,21 @@ func ConvTxEx(tx *types.Tx, payloadType EncodingType) *InOutTx {
 	case Raw:
 		out.Body.Payload = string(tx.Body.Payload)
 	case Base58:
-		out.Body.Payload = base58.Encode(tx.Body.Payload)
+		out.Body.Payload = enc.B58Encode(tx.Body.Payload)
 	}
 	out.Body.GasLimit = tx.Body.GasLimit
 	if tx.Body.GasPrice != nil {
 		out.Body.GasPrice = new(big.Int).SetBytes(tx.Body.GasPrice).String()
 	}
-	out.Body.ChainIdHash = base58.Encode(tx.Body.ChainIdHash)
-	out.Body.Sign = base58.Encode(tx.Body.Sign)
+	out.Body.ChainIdHash = enc.B58Encode(tx.Body.ChainIdHash)
+	out.Body.Sign = enc.B58Encode(tx.Body.Sign)
 	out.Body.Type = tx.Body.Type
 	return out
 }
 
 func ConvTxInBlockEx(txInBlock *types.TxInBlock, payloadType EncodingType) *InOutTxInBlock {
 	out := &InOutTxInBlock{TxIdx: &InOutTxIdx{}, Tx: &InOutTx{}}
-	out.TxIdx.BlockHash = base58.Encode(txInBlock.GetTxIdx().GetBlockHash())
+	out.TxIdx.BlockHash = enc.B58Encode(txInBlock.GetTxIdx().GetBlockHash())
 	out.TxIdx.Idx = txInBlock.GetTxIdx().GetIdx()
 	out.Tx = ConvTxEx(txInBlock.GetTx(), payloadType)
 	return out
@@ -221,18 +221,18 @@ func ConvTxInBlockEx(txInBlock *types.TxInBlock, payloadType EncodingType) *InOu
 func ConvBlock(b *types.Block) *InOutBlock {
 	out := &InOutBlock{}
 	if b != nil {
-		out.Hash = base58.Encode(b.Hash)
-		out.Header.ChainID = base58.Encode(b.GetHeader().GetChainID())
+		out.Hash = enc.B58Encode(b.Hash)
+		out.Header.ChainID = enc.B58Encode(b.GetHeader().GetChainID())
 		out.Header.Version = types.DecodeChainIdVersion(b.GetHeader().GetChainID())
-		out.Header.PrevBlockHash = base58.Encode(b.GetHeader().GetPrevBlockHash())
+		out.Header.PrevBlockHash = enc.B58Encode(b.GetHeader().GetPrevBlockHash())
 		out.Header.BlockNo = b.GetHeader().GetBlockNo()
 		out.Header.Timestamp = b.GetHeader().GetTimestamp()
-		out.Header.BlockRootHash = base58.Encode(b.GetHeader().GetBlocksRootHash())
-		out.Header.TxRootHash = base58.Encode(b.GetHeader().GetTxsRootHash())
-		out.Header.ReceiptsRootHash = base58.Encode(b.GetHeader().GetReceiptsRootHash())
+		out.Header.BlockRootHash = enc.B58Encode(b.GetHeader().GetBlocksRootHash())
+		out.Header.TxRootHash = enc.B58Encode(b.GetHeader().GetTxsRootHash())
+		out.Header.ReceiptsRootHash = enc.B58Encode(b.GetHeader().GetReceiptsRootHash())
 		out.Header.Confirms = b.GetHeader().GetConfirms()
-		out.Header.PubKey = base58.Encode(b.GetHeader().GetPubKey())
-		out.Header.Sign = base58.Encode(b.GetHeader().GetSign())
+		out.Header.PubKey = enc.B58Encode(b.GetHeader().GetPubKey())
+		out.Header.Sign = enc.B58Encode(b.GetHeader().GetSign())
 		if b.GetHeader().GetCoinbaseAccount() != nil {
 			out.Header.CoinbaseAccount = types.EncodeAddress(b.GetHeader().GetCoinbaseAccount())
 		}
@@ -254,10 +254,10 @@ func ConvPeer(p *types.Peer) *InOutPeer {
 	out.Role = p.AcceptedRole.String()
 	out.Address.Address = p.GetAddress().GetAddress()
 	out.Address.Port = strconv.Itoa(int(p.GetAddress().GetPort()))
-	out.Address.PeerId = base58.Encode(p.GetAddress().GetPeerID())
+	out.Address.PeerId = enc.B58Encode(p.GetAddress().GetPeerID())
 	out.LastCheck = time.Unix(0, p.GetLashCheck())
 	out.BestBlock.BlockNo = p.GetBestblock().GetBlockNo()
-	out.BestBlock.BlockHash = base58.Encode(p.GetBestblock().GetBlockHash())
+	out.BestBlock.BlockHash = enc.B58Encode(p.GetBestblock().GetBlockHash())
 	out.State = types.PeerState(p.State).String()
 	out.Hidden = p.Hidden
 	out.Self = p.Selfpeer
@@ -273,7 +273,7 @@ func ConvPeerLong(p *types.Peer) *LongInOutPeer {
 	out := &LongInOutPeer{InOutPeer: *ConvPeer(p)}
 	out.ProducerIDs = make([]string, len(p.Address.ProducerIDs))
 	for i, pid := range p.Address.ProducerIDs {
-		out.ProducerIDs[i] = base58.Encode(pid)
+		out.ProducerIDs[i] = enc.B58Encode(pid)
 	}
 	if p.Address.Role == types.PeerRole_Agent {
 		out.Certificates = make([]*InOutCert, len(p.Certificates))
@@ -283,7 +283,7 @@ func ConvPeerLong(p *types.Peer) *LongInOutPeer {
 				addrs = append(addrs, string(ad))
 			}
 			out.Certificates[i] = &InOutCert{CertVersion: cert.CertVersion,
-				ProducerID: base58.Encode(cert.BPID), AgentID: base58.Encode(cert.AgentID),
+				ProducerID: enc.B58Encode(cert.BPID), AgentID: enc.B58Encode(cert.AgentID),
 				CreateTime: time.Unix(0, cert.CreateTime), ExpireTime: time.Unix(0, cert.ExpireTime),
 				Addresses: addrs}
 		}
@@ -296,10 +296,10 @@ func ConvBlockchainStatus(in *types.BlockchainStatus) string {
 	if in == nil {
 		return ""
 	}
-	out.Hash = base58.Encode(in.BestBlockHash)
+	out.Hash = enc.B58Encode(in.BestBlockHash)
 	out.Height = in.BestHeight
 
-	out.ChainIdHash = base58.Encode(in.BestChainIdHash)
+	out.ChainIdHash = enc.B58Encode(in.BestChainIdHash)
 
 	toJRM := func(s string) *json.RawMessage {
 		if len(s) > 0 {

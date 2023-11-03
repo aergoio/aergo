@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var dummyTxHash, _ = enc.ToBytes("4H4zAkAyRV253K5SNBJtBxqUgHEbZcXbWFFc6cmQHY45")
+var dummyTxHash, _ = enc.B58Decode("4H4zAkAyRV253K5SNBJtBxqUgHEbZcXbWFFc6cmQHY45")
 
 func Test_MarshalTxResp(t *testing.T) {
 	dummyTx := &types.Tx{Hash: dummyTxHash, Body: &types.TxBody{Payload: []byte("It's a good day to die.")}}

@@ -1,10 +1,8 @@
 package state
 
 import (
-	"bytes"
-	"encoding/gob"
-
 	"github.com/aergoio/aergo-lib/db"
+	"github.com/aergoio/aergo/v2/internal/common"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/golang/protobuf/proto"
 )
@@ -24,13 +22,7 @@ func saveData(store db.DB, key []byte, data interface{}) error {
 			return err
 		}
 	default:
-		buffer := &bytes.Buffer{}
-		enc := gob.NewEncoder(buffer)
-		err = enc.Encode(data)
-		if err != nil {
-			return err
-		}
-		raw = buffer.Bytes()
+		raw, err = common.GobEncode(data)
 		if err != nil {
 			return err
 		}
@@ -55,9 +47,7 @@ func loadData(store db.DB, key []byte, data interface{}) error {
 	case proto.Message:
 		err = proto.Unmarshal(raw, data.(proto.Message))
 	default:
-		reader := bytes.NewReader(raw)
-		dec := gob.NewDecoder(reader)
-		err = dec.Decode(data)
+		err = common.GobDecode(raw, data)
 	}
 	return err
 }

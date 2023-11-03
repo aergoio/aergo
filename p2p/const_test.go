@@ -7,7 +7,6 @@ package p2p
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"testing"
@@ -25,7 +24,7 @@ import (
 
 var dummyBlockHash, _ = hex.DecodeString("4f461d85e869ade8a0544f8313987c33a9c06534e50c4ad941498299579bd7ac")
 var dummyBlockHeight uint64 = 100215
-var dummyTxHash, _ = enc.ToBytes("4H4zAkAyRV253K5SNBJtBxqUgHEbZcXbWFFc6cmQHY45")
+var dummyTxHash, _ = enc.B58Decode("4H4zAkAyRV253K5SNBJtBxqUgHEbZcXbWFFc6cmQHY45")
 
 var samplePeerID types.PeerID
 var sampleMeta p2pcommon.PeerMeta
@@ -67,9 +66,9 @@ var dummyBestBlock *types.Block
 var dummyMeta p2pcommon.PeerMeta
 
 func init() {
-	bytes, _ := base64.StdEncoding.DecodeString(sampleKey1PrivBase64)
+	bytes, _ := enc.B64Decode(sampleKey1PrivBase64)
 	sampleKey1Priv, _ = crypto.UnmarshalPrivateKey(bytes)
-	bytes, _ = base64.StdEncoding.DecodeString(sampelKey1PubBase64)
+	bytes, _ = enc.B64Decode(sampelKey1PubBase64)
 	sampleKey1Pub, _ = crypto.UnmarshalPublicKey(bytes)
 	if !sampleKey1Priv.GetPublic().Equals(sampleKey1Pub) {
 		panic("problem in pk generation ")
@@ -79,7 +78,7 @@ func init() {
 		panic("problem in id generation")
 	}
 
-	bytes, _ = base64.StdEncoding.DecodeString(sampleKey2PrivBase64)
+	bytes, _ = enc.B64Decode(sampleKey2PrivBase64)
 	sampleKey2Priv, _ = crypto.UnmarshalPrivateKey(bytes)
 	sampleKey2Pub = sampleKey2Priv.GetPublic()
 	sampleKey2ID, _ = types.IDFromPublicKey(sampleKey2Pub)
@@ -121,7 +120,7 @@ func init() {
 	sampleTxs = make([][]byte, len(sampleTxsB58))
 	sampleTxIDs = make([]types.TxID, len(sampleTxsB58))
 	for i, hashb58 := range sampleTxsB58 {
-		hash, _ := enc.ToBytes(hashb58)
+		hash, _ := enc.B58Decode(hashb58)
 		sampleTxs[i] = hash
 		copy(sampleTxIDs[i][:], hash)
 	}
@@ -129,7 +128,7 @@ func init() {
 	sampleBlks = make([][]byte, len(sampleBlksB58))
 	sampleBlksIDs = make([]types.BlockID, len(sampleBlksB58))
 	for i, hashb58 := range sampleTxsB58 {
-		hash, _ := enc.ToBytes(hashb58)
+		hash, _ := enc.B58Decode(hashb58)
 		sampleBlks[i] = hash
 		copy(sampleBlksIDs[i][:], hash)
 	}
@@ -149,7 +148,7 @@ func createDummyMo(ctrl *gomock.Controller) *p2pmock.MockMsgOrder {
 func TestTXIDs(t *testing.T) {
 	for i := 0; i < len(sampleTxIDs); i++ {
 		if !bytes.Equal(sampleTxs[i], sampleTxIDs[i][:]) {
-			t.Errorf("TX hash %v and converted ID %v are differ.", enc.ToString(sampleTxs[i]), sampleTxIDs[i])
+			t.Errorf("TX hash %v and converted ID %v are differ.", enc.B58Encode(sampleTxs[i]), sampleTxIDs[i])
 		}
 	}
 }
@@ -157,7 +156,7 @@ func TestTXIDs(t *testing.T) {
 func TestBlockIDs(t *testing.T) {
 	for i := 0; i < len(sampleBlksIDs); i++ {
 		if !bytes.Equal(sampleBlks[i], sampleBlksIDs[i][:]) {
-			t.Errorf("TX hash %v and converted ID %v are differ.", enc.ToString(sampleBlks[i]), sampleBlksIDs[i])
+			t.Errorf("TX hash %v and converted ID %v are differ.", enc.B58Encode(sampleBlks[i]), sampleBlksIDs[i])
 		}
 	}
 }
@@ -267,12 +266,12 @@ var testIn = []string{
 
 func TestMoreTXIDs(t *testing.T) {
 	for _, in := range testIn {
-		hash, _ := enc.ToBytes(in)
+		hash, _ := enc.B58Decode(in)
 		id, err := types.ParseToTxID(hash)
 		if err != nil {
-			t.Errorf("Failed to parse TX hash %v : %v", enc.ToString(hash), err)
+			t.Errorf("Failed to parse TX hash %v : %v", enc.B58Encode(hash), err)
 		} else if !bytes.Equal(hash, id[:]) {
-			t.Errorf("TX hash %v and converted ID %v are differ.", enc.ToString(hash), id)
+			t.Errorf("TX hash %v and converted ID %v are differ.", enc.B58Encode(hash), id)
 		}
 	}
 }

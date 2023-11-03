@@ -176,8 +176,8 @@ func openSystemAccount(t *testing.T) *state.ContractState {
 	assert.NoError(t, err, "fail to open the system contract state")
 	logger.Debug().Msgf(
 		"(after) state, contract: %s, %s\n",
-		enc.ToString(vprStateDB.GetRoot()),
-		enc.ToString(s.GetStorageRoot()))
+		enc.B58Encode(vprStateDB.GetRoot()),
+		enc.B58Encode(s.GetStorageRoot()))
 
 	return s
 }

@@ -72,7 +72,7 @@ func InitNodeInfo(baseCfg *config.BaseConfig, p2pCfg *config.P2PConfig, version 
 
 	ni = &nodeInfo{
 		id:        id,
-		sid:       enc.ToString([]byte(id)),
+		sid:       enc.B58Encode([]byte(id)),
 		pubKey:    pub,
 		privKey:   priv,
 		version:   version,

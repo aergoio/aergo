@@ -116,7 +116,7 @@ func (br *GetTxsReceiver) handleInWaiting(msg p2pcommon.Message, msgBody p2pcomm
 		}
 		// missing tx
 		for !bytes.Equal(br.hashes[br.offset], tx.Hash) {
-			br.logger.Trace().Str("expect", enc.ToString(br.hashes[br.offset])).Str("received", enc.ToString(tx.Hash)).Int("offset", br.offset).Msg("expected hash was missing")
+			br.logger.Trace().Str("expect", enc.B58Encode(br.hashes[br.offset])).Str("received", enc.B58Encode(tx.Hash)).Int("offset", br.offset).Msg("expected hash was missing")
 			br.missed = append(br.missed, tx.Hash)
 			br.offset++
 			if br.offset >= len(br.hashes) {

@@ -16,7 +16,7 @@ import (
 )
 
 func TestUnmarshalSize(t *testing.T) {
-	var dummyTxHash, _ = enc.ToBytes("4H4zAkAyRV253K5SNBJtBxqUgHEbZcXbWFFc6cmQHY45")
+	var dummyTxHash, _ = enc.B58Decode("4H4zAkAyRV253K5SNBJtBxqUgHEbZcXbWFFc6cmQHY45")
 	fmt.Println("Hash: ", hex.EncodeToString(dummyTxHash))
 
 	sample := &NewTransactionsNotice{}

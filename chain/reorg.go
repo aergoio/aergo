@@ -52,7 +52,7 @@ type ErrReorgBlock struct {
 
 func (ec *ErrReorgBlock) Error() string {
 	if ec.blockHash != nil {
-		return fmt.Sprintf("%s, block:%d,%s", ec.msg, ec.blockNo, enc.ToString(ec.blockHash))
+		return fmt.Sprintf("%s, block:%d,%s", ec.msg, ec.blockNo, enc.B58Encode(ec.blockHash))
 	} else if ec.blockNo != 0 {
 		return fmt.Sprintf("%s, block:%d", ec.msg, ec.blockNo)
 	} else {

@@ -169,7 +169,7 @@ func (pr *pbBpNoticeOrder) SendTo(pi p2pcommon.RemotePeer) error {
 	}
 	if pr.trace {
 		p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Stringer(p2putil.LogProtoID, pr.GetProtocolID()).
-			Str(p2putil.LogMsgID, pr.GetMsgID().String()).Str(p2putil.LogBlkHash, enc.ToString(pr.block.Hash)).Msg("Notify block produced")
+			Str(p2putil.LogMsgID, pr.GetMsgID().String()).Str(p2putil.LogBlkHash, enc.B58Encode(pr.block.Hash)).Msg("Notify block produced")
 	}
 	return nil
 }

@@ -10,8 +10,8 @@ import (
 	"errors"
 
 	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
+	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/mr-tron/base58"
 	"github.com/spf13/cobra"
 )
 
@@ -59,7 +59,7 @@ func execSendTX(cmd *cobra.Command, args []string) error {
 		GasLimit:  gas,
 	}}
 	if chainIdHash != "" {
-		cid, err := base58.Decode(chainIdHash)
+		cid, err := enc.B58Decode(chainIdHash)
 		if err != nil {
 			return errors.New("Wrong value in --chainidhash flag\n" + err.Error())
 		}

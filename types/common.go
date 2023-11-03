@@ -1,9 +1,7 @@
 package types
 
 import (
-	"encoding/base64"
-
-	"github.com/mr-tron/base58/base58"
+	"github.com/aergoio/aergo/v2/internal/enc"
 )
 
 const MAXBLOCKNO BlockNo = 18446744073709551615
@@ -11,20 +9,20 @@ const maxMetaSizeLimit = uint32(256 << 10)
 const blockSizeHardLimit = uint32(8 << (10 * 2))
 
 func EncodeB64(bs []byte) string {
-	return base64.StdEncoding.EncodeToString(bs)
+	return enc.B64Encode(bs)
 }
 
 func DecodeB64(sb string) []byte {
-	buf, _ := base64.StdEncoding.DecodeString(sb)
+	buf, _ := enc.B64Decode(sb)
 	return buf
 }
 
 func EncodeB58(bs []byte) string {
-	return base58.Encode(bs)
+	return enc.B58Encode(bs)
 }
 
 func DecodeB58(sb string) []byte {
-	buf, _ := base58.Decode(sb)
+	buf, _ := enc.B58Decode(sb)
 	return buf
 }
 

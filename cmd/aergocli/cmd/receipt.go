@@ -10,8 +10,8 @@ import (
 	"log"
 
 	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
+	"github.com/aergoio/aergo/v2/internal/enc"
 	aergorpc "github.com/aergoio/aergo/v2/types"
-	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
 )
 
@@ -28,7 +28,7 @@ func init() {
 			Short: "Get a receipt",
 			Args:  cobra.MinimumNArgs(1),
 			Run: func(cmd *cobra.Command, args []string) {
-				txHash, err := base58.Decode(args[0])
+				txHash, err := enc.B58Decode(args[0])
 				if err != nil {
 					log.Fatal(err)
 				}

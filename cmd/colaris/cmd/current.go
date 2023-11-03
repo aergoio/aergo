@@ -10,8 +10,7 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
-
-	"github.com/mr-tron/base58/base58"
+	"github.com/aergoio/aergo/v2/internal/enc"
 
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/spf13/cobra"
@@ -38,7 +37,7 @@ func execCurrentPeers(cmd *cobra.Command, args []string) {
 	var err error
 
 	if cmd.Flags().Changed("ref") == true {
-		blockHash, err = base58.Decode(cpKey)
+		blockHash, err = enc.B58Decode(cpKey)
 		if err != nil {
 			cmd.Printf("Failed: %s", err.Error())
 			return

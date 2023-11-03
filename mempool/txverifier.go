@@ -31,7 +31,7 @@ func (s *TxVerifier) Receive(context actor.Context) {
 				err = s.mp.put(tx)
 			}
 			if err != nil {
-				s.mp.Logger.Info().Err(err).Str("txID", enc.ToString(msg.GetHash())).Msg("tx verification failed")
+				s.mp.Logger.Info().Err(err).Str("txID", enc.B58Encode(msg.GetHash())).Msg("tx verification failed")
 			}
 		}
 		context.Respond(&message.MemPoolPutRsp{Err: err})

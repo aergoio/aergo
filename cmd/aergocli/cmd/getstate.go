@@ -9,8 +9,8 @@ import (
 	"context"
 
 	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
+	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
 )
 
@@ -35,7 +35,7 @@ func execGetState(cmd *cobra.Command, args []string) {
 	var root []byte
 	var err error
 	if len(stateroot) != 0 {
-		root, err = base58.Decode(stateroot)
+		root, err = enc.B58Decode(stateroot)
 		if err != nil {
 			cmd.Printf("decode error: %s", err.Error())
 			return

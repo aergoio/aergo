@@ -9,8 +9,8 @@ import (
 	"context"
 
 	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
+	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
 )
 
@@ -41,7 +41,7 @@ func execListBlockHeaders(cmd *cobra.Command, args []string) {
 	var err error
 
 	if cmd.Flags().Changed("hash") == true {
-		blockHash, err = base58.Decode(gbhHash)
+		blockHash, err = enc.B58Decode(gbhHash)
 		if err != nil {
 			cmd.Printf("Failed: %s", err.Error())
 			return

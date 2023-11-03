@@ -5,18 +5,18 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/anaskhan96/base58check"
+	"github.com/aergoio/aergo/v2/internal/enc"
 )
 
 const CodeVersion = 0xC0
 
 func EncodeCode(code []byte) string {
-	encoded, _ := base58check.Encode(fmt.Sprintf("%x", CodeVersion), hex.EncodeToString(code))
+	encoded, _ := enc.B58CheckEncode(fmt.Sprintf("%x", CodeVersion), hex.EncodeToString(code))
 	return encoded
 }
 
 func DecodeCode(encodedCode string) ([]byte, error) {
-	decodedString, err := base58check.Decode(encodedCode)
+	decodedString, err := enc.B58CheckDecode(encodedCode)
 	if err != nil {
 		return nil, err
 	}

@@ -83,7 +83,7 @@ func (sv *SignVerifier) verifyTxLoop(workerNo int) {
 		hit, err := sv.verifyTx(sv.comm, txWork.tx, txWork.useMempool)
 
 		if err != nil {
-			logger.Error().Int("worker", workerNo).Bool("hit", hit).Str("hash", enc.ToString(txWork.tx.GetHash())).
+			logger.Error().Int("worker", workerNo).Bool("hit", hit).Str("hash", enc.B58Encode(txWork.tx.GetHash())).
 				Err(err).Msg("error verify tx")
 		}
 

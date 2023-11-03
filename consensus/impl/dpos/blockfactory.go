@@ -264,7 +264,7 @@ func (bf *BlockFactory) generateBlock(execCtx context.Context, bpi *bpInfo, lpbN
 
 	logger.Info().
 		Str("BP", bf.ID).Str("id", block.ID()).
-		Str("sroot", enc.ToString(block.GetHeader().GetBlocksRootHash())).
+		Str("sroot", enc.B58Encode(block.GetHeader().GetBlocksRootHash())).
 		Uint64("no", block.BlockNo()).Uint64("confirms", block.Confirms()).
 		Uint64("lpb", lpbNo).
 		Msg("block produced")
@@ -277,7 +277,7 @@ func (bf *BlockFactory) rejected() *chain.RejTxInfo {
 }
 
 func (bf *BlockFactory) setRejected(rej *chain.RejTxInfo) {
-	logger.Warn().Str("hash", enc.ToString(rej.Hash())).Msg("timeout tx reserved for rescheduling")
+	logger.Warn().Str("hash", enc.B58Encode(rej.Hash())).Msg("timeout tx reserved for rescheduling")
 	bf.recentRejectedTx = rej
 }
 

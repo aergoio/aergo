@@ -69,7 +69,7 @@ func (bh *raftNewBlkNoticeDiscardHandler) Handle(msg p2pcommon.Message, msgBody 
 
 	if blockID, err := types.ParseToBlockID(data.BlockHash); err != nil {
 		// TODO Add penalty score and break
-		bh.logger.Info().Str(p2putil.LogPeerName, remotePeer.Name()).Str("hash", enc.ToString(data.BlockHash)).Msg("malformed blockHash")
+		bh.logger.Info().Str(p2putil.LogPeerName, remotePeer.Name()).Str("hash", enc.B58Encode(data.BlockHash)).Msg("malformed blockHash")
 		return
 	} else {
 		// just update last status

@@ -477,7 +477,7 @@ func contractFrame(l luaTxContract, bs *state.BlockState, cdb contract.ChainAcce
 			l.Hash(), l.sender(), l.amount().Bytes())
 		if err != nil {
 			if err != types.ErrNotAllowedFeeDelegation {
-				logger.Debug().Err(err).Str("txhash", enc.ToString(l.Hash())).Msg("checkFeeDelegation Error")
+				logger.Debug().Err(err).Str("txhash", enc.B58Encode(l.Hash())).Msg("checkFeeDelegation Error")
 				return err
 			}
 			return types.ErrNotAllowedFeeDelegation

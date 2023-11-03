@@ -90,7 +90,7 @@ func (t validateReport) toString() string {
 		result = "failed"
 	}
 
-	msgStr = fmt.Sprintf("%s : %s. block= %s, computed=%s", t.name, result, enc.ToString(t.src), enc.ToString(t.target))
+	msgStr = fmt.Sprintf("%s : %s. block= %s, computed=%s", t.name, result, enc.B58Encode(t.src), enc.B58Encode(t.target))
 
 	return msgStr
 }
@@ -99,7 +99,7 @@ func (bv *BlockValidator) ValidateBody(block *types.Block) error {
 	txs := block.GetBody().GetTxs()
 
 	// TxRootHash
-	logger.Debug().Int("Txlen", len(txs)).Str("TxRoot", enc.ToString(block.GetHeader().GetTxsRootHash())).
+	logger.Debug().Int("Txlen", len(txs)).Str("TxRoot", enc.B58Encode(block.GetHeader().GetTxsRootHash())).
 		Msg("tx root verify")
 
 	hdrRootHash := block.GetHeader().GetTxsRootHash()
@@ -112,8 +112,8 @@ func (bv *BlockValidator) ValidateBody(block *types.Block) error {
 
 	if !ret {
 		logger.Error().Str("block", block.ID()).
-			Str("txroot", enc.ToString(hdrRootHash)).
-			Str("compute txroot", enc.ToString(computeTxRootHash)).
+			Str("txroot", enc.B58Encode(hdrRootHash)).
+			Str("compute txroot", enc.B58Encode(computeTxRootHash)).
 			Msg("tx root validation failed")
 
 		return ErrorBlockVerifyTxRoot
@@ -160,13 +160,13 @@ func (bv *BlockValidator) ValidatePost(sdbRoot []byte, receipts *types.Receipts,
 	}
 	if !ret {
 		logger.Error().Str("block", block.ID()).
-			Str("hdrroot", enc.ToString(hdrRoot)).
-			Str("sdbroot", enc.ToString(sdbRoot)).
+			Str("hdrroot", enc.B58Encode(hdrRoot)).
+			Str("sdbroot", enc.B58Encode(sdbRoot)).
 			Msg("block root hash validation failed")
 		return ErrorBlockVerifyStateRoot
 	}
 
-	logger.Debug().Str("sdbroot", enc.ToString(sdbRoot)).
+	logger.Debug().Str("sdbroot", enc.B58Encode(sdbRoot)).
 		Msg("block root hash validation succeed")
 
 	hdrRoot = block.GetHeader().ReceiptsRootHash
@@ -177,12 +177,12 @@ func (bv *BlockValidator) ValidatePost(sdbRoot []byte, receipts *types.Receipts,
 		bv.report(validateReport{name: "Verify receipt merkle root", pass: ret, src: hdrRoot, target: receiptsRoot})
 	} else if !ret {
 		logger.Error().Str("block", block.ID()).
-			Str("hdrroot", enc.ToString(hdrRoot)).
-			Str("receipts_root", enc.ToString(receiptsRoot)).
+			Str("hdrroot", enc.B58Encode(hdrRoot)).
+			Str("receipts_root", enc.B58Encode(receiptsRoot)).
 			Msg("receipts root hash validation failed")
 		return ErrorBlockVerifyReceiptRoot
 	}
-	logger.Debug().Str("receipts_root", enc.ToString(receiptsRoot)).
+	logger.Debug().Str("receipts_root", enc.B58Encode(receiptsRoot)).
 		Msg("receipt root hash validation succeed")
 
 	return nil

@@ -51,7 +51,7 @@ func TestNewAgentCertV1(t *testing.T) {
 					t.Errorf("NewAgentCertV1() bpID = %v, want %v", got.AgentID, tt.args.agentID)
 				}
 				if !got.BPPubKey.IsEqual(tt.args.bpKey.PubKey()) {
-					t.Errorf("NewAgentCertV1() pubKey = %v, want %v", enc.ToString(got.BPPubKey.SerializeCompressed()), enc.ToString(tt.args.bpKey.PubKey().SerializeCompressed()))
+					t.Errorf("NewAgentCertV1() pubKey = %v, want %v", enc.B58Encode(got.BPPubKey.SerializeCompressed()), enc.B58Encode(tt.args.bpKey.PubKey().SerializeCompressed()))
 				}
 				if !types.IsSamePeerID(got.BPID, tt.args.bpID) {
 					t.Errorf("NewAgentCertV1() bpID = %v, want %v", got.BPID, tt.args.bpID)
@@ -258,7 +258,7 @@ func Test_calculateCertificateHash(t *testing.T) {
 	}
 
 	if !bytes.Equal(h1, h11) {
-		t.Fatalf("calculated hash is differ! %v , want %v ", enc.ToString(h11), enc.ToString(h1))
+		t.Fatalf("calculated hash is differ! %v , want %v ", enc.B58Encode(h11), enc.B58Encode(h1))
 	}
 	h2, err := calculateCertificateHash(w2)
 	if err != nil {
@@ -266,7 +266,7 @@ func Test_calculateCertificateHash(t *testing.T) {
 	}
 
 	if bytes.Equal(h1, h2) {
-		t.Fatalf("calculated hash is same! %v , want different ", enc.ToString(h2))
+		t.Fatalf("calculated hash is same! %v , want different ", enc.B58Encode(h2))
 	}
 
 }

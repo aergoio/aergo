@@ -8,9 +8,9 @@ import (
 	"github.com/aergoio/aergo/v2/account/key"
 	crypto "github.com/aergoio/aergo/v2/account/key/crypto"
 	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
+	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/btcsuite/btcd/btcec"
-	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
 )
 
@@ -44,7 +44,7 @@ var signCmd = &cobra.Command{
 
 		var msg *types.Tx
 		if privKey != "" {
-			rawKey, err := base58.Decode(privKey)
+			rawKey, err := enc.B58Decode(privKey)
 			if err != nil {
 				cmd.Printf("Failed: %s\n", err.Error())
 				return

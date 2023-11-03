@@ -34,12 +34,12 @@ func (m LogB58EncMarshaller) MarshalZerologArray(a *zerolog.Array) {
 	size := len(m.arr)
 	if size > m.limit {
 		for i := 0; i < m.limit-1; i++ {
-			a.Str(enc.ToString(m.arr[i]))
+			a.Str(enc.B58Encode(m.arr[i]))
 		}
 		a.Str(fmt.Sprintf("(and %d more)", size-m.limit+1))
 	} else {
 		for _, element := range m.arr {
-			a.Str(enc.ToString(element))
+			a.Str(enc.B58Encode(element))
 		}
 	}
 }
@@ -53,12 +53,12 @@ func (m LogBlockHashMarshaller) MarshalZerologArray(a *zerolog.Array) {
 	size := len(m.arr)
 	if size > m.limit {
 		for i := 0; i < m.limit-1; i++ {
-			a.Str(enc.ToString(m.arr[i].GetHash()))
+			a.Str(enc.B58Encode(m.arr[i].GetHash()))
 		}
 		a.Str(fmt.Sprintf("(and %d more)", size-m.limit+1))
 	} else {
 		for _, element := range m.arr {
-			a.Str(enc.ToString(element.GetHash()))
+			a.Str(enc.B58Encode(element.GetHash()))
 		}
 	}
 }
@@ -134,15 +134,15 @@ func (m *NewTransactionsNotice) MarshalZerologObject(e *zerolog.Event) {
 }
 
 func (m *BlockProducedNotice) MarshalZerologObject(e *zerolog.Event) {
-	e.Str("bp", enc.ToString(m.ProducerID)).Uint64(LogBlkNo, m.BlockNo).Str(LogBlkHash, enc.ToString(m.Block.Hash))
+	e.Str("bp", enc.B58Encode(m.ProducerID)).Uint64(LogBlkNo, m.BlockNo).Str(LogBlkHash, enc.B58Encode(m.Block.Hash))
 }
 
 func (m *Ping) MarshalZerologObject(e *zerolog.Event) {
-	e.Str(LogBlkHash, enc.ToString(m.BestBlockHash)).Uint64(LogBlkNo, m.BestHeight)
+	e.Str(LogBlkHash, enc.B58Encode(m.BestBlockHash)).Uint64(LogBlkNo, m.BestHeight)
 }
 
 func (m *GetHashesRequest) MarshalZerologObject(e *zerolog.Event) {
-	e.Str("prev_hash", enc.ToString(m.PrevHash)).Uint64("prev_no", m.PrevNumber)
+	e.Str("prev_hash", enc.B58Encode(m.PrevHash)).Uint64("prev_no", m.PrevNumber)
 }
 
 func (m *GetHashesResponse) MarshalZerologObject(e *zerolog.Event) {
@@ -150,7 +150,7 @@ func (m *GetHashesResponse) MarshalZerologObject(e *zerolog.Event) {
 }
 
 func (m *GetBlockHeadersRequest) MarshalZerologObject(e *zerolog.Event) {
-	e.Str(LogBlkHash, enc.ToString(m.Hash)).Uint64(LogBlkNo, m.Height).Bool("ascending", m.Asc).Uint32("size", m.Size)
+	e.Str(LogBlkHash, enc.B58Encode(m.Hash)).Uint64(LogBlkNo, m.Height).Bool("ascending", m.Asc).Uint32("size", m.Size)
 }
 
 func (m *GetBlockHeadersResponse) MarshalZerologObject(e *zerolog.Event) {
@@ -162,7 +162,7 @@ func (m *GetHashByNo) MarshalZerologObject(e *zerolog.Event) {
 }
 
 func (m *GetHashByNoResponse) MarshalZerologObject(e *zerolog.Event) {
-	e.Str(LogRespStatus, m.Status.String()).Str(LogBlkHash, enc.ToString(m.BlockHash))
+	e.Str(LogRespStatus, m.Status.String()).Str(LogBlkHash, enc.B58Encode(m.BlockHash))
 }
 
 func (m *GetAncestorRequest) MarshalZerologObject(e *zerolog.Event) {
@@ -170,15 +170,15 @@ func (m *GetAncestorRequest) MarshalZerologObject(e *zerolog.Event) {
 }
 
 func (m *GetAncestorResponse) MarshalZerologObject(e *zerolog.Event) {
-	e.Str(LogRespStatus, m.Status.String()).Str(LogBlkHash, enc.ToString(m.AncestorHash)).Uint64(LogBlkNo, m.AncestorNo)
+	e.Str(LogRespStatus, m.Status.String()).Str(LogBlkHash, enc.B58Encode(m.AncestorHash)).Uint64(LogBlkNo, m.AncestorNo)
 }
 
 func (m *GetClusterInfoRequest) MarshalZerologObject(e *zerolog.Event) {
-	e.Str("best_hash", enc.ToString(m.BestBlockHash))
+	e.Str("best_hash", enc.B58Encode(m.BestBlockHash))
 }
 
 func (m *GetClusterInfoResponse) MarshalZerologObject(e *zerolog.Event) {
-	e.Str(LogChainID, enc.ToString(m.ChainID)).Str("err", m.Error).Array("members", RaftMbrsMarshaller{arr: m.MbrAttrs, limit: 10}).Uint64("cluster_id", m.ClusterID)
+	e.Str(LogChainID, enc.B58Encode(m.ChainID)).Str("err", m.Error).Array("members", RaftMbrsMarshaller{arr: m.MbrAttrs, limit: 10}).Uint64("cluster_id", m.ClusterID)
 }
 
 func (m *IssueCertificateResponse) MarshalZerologObject(e *zerolog.Event) {

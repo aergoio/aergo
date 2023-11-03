@@ -78,7 +78,7 @@ func Test_pingRequestHandler_handle(t *testing.T) {
 	defer ctrl.Finish()
 
 	logger := log.NewLogger("test.subproto")
-	dummyBlockHash, _ := enc.ToBytes("v6zbuQ4aVSdbTwQhaiZGp5pcL5uL55X3kt2wfxor5W6")
+	dummyBlockHash, _ := enc.B58Decode("v6zbuQ4aVSdbTwQhaiZGp5pcL5uL55X3kt2wfxor5W6")
 	var dummyPeerID, _ = types.IDB58Decode("16Uiu2HAmN5YU8V2LnTy9neuuJCLNsxLnd5xVSRZqkjvZUHS3mLoD")
 
 	type args struct {

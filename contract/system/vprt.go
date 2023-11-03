@@ -611,7 +611,7 @@ func (v *vpr) add(id types.AccountID, addr []byte, power *big.Int) {
 			if vprLogger.IsDebugEnabled() {
 				vprLogger.Debug().
 					Str("op", "add").
-					Str("addr", enc.ToString(addr)).
+					Str("addr", enc.B58Encode(addr)).
 					Str("orig", lhs.String()).
 					Str("delta", power.String()).
 					Msg("prepare voting power change")
@@ -631,7 +631,7 @@ func (v *vpr) sub(id types.AccountID, addr []byte, power *big.Int) {
 			if vprLogger.IsDebugEnabled() {
 				vprLogger.Debug().
 					Str("op", "sub").
-					Str("addr", enc.ToString(addr)).
+					Str("addr", enc.B58Encode(addr)).
 					Str("orig", lhs.String()).
 					Str("delta", power.String()).
 					Msg("prepare voting power change")
@@ -710,7 +710,7 @@ func (v *vpr) pickVotingRewardWinner(seed int64) (types.Address, error) {
 					if vprLogger.IsDebugEnabled() {
 						vprLogger.Debug().
 							Str("total voting power", totalVp.String()).
-							Str("addr", enc.ToString(winner)).
+							Str("addr", enc.B58Encode(winner)).
 							Msg("pick voting reward winner")
 					}
 

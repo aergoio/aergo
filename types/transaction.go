@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/aergoio/aergo/v2/fee"
+	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/golang/protobuf/proto"
-	"github.com/mr-tron/base58/base58"
 )
 
 //governance type transaction which has aergo.system in recipient
@@ -203,7 +203,7 @@ func ValidateSystemTx(tx *TxBody) error {
 				return ErrTxInvalidPayload
 			}
 			unique[encoded]++
-			candidate, err := base58.Decode(encoded)
+			candidate, err := enc.B58Decode(encoded)
 			if err != nil {
 				return ErrTxInvalidPayload
 			}

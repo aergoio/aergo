@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestToString(t *testing.T) {
+func TestB58Encode(t *testing.T) {
 	type args struct {
 		b []byte
 	}
@@ -22,13 +22,13 @@ func TestToString(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := ToString(tt.args.b)
+			got := B58Encode(tt.args.b)
 			if got != tt.want {
 				t.Errorf("ToString() = %v, want %v", got, tt.want)
 			}
 
 			if tt.wantInverse {
-				got2, err := ToBytes(got)
+				got2, err := B58Decode(got)
 				if err != nil {
 					t.Errorf("ToBytes() = <err> %s, want no err", err.Error())
 				}

@@ -14,10 +14,10 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo-lib/db"
+	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/mr-tron/base58"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -82,7 +82,7 @@ func TestVoteResult(t *testing.T) {
 	testResult := map[string]*big.Int{}
 	for i := 0; i < testSize; i++ {
 		to := fmt.Sprintf("%39d", i) //39:peer id length
-		testResult[base58.Encode([]byte(to))] = new(big.Int).SetUint64(uint64(i * i))
+		testResult[enc.B58Encode([]byte(to))] = new(big.Int).SetUint64(uint64(i * i))
 	}
 	err = InitVoteResult(scs, nil)
 	assert.NotNil(t, err, "argument should not be nil")
@@ -166,7 +166,7 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 	result, err := getVoteResult(scs, defaultVoteKey, 23)
 	assert.NoError(t, err, "voting failed")
 	assert.EqualValues(t, len(result.GetVotes()), 1, "invalid voting result")
-	assert.Equal(t, voting.arg(0), base58.Encode(result.GetVotes()[0].Candidate), "invalid candidate in voting result")
+	assert.Equal(t, voting.arg(0), enc.B58Encode(result.GetVotes()[0].Candidate), "invalid candidate in voting result")
 	assert.Equal(t, types.StakingMinimum.Bytes(), result.GetVotes()[0].Amount, "invalid amount in voting result")
 
 	tx.Body.Payload = buildStakingPayload(false)
@@ -224,7 +224,7 @@ func buildVotingPayload(count int) []byte {
 	for i := 0; i < count; i++ {
 		peerID := make([]byte, PeerIDLength)
 		peerID[0] = byte(i)
-		ci.Args = append(ci.Args, base58.Encode(peerID))
+		ci.Args = append(ci.Args, enc.B58Encode(peerID))
 	}
 	payload, _ := json.Marshal(ci)
 	return payload

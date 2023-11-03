@@ -140,7 +140,7 @@ func (finder *Finder) lightscan() (*types.BlockInfo, error) {
 	if ancestor == nil {
 		logger.Debug().Msg("not found ancestor in lightscan")
 	} else {
-		logger.Info().Str("hash", enc.ToString(ancestor.Hash)).Uint64("no", ancestor.No).Msg("find ancestor in lightscan")
+		logger.Info().Str("hash", enc.B58Encode(ancestor.Hash)).Uint64("no", ancestor.No).Msg("find ancestor in lightscan")
 
 		if ancestor.No >= finder.ctx.TargetNo {
 			logger.Info().Msg("already synchronized")
@@ -163,7 +163,7 @@ func (finder *Finder) getAnchors() ([][]byte, error) {
 		finder.ctx.LastAnchor = result.(message.GetAnchorsRsp).LastNo
 	}
 
-	logger.Info().Str("start", enc.ToString(anchors[0])).Int("count", len(anchors)).Uint64("last", finder.ctx.LastAnchor).Msg("get anchors from chain")
+	logger.Info().Str("start", enc.B58Encode(anchors[0])).Int("count", len(anchors)).Uint64("last", finder.ctx.LastAnchor).Msg("get anchors from chain")
 
 	return anchors, nil
 }
@@ -204,7 +204,7 @@ func (finder *Finder) fullscan() (*types.BlockInfo, error) {
 	if ancestor == nil {
 		logger.Info().Msg("failed to search ancestor in fullscan")
 	} else {
-		logger.Info().Uint64("no", ancestor.No).Str("hash", enc.ToString(ancestor.Hash)).Msg("find ancestor in fullscan")
+		logger.Info().Uint64("no", ancestor.No).Str("hash", enc.B58Encode(ancestor.Hash)).Msg("find ancestor in fullscan")
 	}
 
 	return ancestor, err

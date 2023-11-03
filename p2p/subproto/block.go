@@ -162,7 +162,7 @@ func (bh *newBlockNoticeHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon
 
 	if blockID, err := types.ParseToBlockID(data.BlockHash); err != nil {
 		// TODO Add penalty score and break
-		bh.logger.Info().Str(p2putil.LogPeerName, remotePeer.Name()).Str("hash", enc.ToString(data.BlockHash)).Msg("malformed blockHash")
+		bh.logger.Info().Str(p2putil.LogPeerName, remotePeer.Name()).Str("hash", enc.B58Encode(data.BlockHash)).Msg("malformed blockHash")
 		return
 	} else {
 		// lru cache can't accept byte slice key
@@ -242,7 +242,7 @@ func (bh *getAncestorRequestHandler) handleGetAncestorReq(msg p2pcommon.Message,
 		AncestorNo:   ancestor.No,
 	}
 
-	bh.logger.Debug().Uint64("ancestorno", ancestor.No).Str("ancestorhash", enc.ToString(ancestor.Hash)).Msg("Sending get ancestor response")
+	bh.logger.Debug().Uint64("ancestorno", ancestor.No).Str("ancestorhash", enc.B58Encode(ancestor.Hash)).Msg("Sending get ancestor response")
 	remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), p2pcommon.GetAncestorResponse, resp))
 }
 

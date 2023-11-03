@@ -45,7 +45,7 @@ func BenchmarkArrayKey(b *testing.B) {
 		fmt.Printf("P2 in base64\n")
 		target2 := make(map[string]int)
 		for i := 0; i < size; i++ {
-			target2[enc.ToString(samples[i][:])] = i
+			target2[enc.B58Encode(samples[i][:])] = i
 		}
 		endTime := time.Now()
 		fmt.Printf("Takes %f sec\n", endTime.Sub(startTime).Seconds())

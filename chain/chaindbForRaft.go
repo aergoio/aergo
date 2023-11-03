@@ -1,12 +1,11 @@
 package chain
 
 import (
-	"bytes"
-	"encoding/gob"
 	"errors"
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/internal/common"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/dbkey"
 	"github.com/aergoio/etcd/raft/raftpb"
@@ -235,10 +234,7 @@ func (cdb *ChainDB) GetRaftEntry(idx uint64) (*consensus.WalEntry, error) {
 	}
 
 	var entry consensus.WalEntry
-	var b bytes.Buffer
-	b.Write(data)
-	decoder := gob.NewDecoder(&b)
-	if err := decoder.Decode(&entry); err != nil {
+	if err := common.GobDecode(data, &entry); err != nil {
 		return nil, err
 	}
 
@@ -425,14 +421,12 @@ func (cdb *ChainDB) WriteIdentity(identity *consensus.RaftIdentity) error {
 
 	logger.Info().Str("id", identity.ToString()).Msg("save raft identity")
 
-	var val bytes.Buffer
-
-	enc := gob.NewEncoder(&val)
-	if err := enc.Encode(identity); err != nil {
+	enc, err := common.GobEncode(identity)
+	if err != nil {
 		return ErrEncodeRaftIdentity
 	}
 
-	dbTx.Set(dbkey.RaftIdentity(), val.Bytes())
+	dbTx.Set(dbkey.RaftIdentity(), enc)
 	dbTx.Commit()
 
 	return nil
@@ -445,10 +439,7 @@ func (cdb *ChainDB) GetIdentity() (*consensus.RaftIdentity, error) {
 	}
 
 	var id consensus.RaftIdentity
-	var b bytes.Buffer
-	b.Write(data)
-	decoder := gob.NewDecoder(&b)
-	if err := decoder.Decode(&id); err != nil {
+	if err := common.GobDecode(data, &id); err != nil {
 		return nil, ErrDecodeRaftIdentity
 	}
 

@@ -168,8 +168,8 @@ func (sdb *ChainStateDB) UpdateRoot(bstate *BlockState) error {
 	// 	bstate.BlockInfo.StateRoot = types.ToHashID(sdb.GetRoot())
 	// }
 
-	logger.Debug().Str("before", enc.ToString(sdb.states.GetRoot())).
-		Str("stateRoot", enc.ToString(bstate.GetRoot())).Msg("apply block state")
+	logger.Debug().Str("before", enc.B58Encode(sdb.states.GetRoot())).
+		Str("stateRoot", enc.B58Encode(bstate.GetRoot())).Msg("apply block state")
 
 	if err := sdb.states.SetRoot(bstate.GetRoot()); err != nil {
 		return err
@@ -182,8 +182,8 @@ func (sdb *ChainStateDB) SetRoot(targetBlockRoot []byte) error {
 	sdb.Lock()
 	defer sdb.Unlock()
 
-	logger.Debug().Str("before", enc.ToString(sdb.states.GetRoot())).
-		Str("target", enc.ToString(targetBlockRoot)).Msg("rollback state")
+	logger.Debug().Str("before", enc.B58Encode(sdb.states.GetRoot())).
+		Str("target", enc.B58Encode(targetBlockRoot)).Msg("rollback state")
 
 	sdb.states.SetRoot(targetBlockRoot)
 	return nil

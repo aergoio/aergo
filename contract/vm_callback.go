@@ -785,7 +785,7 @@ func luaGetSender(L *LState, service C.int) *C.char {
 //export luaGetHash
 func luaGetHash(L *LState, service C.int) *C.char {
 	ctx := contexts[service]
-	return C.CString(enc.ToString(ctx.txHash))
+	return C.CString(enc.B58Encode(ctx.txHash))
 }
 
 //export luaGetBlockNo
@@ -823,7 +823,7 @@ func luaGetOrigin(L *LState, service C.int) *C.char {
 //export luaGetPrevBlockHash
 func luaGetPrevBlockHash(L *LState, service C.int) *C.char {
 	ctx := contexts[service]
-	return C.CString(enc.ToString(ctx.blockInfo.PrevBlockHash))
+	return C.CString(enc.B58Encode(ctx.blockInfo.PrevBlockHash))
 }
 
 //export luaGetDbHandle

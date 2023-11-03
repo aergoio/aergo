@@ -3,8 +3,8 @@ package util
 import (
 	"testing"
 
+	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/mr-tron/base58/base58"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -13,8 +13,8 @@ func TestParseConvBase58Tx(t *testing.T) {
 	res, err := ParseBase58Tx([]byte(testjson))
 	assert.NoError(t, err, "should be success")
 	assert.NotEmpty(t, res, "failed to parse json")
-	assert.Equal(t, "525mQMtsWaDLVJbzQZgTFkSG33gtZsho7m4io1HUCeJi", base58.Encode(res[0].Hash), "wrong hash")
-	assert.Equal(t, "3tMHYrizQ532D1WJkt5RSs5AcRmq7betw8zvC66Wh3XHUdvNpNzLWh1SkkGYMGJ669nCVuYHrhwfg1HrUUp6KDwzK", base58.Encode(res[0].Body.Sign), "wrong sign")
+	assert.Equal(t, "525mQMtsWaDLVJbzQZgTFkSG33gtZsho7m4io1HUCeJi", enc.B58Encode(res[0].Hash), "wrong hash")
+	assert.Equal(t, "3tMHYrizQ532D1WJkt5RSs5AcRmq7betw8zvC66Wh3XHUdvNpNzLWh1SkkGYMGJ669nCVuYHrhwfg1HrUUp6KDwzK", enc.B58Encode(res[0].Body.Sign), "wrong sign")
 
 	account, err := types.DecodeAddress("AsiFCzSukVNUGufJSzSNLA1nKx39NxKcVBEWvW3riyfixcBjN1Qd")
 	assert.NoError(t, err, "should be success")
@@ -31,8 +31,8 @@ func TestParseBase58TxBody(t *testing.T) {
 	assert.NoError(t, err, "should be success")
 	assert.NotEmpty(t, res, "failed to parse json")
 
-	assert.Equal(t, "3roWPzztf5aLLh16vAnd2ugcPux3wJ1oqqvqkWARobjuAC32xftF42nnbTkXUQdkDaFvuUmctrpQSv8FAVUKcywHW", base58.Encode(res.Sign), "wrong sign")
-	assert.Equal(t, "aergo", base58.Encode(res.Payload), "wrong payload")
+	assert.Equal(t, "3roWPzztf5aLLh16vAnd2ugcPux3wJ1oqqvqkWARobjuAC32xftF42nnbTkXUQdkDaFvuUmctrpQSv8FAVUKcywHW", enc.B58Encode(res.Sign), "wrong sign")
+	assert.Equal(t, "aergo", enc.B58Encode(res.Payload), "wrong payload")
 	account, err := types.DecodeAddress("AsiFCzSukVNUGufJSzSNLA1nKx39NxKcVBEWvW3riyfixcBjN1Qd")
 	assert.NoError(t, err, "should be success")
 	assert.Equal(t, account, res.Account, "wrong account")
@@ -68,7 +68,7 @@ func TestBlockConvBase58(t *testing.T) {
 	recipient, err := types.DecodeAddress(recipientBase58)
 	assert.NoError(t, err, "should be decode recipient")
 
-	payload, err := base58.Decode(payloadBase58)
+	payload, err := enc.B58Decode(payloadBase58)
 	assert.NoError(t, err, "should be decode payload")
 
 	testTx := &types.Tx{Body: &types.TxBody{

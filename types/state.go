@@ -58,7 +58,7 @@ func ToHashID(hash []byte) HashID {
 	return HashID(buf)
 }
 func (id HashID) String() string {
-	return enc.ToString(id[:])
+	return enc.B58Encode(id[:])
 }
 
 // Bytes make a byte slice from id

@@ -72,7 +72,7 @@ func (cs *ChainService) getAnchorsFromHash(blockHash []byte) ChainAnchor {
 			return nil
 		}
 
-		logger.Debug().Uint64("no", latestNo).Str("hash", enc.ToString(blockHash)).Msg("anchor")
+		logger.Debug().Uint64("no", latestNo).Str("hash", enc.B58Encode(blockHash)).Msg("anchor")
 
 		anchors = append(anchors, blockHash)
 		if latestNo == 0 {
@@ -91,7 +91,7 @@ func (cs *ChainService) getAnchorsFromHash(blockHash []byte) ChainAnchor {
 			return nil
 		}
 
-		logger.Debug().Uint64("no", latestNo).Str("hash", enc.ToString(blockHash)).Msg("anchor")
+		logger.Debug().Uint64("no", latestNo).Str("hash", enc.B58Encode(blockHash)).Msg("anchor")
 
 		anchors = append(anchors, blockHash)
 		if latestNo <= dec {

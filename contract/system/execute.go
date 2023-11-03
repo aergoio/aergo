@@ -10,9 +10,9 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/mr-tron/base58"
 )
 
 // SystemContext is context of executing aergo.system transaction and filled after validation.
@@ -115,7 +115,7 @@ func GetVotes(scs *state.ContractState, address []byte) ([]*types.VoteInfo, erro
 
 		if bytes.Equal(key, defaultVoteKey) {
 			for offset := 0; offset < len(v.Candidate); offset += PeerIDLength {
-				candi := base58.Encode(v.Candidate[offset : offset+PeerIDLength])
+				candi := enc.B58Encode(v.Candidate[offset : offset+PeerIDLength])
 				result.Candidates = append(result.Candidates, candi)
 			}
 		} else {

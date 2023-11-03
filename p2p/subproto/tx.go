@@ -107,7 +107,7 @@ func (th *newTxNoticeHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.Me
 	hashes := make([]types.TxID, len(data.TxHashes))
 	for i, hash := range data.TxHashes {
 		if tid, err := types.ParseToTxID(hash); err != nil {
-			th.logger.Info().Str(p2putil.LogPeerName, remotePeer.Name()).Str("hash", enc.ToString(hash)).Msg("malformed txhash found")
+			th.logger.Info().Str(p2putil.LogPeerName, remotePeer.Name()).Str("hash", enc.B58Encode(hash)).Msg("malformed txhash found")
 			// TODO Add penalty score and break
 			break
 		} else {

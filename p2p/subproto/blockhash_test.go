@@ -46,7 +46,7 @@ func TestGetHashRequestHandler_handle(t *testing.T) {
 	sampleBlks = make([][]byte, len(sampleBlksB58))
 	sampleBlksHashes = make([]types.BlockID, len(sampleBlksB58))
 	for i, hashb58 := range sampleBlksB58 {
-		hash, _ := enc.ToBytes(hashb58)
+		hash, _ := enc.B58Decode(hashb58)
 		sampleBlks[i] = hash
 		copy(sampleBlksHashes[i][:], hash)
 	}
@@ -154,7 +154,7 @@ func TestGetHashByNoRequestHandler_handle(t *testing.T) {
 	sampleBlks = make([][]byte, len(sampleBlksB58))
 	sampleBlksHashes = make([]types.BlockID, len(sampleBlksB58))
 	for i, hashb58 := range sampleBlksB58 {
-		hash, _ := enc.ToBytes(hashb58)
+		hash, _ := enc.B58Decode(hashb58)
 		sampleBlks[i] = hash
 		copy(sampleBlksHashes[i][:], hash)
 	}

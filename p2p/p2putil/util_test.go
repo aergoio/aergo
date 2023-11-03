@@ -111,10 +111,10 @@ func Test_Encode(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			got := enc.ToString(test.in)
+			got := enc.B58Encode(test.in)
 			assert.Equal(t, test.out, got)
 			if len(test.out) > 0 {
-				gotBytes, err := enc.ToBytes(test.out)
+				gotBytes, err := enc.B58Decode(test.out)
 				assert.Nil(t, err)
 				assert.Equal(t, test.in, gotBytes)
 			}

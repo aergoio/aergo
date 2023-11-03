@@ -65,7 +65,7 @@ func TestNewBlockProducedNoticeHandlerOfBP(t *testing.T) {
 
 func Test_blockProducedNoticeHandler_handle_FromBP(t *testing.T) {
 	logger := log.NewLogger("test.subproto")
-	dummyBlockHash, _ := enc.ToBytes("v6zbuQ4aVSdbTwQhaiZGp5pcL5uL55X3kt2wfxor5W6")
+	dummyBlockHash, _ := enc.B58Decode("v6zbuQ4aVSdbTwQhaiZGp5pcL5uL55X3kt2wfxor5W6")
 	dummyBlockID := types.MustParseBlockID(dummyBlockHash)
 	bpKey, bpPub, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
 	bpID, _ := types.IDFromPrivateKey(bpKey)

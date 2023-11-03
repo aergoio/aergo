@@ -49,7 +49,7 @@ func init() {
 	sql.Register(statesqlDriver, &SQLiteDriver{
 		ConnectHook: func(conn *SQLiteConn) error {
 			if _, ok := database.DBs[database.OpenDbName]; !ok {
-				b, err := enc.ToBytes(database.OpenDbName)
+				b, err := enc.B58Decode(database.OpenDbName)
 				if err != nil {
 					sqlLgr.Error().Err(err).Msg("Open SQL Connection")
 					return nil

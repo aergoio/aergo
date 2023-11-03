@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/anaskhan96/base58check"
+	"github.com/aergoio/aergo/v2/internal/enc"
 )
 
 const AddressLength = 33
@@ -50,7 +50,7 @@ func EncodeAddress(addr Address) string {
 	if len(addr) != AddressLength {
 		return string(addr)
 	}
-	encoded, _ := base58check.Encode(fmt.Sprintf("%x", AddressVersion), hex.EncodeToString(addr))
+	encoded, _ := enc.B58CheckEncode(fmt.Sprintf("%x", AddressVersion), hex.EncodeToString(addr))
 	return encoded
 }
 
@@ -68,7 +68,7 @@ func DecodeAddress(encodedAddr string) (Address, error) {
 		}
 		return []byte(name), nil
 	}
-	decodedString, err := base58check.Decode(encodedAddr)
+	decodedString, err := enc.B58CheckDecode(encodedAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -95,12 +95,12 @@ func DecodeAddressBytes(decodedBytes []byte) (Address, error) {
 }
 
 func EncodePrivKey(key []byte) string {
-	encoded, _ := base58check.Encode(fmt.Sprintf("%x", PrivKeyVersion), hex.EncodeToString(key))
+	encoded, _ := enc.B58CheckEncode(fmt.Sprintf("%x", PrivKeyVersion), hex.EncodeToString(key))
 	return encoded
 }
 
 func DecodePrivKey(encodedKey string) ([]byte, error) {
-	decodedString, err := base58check.Decode(encodedKey)
+	decodedString, err := enc.B58CheckDecode(encodedKey)
 	if err != nil {
 		return nil, err
 	}
