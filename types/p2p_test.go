@@ -6,7 +6,6 @@
 package types
 
 import (
-	"encoding/hex"
 	"fmt"
 	"testing"
 
@@ -17,7 +16,7 @@ import (
 
 func TestUnmarshalSize(t *testing.T) {
 	var dummyTxHash, _ = enc.B58Decode("4H4zAkAyRV253K5SNBJtBxqUgHEbZcXbWFFc6cmQHY45")
-	fmt.Println("Hash: ", hex.EncodeToString(dummyTxHash))
+	fmt.Println("Hash: ", enc.HexEncode(dummyTxHash))
 
 	sample := &NewTransactionsNotice{}
 
@@ -35,7 +34,7 @@ func TestUnmarshalSize(t *testing.T) {
 	actual, err = proto.Marshal(sample)
 	assert.Nil(t, err)
 	fmt.Println("Single hash notice size ", len(actual))
-	fmt.Println("Hex: ", hex.EncodeToString(actual))
+	fmt.Println("Hex: ", enc.HexEncode(actual))
 	assert.Equal(t, expectedLen, len(actual))
 
 	// 100 hashes
@@ -48,7 +47,7 @@ func TestUnmarshalSize(t *testing.T) {
 	actual, err = proto.Marshal(sample)
 	assert.Nil(t, err)
 	fmt.Println("Hundred hashes notice size ", len(actual))
-	fmt.Println("Hex: ", hex.EncodeToString(actual[0:40]))
+	fmt.Println("Hex: ", enc.HexEncode(actual[0:40]))
 	assert.Equal(t, expectedLen, len(actual))
 
 	// 1000 hashes
@@ -61,7 +60,7 @@ func TestUnmarshalSize(t *testing.T) {
 	actual, err = proto.Marshal(sample)
 	assert.Nil(t, err)
 	fmt.Println("Thousand hashes notice size ", len(actual))
-	fmt.Println("Hex: ", hex.EncodeToString(actual[0:40]))
+	fmt.Println("Hex: ", enc.HexEncode(actual[0:40]))
 	assert.Equal(t, expectedLen, len(actual))
 
 }

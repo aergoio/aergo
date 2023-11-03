@@ -1,7 +1,6 @@
 package types
 
 import (
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
@@ -50,7 +49,7 @@ func EncodeAddress(addr Address) string {
 	if len(addr) != AddressLength {
 		return string(addr)
 	}
-	encoded, _ := enc.B58CheckEncode(fmt.Sprintf("%x", AddressVersion), hex.EncodeToString(addr))
+	encoded, _ := enc.B58CheckEncode(fmt.Sprintf("%x", AddressVersion), enc.HexEncode(addr))
 	return encoded
 }
 
@@ -72,7 +71,7 @@ func DecodeAddress(encodedAddr string) (Address, error) {
 	if err != nil {
 		return nil, err
 	}
-	decodedBytes, err := hex.DecodeString(decodedString)
+	decodedBytes, err := enc.HexDecode(decodedString)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +94,7 @@ func DecodeAddressBytes(decodedBytes []byte) (Address, error) {
 }
 
 func EncodePrivKey(key []byte) string {
-	encoded, _ := enc.B58CheckEncode(fmt.Sprintf("%x", PrivKeyVersion), hex.EncodeToString(key))
+	encoded, _ := enc.B58CheckEncode(fmt.Sprintf("%x", PrivKeyVersion), enc.HexEncode(key))
 	return encoded
 }
 
@@ -104,7 +103,7 @@ func DecodePrivKey(encodedKey string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	decodedBytes, err := hex.DecodeString(decodedString)
+	decodedBytes, err := enc.HexDecode(decodedString)
 	if err != nil {
 		return nil, err
 	}

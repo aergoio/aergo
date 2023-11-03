@@ -10,12 +10,12 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
 	"reflect"
 
+	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/btcsuite/btcd/btcec"
 	"golang.org/x/crypto/scrypt"
@@ -105,9 +105,9 @@ func (ks *v1Strategy) Encrypt(key *PrivateKey, passphrase string) ([]byte, error
 	cipher := v1CipherJSON{
 		Algorithm: cipherAlgorithm,
 		Params: v1CipherParamsJSON{
-			Iv: hex.EncodeToString(iv),
+			Iv: enc.HexEncode(iv),
 		},
-		Ciphertext: hex.EncodeToString(ciphertext),
+		Ciphertext: enc.HexEncode(ciphertext),
 	}
 	// json: kdf
 	kdf := v1KdfJson{
@@ -117,9 +117,9 @@ func (ks *v1Strategy) Encrypt(key *PrivateKey, passphrase string) ([]byte, error
 			N:     scryptN,
 			P:     scryptP,
 			R:     scryptR,
-			Salt:  hex.EncodeToString(salt),
+			Salt:  enc.HexEncode(salt),
 		},
-		Mac: hex.EncodeToString(mac),
+		Mac: enc.HexEncode(mac),
 	}
 	rawAddress := GenerateAddress(&(key.ToECDSA().PublicKey))
 	encodedAddress := types.EncodeAddress(rawAddress)
@@ -155,11 +155,11 @@ func (ks *v1Strategy) Decrypt(encrypted []byte, passphrase string) (*PrivateKey,
 	}
 
 	// check mac
-	mac, err := hex.DecodeString(kdf.Mac)
+	mac, err := enc.HexDecode(kdf.Mac)
 	if nil != err {
 		return nil, err
 	}
-	cipherText, err := hex.DecodeString(cipher.Ciphertext)
+	cipherText, err := enc.HexDecode(cipher.Ciphertext)
 	if nil != err {
 		return nil, err
 	}
@@ -170,7 +170,7 @@ func (ks *v1Strategy) Decrypt(encrypted []byte, passphrase string) (*PrivateKey,
 
 	// decrypt
 	decryptKey := derivedKey[:16]
-	iv, err := hex.DecodeString(cipher.Params.Iv)
+	iv, err := enc.HexDecode(cipher.Params.Iv)
 	if nil != err {
 		return nil, err
 	}
@@ -207,7 +207,7 @@ func checkKeyFormat(keyFormat *v1KeyStoreFormat) error {
 }
 
 func deriveCipherKey(passphrase []byte, kdf v1KdfJson) ([]byte, error) {
-	salt, err := hex.DecodeString(kdf.Params.Salt)
+	salt, err := enc.HexDecode(kdf.Params.Salt)
 	if err != nil {
 		return nil, err
 	}

@@ -1,7 +1,6 @@
 package encoding
 
 import (
-	"encoding/hex"
 	"errors"
 	"fmt"
 
@@ -11,7 +10,7 @@ import (
 const CodeVersion = 0xC0
 
 func EncodeCode(code []byte) string {
-	encoded, _ := enc.B58CheckEncode(fmt.Sprintf("%x", CodeVersion), hex.EncodeToString(code))
+	encoded, _ := enc.B58CheckEncode(fmt.Sprintf("%x", CodeVersion), enc.HexEncode(code))
 	return encoded
 }
 
@@ -20,7 +19,7 @@ func DecodeCode(encodedCode string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	decodedBytes, err := hex.DecodeString(decodedString)
+	decodedBytes, err := enc.HexDecode(decodedString)
 	if err != nil {
 		return nil, err
 	}

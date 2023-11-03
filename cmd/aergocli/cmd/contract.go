@@ -3,7 +3,6 @@ package cmd
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -201,7 +200,7 @@ func runDeployCmd(cmd *cobra.Command, args []string) error {
 		if isHexString(data) {
 			// the data is expected to be copied from aergoscan view of
 			// the transaction that deployed the contract
-			payload, err = hex.DecodeString(data)
+			payload, err = enc.HexDecode(data)
 		} else {
 			// the data is the output of aergoluac
 			code, err = luacEncoding.DecodeCode(data)

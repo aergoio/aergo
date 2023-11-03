@@ -26,7 +26,6 @@ struct rlp_obj {
 import "C"
 import (
 	"bytes"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
@@ -871,7 +870,7 @@ func luaCryptoSha256(L *LState, arg unsafe.Pointer, argLen C.int) (*C.char, *C.c
 	if checkHexString(string(data)) {
 		dataStr := data[2:]
 		var err error
-		data, err = hex.DecodeString(string(dataStr))
+		data, err = enc.HexDecode(string(dataStr))
 		if err != nil {
 			return nil, C.CString("[Contract.LuaCryptoSha256] hex decoding error: " + err.Error())
 		}
@@ -880,14 +879,14 @@ func luaCryptoSha256(L *LState, arg unsafe.Pointer, argLen C.int) (*C.char, *C.c
 	h.Write(data)
 	resultHash := h.Sum(nil)
 
-	return C.CString("0x" + hex.EncodeToString(resultHash)), nil
+	return C.CString("0x" + enc.HexEncode(resultHash)), nil
 }
 
 func decodeHex(hexStr string) ([]byte, error) {
 	if checkHexString(hexStr) {
 		hexStr = hexStr[2:]
 	}
-	return hex.DecodeString(hexStr)
+	return enc.HexDecode(hexStr)
 }
 
 //export luaECVerify
@@ -971,7 +970,7 @@ func luaCryptoToBytes(data unsafe.Pointer, dataLen C.int) ([]byte, bool) {
 	isHex := checkHexString(string(b))
 	if isHex {
 		var err error
-		d, err = hex.DecodeString(string(b[2:]))
+		d, err = enc.HexDecode(string(b[2:]))
 		if err != nil {
 			isHex = false
 		}
@@ -1023,7 +1022,7 @@ func luaCryptoKeccak256(data unsafe.Pointer, dataLen C.int) (unsafe.Pointer, int
 	d, isHex := luaCryptoToBytes(data, dataLen)
 	h := keccak256(d)
 	if isHex {
-		hexb := []byte("0x" + hex.EncodeToString(h))
+		hexb := []byte("0x" + enc.HexEncode(h))
 		return C.CBytes(hexb), len(hexb)
 	} else {
 		return C.CBytes(h), len(h)

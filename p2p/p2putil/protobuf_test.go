@@ -21,10 +21,10 @@ func Test_MarshalTxResp(t *testing.T) {
 	dummyTx := &types.Tx{Hash: dummyTxHash, Body: &types.TxBody{Payload: []byte("It's a good day to die.")}}
 	txMarshaled, _ := proto.Marshal(dummyTx)
 	txSize := len(dummyTxHash) + 2 + len(txMarshaled) + 2 // hash+ field desc of hash + tx+field desc of tx
-	//fmt.Println("TX   : ",hex.EncodeToString(txMarshaled))
+	//fmt.Println("TX   : ",enc.HexEncode(txMarshaled))
 	emptyMarshaled, _ := proto.Marshal(&types.GetTransactionsResponse{})
 	emptySize := len(emptyMarshaled)
-	//fmt.Println("EMPTY: ",hex.EncodeToString(emptyMarshaled))
+	//fmt.Println("EMPTY: ",enc.HexEncode(emptyMarshaled))
 	//fmt.Printf("Size of All nil: %d , tx size: %d ",emptySize, txSize)
 	tests := []struct {
 		name         string
@@ -59,7 +59,7 @@ func Test_MarshalTxResp(t *testing.T) {
 			if actualSize < cut {
 				cut = actualSize
 			}
-			//fmt.Println("ACTUAL: ",hex.EncodeToString(actual[:cut]))
+			//fmt.Println("ACTUAL: ",enc.HexEncode(actual[:cut]))
 
 			assert.Equal(t, test.expectedSize, actualSize)
 

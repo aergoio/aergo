@@ -1,11 +1,11 @@
 package main
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
 
+	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/types"
 )
 
@@ -41,6 +41,6 @@ func main() {
 		panic(err)
 	}
 
-	str := "\"" + hex.EncodeToString(bs) + "\""
+	str := "\"" + enc.HexEncode(bs) + "\""
 	fmt.Println(str)
 }

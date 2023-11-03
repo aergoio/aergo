@@ -3,7 +3,6 @@ package types
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -12,6 +11,7 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo/v2/internal/common"
+	"github.com/aergoio/aergo/v2/internal/enc"
 )
 
 const (
@@ -333,7 +333,7 @@ func GetDefaultGenesis() *Genesis {
 }
 
 func GetMainNetGenesis() *Genesis {
-	if bs, err := hex.DecodeString(MainNetGenesis); err == nil {
+	if bs, err := enc.HexDecode(MainNetGenesis); err == nil {
 		var g Genesis
 		if err := json.Unmarshal(bs, &g); err == nil {
 			return &g
@@ -342,7 +342,7 @@ func GetMainNetGenesis() *Genesis {
 	return nil
 }
 func GetTestNetGenesis() *Genesis {
-	if bs, err := hex.DecodeString(TestNetGenesis); err == nil {
+	if bs, err := enc.HexDecode(TestNetGenesis); err == nil {
 		var g Genesis
 		if err := json.Unmarshal(bs, &g); err == nil {
 			return &g

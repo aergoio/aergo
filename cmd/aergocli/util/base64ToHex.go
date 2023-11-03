@@ -1,9 +1,9 @@
 package util
 
 import (
-	"encoding/hex"
 	"encoding/json"
 
+	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/types"
 )
 
@@ -18,9 +18,9 @@ type InOutBlockchainStatus struct {
 
 func ConvHexBlockchainStatus(in *types.BlockchainStatus) string {
 	out := &InOutBlockchainStatus{}
-	out.Hash = hex.EncodeToString(in.BestBlockHash)
+	out.Hash = enc.HexEncode(in.BestBlockHash)
 	out.Height = in.BestHeight
-	out.ChainIdHash = hex.EncodeToString(in.BestChainIdHash)
+	out.ChainIdHash = enc.HexEncode(in.BestChainIdHash)
 	jsonout, err := json.Marshal(out)
 	if err != nil {
 		return ""

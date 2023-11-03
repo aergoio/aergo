@@ -22,7 +22,6 @@ import "C"
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1459,7 +1458,7 @@ func (ce *executor) vmLoadCode(id []byte) {
 	if ce.ctx.blockInfo.ForkVersion >= 3 {
 		chunkId = C.CString("@" + types.EncodeAddress(id))
 	} else {
-		chunkId = C.CString(hex.EncodeToString(id))
+		chunkId = C.CString(enc.HexEncode(id))
 	}
 	defer C.free(unsafe.Pointer(chunkId))
 	if cErrMsg := C.vm_loadbuff(

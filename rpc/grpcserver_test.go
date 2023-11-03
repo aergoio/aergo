@@ -6,7 +6,6 @@ package rpc
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"math/big"
 	"reflect"
@@ -25,33 +24,33 @@ import (
 
 func TestAergoRPCService_dummys(t *testing.T) {
 	fmt.Println("dummyBlockHash")
-	fmt.Printf("HEX : %s \n", hex.EncodeToString(dummyBlockHash))
+	fmt.Printf("HEX : %s \n", enc.HexEncode(dummyBlockHash))
 	fmt.Printf("B64 : %s \n", enc.B64Encode(dummyBlockHash))
 	fmt.Printf("B58 : %s \n", enc.B58Encode(dummyBlockHash))
 	fmt.Println()
 	fmt.Println("dummyTx")
-	fmt.Printf("HEX : %s \n", hex.EncodeToString(dummyTxHash))
+	fmt.Printf("HEX : %s \n", enc.HexEncode(dummyTxHash))
 	fmt.Printf("B64 : %s \n", enc.B64Encode(dummyTxHash))
 	fmt.Printf("B58 : %s \n", enc.B58Encode(dummyTxHash))
 	fmt.Println()
 
 	fmt.Println("Address1")
-	fmt.Printf("HEX : %s \n", hex.EncodeToString(dummyWalletAddress))
+	fmt.Printf("HEX : %s \n", enc.HexEncode(dummyWalletAddress))
 	fmt.Printf("B64 : %s \n", enc.B64Encode(dummyWalletAddress))
 	fmt.Printf("B58 : %s \n", enc.B58Encode(dummyWalletAddress))
 	fmt.Println()
 
 	fmt.Println("Address2")
-	fmt.Printf("HEX : %s \n", hex.EncodeToString(dummyWalletAddress2))
+	fmt.Printf("HEX : %s \n", enc.HexEncode(dummyWalletAddress2))
 	fmt.Printf("B64 : %s \n", enc.B64Encode(dummyWalletAddress2))
 	fmt.Printf("B58 : %s \n", enc.B58Encode(dummyWalletAddress2))
 	fmt.Println()
 
 }
 
-var dummyBlockHash, _ = hex.DecodeString("4f461d85e869ade8a0544f8313987c33a9c06534e50c4ad941498299579bd7ac")
+var dummyBlockHash, _ = enc.HexDecode("4f461d85e869ade8a0544f8313987c33a9c06534e50c4ad941498299579bd7ac")
 var dummyBlockHeight uint32 = 100215
-var dummyTxHash, _ = hex.DecodeString("218bdab4e87fb332b55eb89854ef553f9e3d440c81fff4161b672adede1261ee")
+var dummyTxHash, _ = enc.HexDecode("218bdab4e87fb332b55eb89854ef553f9e3d440c81fff4161b672adede1261ee")
 
 // base64 encoding of dummyTxHash is ""
 var dummyWalletAddress, _ = enc.B58Decode("1Ee8uhLFXzkSRRU1orBpgXFAPpVi64aSYo")

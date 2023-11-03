@@ -553,7 +553,7 @@ func (states *StateDB) HasMarker(root []byte) bool {
 	}
 	marker := states.store.Get(common.Hasher(root))
 	if marker != nil && bytes.Equal(marker, stateMarker) {
-		// logger.Debug().Str("stateRoot", enc.ToString(root)).Str("marker", hex.EncodeToString(marker)).Msg("IsMarked")
+		// logger.Debug().Str("stateRoot", enc.ToString(root)).Str("marker", enc.HexEncode(marker)).Msg("IsMarked")
 		return true
 	}
 	return false

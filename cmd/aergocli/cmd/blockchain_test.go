@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"encoding/hex"
 	"testing"
 
 	"github.com/aergoio/aergo/v2/cmd/aergocli/util/encoding/json"
@@ -49,6 +48,6 @@ func TestBlockchainWithMock(t *testing.T) {
 		t.Fatal(err)
 	}
 	testBlockHashByte, _ := enc.B58Decode(testBlockHashString)
-	assert.Equal(t, hex.EncodeToString(testBlockHashByte), result["Hash"])
+	assert.Equal(t, enc.HexEncode(testBlockHashByte), result["Hash"])
 	assert.Equal(t, float64(1), result["Height"])
 }
