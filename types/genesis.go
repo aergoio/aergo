@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aergoio/aergo/v2/internal/common"
 	"github.com/aergoio/aergo/v2/internal/enc"
 )
 
@@ -281,7 +280,7 @@ func (g *Genesis) ChainID() ([]byte, error) {
 func (g Genesis) Bytes() []byte {
 	// Omit the Balance to reduce the resulting data size.
 	g.Balance = nil
-	if b, err := common.GobEncode(g); err == nil {
+	if b, err := enc.GobEncode(g); err == nil {
 		return b
 	}
 	return nil
@@ -373,7 +372,7 @@ func GetTestGenesis() *Genesis {
 // GetGenesisFromBytes decodes & return Genesis from b.
 func GetGenesisFromBytes(b []byte) *Genesis {
 	g := &Genesis{}
-	if err := common.GobDecode(b, g); err == nil {
+	if err := enc.GobDecode(b, g); err == nil {
 		return g
 	}
 	return nil

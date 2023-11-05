@@ -16,7 +16,7 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/v2/consensus"
 	"github.com/aergoio/aergo/v2/contract/system"
-	"github.com/aergoio/aergo/v2/internal/common"
+	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/davecgh/go-spew/spew"
@@ -287,7 +287,7 @@ func buildKey(blockNo types.BlockNo) []byte {
 
 // Value returns s.list.
 func (s *Snapshot) Value() []byte {
-	b, err := common.GobEncode(s.List)
+	b, err := enc.GobEncode(s.List)
 	if err != nil {
 		logger.Debug().Err(err).Msg("BP list encoding failed")
 		return nil

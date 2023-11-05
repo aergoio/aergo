@@ -1,6 +1,8 @@
 package enc
 
-import "github.com/mr-tron/base58/base58"
+import (
+	"github.com/mr-tron/base58/base58"
+)
 
 // B58Encode returns human-readable (base58) string from b. Calling with empty or nil slice returns empty string.
 func B58Encode(b []byte) string {
@@ -10,4 +12,9 @@ func B58Encode(b []byte) string {
 // B58Decode returns byte slice from human-readable (base58) string. Calling with empty string returns zero length string error.
 func B58Decode(s string) ([]byte, error) {
 	return base58.Decode(s)
+}
+
+func B58DecodeOrNil(s string) []byte {
+	buf, _ := B58Decode(s)
+	return buf
 }

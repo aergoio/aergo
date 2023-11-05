@@ -7,7 +7,7 @@ import (
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/v2/consensus"
-	"github.com/aergoio/aergo/v2/internal/common"
+	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/p2p/p2pkey"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/dbkey"
@@ -235,7 +235,7 @@ func (ls *libStatus) load(endBlockNo types.BlockNo) {
 }
 
 func (ls *libStatus) save(tx consensus.TxWriter) error {
-	b, err := common.GobEncode(ls)
+	b, err := enc.GobEncode(ls)
 	if err != nil {
 		return err
 	}
@@ -397,7 +397,7 @@ func (bs *bootLoader) decodeStatus(key []byte, dst interface{}) error {
 		return fmt.Errorf("LIB status not found: key = %v", string(key))
 	}
 
-	err := common.GobDecode(value, dst)
+	err := enc.GobDecode(value, dst)
 	if err != nil {
 		logger.Panic().Err(err).Str("key", string(key)).
 			Msg("failed to decode DPoS status")

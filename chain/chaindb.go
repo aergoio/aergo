@@ -651,7 +651,7 @@ func (cdb *ChainDB) getReceipts(blockHash []byte, blockNo types.BlockNo,
 	var receipts types.Receipts
 
 	receipts.SetHardFork(hardForkConfig, blockNo)
-	err := common.GobDecode(data, &receipts)
+	err := enc.GobDecode(data, &receipts)
 
 	return &receipts, err
 }
@@ -694,7 +694,7 @@ func (cdb *ChainDB) writeReceipts(blockHash []byte, blockNo types.BlockNo, recei
 	dbTx := cdb.store.NewTx()
 	defer dbTx.Discard()
 
-	val, _ := common.GobEncode(receipts)
+	val, _ := enc.GobEncode(receipts)
 	dbTx.Set(dbkey.Receipts(blockHash, blockNo), val)
 
 	dbTx.Commit()
@@ -736,7 +736,7 @@ func (cdb *ChainDB) getReorgMarker() (*ReorgMarker, error) {
 	}
 
 	var marker ReorgMarker
-	err := common.GobDecode(data, &marker)
+	err := enc.GobDecode(data, &marker)
 
 	return &marker, err
 }

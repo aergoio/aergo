@@ -5,7 +5,7 @@ import (
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/v2/consensus"
-	"github.com/aergoio/aergo/v2/internal/common"
+	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/dbkey"
 	"github.com/aergoio/etcd/raft/raftpb"
@@ -234,7 +234,7 @@ func (cdb *ChainDB) GetRaftEntry(idx uint64) (*consensus.WalEntry, error) {
 	}
 
 	var entry consensus.WalEntry
-	if err := common.GobDecode(data, &entry); err != nil {
+	if err := enc.GobDecode(data, &entry); err != nil {
 		return nil, err
 	}
 
@@ -421,7 +421,7 @@ func (cdb *ChainDB) WriteIdentity(identity *consensus.RaftIdentity) error {
 
 	logger.Info().Str("id", identity.ToString()).Msg("save raft identity")
 
-	enc, err := common.GobEncode(identity)
+	enc, err := enc.GobEncode(identity)
 	if err != nil {
 		return ErrEncodeRaftIdentity
 	}
@@ -439,7 +439,7 @@ func (cdb *ChainDB) GetIdentity() (*consensus.RaftIdentity, error) {
 	}
 
 	var id consensus.RaftIdentity
-	if err := common.GobDecode(data, &id); err != nil {
+	if err := enc.GobDecode(data, &id); err != nil {
 		return nil, ErrDecodeRaftIdentity
 	}
 

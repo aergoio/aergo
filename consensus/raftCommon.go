@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/aergoio/aergo/v2/internal/common"
 	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/etcd/raft"
@@ -59,7 +58,7 @@ type WalEntry struct {
 }
 
 func (we *WalEntry) ToBytes() ([]byte, error) {
-	return common.GobEncode(we)
+	return enc.GobEncode(we)
 }
 
 func (we *WalEntry) ToString() string {

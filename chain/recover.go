@@ -8,7 +8,6 @@ import (
 	"runtime"
 	"runtime/debug"
 
-	"github.com/aergoio/aergo/v2/internal/common"
 	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/dbkey"
@@ -218,7 +217,7 @@ func (rm *ReorgMarker) delete() {
 }
 
 func (rm *ReorgMarker) toBytes() ([]byte, error) {
-	return common.GobEncode(rm)
+	return enc.GobEncode(rm)
 }
 
 func (rm *ReorgMarker) toString() string {
