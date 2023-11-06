@@ -23,6 +23,7 @@ import (
 	"github.com/aergoio/aergo/v2/pkg/component"
 	polarisclient "github.com/aergoio/aergo/v2/polaris/client"
 	"github.com/aergoio/aergo/v2/rpc"
+	"github.com/aergoio/aergo/v2/rpc/web3"
 	"github.com/aergoio/aergo/v2/syncer"
 	"github.com/spf13/cobra"
 )
@@ -123,6 +124,7 @@ func rootRun(cmd *cobra.Command, args []string) {
 	syncSvc := syncer.NewSyncer(cfg, chainSvc, nil)
 	p2pSvc := p2p.NewP2P(cfg, chainSvc)
 	pmapSvc := polarisclient.NewPolarisConnectSvc(cfg.P2P, p2pSvc)
+	web3.NewWeb3(cfg, rpcSvc.GetActualServer())
 
 	var accountSvc component.IComponent
 	if cfg.Personal {
