@@ -1,6 +1,7 @@
 package fee
 
 import (
+	"errors"
 	"math"
 	"math/big"
 )
@@ -50,6 +51,46 @@ func TxGas(payloadSize int) uint64 {
 	return txGas + payloadGas
 }
 
+func GasLimit(version int32, isFeeDelegation bool, txGasLimit uint64, payloadSize int, gasPrice, usedFee, senderBalance, receiverBalance *big.Int) (gasLimit uint64, err error) {
+	// 1. no gas limit
+	if IsUseTxGas(version) != true {
+		return 0, nil
+	}
+
+	// 2. fee delegation
+	if isFeeDelegation {
+		// check if the contract has enough balance for fee
+		balance := new(big.Int).Sub(receiverBalance, usedFee)
+		gasLimit = MaxGasLimit(balance, gasPrice)
+		if gasLimit == 0 {
+			err = errors.New("not enough gas")
+		}
+		return
+	}
+
+	// read the gas limit from the tx
+	gasLimit = txGasLimit
+	// 3. no gas limit specified, the limit is the sender's balance
+	if gasLimit == 0 {
+		balance := new(big.Int).Sub(senderBalance, usedFee)
+		gasLimit = MaxGasLimit(balance, gasPrice)
+		if gasLimit == 0 {
+			err = errors.New("not enough gas")
+		}
+		return
+	}
+
+	// 4. check if the sender has enough balance for gas
+	usedGas := TxGas(payloadSize)
+	if gasLimit <= usedGas {
+		err = errors.New("not enough gas")
+		return
+	}
+	// subtract the used gas from the gas limit
+	gasLimit -= usedGas
+
+	return gasLimit, nil
+}
 func MaxGasLimit(balance, gasPrice *big.Int) uint64 {
 	gasLimit := uint64(math.MaxUint64)
 	if n := CalcGas(balance, gasPrice); n.IsUint64() {

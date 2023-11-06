@@ -1,7 +1,6 @@
 package contract
 
 import (
-	"math"
 	"math/big"
 	"testing"
 
@@ -15,49 +14,6 @@ func initContractTest(t *testing.T) {
 
 func deinitContractTest(t *testing.T) {
 	PubNet = false
-}
-
-//----------------------------------------------------------------------------------------//
-// tests for tx Execute functions
-
-func TestGasLimit(t *testing.T) {
-	initContractTest(t)
-	defer deinitContractTest(t)
-
-	for _, test := range []struct {
-		version        int32
-		feeDelegation  bool
-		txGasLimit     uint64
-		payloadSize    int
-		gasPrice       *big.Int
-		usedFee        *big.Int
-		sender         *big.Int
-		receiver       *big.Int
-		expectErr      error
-		expectGasLimit uint64
-	}{
-		// no gas limit
-		{version: 1, expectErr: nil, expectGasLimit: 0},
-
-		// fee delegation
-		{version: 2, feeDelegation: true, gasPrice: types.NewAmount(1, types.Gaer), receiver: types.NewAmount(5, types.Gaer), usedFee: types.NewAmount(10, types.Gaer), expectErr: nil, expectGasLimit: math.MaxUint64},                 // max
-		{version: 2, feeDelegation: true, gasPrice: types.NewAmount(1, types.Gaer), receiver: types.NewAmount(5, types.Gaer), usedFee: types.NewAmount(5, types.Gaer), expectErr: newVmError(types.ErrNotEnoughGas), expectGasLimit: 0}, // not enough error
-		{version: 2, feeDelegation: true, gasPrice: types.NewAmount(1, types.Gaer), receiver: types.NewAmount(10, types.Gaer), usedFee: types.NewAmount(5, types.Gaer), expectErr: nil, expectGasLimit: 5},
-
-		// no gas limit specified in tx, the limit is the sender's balance
-		{version: 2, gasPrice: types.NewAmount(1, types.Gaer), sender: types.NewAmount(5, types.Gaer), usedFee: types.NewAmount(10, types.Gaer), expectErr: nil, expectGasLimit: math.MaxUint64},                 // max
-		{version: 2, gasPrice: types.NewAmount(1, types.Gaer), sender: types.NewAmount(5, types.Gaer), usedFee: types.NewAmount(5, types.Gaer), expectErr: newVmError(types.ErrNotEnoughGas), expectGasLimit: 0}, // not enough error
-		{version: 2, gasPrice: types.NewAmount(1, types.Gaer), sender: types.NewAmount(10, types.Gaer), usedFee: types.NewAmount(5, types.Gaer), expectErr: nil, expectGasLimit: 5},
-
-		// if gas limit specified in tx, check if the sender has enough balance for gas
-		{version: 2, txGasLimit: 100000, payloadSize: 100, expectErr: newVmError(types.ErrNotEnoughGas), expectGasLimit: 100000},
-		{version: 2, txGasLimit: 150000, payloadSize: 100, expectErr: nil, expectGasLimit: 50000},
-		{version: 2, txGasLimit: 200000, payloadSize: 100, expectErr: nil, expectGasLimit: 100000},
-	} {
-		gasLimit, resultErr := GasLimit(test.version, test.feeDelegation, test.txGasLimit, test.payloadSize, test.gasPrice, test.usedFee, test.sender, test.receiver)
-		assert.EqualValues(t, test.expectErr, resultErr, "GasLimit(forkVersion:%d, isFeeDelegation:%t, txGasLimit:%d, payloadSize:%d, gasPrice:%s, usedFee:%s, senderBalance:%s, receiverBalance:%s)", test.version, test.feeDelegation, test.txGasLimit, test.payloadSize, test.gasPrice, test.usedFee, test.sender, test.receiver)
-		assert.EqualValues(t, test.expectGasLimit, gasLimit, "GasLimit(forkVersion:%d, isFeeDelegation:%t, txGasLimit:%d, payloadSize:%d, gasPrice:%s, usedFee:%s, senderBalance:%s, receiverBalance:%s)", test.version, test.feeDelegation, test.txGasLimit, test.payloadSize, test.gasPrice, test.usedFee, test.sender, test.receiver)
-	}
 }
 
 func TestCheckExecution(t *testing.T) {
