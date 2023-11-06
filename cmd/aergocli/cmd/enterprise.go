@@ -16,7 +16,7 @@ import (
 	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
 	"github.com/aergoio/aergo/v2/cmd/aergocli/util/encoding/json"
 	"github.com/aergoio/aergo/v2/contract/enterprise"
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/types"
 	aergorpc "github.com/aergoio/aergo/v2/types"
 	"github.com/spf13/cobra"
@@ -155,7 +155,7 @@ var enterpriseTxCmd = &cobra.Command{
 	Short: "Print transaction for enterprise",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		txHashDecode, err := enc.B58Decode(args[0])
+		txHashDecode, err := base58.Decode(args[0])
 		if err != nil {
 			cmd.Println("Failed: invalid tx hash")
 			return

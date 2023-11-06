@@ -8,7 +8,8 @@ import (
 	"runtime"
 	"runtime/debug"
 
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/internal/enc/gob"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/dbkey"
 )
@@ -62,7 +63,7 @@ func (cs *ChainService) Recover() error {
 
 	// check status of chain
 	if !bytes.Equal(best.BlockHash(), marker.BrBestHash) {
-		logger.Error().Str("best", best.ID()).Str("markerbest", enc.B58Encode(marker.BrBestHash)).Msg("best block is not equal to old chain")
+		logger.Error().Str("best", best.ID()).Str("markerbest", base58.Encode(marker.BrBestHash)).Msg("best block is not equal to old chain")
 		return ErrRecoInvalidBest
 	}
 
@@ -217,20 +218,20 @@ func (rm *ReorgMarker) delete() {
 }
 
 func (rm *ReorgMarker) toBytes() ([]byte, error) {
-	return enc.GobEncode(rm)
+	return gob.Encode(rm)
 }
 
 func (rm *ReorgMarker) toString() string {
 	buf := ""
 
 	if len(rm.BrStartHash) != 0 {
-		buf = buf + fmt.Sprintf("branch root=(%d, %s).", rm.BrStartNo, enc.B58Encode(rm.BrStartHash))
+		buf = buf + fmt.Sprintf("branch root=(%d, %s).", rm.BrStartNo, base58.Encode(rm.BrStartHash))
 	}
 	if len(rm.BrTopHash) != 0 {
-		buf = buf + fmt.Sprintf("branch top=(%d, %s).", rm.BrTopNo, enc.B58Encode(rm.BrTopHash))
+		buf = buf + fmt.Sprintf("branch top=(%d, %s).", rm.BrTopNo, base58.Encode(rm.BrTopHash))
 	}
 	if len(rm.BrBestHash) != 0 {
-		buf = buf + fmt.Sprintf("org best=(%d, %s).", rm.BrBestNo, enc.B58Encode(rm.BrBestHash))
+		buf = buf + fmt.Sprintf("org best=(%d, %s).", rm.BrBestNo, base58.Encode(rm.BrBestHash))
 	}
 
 	return buf

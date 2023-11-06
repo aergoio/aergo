@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/gofrs/uuid"
@@ -48,7 +48,7 @@ func init() {
 	sampleTxs = make([][]byte, len(sampleTxsB58))
 	sampleTxHashes = make([]types.TxID, len(sampleTxsB58))
 	for i, hashb58 := range sampleTxsB58 {
-		hash, _ := enc.B58Decode(hashb58)
+		hash, _ := base58.Decode(hashb58)
 		sampleTxs[i] = hash
 		copy(sampleTxHashes[i][:], hash)
 	}
@@ -56,7 +56,7 @@ func init() {
 	sampleBlks = make([][]byte, len(sampleBlksB58))
 	sampleBlksHashes = make([]types.BlockID, len(sampleBlksB58))
 	for i, hashb58 := range sampleTxsB58 {
-		hash, _ := enc.B58Decode(hashb58)
+		hash, _ := base58.Decode(hashb58)
 		sampleBlks[i] = hash
 		copy(sampleBlksHashes[i][:], hash)
 	}

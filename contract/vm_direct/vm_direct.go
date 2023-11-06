@@ -18,7 +18,7 @@ import (
 	"github.com/aergoio/aergo/v2/contract/name"
 	"github.com/aergoio/aergo/v2/contract/system"
 	"github.com/aergoio/aergo/v2/fee"
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
 )
@@ -283,7 +283,7 @@ func NewTxExecutor(execCtx context.Context, ccc consensus.ChainConsensusCluster,
 
 		err := executeTx(execCtx, ccc, cdb, blockState, tx, bi, preloadService)
 		if err != nil {
-			logger.Error().Err(err).Str("hash", enc.B58Encode(tx.GetHash())).Msg("tx failed")
+			logger.Error().Err(err).Str("hash", base58.Encode(tx.GetHash())).Msg("tx failed")
 			if err2 := blockState.Rollback(blockSnap); err2 != nil {
 				logger.Panic().Err(err).Msg("failed to rollback block state")
 			}
@@ -460,7 +460,7 @@ func executeTx(
 			sender.Balance().String(),
 			tx.GetBody().GetAmountBigInt().String(),
 			bs.GasPrice.String(),
-			bi.No, enc.B58Encode(tx.GetHash()))
+			bi.No, base58.Encode(tx.GetHash()))
 		return err
 	}
 
@@ -494,7 +494,7 @@ func executeTx(
 		txFee = new(big.Int).SetUint64(0)
 		events, err = executeGovernanceTx(ccc, bs, txBody, sender, receiver, bi)
 		if err != nil {
-			logger.Warn().Err(err).Str("txhash", enc.B58Encode(tx.GetHash())).Msg("governance tx Error")
+			logger.Warn().Err(err).Str("txhash", base58.Encode(tx.GetHash())).Msg("governance tx Error")
 		}
 	case types.TxType_FEEDELEGATION:
 		balance := receiver.Balance()
@@ -515,7 +515,7 @@ func executeTx(
 			tx.GetHash(), txBody.GetAccount(), txBody.GetAmount())
 		if err != nil {
 			if err != types.ErrNotAllowedFeeDelegation {
-				logger.Warn().Err(err).Str("txhash", enc.B58Encode(tx.GetHash())).Msg("checkFeeDelegation Error")
+				logger.Warn().Err(err).Str("txhash", base58.Encode(tx.GetHash())).Msg("checkFeeDelegation Error")
 				return err
 			}
 			return types.ErrNotAllowedFeeDelegation

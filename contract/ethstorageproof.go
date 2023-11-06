@@ -6,7 +6,7 @@ import (
 	"errors"
 	"math"
 
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/hex"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -33,7 +33,7 @@ func verifyEthStorageProof(key []byte, value rlpObject, expectedHash []byte, pro
 	if len(key) == 0 || value == nil || len(proof) == 0 {
 		return false
 	}
-	key = []byte(enc.HexEncode(keccak256(key)))
+	key = []byte(hex.Encode(keccak256(key)))
 	valueRlpEncoded := rlpEncode(value)
 	ks := keyStream{bytes.NewBuffer(key)}
 	for i, p := range proof {
@@ -50,7 +50,7 @@ func verifyEthStorageProof(key []byte, value rlpObject, expectedHash []byte, pro
 			if err != nil {
 				return false
 			}
-			sharedNibbles = append(sharedNibbles, []byte(enc.HexEncode(n[0][1:]))...)
+			sharedNibbles = append(sharedNibbles, []byte(hex.Encode(n[0][1:]))...)
 			if len(sharedNibbles) == 0 {
 				return false
 			}
@@ -180,7 +180,7 @@ func keccak256(data ...[]byte) []byte {
 }
 
 func keccak256Hex(data ...[]byte) string {
-	return enc.HexEncode(keccak256(data...))
+	return hex.Encode(keccak256(data...))
 }
 
 func decodeHpHeader(b byte) (bool, []byte, error) {

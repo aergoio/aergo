@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/message"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/gofrs/uuid"
@@ -186,9 +186,9 @@ func PrintHashList(blocks []*types.Block) string {
 	case 0:
 		return "blk_cnt=0"
 	case 1:
-		return fmt.Sprintf("blk_cnt=1,hash=%s(num %d)", enc.B58Encode(blocks[0].Hash), blocks[0].Header.BlockNo)
+		return fmt.Sprintf("blk_cnt=1,hash=%s(num %d)", base58.Encode(blocks[0].Hash), blocks[0].Header.BlockNo)
 	default:
-		return fmt.Sprintf("blk_cnt=%d,firstHash=%s(num %d),lastHash=%s(num %d)", l, enc.B58Encode(blocks[0].Hash), blocks[0].Header.BlockNo, enc.B58Encode(blocks[l-1].Hash), blocks[l-1].Header.BlockNo)
+		return fmt.Sprintf("blk_cnt=%d,firstHash=%s(num %d),lastHash=%s(num %d)", l, base58.Encode(blocks[0].Hash), blocks[0].Header.BlockNo, base58.Encode(blocks[l-1].Hash), blocks[l-1].Header.BlockNo)
 	}
 
 }

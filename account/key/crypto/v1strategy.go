@@ -15,7 +15,7 @@ import (
 	"io"
 	"reflect"
 
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/hex"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/btcsuite/btcd/btcec"
 	"golang.org/x/crypto/scrypt"
@@ -105,9 +105,9 @@ func (ks *v1Strategy) Encrypt(key *PrivateKey, passphrase string) ([]byte, error
 	cipher := v1CipherJSON{
 		Algorithm: cipherAlgorithm,
 		Params: v1CipherParamsJSON{
-			Iv: enc.HexEncode(iv),
+			Iv: hex.Encode(iv),
 		},
-		Ciphertext: enc.HexEncode(ciphertext),
+		Ciphertext: hex.Encode(ciphertext),
 	}
 	// json: kdf
 	kdf := v1KdfJson{
@@ -117,9 +117,9 @@ func (ks *v1Strategy) Encrypt(key *PrivateKey, passphrase string) ([]byte, error
 			N:     scryptN,
 			P:     scryptP,
 			R:     scryptR,
-			Salt:  enc.HexEncode(salt),
+			Salt:  hex.Encode(salt),
 		},
-		Mac: enc.HexEncode(mac),
+		Mac: hex.Encode(mac),
 	}
 	rawAddress := GenerateAddress(&(key.ToECDSA().PublicKey))
 	encodedAddress := types.EncodeAddress(rawAddress)
@@ -155,11 +155,11 @@ func (ks *v1Strategy) Decrypt(encrypted []byte, passphrase string) (*PrivateKey,
 	}
 
 	// check mac
-	mac, err := enc.HexDecode(kdf.Mac)
+	mac, err := hex.Decode(kdf.Mac)
 	if nil != err {
 		return nil, err
 	}
-	cipherText, err := enc.HexDecode(cipher.Ciphertext)
+	cipherText, err := hex.Decode(cipher.Ciphertext)
 	if nil != err {
 		return nil, err
 	}
@@ -170,7 +170,7 @@ func (ks *v1Strategy) Decrypt(encrypted []byte, passphrase string) (*PrivateKey,
 
 	// decrypt
 	decryptKey := derivedKey[:16]
-	iv, err := enc.HexDecode(cipher.Params.Iv)
+	iv, err := hex.Decode(cipher.Params.Iv)
 	if nil != err {
 		return nil, err
 	}
@@ -207,7 +207,7 @@ func checkKeyFormat(keyFormat *v1KeyStoreFormat) error {
 }
 
 func deriveCipherKey(passphrase []byte, kdf v1KdfJson) ([]byte, error) {
-	salt, err := enc.HexDecode(kdf.Params.Salt)
+	salt, err := hex.Decode(kdf.Params.Salt)
 	if err != nil {
 		return nil, err
 	}

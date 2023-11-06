@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/message"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/aergoio/aergo/v2/p2p/p2pmock"
@@ -95,7 +95,7 @@ func TestBlockResponseHandler_handle(t *testing.T) {
 
 	logger := log.NewLogger("test.subproto")
 	var dummyPeerID, _ = types.IDB58Decode("16Uiu2HAmN5YU8V2LnTy9neuuJCLNsxLnd5xVSRZqkjvZUHS3mLoD")
-	dummyBlockHash, _ := enc.B58Decode("v6zbuQ4aVSdbTwQhaiZGp5pcL5uL55X3kt2wfxor5W6")
+	dummyBlockHash, _ := base58.Decode("v6zbuQ4aVSdbTwQhaiZGp5pcL5uL55X3kt2wfxor5W6")
 	var sampleBlksB58 = []string{
 		"v6zbuQ4aVSdbTwQhaiZGp5pcL5uL55X3kt2wfxor5W6",
 		"2VEPg4MqJUoaS3EhZ6WWSAUuFSuD4oSJ645kSQsGV7H9",
@@ -110,7 +110,7 @@ func TestBlockResponseHandler_handle(t *testing.T) {
 	sampleBlks = make([][]byte, len(sampleBlksB58))
 	sampleBlksHashes = make([]types.BlockID, len(sampleBlksB58))
 	for i, hashb58 := range sampleBlksB58 {
-		hash, _ := enc.B58Decode(hashb58)
+		hash, _ := base58.Decode(hashb58)
 		sampleBlks[i] = hash
 		copy(sampleBlksHashes[i][:], hash)
 	}

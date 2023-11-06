@@ -13,7 +13,8 @@ import (
 	luacEncoding "github.com/aergoio/aergo/v2/cmd/aergoluac/encoding"
 	luac "github.com/aergoio/aergo/v2/cmd/aergoluac/util"
 	"github.com/aergoio/aergo/v2/internal/common"
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/internal/enc/hex"
 	"github.com/aergoio/aergo/v2/types"
 	aergorpc "github.com/aergoio/aergo/v2/types"
 	"github.com/spf13/cobra"
@@ -200,7 +201,7 @@ func runDeployCmd(cmd *cobra.Command, args []string) error {
 		if isHexString(data) {
 			// the data is expected to be copied from aergoscan view of
 			// the transaction that deployed the contract
-			payload, err = enc.HexDecode(data)
+			payload, err = hex.Decode(data)
 		} else {
 			// the data is the output of aergoluac
 			code, err = luacEncoding.DecodeCode(data)
@@ -310,7 +311,7 @@ func runCallCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	if chainIdHash != "" {
-		rawCidHash, err := enc.B58Decode(chainIdHash)
+		rawCidHash, err := base58.Decode(chainIdHash)
 		if err != nil {
 			return fmt.Errorf("failed to parse chainidhash: %v", err.Error())
 		}
@@ -413,7 +414,7 @@ func runQueryStateCmd(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to decode address: %v", err.Error())
 	}
 	if len(stateroot) != 0 {
-		root, err = enc.B58Decode(stateroot)
+		root, err = base58.Decode(stateroot)
 		if err != nil {
 			return fmt.Errorf("failed to decode stateroot: %v", err.Error())
 		}

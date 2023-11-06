@@ -28,7 +28,7 @@ import (
 	"github.com/aergoio/aergo/v2/contract/system"
 	"github.com/aergoio/aergo/v2/fee"
 	"github.com/aergoio/aergo/v2/internal/common"
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/message"
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/state"
@@ -252,7 +252,7 @@ func (mp *MemPool) Receive(context actor.Context) {
 			Err: errs,
 		})
 	case *message.MemPoolDelTx:
-		mp.Info().Str("txhash", enc.B58Encode(msg.Tx.GetHash())).Msg("remove tx in mempool")
+		mp.Info().Str("txhash", base58.Encode(msg.Tx.GetHash())).Msg("remove tx in mempool")
 		err := mp.removeTx(msg.Tx)
 		context.Respond(&message.MemPoolDelTxRsp{
 			Err: err,
@@ -451,8 +451,8 @@ func (mp *MemPool) setStateDB(block *types.Block) (bool, bool) {
 			}
 			mp.Debug().Str("Hash", newBlockID.String()).
 				Str("StateRoot", types.ToHashID(stateRoot).String()).
-				Str("chainidhash", enc.B58Encode(mp.bestChainIdHash)).
-				Str("next chainidhash", enc.B58Encode(mp.acceptChainIdHash)).
+				Str("chainidhash", base58.Encode(mp.bestChainIdHash)).
+				Str("next chainidhash", base58.Encode(mp.acceptChainIdHash)).
 				Msg("new StateDB opened")
 		} else if !bytes.Equal(mp.stateDB.GetRoot(), stateRoot) {
 			if err := mp.stateDB.SetRoot(stateRoot); err != nil {
@@ -801,7 +801,7 @@ func (mp *MemPool) getAccountState(acc []byte) (*types.State, error) {
 	state, err := mp.stateDB.GetAccountState(types.ToAccountID(acc))
 
 	if err != nil {
-		mp.Fatal().Err(err).Str("sroot", enc.B58Encode(mp.stateDB.GetRoot())).Msg("failed to get state")
+		mp.Fatal().Err(err).Str("sroot", base58.Encode(mp.stateDB.GetRoot())).Msg("failed to get state")
 
 		//FIXME PANIC?
 		//mp.Fatal().Err(err).Msg("failed to get state")
@@ -959,7 +959,7 @@ func (mp *MemPool) removeTx(tx *types.Tx) error {
 	defer mp.Unlock()
 
 	if mp.exist(tx.GetHash()) == nil {
-		mp.Warn().Str("txhash", enc.B58Encode(tx.GetHash())).Msg("could not find tx to remove")
+		mp.Warn().Str("txhash", base58.Encode(tx.GetHash())).Msg("could not find tx to remove")
 		return types.ErrTxNotFound
 	}
 	acc := tx.GetBody().GetAccount()
@@ -969,7 +969,7 @@ func (mp *MemPool) removeTx(tx *types.Tx) error {
 	}
 	newOrphan, removed := list.RemoveTx(tx)
 	if removed == nil {
-		mp.Error().Str("txhash", enc.B58Encode(tx.GetHash())).Msg("already removed tx")
+		mp.Error().Str("txhash", base58.Encode(tx.GetHash())).Msg("already removed tx")
 	}
 	mp.orphan += newOrphan
 	mp.releaseMemPoolList(list)

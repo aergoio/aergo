@@ -23,7 +23,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 )
 
 // Marshal returns the JSON encoding of v.
@@ -724,7 +724,7 @@ func encodeByteSlice(e *encodeState, v reflect.Value, _ encOpts) {
 	}
 	s := v.Bytes()
 	e.WriteByte('"')
-	e.WriteString(enc.B58Encode(s))
+	e.WriteString(base58.Encode(s))
 	e.WriteByte('"')
 }
 

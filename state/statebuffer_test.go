@@ -3,7 +3,7 @@ package state
 import (
 	"testing"
 
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/hex"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -26,7 +26,7 @@ func TestBufferIndexStack(t *testing.T) {
 	idxs.push(k0, 4)
 	idxs.push(k1, 5)
 	for i, v := range kset {
-		t.Logf("(%d)[%v]%v", i, enc.HexEncode(v[:]), idxs[v])
+		t.Logf("(%d)[%v]%v", i, hex.Encode(v[:]), idxs[v])
 	}
 
 	assert.Equal(t, 4, idxs.pop(k0))
@@ -39,13 +39,13 @@ func TestBufferIndexStack(t *testing.T) {
 	assert.Equal(t, 2, idxs.peek(k1))
 	assert.Equal(t, 2, idxs.pop(k1))
 	for i, v := range kset {
-		t.Logf("(%d)[%v]%v", i, enc.HexEncode(v[:]), idxs[v])
+		t.Logf("(%d)[%v]%v", i, hex.Encode(v[:]), idxs[v])
 	}
 
 	idxs.push(k0, 6, 8, 12)
 	idxs.push(k1, 7, 9, 10, 11)
 	for i, v := range kset {
-		t.Logf("(%d)[%v]%v", i, enc.HexEncode(v[:]), idxs[v])
+		t.Logf("(%d)[%v]%v", i, hex.Encode(v[:]), idxs[v])
 	}
 
 	assert.Equal(t, 12, idxs[k0].peek())
@@ -57,7 +57,7 @@ func TestBufferIndexRollback(t *testing.T) {
 	idxs.push(k0, 0, 1, 3, 4, 6, 7, 8)
 	idxs.push(k1, 2, 5, 9)
 	for i, v := range kset {
-		t.Logf("(%d)[%v]%v", i, enc.HexEncode(v[:]), idxs[v])
+		t.Logf("(%d)[%v]%v", i, hex.Encode(v[:]), idxs[v])
 	}
 
 	assert.Equal(t, 8, idxs[k0].peek())
@@ -65,7 +65,7 @@ func TestBufferIndexRollback(t *testing.T) {
 
 	idxs.rollback(5)
 	for i, v := range kset {
-		t.Logf("(%d)[%v]%v", i, enc.HexEncode(v[:]), idxs[v])
+		t.Logf("(%d)[%v]%v", i, hex.Encode(v[:]), idxs[v])
 	}
 
 	assert.Equal(t, 4, idxs[k0].peek())
@@ -73,7 +73,7 @@ func TestBufferIndexRollback(t *testing.T) {
 
 	idxs.rollback(0)
 	for i, v := range kset {
-		t.Logf("(%d)[%v]%v", i, enc.HexEncode(v[:]), idxs[v])
+		t.Logf("(%d)[%v]%v", i, hex.Encode(v[:]), idxs[v])
 	}
 
 	assert.Equal(t, -1, idxs[k0].peek())

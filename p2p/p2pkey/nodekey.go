@@ -12,7 +12,7 @@ import (
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/v2/config"
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/aergoio/aergo/v2/p2p/p2putil"
 	"github.com/aergoio/aergo/v2/types"
@@ -72,7 +72,7 @@ func InitNodeInfo(baseCfg *config.BaseConfig, p2pCfg *config.P2PConfig, version 
 
 	ni = &nodeInfo{
 		id:        id,
-		sid:       enc.B58Encode([]byte(id)),
+		sid:       base58.Encode([]byte(id)),
 		pubKey:    pub,
 		privKey:   priv,
 		version:   version,

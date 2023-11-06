@@ -9,7 +9,7 @@ import (
 
 	"github.com/aergoio/aergo/v2/account/key"
 	keycrypto "github.com/aergoio/aergo/v2/account/key/crypto"
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base64"
 	"github.com/aergoio/aergo/v2/p2p/p2putil"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/btcsuite/btcd/btcec"
@@ -195,7 +195,7 @@ func generateKeyJson(priv crypto.PrivKey, pub crypto.PubKey) error {
 	addressEncoded := types.EncodeAddress(address)
 	jsonMarshalled, err := json.MarshalIndent(keyJson{
 		Address: addressEncoded,
-		PubKey:  enc.B64Encode(pubBytes),
+		PubKey:  base64.Encode(pubBytes),
 		PrivKey: types.EncodePrivKey(privKeyExport),
 		Id:      types.IDB58Encode(pid),
 	}, "", "    ")

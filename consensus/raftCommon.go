@@ -10,7 +10,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/internal/enc/gob"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/etcd/raft"
 	"github.com/aergoio/etcd/raft/raftpb"
@@ -58,7 +59,7 @@ type WalEntry struct {
 }
 
 func (we *WalEntry) ToBytes() ([]byte, error) {
-	return enc.GobEncode(we)
+	return gob.Encode(we)
 }
 
 func (we *WalEntry) ToString() string {
@@ -196,7 +197,7 @@ func (csnap *ChainSnapshot) ToString() string {
 	if csnap == nil || csnap.Hash == nil {
 		return "csnap: empty"
 	}
-	return fmt.Sprintf("chainsnap:(no=%d, hash=%s)", csnap.No, enc.B58Encode(csnap.Hash))
+	return fmt.Sprintf("chainsnap:(no=%d, hash=%s)", csnap.No, base58.Encode(csnap.Hash))
 }
 
 /*

@@ -12,7 +12,9 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo-actor/actor"
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/internal/enc/base64"
+	"github.com/aergoio/aergo/v2/internal/enc/hex"
 	"github.com/aergoio/aergo/v2/message"
 	"github.com/aergoio/aergo/v2/message/messagemock"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
@@ -24,37 +26,37 @@ import (
 
 func TestAergoRPCService_dummys(t *testing.T) {
 	fmt.Println("dummyBlockHash")
-	fmt.Printf("HEX : %s \n", enc.HexEncode(dummyBlockHash))
-	fmt.Printf("B64 : %s \n", enc.B64Encode(dummyBlockHash))
-	fmt.Printf("B58 : %s \n", enc.B58Encode(dummyBlockHash))
+	fmt.Printf("HEX : %s \n", hex.Encode(dummyBlockHash))
+	fmt.Printf("B64 : %s \n", base64.Encode(dummyBlockHash))
+	fmt.Printf("B58 : %s \n", base58.Encode(dummyBlockHash))
 	fmt.Println()
 	fmt.Println("dummyTx")
-	fmt.Printf("HEX : %s \n", enc.HexEncode(dummyTxHash))
-	fmt.Printf("B64 : %s \n", enc.B64Encode(dummyTxHash))
-	fmt.Printf("B58 : %s \n", enc.B58Encode(dummyTxHash))
+	fmt.Printf("HEX : %s \n", hex.Encode(dummyTxHash))
+	fmt.Printf("B64 : %s \n", base64.Encode(dummyTxHash))
+	fmt.Printf("B58 : %s \n", base58.Encode(dummyTxHash))
 	fmt.Println()
 
 	fmt.Println("Address1")
-	fmt.Printf("HEX : %s \n", enc.HexEncode(dummyWalletAddress))
-	fmt.Printf("B64 : %s \n", enc.B64Encode(dummyWalletAddress))
-	fmt.Printf("B58 : %s \n", enc.B58Encode(dummyWalletAddress))
+	fmt.Printf("HEX : %s \n", hex.Encode(dummyWalletAddress))
+	fmt.Printf("B64 : %s \n", base64.Encode(dummyWalletAddress))
+	fmt.Printf("B58 : %s \n", base58.Encode(dummyWalletAddress))
 	fmt.Println()
 
 	fmt.Println("Address2")
-	fmt.Printf("HEX : %s \n", enc.HexEncode(dummyWalletAddress2))
-	fmt.Printf("B64 : %s \n", enc.B64Encode(dummyWalletAddress2))
-	fmt.Printf("B58 : %s \n", enc.B58Encode(dummyWalletAddress2))
+	fmt.Printf("HEX : %s \n", hex.Encode(dummyWalletAddress2))
+	fmt.Printf("B64 : %s \n", base64.Encode(dummyWalletAddress2))
+	fmt.Printf("B58 : %s \n", base58.Encode(dummyWalletAddress2))
 	fmt.Println()
 
 }
 
-var dummyBlockHash, _ = enc.HexDecode("4f461d85e869ade8a0544f8313987c33a9c06534e50c4ad941498299579bd7ac")
+var dummyBlockHash, _ = hex.Decode("4f461d85e869ade8a0544f8313987c33a9c06534e50c4ad941498299579bd7ac")
 var dummyBlockHeight uint32 = 100215
-var dummyTxHash, _ = enc.HexDecode("218bdab4e87fb332b55eb89854ef553f9e3d440c81fff4161b672adede1261ee")
+var dummyTxHash, _ = hex.Decode("218bdab4e87fb332b55eb89854ef553f9e3d440c81fff4161b672adede1261ee")
 
 // base64 encoding of dummyTxHash is ""
-var dummyWalletAddress, _ = enc.B58Decode("1Ee8uhLFXzkSRRU1orBpgXFAPpVi64aSYo")
-var dummyWalletAddress2, _ = enc.B58Decode("16Uiu2HAkwgfFvViH6j2QpQYKtGKKdveEKZvU2T5mRkqFLTZKU4Vp")
+var dummyWalletAddress, _ = base58.Decode("1Ee8uhLFXzkSRRU1orBpgXFAPpVi64aSYo")
+var dummyWalletAddress2, _ = base58.Decode("16Uiu2HAkwgfFvViH6j2QpQYKtGKKdveEKZvU2T5mRkqFLTZKU4Vp")
 var dummyPayload = []byte("OPreturn I am groooot")
 
 var hubStub *component.ComponentHub

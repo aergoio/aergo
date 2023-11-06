@@ -1,7 +1,8 @@
 package types
 
 import (
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/internal/enc/base64"
 )
 
 const MAXBLOCKNO BlockNo = 18446744073709551615
@@ -9,20 +10,20 @@ const maxMetaSizeLimit = uint32(256 << 10)
 const blockSizeHardLimit = uint32(8 << (10 * 2))
 
 func EncodeB64(bs []byte) string {
-	return enc.B64Encode(bs)
+	return base64.Encode(bs)
 }
 
 func DecodeB64(sb string) []byte {
-	buf, _ := enc.B64Decode(sb)
+	buf, _ := base64.Decode(sb)
 	return buf
 }
 
 func EncodeB58(bs []byte) string {
-	return enc.B58Encode(bs)
+	return base58.Encode(bs)
 }
 
 func DecodeB58(sb string) []byte {
-	buf, _ := enc.B58Decode(sb)
+	buf, _ := base58.Decode(sb)
 	return buf
 }
 

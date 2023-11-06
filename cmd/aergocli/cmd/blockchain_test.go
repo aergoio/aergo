@@ -4,7 +4,8 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo/v2/cmd/aergocli/util/encoding/json"
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/internal/enc/hex"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
@@ -15,7 +16,7 @@ func TestBlockchainWithMock(t *testing.T) {
 	defer deinitMock()
 
 	testBlockHashString := "56Qy6MQei9KM13rqEq1jiJ7Da21Kcq9KdmYWcnPLtxS3"
-	testBlockHash, _ := enc.B58Decode(testBlockHashString)
+	testBlockHash, _ := base58.Decode(testBlockHashString)
 
 	mock.EXPECT().Blockchain(
 		gomock.Any(), // expect any value for first parameter
@@ -47,7 +48,7 @@ func TestBlockchainWithMock(t *testing.T) {
 	if err := json.Unmarshal([]byte(output), &result); err != nil {
 		t.Fatal(err)
 	}
-	testBlockHashByte, _ := enc.B58Decode(testBlockHashString)
-	assert.Equal(t, enc.HexEncode(testBlockHashByte), result["Hash"])
+	testBlockHashByte, _ := base58.Decode(testBlockHashString)
+	assert.Equal(t, hex.Encode(testBlockHashByte), result["Hash"])
 	assert.Equal(t, float64(1), result["Height"])
 }

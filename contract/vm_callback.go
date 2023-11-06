@@ -38,7 +38,8 @@ import (
 	"github.com/aergoio/aergo/v2/contract/name"
 	"github.com/aergoio/aergo/v2/contract/system"
 	"github.com/aergoio/aergo/v2/internal/common"
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/internal/enc/hex"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/dbkey"
@@ -784,7 +785,7 @@ func luaGetSender(L *LState, service C.int) *C.char {
 //export luaGetHash
 func luaGetHash(L *LState, service C.int) *C.char {
 	ctx := contexts[service]
-	return C.CString(enc.B58Encode(ctx.txHash))
+	return C.CString(base58.Encode(ctx.txHash))
 }
 
 //export luaGetBlockNo
@@ -822,7 +823,7 @@ func luaGetOrigin(L *LState, service C.int) *C.char {
 //export luaGetPrevBlockHash
 func luaGetPrevBlockHash(L *LState, service C.int) *C.char {
 	ctx := contexts[service]
-	return C.CString(enc.B58Encode(ctx.blockInfo.PrevBlockHash))
+	return C.CString(base58.Encode(ctx.blockInfo.PrevBlockHash))
 }
 
 //export luaGetDbHandle
@@ -870,7 +871,7 @@ func luaCryptoSha256(L *LState, arg unsafe.Pointer, argLen C.int) (*C.char, *C.c
 	if checkHexString(string(data)) {
 		dataStr := data[2:]
 		var err error
-		data, err = enc.HexDecode(string(dataStr))
+		data, err = hex.Decode(string(dataStr))
 		if err != nil {
 			return nil, C.CString("[Contract.LuaCryptoSha256] hex decoding error: " + err.Error())
 		}
@@ -879,14 +880,14 @@ func luaCryptoSha256(L *LState, arg unsafe.Pointer, argLen C.int) (*C.char, *C.c
 	h.Write(data)
 	resultHash := h.Sum(nil)
 
-	return C.CString("0x" + enc.HexEncode(resultHash)), nil
+	return C.CString("0x" + hex.Encode(resultHash)), nil
 }
 
 func decodeHex(hexStr string) ([]byte, error) {
 	if checkHexString(hexStr) {
 		hexStr = hexStr[2:]
 	}
-	return enc.HexDecode(hexStr)
+	return hex.Decode(hexStr)
 }
 
 //export luaECVerify
@@ -970,7 +971,7 @@ func luaCryptoToBytes(data unsafe.Pointer, dataLen C.int) ([]byte, bool) {
 	isHex := checkHexString(string(b))
 	if isHex {
 		var err error
-		d, err = enc.HexDecode(string(b[2:]))
+		d, err = hex.Decode(string(b[2:]))
 		if err != nil {
 			isHex = false
 		}
@@ -1022,7 +1023,7 @@ func luaCryptoKeccak256(data unsafe.Pointer, dataLen C.int) (unsafe.Pointer, int
 	d, isHex := luaCryptoToBytes(data, dataLen)
 	h := keccak256(d)
 	if isHex {
-		hexb := []byte("0x" + enc.HexEncode(h))
+		hexb := []byte("0x" + hex.Encode(h))
 		return C.CBytes(hexb), len(hexb)
 	} else {
 		return C.CBytes(h), len(h)

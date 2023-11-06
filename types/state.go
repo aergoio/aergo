@@ -7,7 +7,7 @@ import (
 	"reflect"
 
 	"github.com/aergoio/aergo/v2/internal/common"
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 )
 
 const (
@@ -58,7 +58,7 @@ func ToHashID(hash []byte) HashID {
 	return HashID(buf)
 }
 func (id HashID) String() string {
-	return enc.B58Encode(id[:])
+	return base58.Encode(id[:])
 }
 
 // Bytes make a byte slice from id

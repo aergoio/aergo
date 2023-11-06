@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-actor/actor"
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/message"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/aergoio/aergo/v2/p2p/p2putil"
@@ -141,7 +141,7 @@ func (p2ps *P2P) NotifyNewBlock(blockNotice message.NotifyNewBlock) bool {
 		}
 	}
 
-	p2ps.Debug().Int("skipped_cnt", skipped).Int("sent_cnt", sent).Str("hash", enc.B58Encode(blockNotice.Block.BlockHash())).Msg("Notifying new block")
+	p2ps.Debug().Int("skipped_cnt", skipped).Int("sent_cnt", sent).Str("hash", base58.Encode(blockNotice.Block.BlockHash())).Msg("Notifying new block")
 	return true
 }
 
@@ -162,7 +162,7 @@ func (p2ps *P2P) NotifyBlockProduced(blockNotice message.NotifyNewBlock) bool {
 		}
 	}
 
-	p2ps.Debug().Int("skipped_cnt", skipped).Int("sent_cnt", sent).Str("hash", enc.B58Encode(blockNotice.Block.BlockHash())).Uint64("block_no", req.BlockNo).Msg("Notifying block produced")
+	p2ps.Debug().Int("skipped_cnt", skipped).Int("sent_cnt", sent).Str("hash", base58.Encode(blockNotice.Block.BlockHash())).Uint64("block_no", req.BlockNo).Msg("Notifying block produced")
 	return true
 }
 

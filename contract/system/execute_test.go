@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo/v2/config"
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -310,7 +310,7 @@ func TestValidateSystemTxForVoting(t *testing.T) {
 	defer deinitTest()
 	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
 	const testCandidate = "16Uiu2HAmUJhjwotQqm7eGyZh1ZHrVviQJrdm2roQouD329vxZEkx"
-	candidates, err := enc.B58Decode(testCandidate)
+	candidates, err := base58.Decode(testCandidate)
 	assert.NoError(t, err, "could not decode candidates")
 
 	account, err := types.DecodeAddress(testSender)

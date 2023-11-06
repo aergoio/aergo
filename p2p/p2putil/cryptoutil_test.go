@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/hex"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/libp2p/go-libp2p-core/crypto"
 )
@@ -27,11 +27,11 @@ func TestConvertPKToLibP2P(t *testing.T) {
 			}
 			raw, err := got.Raw()
 			if !bytes.Equal(raw, btcPK.Serialize()) {
-				t.Errorf("ConvertPKToLibP2P() pk = %v, want %v", enc.HexEncode(raw), enc.HexEncode(btcPK.Serialize()))
+				t.Errorf("ConvertPKToLibP2P() pk = %v, want %v", hex.Encode(raw), hex.Encode(btcPK.Serialize()))
 			}
 			rev := ConvertPKToBTCEC(got)
 			if !bytes.Equal(rev.Serialize(), btcPK.Serialize()) {
-				t.Errorf("ConvertPKToBTCEC() pk = %v, want %v", enc.HexEncode(rev.Serialize()), enc.HexEncode(btcPK.Serialize()))
+				t.Errorf("ConvertPKToBTCEC() pk = %v, want %v", hex.Encode(rev.Serialize()), hex.Encode(btcPK.Serialize()))
 			}
 
 			marshaled, err := crypto.MarshalPrivateKey(got)
@@ -68,11 +68,11 @@ func TestConvertPubKeyToLibP2P(t *testing.T) {
 			}
 			raw, err := got.Raw()
 			if !bytes.Equal(raw, pubKey.SerializeCompressed()) {
-				t.Errorf("ConvertPubToLibP2P() pk = %v, want %v", enc.HexEncode(raw), enc.HexEncode(pubKey.SerializeCompressed()))
+				t.Errorf("ConvertPubToLibP2P() pk = %v, want %v", hex.Encode(raw), hex.Encode(pubKey.SerializeCompressed()))
 			}
 			rev := ConvertPubKeyToBTCEC(got)
 			if !bytes.Equal(rev.SerializeCompressed(), pubKey.SerializeCompressed()) {
-				t.Errorf("ConvertPubKeyToBTCEC() pk = %v, want %v", enc.HexEncode(rev.SerializeCompressed()), enc.HexEncode(pubKey.SerializeCompressed()))
+				t.Errorf("ConvertPubKeyToBTCEC() pk = %v, want %v", hex.Encode(rev.SerializeCompressed()), hex.Encode(pubKey.SerializeCompressed()))
 			}
 		})
 	}

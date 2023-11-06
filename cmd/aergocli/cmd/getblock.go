@@ -12,7 +12,7 @@ import (
 	"fmt"
 
 	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	aergorpc "github.com/aergoio/aergo/v2/types"
 	"github.com/spf13/cobra"
 )
@@ -56,7 +56,7 @@ func getSingleBlock(cmd *cobra.Command) error {
 		binary.LittleEndian.PutUint64(b, uint64(number))
 		blockQuery = b
 	} else {
-		decoded, err := enc.B58Decode(hash)
+		decoded, err := base58.Decode(hash)
 		if err != nil {
 			return fmt.Errorf("failed to decode block hash: %v", err)
 		}

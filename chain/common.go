@@ -9,7 +9,7 @@ import (
 	"errors"
 
 	"github.com/aergoio/aergo/v2/consensus"
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/types"
 )
 
@@ -48,7 +48,7 @@ func Init(maxBlkBodySize uint32, coinbaseAccountStr string, isBp bool, maxAnchor
 			if err != nil {
 				return ErrInvalidCoinbaseAccount
 			}
-			logger.Info().Str("account", enc.B58Encode(CoinbaseAccount)).Str("str", coinbaseAccountStr).
+			logger.Info().Str("account", base58.Encode(CoinbaseAccount)).Str("str", coinbaseAccountStr).
 				Msg("set coinbase account")
 
 		} else {

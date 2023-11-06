@@ -19,7 +19,7 @@ import (
 	"github.com/aergoio/aergo/v2/consensus/chain"
 	"github.com/aergoio/aergo/v2/contract"
 	"github.com/aergoio/aergo/v2/contract/system"
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/aergoio/aergo/v2/p2p/p2pkey"
 	"github.com/aergoio/aergo/v2/pkg/component"
@@ -541,7 +541,7 @@ func (bf *BlockFactory) generateBlock(work *Work) (*types.Block, *state.BlockSta
 	}
 
 	logger.Info().Str("blockProducer", bf.ID).Str("raftID", EtcdIDToString(bf.bpc.NodeID())).
-		Str("sroot", enc.B58Encode(block.GetHeader().GetBlocksRootHash())).
+		Str("sroot", base58.Encode(block.GetHeader().GetBlocksRootHash())).
 		Uint64("no", block.GetHeader().GetBlockNo()).
 		Str("hash", block.ID()).
 		Msg("block produced")

@@ -3,7 +3,7 @@ package p2putil
 import (
 	"testing"
 
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/hex"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/libp2p/go-libp2p-core/crypto"
 )
@@ -26,15 +26,15 @@ func PrintLibP2PKey(priv crypto.Key, marshaled []byte, t *testing.T) {
 	if err != nil {
 		t.Errorf("Failed to get bytes: %v", err.Error())
 	} else {
-		t.Logf("BT/MAR %v", enc.HexEncode(oldBytes))
-		t.Logf("RAW    %v", enc.HexEncode(newBytes))
+		t.Logf("BT/MAR %v", hex.Encode(oldBytes))
+		t.Logf("RAW    %v", hex.Encode(newBytes))
 	}
 }
 
 func PrintBTCPKey(priv *btcec.PrivateKey, t *testing.T) {
 	oldBytes := priv.Serialize()
-	t.Logf("PRIV   %v", enc.HexEncode(oldBytes))
-	t.Logf("PUBLIC %v", enc.HexEncode(priv.PubKey().SerializeCompressed()))
+	t.Logf("PRIV   %v", hex.Encode(oldBytes))
+	t.Logf("PUBLIC %v", hex.Encode(priv.PubKey().SerializeCompressed()))
 }
 
 func TestLibs(t *testing.T) {

@@ -1,4 +1,4 @@
-package enc
+package gob
 
 import (
 	"testing"
@@ -10,11 +10,11 @@ func TestGobCodec(t *testing.T) {
 	a := assert.New(t)
 
 	x := []int{1, 2, 3}
-	b, err := GobEncode(x)
+	b, err := Encode(x)
 	a.Nil(err)
 
 	y := []int{0, 0, 0}
-	err = GobDecode(b, &y)
+	err = Decode(b, &y)
 	a.Nil(err)
 
 	for i, v := range x {

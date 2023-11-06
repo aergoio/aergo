@@ -14,7 +14,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/hex"
 	"github.com/aergoio/aergo/v2/types"
 )
 
@@ -43,7 +43,7 @@ func (ce *executor) setCountHook(limit C.int) {
 }
 
 func HexAddrToBase58Addr(contract_id_hex string) (string, error) {
-	byteContractID, err := enc.HexDecode(contract_id_hex)
+	byteContractID, err := hex.Decode(contract_id_hex)
 	if err != nil {
 		return "", err
 	}
@@ -66,7 +66,7 @@ func HexAddrOrPlainStrToHexAddr(d string) string {
 }
 
 func PlainStrToHexAddr(d string) string {
-	return enc.HexEncode(StrHash(d))
+	return hex.Encode(StrHash(d))
 }
 
 func SetBreakPoint(contract_id_hex string, line uint64) error {

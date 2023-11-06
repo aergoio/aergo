@@ -6,7 +6,7 @@ import (
 	"hash"
 	"testing"
 
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base64"
 	"github.com/minio/sha256-simd"
 	"github.com/stretchr/testify/assert"
 )
@@ -91,7 +91,7 @@ func TestMerkle2Tx(t *testing.T) {
 
 	for i, merkle := range merkles {
 		assert.Equal(t, len(merkle), 32)
-		t.Logf("%d:%v", i, enc.B64Encode(merkle))
+		t.Logf("%d:%v", i, base64.Encode(merkle))
 	}
 }
 
@@ -114,7 +114,7 @@ func TestMerkle3Tx(t *testing.T) {
 	for i, merkle := range merkles {
 		assert.NotNil(t, merkle, "nil=%d", i)
 		assert.Equal(t, len(merkle), 32)
-		t.Logf("%d:%v", i, enc.B64Encode(merkle))
+		t.Logf("%d:%v", i, base64.Encode(merkle))
 	}
 }
 

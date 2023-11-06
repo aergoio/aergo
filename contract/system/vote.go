@@ -12,7 +12,7 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/dbkey"
@@ -144,7 +144,7 @@ func newVoteCmd(ctx *SystemContext) (sysCmd, error) {
 			return nil, err
 		}
 		for _, v := range ctx.Call.Args {
-			candidate, _ := enc.B58Decode(v.(string))
+			candidate, _ := base58.Decode(v.(string))
 			cmd.candidate = append(cmd.candidate, candidate...)
 		}
 	}
@@ -322,7 +322,7 @@ func BuildOrderedCandidates(vote map[string]*big.Int) []string {
 	l := voteResult.buildVoteList()
 	bps := make([]string, 0, len(l.Votes))
 	for _, v := range l.Votes {
-		bp := enc.B58Encode(v.Candidate)
+		bp := base58.Encode(v.Candidate)
 		bps = append(bps, bp)
 	}
 	return bps
@@ -356,7 +356,7 @@ func GetRankers(ar AccountStateReader) ([]string, error) {
 
 	bps := make([]string, 0, n)
 	for _, v := range vl.Votes {
-		bps = append(bps, enc.B58Encode(v.Candidate))
+		bps = append(bps, base58.Encode(v.Candidate))
 	}
 	return bps, nil
 }

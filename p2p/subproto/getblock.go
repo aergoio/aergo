@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/aergoio/aergo/v2/p2p/p2putil"
 	"github.com/aergoio/aergo/v2/types"
@@ -82,13 +82,13 @@ func (bh *blockRequestHandler) handleBlkReq(msg p2pcommon.Message, data *types.G
 		foundBlock, err := bh.actor.GetChainAccessor().GetBlock(hash)
 		if err != nil {
 			// the block hash from request must exists. this error is fatal.
-			bh.logger.Warn().Err(err).Str(p2putil.LogBlkHash, enc.B58Encode(hash)).Str(p2putil.LogOrgReqID, requestID.String()).Msg("failed to get block while processing getBlock")
+			bh.logger.Warn().Err(err).Str(p2putil.LogBlkHash, base58.Encode(hash)).Str(p2putil.LogOrgReqID, requestID.String()).Msg("failed to get block while processing getBlock")
 			status = types.ResultStatus_INTERNAL
 			break
 		}
 		if foundBlock == nil {
 			// the remote peer request not existing block
-			bh.logger.Debug().Str(p2putil.LogBlkHash, enc.B58Encode(hash)).Str(p2putil.LogOrgReqID, requestID.String()).Msg("requested block hash is missing")
+			bh.logger.Debug().Str(p2putil.LogBlkHash, base58.Encode(hash)).Str(p2putil.LogOrgReqID, requestID.String()).Msg("requested block hash is missing")
 			status = types.ResultStatus_NOT_FOUND
 			break
 

@@ -10,7 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/gob"
+	"github.com/aergoio/aergo/v2/internal/enc/hex"
 )
 
 const (
@@ -280,7 +281,7 @@ func (g *Genesis) ChainID() ([]byte, error) {
 func (g Genesis) Bytes() []byte {
 	// Omit the Balance to reduce the resulting data size.
 	g.Balance = nil
-	if b, err := enc.GobEncode(g); err == nil {
+	if b, err := gob.Encode(g); err == nil {
 		return b
 	}
 	return nil
@@ -332,7 +333,7 @@ func GetDefaultGenesis() *Genesis {
 }
 
 func GetMainNetGenesis() *Genesis {
-	if bs, err := enc.HexDecode(MainNetGenesis); err == nil {
+	if bs, err := hex.Decode(MainNetGenesis); err == nil {
 		var g Genesis
 		if err := json.Unmarshal(bs, &g); err == nil {
 			return &g
@@ -341,7 +342,7 @@ func GetMainNetGenesis() *Genesis {
 	return nil
 }
 func GetTestNetGenesis() *Genesis {
-	if bs, err := enc.HexDecode(TestNetGenesis); err == nil {
+	if bs, err := hex.Decode(TestNetGenesis); err == nil {
 		var g Genesis
 		if err := json.Unmarshal(bs, &g); err == nil {
 			return &g
@@ -372,7 +373,7 @@ func GetTestGenesis() *Genesis {
 // GetGenesisFromBytes decodes & return Genesis from b.
 func GetGenesisFromBytes(b []byte) *Genesis {
 	g := &Genesis{}
-	if err := enc.GobDecode(b, g); err == nil {
+	if err := gob.Decode(b, g); err == nil {
 		return g
 	}
 	return nil

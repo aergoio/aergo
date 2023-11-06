@@ -7,7 +7,7 @@ package subproto
 
 import (
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/aergoio/aergo/v2/p2p/p2putil"
 	"github.com/aergoio/aergo/v2/types"
@@ -69,7 +69,7 @@ func (bh *raftNewBlkNoticeDiscardHandler) Handle(msg p2pcommon.Message, msgBody 
 
 	if blockID, err := types.ParseToBlockID(data.BlockHash); err != nil {
 		// TODO Add penalty score and break
-		bh.logger.Info().Str(p2putil.LogPeerName, remotePeer.Name()).Str("hash", enc.B58Encode(data.BlockHash)).Msg("malformed blockHash")
+		bh.logger.Info().Str(p2putil.LogPeerName, remotePeer.Name()).Str("hash", base58.Encode(data.BlockHash)).Msg("malformed blockHash")
 		return
 	} else {
 		// just update last status

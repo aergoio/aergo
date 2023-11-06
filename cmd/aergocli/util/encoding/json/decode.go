@@ -17,7 +17,7 @@ import (
 	"unicode/utf16"
 	"unicode/utf8"
 
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 )
 
 // Unmarshal parses the JSON-encoded data and stores the result
@@ -934,7 +934,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 				d.saveError(&UnmarshalTypeError{Value: "string", Type: v.Type(), Offset: int64(d.readIndex())})
 				break
 			}
-			b, err := enc.B58Decode(string(s))
+			b, err := base58.Decode(string(s))
 			if err != nil {
 				d.saveError(err)
 				break

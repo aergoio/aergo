@@ -8,7 +8,7 @@ import (
 
 	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
 	"github.com/aergoio/aergo/v2/cmd/aergocli/util/encoding/json"
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -30,7 +30,7 @@ func TestSignWithKey(t *testing.T) {
 	err = json.Unmarshal([]byte(ouputjson), &tx)
 	assert.NoError(t, err, "should be success")
 
-	sign, err := enc.B58Decode(tx.Body.Sign)
+	sign, err := base58.Decode(tx.Body.Sign)
 	assert.NoError(t, err, "should be success")
 	assert.Equalf(t, len(sign), signLength, "wrong sign length value = %s", tx.Body.Sign)
 }

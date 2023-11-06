@@ -8,7 +8,7 @@ import (
 	"math/big"
 	"sort"
 
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/dbkey"
@@ -56,7 +56,7 @@ func (voteResult *VoteResult) SubVote(vote *types.Vote) error {
 	} else {
 		for offset := 0; offset < len(vote.Candidate); offset += PeerIDLength {
 			peer := vote.Candidate[offset : offset+PeerIDLength]
-			pkey := enc.B58Encode(peer)
+			pkey := base58.Encode(peer)
 			voteResult.rmap[pkey] = new(big.Int).Sub(voteResult.rmap[pkey], vote.GetAmountBigInt())
 		}
 	}
@@ -80,10 +80,10 @@ func (voteResult *VoteResult) AddVote(vote *types.Vote) error {
 	} else {
 		for offset := 0; offset < len(vote.Candidate); offset += PeerIDLength {
 			key := vote.Candidate[offset : offset+PeerIDLength]
-			if voteResult.rmap[enc.B58Encode(key)] == nil {
-				voteResult.rmap[enc.B58Encode(key)] = new(big.Int).SetUint64(0)
+			if voteResult.rmap[base58.Encode(key)] == nil {
+				voteResult.rmap[base58.Encode(key)] = new(big.Int).SetUint64(0)
 			}
-			voteResult.rmap[enc.B58Encode(key)] = new(big.Int).Add(voteResult.rmap[enc.B58Encode(key)], vote.GetAmountBigInt())
+			voteResult.rmap[base58.Encode(key)] = new(big.Int).Add(voteResult.rmap[base58.Encode(key)], vote.GetAmountBigInt())
 		}
 	}
 	return nil
@@ -98,7 +98,7 @@ func (vr *VoteResult) buildVoteList() *types.VoteList {
 		if vr.ex {
 			vote.Candidate = []byte(k)
 		} else {
-			vote.Candidate, _ = enc.B58Decode(k)
+			vote.Candidate, _ = base58.Decode(k)
 		}
 		voteList.Votes = append(voteList.Votes, vote)
 	}
@@ -159,7 +159,7 @@ func loadVoteResult(scs *state.ContractState, key []byte) (*VoteResult, error) {
 				if voteResult.ex {
 					voteResult.rmap[string(v.Candidate)] = v.GetAmountBigInt()
 				} else {
-					voteResult.rmap[enc.B58Encode(v.Candidate)] = v.GetAmountBigInt()
+					voteResult.rmap[base58.Encode(v.Candidate)] = v.GetAmountBigInt()
 				}
 			}
 		}

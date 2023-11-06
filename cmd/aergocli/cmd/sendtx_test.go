@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo/v2/cmd/aergocli/util/encoding/json"
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
@@ -15,7 +15,7 @@ func TestSendTxWithMock(t *testing.T) {
 	defer deinitMock()
 
 	testTxHashString := "BdAoKcLSsrscjdpTPGe9DoFsz4mP9ezbc4Dk5fuBTT4e"
-	testTxHash, _ := enc.B58Decode(testTxHashString)
+	testTxHash, _ := base58.Decode(testTxHashString)
 
 	mock.EXPECT().SendTX(
 		gomock.Any(), // expect any value for first parameter
@@ -34,7 +34,7 @@ func TestSendTxWithMock(t *testing.T) {
 	t.Log(output)
 	out := &types.CommitResult{}
 	err = json.Unmarshal([]byte(output), out)
-	assert.Equal(t, testTxHashString, enc.B58Encode(out.Hash))
+	assert.Equal(t, testTxHashString, base58.Encode(out.Hash))
 }
 
 func TestSendTxFromToValidation(t *testing.T) {

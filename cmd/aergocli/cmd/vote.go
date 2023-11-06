@@ -13,7 +13,7 @@ import (
 	"strings"
 
 	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/spf13/cobra"
 )
@@ -84,7 +84,7 @@ func execVote(cmd *cobra.Command, args []string) {
 				cmd.Println("too many candidates")
 				return
 			}
-			candidate, err := enc.B58Decode(v.(string))
+			candidate, err := base58.Decode(v.(string))
 			if err != nil {
 				cmd.Printf("Failed: %s (%s)\n", err.Error(), v)
 				return
@@ -176,7 +176,7 @@ func execBP(cmd *cobra.Command, args []string) {
 	cmd.Println("[")
 	comma := ","
 	for i, r := range msg.GetVotes() {
-		cmd.Printf("{\"" + enc.B58Encode(r.Candidate) + "\":" + r.GetAmountBigInt().String() + "}")
+		cmd.Printf("{\"" + base58.Encode(r.Candidate) + "\":" + r.GetAmountBigInt().String() + "}")
 		if i+1 == len(msg.GetVotes()) {
 			comma = ""
 		}

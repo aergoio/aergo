@@ -16,7 +16,8 @@ import (
 	"github.com/aergoio/aergo/v2/config"
 	"github.com/aergoio/aergo/v2/consensus"
 	"github.com/aergoio/aergo/v2/internal/common"
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/internal/enc/gob"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/dbkey"
 	"github.com/golang/protobuf/proto"
@@ -44,7 +45,7 @@ func (e ErrNoBlock) Error() string {
 
 	switch id := e.id.(type) {
 	case []byte:
-		idStr = fmt.Sprintf("blockHash=%v", enc.B58Encode(id))
+		idStr = fmt.Sprintf("blockHash=%v", base58.Encode(id))
 	default:
 		idStr = fmt.Sprintf("blockNo=%v", id)
 	}
@@ -444,7 +445,7 @@ func (cdb *ChainDB) addTxsOfBlock(dbTx *db.Transaction, txs []*types.Tx, blockHa
 
 	for i, txEntry := range txs {
 		if err := cdb.addTx(dbTx, txEntry, blockHash, i); err != nil {
-			logger.Error().Err(err).Str("hash", enc.B58Encode(blockHash)).Int("txidx", i).
+			logger.Error().Err(err).Str("hash", base58.Encode(blockHash)).Int("txidx", i).
 				Msg("failed to add tx")
 
 			return err
@@ -610,7 +611,7 @@ func (cdb *ChainDB) getTx(txHash []byte) (*types.Tx, *types.TxIdx, error) {
 
 	err := cdb.loadData(txHash, txIdx)
 	if err != nil {
-		return nil, nil, fmt.Errorf("tx not found: txHash=%v", enc.B58Encode(txHash))
+		return nil, nil, fmt.Errorf("tx not found: txHash=%v", base58.Encode(txHash))
 	}
 	block, err := cdb.getBlock(txIdx.BlockHash)
 	if err != nil {
@@ -621,7 +622,7 @@ func (cdb *ChainDB) getTx(txHash []byte) (*types.Tx, *types.TxIdx, error) {
 		return nil, nil, fmt.Errorf("wrong tx idx: %d", txIdx.Idx)
 	}
 	tx := txs[txIdx.Idx]
-	logger.Debug().Str("hash", enc.B58Encode(txHash)).Msg("getTx")
+	logger.Debug().Str("hash", base58.Encode(txHash)).Msg("getTx")
 
 	return tx, txIdx, nil
 }
@@ -651,7 +652,7 @@ func (cdb *ChainDB) getReceipts(blockHash []byte, blockNo types.BlockNo,
 	var receipts types.Receipts
 
 	receipts.SetHardFork(hardForkConfig, blockNo)
-	err := enc.GobDecode(data, &receipts)
+	err := gob.Decode(data, &receipts)
 
 	return &receipts, err
 }
@@ -679,9 +680,9 @@ func (cdb *ChainDB) GetChainTree() ([]byte, error) {
 		hash, _ := cdb.getHashByNo(i)
 		tree = append(tree, ChainInfo{
 			Height: i,
-			Hash:   enc.B58Encode(hash),
+			Hash:   base58.Encode(hash),
 		})
-		logger.Info().Str("hash", enc.B58Encode(hash)).Msg("GetChainTree")
+		logger.Info().Str("hash", base58.Encode(hash)).Msg("GetChainTree")
 	}
 	jsonBytes, err := json.Marshal(tree)
 	if err != nil {
@@ -694,7 +695,7 @@ func (cdb *ChainDB) writeReceipts(blockHash []byte, blockNo types.BlockNo, recei
 	dbTx := cdb.store.NewTx()
 	defer dbTx.Discard()
 
-	val, _ := enc.GobEncode(receipts)
+	val, _ := gob.Encode(receipts)
 	dbTx.Set(dbkey.Receipts(blockHash, blockNo), val)
 
 	dbTx.Commit()
@@ -736,7 +737,7 @@ func (cdb *ChainDB) getReorgMarker() (*ReorgMarker, error) {
 	}
 
 	var marker ReorgMarker
-	err := enc.GobDecode(data, &marker)
+	err := gob.Decode(data, &marker)
 
 	return &marker, err
 }

@@ -6,7 +6,7 @@ import (
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/v2/internal/common"
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/pkg/trie"
 	"github.com/aergoio/aergo/v2/types"
 )
@@ -134,8 +134,8 @@ func (storage *bufferedStorage) update() error {
 		return err
 	}
 	if !bytes.Equal(before, storage.trie.Root) {
-		logger.Debug().Str("before", enc.B58Encode(before)).
-			Str("after", enc.B58Encode(storage.trie.Root)).Msg("Changed storage trie root")
+		logger.Debug().Str("before", base58.Encode(before)).
+			Str("after", base58.Encode(storage.trie.Root)).Msg("Changed storage trie root")
 		storage.dirty = true
 	}
 	return nil

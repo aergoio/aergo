@@ -9,22 +9,22 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 )
 
-var dummyTxHash, _ = enc.B58Decode("4H4zAkAyRV253K5SNBJtBxqUgHEbZcXbWFFc6cmQHY45")
+var dummyTxHash, _ = base58.Decode("4H4zAkAyRV253K5SNBJtBxqUgHEbZcXbWFFc6cmQHY45")
 
 func Test_MarshalTxResp(t *testing.T) {
 	dummyTx := &types.Tx{Hash: dummyTxHash, Body: &types.TxBody{Payload: []byte("It's a good day to die.")}}
 	txMarshaled, _ := proto.Marshal(dummyTx)
 	txSize := len(dummyTxHash) + 2 + len(txMarshaled) + 2 // hash+ field desc of hash + tx+field desc of tx
-	//fmt.Println("TX   : ",enc.HexEncode(txMarshaled))
+	//fmt.Println("TX   : ",hex.HexEncode(txMarshaled))
 	emptyMarshaled, _ := proto.Marshal(&types.GetTransactionsResponse{})
 	emptySize := len(emptyMarshaled)
-	//fmt.Println("EMPTY: ",enc.HexEncode(emptyMarshaled))
+	//fmt.Println("EMPTY: ",hex.HexEncode(emptyMarshaled))
 	//fmt.Printf("Size of All nil: %d , tx size: %d ",emptySize, txSize)
 	tests := []struct {
 		name         string
@@ -59,7 +59,7 @@ func Test_MarshalTxResp(t *testing.T) {
 			if actualSize < cut {
 				cut = actualSize
 			}
-			//fmt.Println("ACTUAL: ",enc.HexEncode(actual[:cut]))
+			//fmt.Println("ACTUAL: ",hex.HexEncode(actual[:cut]))
 
 			assert.Equal(t, test.expectedSize, actualSize)
 

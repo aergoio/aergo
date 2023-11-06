@@ -1,12 +1,12 @@
-package enc
+package gob
 
 import (
 	"bytes"
 	"encoding/gob"
 )
 
-// GobEncode encodes e by using gob and returns.
-func GobEncode(e interface{}) ([]byte, error) {
+// Encode encodes e by using gob and returns.
+func Encode(e interface{}) ([]byte, error) {
 	var buf bytes.Buffer
 	err := gob.NewEncoder(&buf).Encode(e)
 	if err != nil {
@@ -15,8 +15,8 @@ func GobEncode(e interface{}) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// GobDecode decodes a gob-encoded value v.
-func GobDecode(v []byte, e interface{}) error {
+// Decode decodes a gob-encoded value v.
+func Decode(v []byte, e interface{}) error {
 	dec := gob.NewDecoder(bytes.NewBuffer(v))
 	return dec.Decode(e)
 }

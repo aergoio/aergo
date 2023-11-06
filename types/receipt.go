@@ -10,7 +10,7 @@ import (
 	"reflect"
 	"strconv"
 
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/internal/merkle"
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/minio/sha256-simd"
@@ -352,7 +352,7 @@ func (r *Receipt) MarshalJSON() ([]byte, error) {
 	b.WriteString(`{"BlockNo":`)
 	b.WriteString(fmt.Sprintf("%d", r.BlockNo))
 	b.WriteString(`,"BlockHash":"`)
-	b.WriteString(enc.B58Encode(r.BlockHash))
+	b.WriteString(base58.Encode(r.BlockHash))
 	b.WriteString(`","contractAddress":"`)
 	b.WriteString(EncodeAddress(r.ContractAddress))
 	b.WriteString(`","status":"`)
@@ -368,7 +368,7 @@ func (r *Receipt) MarshalJSON() ([]byte, error) {
 		b.WriteString(r.Ret)
 	}
 	b.WriteString(`,"txHash":"`)
-	b.WriteString(enc.B58Encode(r.TxHash))
+	b.WriteString(base58.Encode(r.TxHash))
 	b.WriteString(`","txIndex":`)
 	b.WriteString(fmt.Sprintf("%d", r.TxIndex))
 	b.WriteString(`,"from":"`)
@@ -731,11 +731,11 @@ func (ev *Event) MarshalJSON() ([]byte, error) {
 	b.WriteString(`","Args":`)
 	b.WriteString(ev.JsonArgs)
 	b.WriteString(`,"txHash":"`)
-	b.WriteString(enc.B58Encode(ev.TxHash))
+	b.WriteString(base58.Encode(ev.TxHash))
 	b.WriteString(`","EventIdx":`)
 	b.WriteString(fmt.Sprintf("%d", ev.EventIdx))
 	b.WriteString(`,"BlockHash":"`)
-	b.WriteString(enc.B58Encode(ev.BlockHash))
+	b.WriteString(base58.Encode(ev.BlockHash))
 	b.WriteString(`","BlockNo":`)
 	b.WriteString(fmt.Sprintf("%d", ev.BlockNo))
 	b.WriteString(`,"TxIndex":`)

@@ -9,7 +9,7 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/hashicorp/golang-lru/simplelru"
 )
@@ -51,7 +51,7 @@ func NewOrphanPool(size int) *OrphanPool {
 
 // add Orphan into the orphan cache pool
 func (op *OrphanPool) addOrphan(block *types.Block) error {
-	logger.Warn().Str("prev", enc.B58Encode(block.GetHeader().GetPrevBlockHash())).Msg("add orphan Block")
+	logger.Warn().Str("prev", base58.Encode(block.GetHeader().GetPrevBlockHash())).Msg("add orphan Block")
 
 	id := types.ToBlockID(block.Header.PrevBlockHash)
 	cachedblock, exists := op.cache[id]

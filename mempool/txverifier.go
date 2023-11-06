@@ -2,7 +2,7 @@ package mempool
 
 import (
 	"github.com/aergoio/aergo-actor/actor"
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/message"
 	"github.com/aergoio/aergo/v2/types"
 )
@@ -31,7 +31,7 @@ func (s *TxVerifier) Receive(context actor.Context) {
 				err = s.mp.put(tx)
 			}
 			if err != nil {
-				s.mp.Logger.Info().Err(err).Str("txID", enc.B58Encode(msg.GetHash())).Msg("tx verification failed")
+				s.mp.Logger.Info().Err(err).Str("txID", base58.Encode(msg.GetHash())).Msg("tx verification failed")
 			}
 		}
 		context.Respond(&message.MemPoolPutRsp{Err: err})

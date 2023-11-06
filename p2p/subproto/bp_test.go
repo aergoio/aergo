@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/aergoio/aergo/v2/p2p/p2pmock"
 	"github.com/aergoio/aergo/v2/p2p/p2putil"
@@ -65,7 +65,7 @@ func TestNewBlockProducedNoticeHandlerOfBP(t *testing.T) {
 
 func Test_blockProducedNoticeHandler_handle_FromBP(t *testing.T) {
 	logger := log.NewLogger("test.subproto")
-	dummyBlockHash, _ := enc.B58Decode("v6zbuQ4aVSdbTwQhaiZGp5pcL5uL55X3kt2wfxor5W6")
+	dummyBlockHash, _ := base58.Decode("v6zbuQ4aVSdbTwQhaiZGp5pcL5uL55X3kt2wfxor5W6")
 	dummyBlockID := types.MustParseBlockID(dummyBlockHash)
 	bpKey, bpPub, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
 	bpID, _ := types.IDFromPrivateKey(bpKey)

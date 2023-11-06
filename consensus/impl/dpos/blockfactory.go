@@ -19,7 +19,7 @@ import (
 	"github.com/aergoio/aergo/v2/consensus/impl/dpos/slot"
 	"github.com/aergoio/aergo/v2/contract"
 	"github.com/aergoio/aergo/v2/contract/system"
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/p2p/p2pkey"
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/state"
@@ -264,7 +264,7 @@ func (bf *BlockFactory) generateBlock(execCtx context.Context, bpi *bpInfo, lpbN
 
 	logger.Info().
 		Str("BP", bf.ID).Str("id", block.ID()).
-		Str("sroot", enc.B58Encode(block.GetHeader().GetBlocksRootHash())).
+		Str("sroot", base58.Encode(block.GetHeader().GetBlocksRootHash())).
 		Uint64("no", block.BlockNo()).Uint64("confirms", block.Confirms()).
 		Uint64("lpb", lpbNo).
 		Msg("block produced")
@@ -277,7 +277,7 @@ func (bf *BlockFactory) rejected() *chain.RejTxInfo {
 }
 
 func (bf *BlockFactory) setRejected(rej *chain.RejTxInfo) {
-	logger.Warn().Str("hash", enc.B58Encode(rej.Hash())).Msg("timeout tx reserved for rescheduling")
+	logger.Warn().Str("hash", base58.Encode(rej.Hash())).Msg("timeout tx reserved for rescheduling")
 	bf.recentRejectedTx = rej
 }
 

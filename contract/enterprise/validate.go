@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/aergoio/aergo/v2/consensus"
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base64"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
 )
@@ -265,7 +265,7 @@ func checkRPCPermissions(v string) error {
 		return fmt.Errorf("invalid RPC permission %s", v)
 	}
 
-	if _, err := enc.B64Decode(values[0]); err != nil {
+	if _, err := base64.Decode(values[0]); err != nil {
 		return fmt.Errorf("invalid RPC cert %s", v)
 	}
 
