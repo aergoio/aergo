@@ -55,9 +55,6 @@ func CalcFee(gasPrice *big.Int, gas uint64) *big.Int {
 
 // compute the base fee for a transaction
 func TxBaseFee(version int32, gasPrice *big.Int, payloadSize int) *big.Int {
-	if IsZeroFee() {
-		return NewZeroFee()
-	}
 
 	if IsUseTxGas(version) {
 		// get the amount of gas needed for the payload
