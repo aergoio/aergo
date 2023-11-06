@@ -18,9 +18,9 @@ import (
 	"github.com/aergoio/aergo/v2/internal/common"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/internal/enc/gob"
+	"github.com/aergoio/aergo/v2/internal/enc/proto"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/dbkey"
-	"github.com/golang/protobuf/proto"
 )
 
 var (
@@ -274,7 +274,7 @@ func (cdb *ChainDB) loadData(key []byte, pb proto.Message) error {
 		return fmt.Errorf("failed to load data: key=%v", key)
 	}
 	//logger.Debugf("  loadData: key=%d, len=%d, val=%s\n", Btoi(key), len(buf), enc.ToString(buf))
-	err := proto.Unmarshal(buf, pb)
+	err := proto.Decode(buf, pb)
 	if err != nil {
 		return fmt.Errorf("failed to unmarshal: key=%v, len=%d", key, len(buf))
 	}
@@ -461,7 +461,7 @@ func (cdb *ChainDB) addTx(dbtx *db.Transaction, tx *types.Tx, blockHash []byte, 
 		BlockHash: blockHash,
 		Idx:       int32(idx),
 	}
-	txidxbytes, err := proto.Marshal(&txidx)
+	txidxbytes, err := proto.Encode(&txidx)
 	if err != nil {
 		return err
 	}
@@ -486,7 +486,7 @@ func (cdb *ChainDB) addBlock(dbtx db.Transaction, block *types.Block) error {
 	// assumption: not an orphan
 	// fork can be here
 	logger.Debug().Uint64("blockNo", blockNo).Msg("add block to db")
-	blockBytes, err := proto.Marshal(block)
+	blockBytes, err := proto.Encode(block)
 	if err != nil {
 		logger.Error().Err(err).Uint64("no", blockNo).Str("hash", block.ID()).Msg("failed to add block")
 		return err

@@ -29,11 +29,11 @@ import (
 	"github.com/aergoio/aergo/v2/fee"
 	"github.com/aergoio/aergo/v2/internal/common"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/internal/enc/proto"
 	"github.com/aergoio/aergo/v2/message"
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/golang/protobuf/proto"
 )
 
 const (
@@ -873,7 +873,7 @@ func (mp *MemPool) loadTxs() {
 			break
 		}
 
-		err = proto.Unmarshal(buffer, &buf)
+		err = proto.Decode(buffer, &buf)
 		if err != nil {
 			mp.Error().Err(err).Msg("errr on unmarshalling tx during loading")
 			continue
@@ -916,7 +916,7 @@ Dump:
 
 			var total_data []byte
 			start := time.Now()
-			data, err := proto.Marshal(v.GetTx())
+			data, err := proto.Encode(v.GetTx())
 			if err != nil {
 				mp.Error().Err(err).Msg("Marshal failed")
 				continue

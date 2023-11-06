@@ -11,7 +11,7 @@ import (
 
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/internal/enc/hex"
-	"github.com/golang/protobuf/proto"
+	"github.com/aergoio/aergo/v2/internal/enc/proto"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -22,7 +22,7 @@ func TestUnmarshalSize(t *testing.T) {
 	sample := &NewTransactionsNotice{}
 
 	expectedLen := proto.Size(sample)
-	actual, err := proto.Marshal(sample)
+	actual, err := proto.Encode(sample)
 	assert.Nil(t, err)
 	fmt.Println("Empty notice size ", len(actual))
 	assert.Equal(t, expectedLen, len(actual))
@@ -32,7 +32,7 @@ func TestUnmarshalSize(t *testing.T) {
 	hashes = append(hashes, dummyTxHash)
 	sample.TxHashes = hashes
 	expectedLen = proto.Size(sample)
-	actual, err = proto.Marshal(sample)
+	actual, err = proto.Encode(sample)
 	assert.Nil(t, err)
 	fmt.Println("Single hash notice size ", len(actual))
 	fmt.Println("Hex: ", hex.Encode(actual))
@@ -45,7 +45,7 @@ func TestUnmarshalSize(t *testing.T) {
 	}
 	sample.TxHashes = hashes
 	expectedLen = proto.Size(sample)
-	actual, err = proto.Marshal(sample)
+	actual, err = proto.Encode(sample)
 	assert.Nil(t, err)
 	fmt.Println("Hundred hashes notice size ", len(actual))
 	fmt.Println("Hex: ", hex.Encode(actual[0:40]))
@@ -58,7 +58,7 @@ func TestUnmarshalSize(t *testing.T) {
 	}
 	sample.TxHashes = hashes
 	expectedLen = proto.Size(sample)
-	actual, err = proto.Marshal(sample)
+	actual, err = proto.Encode(sample)
 	assert.Nil(t, err)
 	fmt.Println("Thousand hashes notice size ", len(actual))
 	fmt.Println("Hex: ", hex.Encode(actual[0:40]))

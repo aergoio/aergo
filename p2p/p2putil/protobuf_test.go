@@ -10,8 +10,8 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/internal/enc/proto"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -19,10 +19,10 @@ var dummyTxHash, _ = base58.Decode("4H4zAkAyRV253K5SNBJtBxqUgHEbZcXbWFFc6cmQHY45
 
 func Test_MarshalTxResp(t *testing.T) {
 	dummyTx := &types.Tx{Hash: dummyTxHash, Body: &types.TxBody{Payload: []byte("It's a good day to die.")}}
-	txMarshaled, _ := proto.Marshal(dummyTx)
+	txMarshaled, _ := proto.Encode(dummyTx)
 	txSize := len(dummyTxHash) + 2 + len(txMarshaled) + 2 // hash+ field desc of hash + tx+field desc of tx
 	//fmt.Println("TX   : ",hex.HexEncode(txMarshaled))
-	emptyMarshaled, _ := proto.Marshal(&types.GetTransactionsResponse{})
+	emptyMarshaled, _ := proto.Encode(&types.GetTransactionsResponse{})
 	emptySize := len(emptyMarshaled)
 	//fmt.Println("EMPTY: ",hex.HexEncode(emptyMarshaled))
 	//fmt.Printf("Size of All nil: %d , tx size: %d ",emptySize, txSize)
@@ -50,7 +50,7 @@ func Test_MarshalTxResp(t *testing.T) {
 				txSlice = append(txSlice, dummyTx)
 			}
 			sampleRsp := &types.GetTransactionsResponse{Hashes: hashSlice, Txs: txSlice}
-			actual, err := proto.Marshal(sampleRsp)
+			actual, err := proto.Encode(sampleRsp)
 			if err != nil {
 				t.Errorf("Invalid proto error %s", err.Error())
 			}

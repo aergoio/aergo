@@ -9,7 +9,7 @@ import (
 
 	"github.com/aergoio/aergo/v2/fee"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
-	"github.com/golang/protobuf/proto"
+	"github.com/aergoio/aergo/v2/internal/enc/proto"
 )
 
 //governance type transaction which has aergo.system in recipient
