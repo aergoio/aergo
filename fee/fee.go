@@ -55,14 +55,13 @@ func CalcFee(gasPrice *big.Int, gas uint64) *big.Int {
 
 // compute the base fee for a transaction
 func TxBaseFee(version int32, gasPrice *big.Int, payloadSize int) *big.Int {
-
-	if IsUseTxGas(version) {
-		// get the amount of gas needed for the payload
-		txGas := TxGas(payloadSize)
-		// multiply the amount of gas with the gas price
-		return CalcFee(gasPrice, txGas)
+	if version < 2 {
+		return PayloadTxFee(payloadSize)
 	}
-	return PayloadTxFee(payloadSize)
+	// get the amount of gas needed for the payload
+	txGas := TxGas(payloadSize)
+	// multiply the amount of gas with the gas price
+	return CalcFee(gasPrice, txGas)
 }
 
 // compute the execute fee for a transaction
@@ -83,7 +82,7 @@ func TxMaxFee(version int32, lenPayload int, gasLimit uint64, balance, gasPrice 
 		return NewZeroFee(), nil
 	}
 
-	if IsUseTxGas(version) {
+	if version >= 2 {
 		minGasLimit := TxGas(lenPayload)
 		if gasLimit == 0 {
 			gasLimit = MaxGasLimit(balance, gasPrice)

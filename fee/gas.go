@@ -54,7 +54,7 @@ func TxGas(payloadSize int) uint64 {
 func GasLimit(version int32, isFeeDelegation bool, txGasLimit uint64, payloadSize int, gasPrice, usedFee, senderBalance, receiverBalance *big.Int) (gasLimit uint64, err error) {
 	// 1. no gas limit
 	if IsUseTxGas(version) != true {
-		return 0, nil
+		return
 	}
 
 	// 2. fee delegation
@@ -91,6 +91,7 @@ func GasLimit(version int32, isFeeDelegation bool, txGasLimit uint64, payloadSiz
 
 	return gasLimit, nil
 }
+
 func MaxGasLimit(balance, gasPrice *big.Int) uint64 {
 	gasLimit := uint64(math.MaxUint64)
 	if n := CalcGas(balance, gasPrice); n.IsUint64() {
