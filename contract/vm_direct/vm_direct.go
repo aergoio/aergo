@@ -1,19 +1,19 @@
 package vm_direct
 
 import (
-	"errors"
-	"math/big"
 	"bytes"
-	"encoding/json"
 	"context"
-	"os"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"math/big"
+	"os"
 	"time"
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/v2/consensus"
 	"github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/consensus"
 	"github.com/aergoio/aergo/v2/contract"
 	"github.com/aergoio/aergo/v2/contract/name"
 	"github.com/aergoio/aergo/v2/contract/system"
@@ -26,9 +26,9 @@ import (
 type ChainType int
 
 const (
-  ChainTypeMainNet ChainType = iota
-  ChainTypeTestNet
-  ChainTypeUnitTest
+	ChainTypeMainNet ChainType = iota
+	ChainTypeTestNet
+	ChainTypeUnitTest
 )
 
 const (
@@ -191,14 +191,13 @@ func (bc *DummyChain) SetCoinbaseAccount(address []byte) {
 
 ////////////////////////////////////////////////////////////////////////
 
-
 func (bc *DummyChain) newBlockState() *state.BlockState {
 	bc.cBlock = &types.Block{
 		Header: &types.BlockHeader{
 			PrevBlockHash: bc.bestBlockId[:],
 			BlockNo:       bc.bestBlockNo + 1,
 			Timestamp:     bc.getTimestamp(),
-			ChainID:       types.MakeChainId(bc.bestBlock.GetHeader().ChainID, bc.HardforkConfig.Version(bc.bestBlockNo + 1)),
+			ChainID:       types.MakeChainId(bc.bestBlock.GetHeader().ChainID, bc.HardforkConfig.Version(bc.bestBlockNo+1)),
 		},
 	}
 	return state.NewBlockState(
@@ -207,7 +206,6 @@ func (bc *DummyChain) newBlockState() *state.BlockState {
 		state.SetGasPrice(bc.gasPrice),
 	)
 }
-
 
 func (bc *DummyChain) ExecuteTxs(txs []*types.Tx) ([]*types.Receipt, error) {
 
@@ -254,7 +252,7 @@ func newBlockExecutor(bc *DummyChain, txs []*types.Tx) (*blockExecutor, error) {
 
 	blockState.SetGasPrice(system.GetGasPriceFromState(blockState))
 
-	blockState.Receipts().SetHardFork(bc.HardforkConfig, bc.bestBlockNo + 1)
+	blockState.Receipts().SetHardFork(bc.HardforkConfig, bc.bestBlockNo+1)
 
 	return &blockExecutor{
 		BlockState:       blockState,
@@ -265,7 +263,7 @@ func newBlockExecutor(bc *DummyChain, txs []*types.Tx) (*blockExecutor, error) {
 		//validatePost: func() error {
 		//	return cs.validator.ValidatePost(blockState.GetRoot(), blockState.Receipts(), block)
 		//},
-		bi:               bi,
+		bi: bi,
 	}, nil
 
 }
@@ -448,21 +446,21 @@ func executeTx(
 				senderState.Balance = amount.Bytes()
 			}
 		}
-		case types.TxType_FEEDELEGATION:
-			if balance.Cmp(amount) <= 0 {
-				// set the balance as = amount
-				senderState.Balance = amount.Bytes()
-			}
+	case types.TxType_FEEDELEGATION:
+		if balance.Cmp(amount) <= 0 {
+			// set the balance as = amount
+			senderState.Balance = amount.Bytes()
+		}
 	}
 
 	err = tx.ValidateWithSenderState(senderState, bs.GasPrice, bi.ForkVersion)
 	if err != nil {
-			err = fmt.Errorf("%w: balance %s, amount %s, gasPrice %s, block %v, txhash: %s",
-				err,
-				sender.Balance().String(),
-				tx.GetBody().GetAmountBigInt().String(),
-				bs.GasPrice.String(),
-				bi.No, enc.ToString(tx.GetHash()))
+		err = fmt.Errorf("%w: balance %s, amount %s, gasPrice %s, block %v, txhash: %s",
+			err,
+			sender.Balance().String(),
+			tx.GetBody().GetAmountBigInt().String(),
+			bs.GasPrice.String(),
+			bi.No, enc.ToString(tx.GetHash()))
 		return err
 	}
 
