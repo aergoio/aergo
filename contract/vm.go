@@ -238,16 +238,20 @@ func NewVmContextQuery(
 	return ctx, nil
 }
 
+func (ctx *vmContext) IsGasSystem() bool {
+	return fee.IsVmGasSystem(ctx.blockInfo.ForkVersion, ctx.isQuery)
+}
+
 // get the remaining gas from the given LState
 func (ctx *vmContext) refreshRemainingGas(L *LState) {
-	if fee.IsVmGasSystem(ctx.blockInfo.ForkVersion, ctx.isQuery) {
+	if ctx.IsGasSystem() {
 		ctx.remainedGas = uint64(C.lua_gasget(L))
 	}
 }
 
 // set the remaining gas on the given LState
 func (ctx *vmContext) setRemainingGas(L *LState) {
-	if fee.IsVmGasSystem(ctx.blockInfo.ForkVersion, ctx.isQuery) {
+	if ctx.IsGasSystem() {
 		C.lua_gasset(L, C.ulonglong(ctx.remainedGas))
 	}
 }
@@ -257,7 +261,7 @@ func (ctx *vmContext) usedFee() *big.Int {
 }
 
 func (ctx *vmContext) usedGas() uint64 {
-	if fee.IsZeroFee() || !fee.IsVmGasSystem(ctx.blockInfo.ForkVersion, ctx.isQuery) {
+	if fee.IsZeroFee() || !ctx.IsGasSystem() {
 		return 0
 	}
 	return ctx.gasLimit - ctx.remainedGas
@@ -367,7 +371,7 @@ func newExecutor(
 		C.luaL_set_hardforkversion(ce.L, C.int(ctx.blockInfo.ForkVersion))
 	}
 
-	if fee.IsVmGasSystem(ctx.blockInfo.ForkVersion, ctx.isQuery) {
+	if ctx.IsGasSystem() {
 		ce.setGas()
 		defer func() {
 			ce.refreshRemainingGas()
@@ -930,7 +934,7 @@ func PreCall(
 
 	ctx.gasLimit = gasLimit
 	ctx.remainedGas = gasLimit
-	if fee.IsVmGasSystem(ctx.blockInfo.ForkVersion, ctx.isQuery) {
+	if ctx.IsGasSystem() {
 		ce.setGas()
 	}
 

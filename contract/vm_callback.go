@@ -38,7 +38,6 @@ import (
 	"github.com/aergoio/aergo/v2/cmd/aergoluac/util"
 	"github.com/aergoio/aergo/v2/contract/name"
 	"github.com/aergoio/aergo/v2/contract/system"
-	"github.com/aergoio/aergo/v2/fee"
 	"github.com/aergoio/aergo/v2/internal/common"
 	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/state"
@@ -67,7 +66,7 @@ func init() {
 }
 
 func addUpdateSize(ctx *vmContext, updateSize int64) error {
-	if fee.IsVmGasSystem(ctx.blockInfo.ForkVersion, ctx.isQuery) {
+	if ctx.IsGasSystem() {
 		return nil
 	}
 	if ctx.dbUpdateTotalSize+updateSize > dbUpdateMaxLimit {
@@ -214,19 +213,19 @@ func getCtrState(ctx *vmContext, aid types.AccountID) (*callState, error) {
 }
 
 func setInstCount(ctx *vmContext, parent *LState, child *LState) {
-	if !fee.IsVmGasSystem(ctx.blockInfo.ForkVersion, ctx.isQuery) {
+	if !ctx.IsGasSystem() {
 		C.vm_setinstcount(parent, C.vm_instcount(child))
 	}
 }
 
 func setInstMinusCount(ctx *vmContext, L *LState, deduc C.int) {
-	if !fee.IsVmGasSystem(ctx.blockInfo.ForkVersion, ctx.isQuery) {
+	if !ctx.IsGasSystem() {
 		C.vm_setinstcount(L, minusCallCount(ctx, C.vm_instcount(L), deduc))
 	}
 }
 
 func minusCallCount(ctx *vmContext, curCount, deduc C.int) C.int {
-	if fee.IsVmGasSystem(ctx.blockInfo.ForkVersion, ctx.isQuery) {
+	if ctx.IsGasSystem() {
 		return 0
 	}
 	remain := curCount - deduc
