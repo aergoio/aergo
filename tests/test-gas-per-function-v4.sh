@@ -78,7 +78,6 @@ add_test "xpcall" 146437
 
 add_test "string.byte" 157040
 add_test "string.char" 160397
-add_test "string.dump" 150349
 add_test "string.find" 147808
 add_test "string.format" 143764
 add_test "string.gmatch" 143799

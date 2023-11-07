@@ -45,6 +45,14 @@ static void preloadModules(lua_State *L) {
 		luaopen_db(L);
 	}
 
+	if (vm_is_hardfork(L, 4)) {
+		// disable string.dump
+		lua_getglobal(L, "string");
+		lua_pushnil(L);
+		lua_setfield(L, -2, "dump");
+		lua_pop(L, 1);
+	}
+
 #ifdef MEASURE
 	lua_register(L, "nsec", nsec);
 	luaopen_jit(L);

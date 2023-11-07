@@ -382,7 +382,6 @@ func TestGasPerFunction(t *testing.T) {
 
 		{"string.byte", "", 0, 157040},
 		{"string.char", "", 0, 160397},
-		{"string.dump", "", 0, 150349},
 		{"string.find", "", 0, 147808},
 		{"string.format", "", 0, 143764},
 		{"string.gmatch", "", 0, 143799},
@@ -450,7 +449,7 @@ func TestGasPerFunction(t *testing.T) {
 
 		{"system.getSender", "", 0, 144261},
 		{"system.getBlockheight", "", 0, 143330},
-		{"system.getTxhash", "", 0, 143737},
+		{"system.getTxhash", "", 0, 143734},
 		{"system.getTimestamp", "", 0, 143330},
 		{"system.getContractID", "", 0, 144261},
 		{"system.setItem", "", 0, 144194},
@@ -638,7 +637,7 @@ func TestGasBF(t *testing.T) {
 	err = expectGas(string(code2), 0, `"main"`, ``, 47456046, SetHardForkVersion(3))
 	assert.NoError(t, err)
 
-	err = expectGas(string(code4), 0, `"main"`, ``, 57053355, SetHardForkVersion(4))
+	err = expectGas(string(code4), 0, `"main"`, ``, 47772314, SetHardForkVersion(4))
 	assert.NoError(t, err)
 }
 

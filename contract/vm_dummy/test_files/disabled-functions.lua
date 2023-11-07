@@ -21,6 +21,7 @@ function check_disabled_functions()
   assert(loadfile == nil, "loadfile is available")
   assert(loadstring == nil, "loadstring is available")
   assert(print == nil, "print is available")
+  assert(string.dump == nil, "string.dump is available")
 
   local success, result = pcall(function() newproxy() end)
   assert(success == false and result:match(".* 'newproxy' not supported"), "newproxy is available")
