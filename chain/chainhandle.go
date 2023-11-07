@@ -954,12 +954,12 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 		}
 	case types.TxType_FEEDELEGATION:
 		balance := receiver.Balance()
-		var maxFee *big.Int
-		maxFee, err = fee.TxMaxFee(bi.ForkVersion, len(tx.GetBody().GetPayload()), tx.GetBody().GetGasLimit(), balance, bs.GasPrice)
+		var fee *big.Int
+		fee, err = tx.GetMaxFee(balance, bs.GasPrice, bi.ForkVersion)
 		if err != nil {
 			return err
 		}
-		if maxFee.Cmp(balance) > 0 {
+		if fee.Cmp(balance) > 0 {
 			return types.ErrInsufficientBalance
 		}
 		var contractState *state.ContractState

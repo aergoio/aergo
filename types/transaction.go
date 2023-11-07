@@ -55,6 +55,7 @@ type Transaction interface {
 	GetVerifedAccount() Address
 	SetVerifedAccount(account Address) bool
 	RemoveVerifedAccount() bool
+	GetMaxFee(balance, gasPrice *big.Int, version int32) (*big.Int, error)
 }
 
 type transaction struct {
@@ -307,11 +308,11 @@ func (tx *transaction) ValidateWithSenderState(senderState *State, gasPrice *big
 		if b.Sign() < 0 {
 			return ErrInsufficientBalance
 		}
-		maxFee, err := fee.TxMaxFee(version, len(tx.GetBody().GetPayload()), tx.GetBody().GetGasLimit(), balance, gasPrice)
+		fee, err := tx.GetMaxFee(b, gasPrice, version)
 		if err != nil {
 			return err
 		}
-		if maxFee.Cmp(b) > 0 {
+		if fee.Cmp(b) > 0 {
 			return ErrInsufficientBalance
 		}
 	case TxType_GOVERNANCE:
@@ -388,6 +389,24 @@ func (tx *transaction) Clone() *transaction {
 	}
 	res.Tx.Hash = res.CalculateTxHash()
 	return res
+}
+
+func (tx *transaction) GetMaxFee(balance, gasPrice *big.Int, version int32) (*big.Int, error) {
+	if fee.IsZeroFee() {
+		return fee.NewZeroFee(), nil
+	}
+	if version >= 2 {
+		minGasLimit := fee.TxGas(len(tx.GetBody().GetPayload()))
+		gasLimit := tx.GetBody().GasLimit
+		if gasLimit == 0 {
+			gasLimit = fee.MaxGasLimit(balance, gasPrice)
+		}
+		if minGasLimit > gasLimit {
+			return nil, fmt.Errorf("the minimum required amount of gas: %d", minGasLimit)
+		}
+		return new(big.Int).Mul(new(big.Int).SetUint64(gasLimit), gasPrice), nil
+	}
+	return fee.MaxPayloadTxFee(len(tx.GetBody().GetPayload())), nil
 }
 
 const allowedNameChar = "abcdefghijklmnopqrstuvwxyz1234567890"
