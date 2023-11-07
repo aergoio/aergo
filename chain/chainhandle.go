@@ -953,15 +953,11 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 			logger.Warn().Err(err).Str("txhash", enc.ToString(tx.GetHash())).Msg("governance tx Error")
 		}
 	case types.TxType_FEEDELEGATION:
-		balance := receiver.Balance()
-		var fee *big.Int
-		fee, err = tx.GetMaxFee(balance, bs.GasPrice, bi.ForkVersion)
+		err = tx.ValidateMaxFee(receiver.Balance(), bs.GasPrice, bi.ForkVersion)
 		if err != nil {
 			return err
 		}
-		if fee.Cmp(balance) > 0 {
-			return types.ErrInsufficientBalance
-		}
+
 		var contractState *state.ContractState
 		contractState, err = bs.OpenContractState(receiver.AccountID(), receiver.State())
 		if err != nil {
