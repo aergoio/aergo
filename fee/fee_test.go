@@ -57,28 +57,27 @@ func TestTxExecuteFee(t *testing.T) {
 
 	for _, test := range []struct {
 		forkVersion       int32
-		isQuery           bool
 		dbUpdateTotalSize int64
 		gasPrice          *big.Int
 		usedGas           uint64
 		expectFee         *big.Int
 	}{
 		// v1 or isQuery - fee by dbUpdateTotalSize
-		{1, false, 0, nil, 0, Gaer(0)},
-		{1, false, 200, nil, 0, Gaer(0)},
-		{1, false, 201, nil, 0, Gaer(5000)},
-		{1, false, 300, nil, 0, Gaer(500000)},
-		{2, true, 1200, nil, 0, Gaer(5000000)},
-		{3, true, 10200, nil, 0, Gaer(50000000)},
+		{1, 0, nil, 0, Gaer(0)},
+		{1, 200, nil, 0, Gaer(0)},
+		{1, 201, nil, 0, Gaer(5000)},
+		{1, 300, nil, 0, Gaer(500000)},
+		{1, 1200, nil, 0, Gaer(5000000)},
+		{1, 10200, nil, 0, Gaer(50000000)},
 
 		// after v2 - fee by gas * gasPrice
-		{2, false, 0, Gaer(1), 0, Gaer(0)},
-		{2, false, 0, Gaer(1), 200, Gaer(200)},
-		{3, false, 0, Gaer(5), 200, Gaer(1000)},
-		{3, false, 0, Gaer(5), 100000, Gaer(500000)},
+		{2, 0, Gaer(1), 0, Gaer(0)},
+		{2, 0, Gaer(1), 200, Gaer(200)},
+		{3, 0, Gaer(5), 200, Gaer(1000)},
+		{3, 0, Gaer(5), 100000, Gaer(500000)},
 	} {
-		resultFee := TxExecuteFee(test.forkVersion, test.isQuery, test.gasPrice, test.usedGas, test.dbUpdateTotalSize)
-		assert.EqualValues(t, test.expectFee, resultFee, "TxExecuteFee(forkVersion:%d, isQuery:%t, gasPrice:%s, usedGas:%d, dbUpdateTotalSize:%d)", test.forkVersion, test.isQuery, test.gasPrice, test.usedGas, test.dbUpdateTotalSize)
+		resultFee := TxExecuteFee(test.forkVersion, test.gasPrice, test.usedGas, test.dbUpdateTotalSize)
+		assert.EqualValues(t, test.expectFee, resultFee, "TxExecuteFee(forkVersion:%d, gasPrice:%s, usedGas:%d, dbUpdateTotalSize:%d)", test.forkVersion, test.gasPrice, test.usedGas, test.dbUpdateTotalSize)
 	}
 }
 

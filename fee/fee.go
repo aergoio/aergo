@@ -56,24 +56,26 @@ func CalcFee(gasPrice *big.Int, gas uint64) *big.Int {
 // compute the base fee for a transaction
 func TxBaseFee(version int32, gasPrice *big.Int, payloadSize int) *big.Int {
 	if version < 2 {
-		return PayloadTxFee(payloadSize)
+		return PayloadFee(payloadSize)
 	}
-	// get the amount of gas needed for the payload
+
+	// after v2
 	txGas := TxGas(payloadSize)
-	// multiply the amount of gas with the gas price
 	return CalcFee(gasPrice, txGas)
 }
 
 // compute the execute fee for a transaction
-func TxExecuteFee(version int32, isQuery bool, gasPrice *big.Int, usedGas uint64, dbUpdateTotalSize int64) *big.Int {
+func TxExecuteFee(version int32, gasPrice *big.Int, usedGas uint64, dbUpdateTotalSize int64) *big.Int {
 	if IsZeroFee() {
 		return NewZeroFee()
 	}
 
-	if IsVmGasSystem(version, isQuery) {
-		return CalcFee(gasPrice, usedGas)
+	if version < 2 {
+		return StateDataFee(dbUpdateTotalSize)
 	}
-	return PaymentDataFee(dbUpdateTotalSize)
+
+	// after v2
+	return CalcFee(gasPrice, usedGas)
 }
 
 // estimate the max fee for a transaction
@@ -82,15 +84,17 @@ func TxMaxFee(version int32, lenPayload int, gasLimit uint64, balance, gasPrice 
 		return NewZeroFee(), nil
 	}
 
-	if version >= 2 {
-		minGasLimit := TxGas(lenPayload)
-		if gasLimit == 0 {
-			gasLimit = MaxGasLimit(balance, gasPrice)
-		}
-		if minGasLimit > gasLimit {
-			return nil, fmt.Errorf("the minimum required amount of gas: %d", minGasLimit)
-		}
-		return CalcFee(gasPrice, gasLimit), nil
+	if version < 2 {
+		return MaxPayloadFee(lenPayload), nil
 	}
-	return MaxPayloadTxFee(lenPayload), nil
+
+	// after v2
+	minGasLimit := TxGas(lenPayload)
+	if gasLimit == 0 {
+		gasLimit = MaxGasLimit(balance, gasPrice)
+	}
+	if minGasLimit > gasLimit {
+		return nil, fmt.Errorf("the minimum required amount of gas: %d", minGasLimit)
+	}
+	return CalcFee(gasPrice, gasLimit), nil
 }

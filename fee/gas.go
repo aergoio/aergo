@@ -11,16 +11,8 @@ const (
 	payloadGasSize = uint64(5)
 )
 
-func IsUseTxGas(version int32) bool {
+func GasEnabled(version int32) bool {
 	return !IsZeroFee() && version >= 2
-}
-
-func IsVmGasSystem(version int32, isQuery bool) bool {
-	return IsUseTxGas(version) && !isQuery
-}
-
-func IsReceiptGasUsed(version int32, isGovernance bool) bool {
-	return IsUseTxGas(version) && !isGovernance
 }
 
 //---------------------------------------------------------------//
@@ -32,10 +24,10 @@ func CalcGas(fee, gasPrice *big.Int) *big.Int {
 }
 
 func ReceiptGasUsed(version int32, isGovernance bool, txFee, gasPrice *big.Int) uint64 {
-	if !IsReceiptGasUsed(version, isGovernance) {
-		return 0
+	if GasEnabled(version) && !isGovernance {
+		return CalcGas(txFee, gasPrice).Uint64()
 	}
-	return CalcGas(txFee, gasPrice).Uint64()
+	return 0
 }
 
 func TxGas(payloadSize int) uint64 {
@@ -53,7 +45,7 @@ func TxGas(payloadSize int) uint64 {
 
 func GasLimit(version int32, isFeeDelegation bool, txGasLimit uint64, payloadSize int, gasPrice, usedFee, senderBalance, receiverBalance *big.Int) (gasLimit uint64, err error) {
 	// 1. no gas limit
-	if IsUseTxGas(version) != true {
+	if GasEnabled(version) != true {
 		return
 	}
 

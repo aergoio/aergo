@@ -4,7 +4,7 @@ import (
 	"math/big"
 )
 
-func PayloadTxFee(payloadSize int) *big.Int {
+func PayloadFee(payloadSize int) *big.Int {
 	if IsZeroFee() {
 		return NewZeroFee()
 	}
@@ -18,14 +18,14 @@ func PayloadTxFee(payloadSize int) *big.Int {
 	return new(big.Int).Add(baseTxAergo, CalcFee(aerPerByte, uint64(dataFee)))
 }
 
-func MaxPayloadTxFee(payloadSize int) *big.Int {
+func MaxPayloadFee(payloadSize int) *big.Int {
 	if IsZeroFee() {
 		return NewZeroFee()
 	}
 	if payloadSize == 0 {
-		return PayloadTxFee(payloadSize)
+		return new(big.Int).Set(baseTxAergo)
 	}
-	return new(big.Int).Add(PayloadTxFee(payloadSize), stateDbMaxFee)
+	return new(big.Int).Add(PayloadFee(payloadSize), stateDbMaxFee)
 }
 
 func paymentDataSize(dataSize int64) int64 {
@@ -36,6 +36,6 @@ func paymentDataSize(dataSize int64) int64 {
 	return pSize
 }
 
-func PaymentDataFee(dataSize int64) *big.Int {
+func StateDataFee(dataSize int64) *big.Int {
 	return CalcFee(aerPerByte, uint64(paymentDataSize(dataSize)))
 }

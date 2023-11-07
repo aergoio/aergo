@@ -23,7 +23,7 @@ func TestPayloadTxFee(t *testing.T) {
 		{"over200", 265, new(big.Int).Add(baseTxAergo, new(big.Int).Mul(new(big.Int).SetUint64(65), aerPerByte))},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := PayloadTxFee(tt.payloadSize); !reflect.DeepEqual(got, tt.want) {
+			if got := PayloadFee(tt.payloadSize); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("PayloadTxFee() = %v, want %v", got, tt.want)
 			}
 		})
@@ -38,13 +38,13 @@ func TestMaxPayloadTxFee(t *testing.T) {
 		payloadSize int
 		expectFee   *big.Int
 	}{
-		{0, PayloadTxFee(0)},
-		{1, new(big.Int).Add(PayloadTxFee(1), stateDbMaxFee)},
-		{200, new(big.Int).Add(PayloadTxFee(200), stateDbMaxFee)},
-		{201, new(big.Int).Add(PayloadTxFee(201), stateDbMaxFee)},
-		{1000, new(big.Int).Add(PayloadTxFee(1000), stateDbMaxFee)},
+		{0, PayloadFee(0)},
+		{1, new(big.Int).Add(PayloadFee(1), stateDbMaxFee)},
+		{200, new(big.Int).Add(PayloadFee(200), stateDbMaxFee)},
+		{201, new(big.Int).Add(PayloadFee(201), stateDbMaxFee)},
+		{1000, new(big.Int).Add(PayloadFee(1000), stateDbMaxFee)},
 	} {
-		resultTxFee := MaxPayloadTxFee(test.payloadSize)
+		resultTxFee := MaxPayloadFee(test.payloadSize)
 		assert.EqualValues(t, test.expectFee, resultTxFee, "MaxPayloadTxFee(payloadSize:%d)", test.payloadSize)
 	}
 }
