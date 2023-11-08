@@ -62,7 +62,7 @@ func TestTxExecuteFee(t *testing.T) {
 		usedGas           uint64
 		expectFee         *big.Int
 	}{
-		// v1 or isQuery - fee by dbUpdateTotalSize
+		// v1 - fee by dbUpdateTotalSize
 		{1, 0, nil, 0, Gaer(0)},
 		{1, 200, nil, 0, Gaer(0)},
 		{1, 201, nil, 0, Gaer(5000)},
