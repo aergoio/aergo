@@ -5,8 +5,18 @@ state.var {
 }
 
 function constructor(resolver_address, contract_name)
+    -- initialize state variables
     resolver:set(resolver_address)
     name:set(contract_name)
+    -- initialize db
+    db.exec("create table config (value integer primary key) without rowid")
+    db.exec("insert into config values (0)")
+    db.exec([[create table products (
+        id integer primary key,
+        name text not null,
+        price real)
+    ]])
+    db.exec("insert into products (name,price) values ('first', 1234.56)")
 end
 
 function resolve(name)
@@ -37,7 +47,6 @@ function test(script)
         elseif action == "pcall" then
             local to_call = cmd[2]
             local amount = cmd[3]
-            --contract.event("amount", amount)
             if to_call == name:get() then
                 contract.pcall(test, script)
             elseif amount ~= nil then
@@ -54,7 +63,7 @@ function test(script)
         elseif action == "send" then
             local to = cmd[2]
             contract.event(name:get() .. " send " .. to, amount)
-            contract.pcall(contract.send, resolve(to), cmd[3])
+            contract.send(resolve(to), cmd[3])
         elseif action == "deploy" then
             local code_or_address = resolve_deploy(cmd[2])
             contract.pcall(contract.deploy, code_or_address, unpack(cmd,3))
@@ -64,6 +73,10 @@ function test(script)
             contract.pcall(function()
                 contract.deploy.value(cmd[2])(code_or_address, unpack(cmd,4))
             end)
+        elseif action == "db.set" then
+            db.exec("update config set value = " .. cmd[2])
+        elseif action == "db.insert" then
+            db.exec("insert into products (name,price) values ('another',1234.56)")
         elseif action == "fail" then
             assert(1 == 0, "failed")
         end
@@ -79,6 +92,29 @@ function get(key)
     return values[key]
 end
 
+function db_reset()
+    db.exec("update config set value = 0")
+    db.exec("delete from products where id > 1")
+end
+
+function db_get()
+    local rs = db.query("select value from config")
+    if rs:next() then
+        return rs:get()
+    else
+        return "error"
+    end
+end
+
+function db_count()
+    local rs = db.query("select count(*) from products")
+    if rs:next() then
+        return rs:get()
+    else
+        return "error"
+    end
+end
+
 function default()
     -- only receive
 end
@@ -88,5 +124,5 @@ function send_back(to)
 end
 
 abi.payable(constructor, test, default)
-abi.register(set, send_back)
-abi.register_view(get)
+abi.register(set, send_back, db_reset)
+abi.register_view(get, db_get, db_count)
