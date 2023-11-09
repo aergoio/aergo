@@ -2538,9 +2538,9 @@ func TestFeatureGovernance(t *testing.T) {
 }
 
 func TestFeaturePcallRollback(t *testing.T) {
-	code := readLuaCode(t, "feature_pcallrollback_1.lua")
-	code2 := readLuaCode(t, "feature_pcallrollback_2.lua")
-	code3 := readLuaCode(t, "feature_pcallrollback_3.lua")
+	code1 := readLuaCode(t, "feature_pcall_rollback_1.lua")
+	code2 := readLuaCode(t, "feature_pcall_rollback_2.lua")
+	code3 := readLuaCode(t, "feature_pcall_rollback_3.lua")
 
 	for version := min_version; version <= max_version; version++ {
 		bc, err := LoadDummyChain(SetHardForkVersion(version))
@@ -2549,7 +2549,7 @@ func TestFeaturePcallRollback(t *testing.T) {
 
 		err = bc.ConnectBlock(
 			NewLuaTxAccount("user1", 1, types.Aergo),
-			NewLuaTxDeploy("user1", "counter", 10, code).Constructor("[0]"),
+			NewLuaTxDeploy("user1", "counter", 10, code1).Constructor("[0]"),
 			NewLuaTxCall("user1", "counter", 15, `{"Name":"inc", "Args":[]}`),
 		)
 		require.NoErrorf(t, err, "failed to deploy")
@@ -2621,7 +2621,7 @@ func TestFeaturePcallRollback(t *testing.T) {
 }
 
 func TestFeaturePcallNested(t *testing.T) {
-	code := readLuaCode(t, "feature_pcallnested.lua")
+	code := readLuaCode(t, "feature_pcall_nested.lua")
 
 	for version := min_version; version <= max_version; version++ {
 		bc, err := LoadDummyChain(SetHardForkVersion(version))
@@ -2653,7 +2653,7 @@ func TestFeaturePcallNested(t *testing.T) {
 
 // test rollback of state variable and balance
 func TestPcallStateRollback1(t *testing.T) {
-	code := readLuaCode(t, "state-rollback-contract-pcall.lua")
+	code := readLuaCode(t, "feature_pcall_rollback_4.lua")
 	resolver := readLuaCode(t, "resolver.lua")
 
 	for version := min_version; version <= max_version; version++ {
@@ -3066,7 +3066,7 @@ func TestPcallStateRollback1(t *testing.T) {
 
 // test rollback of state variable and balance - send separate from call
 func TestPcallStateRollback2(t *testing.T) {
-	code := readLuaCode(t, "state-rollback-contract-pcall.lua")
+	code := readLuaCode(t, "feature_pcall_rollback_4.lua")
 	resolver := readLuaCode(t, "resolver.lua")
 
 	for version := min_version; version <= max_version; version++ {
@@ -3626,7 +3626,7 @@ func testStateRollback(t *testing.T, bc *DummyChain, script string, expected_sta
 }
 
 func TestFeatureLuaCryptoVerifyProof(t *testing.T) {
-	code := readLuaCode(t, "feature_luacryptoverifyproof.lua")
+	code := readLuaCode(t, "feature_crypto_verify_proof.lua")
 
 	for version := min_version; version <= max_version; version++ {
 		bc, err := LoadDummyChain(SetHardForkVersion(version))
