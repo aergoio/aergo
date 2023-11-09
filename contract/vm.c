@@ -71,7 +71,7 @@ static void preloadModules(lua_State *L) {
 // overridden version of pcall
 // used to rollback state and drop events upon error
 static int pcall(lua_State *L) {
-	int argc = lua_gettop(L) - 1;
+	int argc = lua_gettop(L);
 	int service = getLuaExecContext(L);
 	int num_events = luaGetEventCount(L, service);
 	struct luaSetRecoveryPoint_return start_seq;
@@ -93,7 +93,7 @@ static int pcall(lua_State *L) {
 	//   func arg1 arg2 ... argn
 
 	// call the function
-	ret = lua_pcall(L, argc, LUA_MULTRET, 0);
+	ret = lua_pcall(L, argc - 1, LUA_MULTRET, 0);
 
 	// if failed, drop the events
 	if (ret != 0) {
@@ -131,7 +131,7 @@ static int pcall(lua_State *L) {
 // overridden version of xpcall
 // used to rollback state and drop events upon error
 static int xpcall(lua_State *L) {
-	int argc = lua_gettop(L) - 1;
+	int argc = lua_gettop(L);
 	int service = getLuaExecContext(L);
 	int num_events = luaGetEventCount(L, service);
 	struct luaSetRecoveryPoint_return start_seq;
@@ -171,7 +171,7 @@ static int xpcall(lua_State *L) {
 	errfunc = 1;
 
 	// call the function
-	ret = lua_pcall(L, argc - 1, LUA_MULTRET, errfunc);
+	ret = lua_pcall(L, argc - 2, LUA_MULTRET, errfunc);
 
 	// if failed, drop the events
 	if (ret != 0) {
