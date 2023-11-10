@@ -656,8 +656,8 @@ func TestContractCall(t *testing.T) {
 	}
 }
 
-func TestContractPingpongCall(t *testing.T) {
-	code := readLuaCode(t, "contract_pingpongcall_1.lua")
+func TestContractPingPongCall(t *testing.T) {
+	code1 := readLuaCode(t, "contract_pingpongcall_1.lua")
 	code2 := readLuaCode(t, "contract_pingpongcall_2.lua")
 
 	for version := min_version; version <= max_version; version++ {
@@ -667,21 +667,24 @@ func TestContractPingpongCall(t *testing.T) {
 
 		err = bc.ConnectBlock(
 			NewLuaTxAccount("user1", 1, types.Aergo),
-			NewLuaTxDeploy("user1", "a", 0, code),
+			NewLuaTxDeploy("user1", "A", 0, code1),
+			NewLuaTxDeploy("user1", "B", 0, code2).Constructor(fmt.Sprintf(`["%s"]`, nameToAddress("A"))),
 		)
 		require.NoErrorf(t, err, "failed to connect new block")
 
-		err = bc.ConnectBlock(NewLuaTxDeploy("user1", "b", 0, code2).Constructor(fmt.Sprintf(`["%s"]`, nameToAddress("a"))))
-		require.NoErrorf(t, err, "failed to connect new block")
-
-		tx := NewLuaTxCall("user1", "a", 0, fmt.Sprintf(`{"Name":"start", "Args":["%s"]}`, nameToAddress("b")))
+		// make a ping pong call like this: A -> B -> A
+		tx := NewLuaTxCall("user1", "A", 0, fmt.Sprintf(`{"Name":"start", "Args":["%s"]}`, nameToAddress("B")))
 		err = bc.ConnectBlock(tx)
 		require.NoErrorf(t, err, "failed to connect new block")
 
-		err = bc.Query("a", `{"Name":"get", "Args":[]}`, "", `"callback"`)
+		// make sure the first instance can read the updated state variable
+		receipt := bc.GetReceipt(tx.Hash())
+		require.Equalf(t, `"callback"`, receipt.GetRet(), "contract call ret error")
+
+		err = bc.Query("A", `{"Name":"get"}`, "", `"callback"`)
 		require.NoErrorf(t, err, "failed to query")
 
-		err = bc.Query("b", `{"Name":"get", "Args":[]}`, "", `"called"`)
+		err = bc.Query("B", `{"Name":"get"}`, "", `"called"`)
 		require.NoErrorf(t, err, "failed to query")
 
 	}
