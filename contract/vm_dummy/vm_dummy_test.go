@@ -673,9 +673,16 @@ func TestContractCallSelf(t *testing.T) {
 		tx := NewLuaTxCall("user1", "A", 0, `{"Name":"call_myself", "Args":[]}`)
 		err = bc.ConnectBlock(tx)
 		require.NoErrorf(t, err, "failed to connect new block")
-
 		receipt := bc.GetReceipt(tx.Hash())
 		require.Equalf(t, `123`, receipt.GetRet(), "contract call ret error")
+
+		// make a recursive call like this: A -> A -> A -> A -> A
+		tx = NewLuaTxCall("user1", "A", 0, `{"Name":"call_me_again", "Args":[0,5]}`)
+		err = bc.ConnectBlock(tx)
+		require.NoErrorf(t, err, "failed to connect new block")
+		// make sure the first instance can read the updated state variable
+		receipt = bc.GetReceipt(tx.Hash())
+		require.Equalf(t, `5`, receipt.GetRet(), "contract call ret error")
 
 	}
 }
