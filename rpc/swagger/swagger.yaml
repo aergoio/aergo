@@ -437,38 +437,25 @@ paths:
             schema:
               type: object
               properties:
-                signedTransaction:
+                Hash:
                   type: string
-                hash:
-                  type: string
-                nonce:
-                  type: integer
-                account:
-                  type: string
-                recipient:
-                  type: string
-                amount:
-                  type: string
-                payload:
-                  type: string
-                gasLimit:
-                  type: integer
-                gasPrice:
-                  type: string
-                type:
-                  type: string
-                  enum:
-                    - "NORMAL"
-                    - "GOVERNANCE"
-                    - "REDEPLOY"
-                    - "FEEDELEGATION"
-                    - "TRANSFER"
-                    - "CALL"
-                    - "DEPLOY"
-                chainIdHash:
-                  type: string
-                sign:
-                  type: string
+                Body:
+                  type: object
+                  properties:
+                    Nonce:
+                      type: integer
+                    Account:
+                      type: string
+                    Recipient:
+                      type: string
+                    Amount:
+                      type: string
+                    ChainIdHash:
+                      type: string
+                    Sign:
+                      type: string
+                    Type:
+                      type: integer
       responses:
         "200":
           description: Successful response
@@ -502,7 +489,7 @@ paths:
           in: query
           schema:
             type: string
-          example: { "key": "name" }
+          example: '[{ "key": "name" }]'
       responses:
         "200":
           description: Successful response

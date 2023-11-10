@@ -61,7 +61,7 @@ func NewWeb3(cfg *config.Config, rpc *rpc.AergoRPCService) {
 }
 
 func serveSwaggerYAML(w http.ResponseWriter, r *http.Request) {
-	yamlContent, err := os.ReadFile("./swagger/swagger.yaml")
+	yamlContent, err := os.ReadFile("./rpc/swagger/swagger.yaml")
 	if err != nil {
 		http.Error(w, "Failed to read YAML file", http.StatusInternalServerError)
 		return
@@ -72,7 +72,7 @@ func serveSwaggerYAML(w http.ResponseWriter, r *http.Request) {
 }
 
 func serveSwaggerUI(w http.ResponseWriter, r *http.Request) {
-	htmlContent, err := os.ReadFile("./swagger/swagger-ui.html")
+	htmlContent, err := os.ReadFile("./rpc/swagger/swagger-ui.html")
 	if err != nil {
 		http.Error(w, "Failed to read HTML file", http.StatusInternalServerError)
 		return
