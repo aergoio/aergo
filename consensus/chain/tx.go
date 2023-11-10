@@ -164,7 +164,7 @@ func (g *BlockGenerator) GatherTXs() ([]types.Transaction, error) {
 			// if not last tx, preload next tx
 			if i != nCand-1 {
 				preloadTx = txIn[i+1].GetTx()
-				contract.RequestPreload(bState, g.bi, preloadTx, tx.GetTx(), contract.BlockFactory)
+				contract.RequestPreload(bState, g.bi, preloadTx, tx.GetTx(), contract.BlockFactory, g.ctx)
 			}
 			// process the transaction
 			err := op.Apply(bState, tx)

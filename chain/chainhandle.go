@@ -650,6 +650,7 @@ func NewTxExecutor(execCtx context.Context, ccc consensus.ChainConsensusCluster,
 }
 
 func (e *blockExecutor) execute() error {
+	// This method appears to only be called when connecting or verifying something that isn't a block this node generated.
 	// Receipt must be committed unconditionally.
 	if !e.commitOnly {
 		defer contract.CloseDatabase()
@@ -659,7 +660,7 @@ func (e *blockExecutor) execute() error {
 			// if tx is not the last one, preload the next tx
 			if i != numTxs-1 {
 				preloadTx = e.txs[i+1]
-				contract.RequestPreload(e.BlockState, e.bi, preloadTx, tx, contract.ChainService)
+				contract.RequestPreload(e.BlockState, e.bi, preloadTx, tx, contract.ChainService, context.Background())
 			}
 			// execute the transaction
 			if err := e.execTx(e.BlockState, types.NewTransaction(tx)); err != nil {

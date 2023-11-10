@@ -308,7 +308,7 @@ func (e *blockExecutor) execute() error {
 		// if tx is not the last one, preload the next tx
 		if i != numTxs-1 {
 			preloadTx = e.txs[i+1]
-			contract.RequestPreload(e.BlockState, e.bi, preloadTx, tx, contract.ChainService)
+			contract.RequestPreload(e.BlockState, e.bi, preloadTx, tx, contract.ChainService, context.Background())
 		}
 		// execute the transaction
 		if err := e.execTx(e.BlockState, types.NewTransaction(tx)); err != nil {

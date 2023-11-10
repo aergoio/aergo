@@ -21,8 +21,9 @@ type preloadRequest struct {
 	preloadService int
 	bs             *state.BlockState
 	bi             *types.BlockHeaderInfo
-	next           *types.Tx // the tx to preload the executor for, the next to be executed
-	current        *types.Tx // the tx currently being executed
+	next           *types.Tx       // the tx to preload the executor for, the next to be executed
+	current        *types.Tx       // the tx currently being executed
+	execCtx        context.Context // transaction execution context
 }
 
 type preloadReply struct {
@@ -41,7 +42,6 @@ var (
 	preloaders    [2]preloader
 	PubNet        bool
 	TraceBlockNo  uint64
-	bpTimeout     <-chan struct{}
 	maxSQLDBSize  uint64
 	addressRegexp *regexp.Regexp
 )
@@ -204,8 +204,8 @@ func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, t
 }
 
 // send a request to preload an executor for the next tx
-func RequestPreload(bs *state.BlockState, bi *types.BlockHeaderInfo, next, current *types.Tx, preloadService int) {
-	loadReqCh <- &preloadRequest{preloadService, bs, bi, next, current}
+func RequestPreload(bs *state.BlockState, bi *types.BlockHeaderInfo, next, current *types.Tx, preloadService int, execCtx context.Context) {
+	loadReqCh <- &preloadRequest{preloadService, bs, bi, next, current, execCtx}
 }
 
 // the preloadWorker preloads an executor for the next tx
@@ -276,7 +276,7 @@ func preloadWorker() {
 
 		// create a new context
 		// FIXME need valid context
-		ctx := NewVmContext(context.Background(), bs, nil, nil, receiver, contractState, txBody.GetAccount(), tx.GetHash(), request.bi, "", false, false, receiver.RP(), request.preloadService, txBody.GetAmountBigInt(), txBody.GetGasLimit(), txBody.Type == types.TxType_FEEDELEGATION)
+		ctx := NewVmContext(request.execCtx, bs, nil, nil, receiver, contractState, txBody.GetAccount(), tx.GetHash(), request.bi, "", false, false, receiver.RP(), request.preloadService, txBody.GetAmountBigInt(), txBody.GetGasLimit(), txBody.Type == types.TxType_FEEDELEGATION)
 
 		// load a new executor
 		ex, err := PreloadExecutor(bs, contractState, txBody.Payload, receiver.ID(), ctx)
