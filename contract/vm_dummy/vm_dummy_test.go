@@ -656,6 +656,30 @@ func TestContractCall(t *testing.T) {
 	}
 }
 
+func TestContractCallSelf(t *testing.T) {
+	code := readLuaCode(t, "contract_call_self.lua")
+
+	for version := min_version; version <= max_version; version++ {
+		bc, err := LoadDummyChain(SetHardForkVersion(version))
+		require.NoErrorf(t, err, "failed to create dummy chain")
+		defer bc.Release()
+
+		err = bc.ConnectBlock(
+			NewLuaTxAccount("user1", 1, types.Aergo),
+			NewLuaTxDeploy("user1", "A", 0, code),
+		)
+		require.NoErrorf(t, err, "failed to connect new block")
+
+		tx := NewLuaTxCall("user1", "A", 0, `{"Name":"call_myself", "Args":[]}`)
+		err = bc.ConnectBlock(tx)
+		require.NoErrorf(t, err, "failed to connect new block")
+
+		receipt := bc.GetReceipt(tx.Hash())
+		require.Equalf(t, `123`, receipt.GetRet(), "contract call ret error")
+
+	}
+}
+
 func TestContractPingPongCall(t *testing.T) {
 	code1 := readLuaCode(t, "contract_pingpongcall_1.lua")
 	code2 := readLuaCode(t, "contract_pingpongcall_2.lua")
