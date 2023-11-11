@@ -4206,6 +4206,33 @@ func TestFeatureFeeDelegationLoop(t *testing.T) {
 }
 */
 
+// Make sure that changes made on one contract Lua VM do not affect other called contracts
+func TestContractIsolation(t *testing.T) {
+	code := readLuaCode(t, "feature_isolation.lua")
+
+	for version := min_version; version <= max_version; version++ {
+		bc, err := LoadDummyChain(SetHardForkVersion(version))
+		require.NoErrorf(t, err, "failed to create dummy chain")
+		defer bc.Release()
+
+		err = bc.ConnectBlock(
+			NewLuaTxAccount("user1", 1, types.Aergo),
+			NewLuaTxDeploy("user1", "A", 0, code),
+			NewLuaTxDeploy("user1", "B", 0, code),
+		)
+		require.NoErrorf(t, err, "failed to connect new block")
+
+		tx := NewLuaTxCall("user1", "A", 0, fmt.Sprintf(`{"Name":"test_vm_isolation", "Args":["%s"]}`, nameToAddress("B")))
+		err = bc.ConnectBlock(tx)
+		require.NoErrorf(t, err, "failed to connect new block")
+		receipt := bc.GetReceipt(tx.Hash())
+		require.Equalf(t, ``, receipt.GetRet(), "contract call ret error")
+
+	}
+}
+
+// ----------------------------------------------------------------------------
+
 const (
 	DEF_TEST_CONTRACT = "testcontract"
 	DEF_TEST_ACCOUNT  = "testaccount"
