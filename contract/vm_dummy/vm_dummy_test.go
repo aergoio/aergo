@@ -4222,10 +4222,16 @@ func TestContractIsolation(t *testing.T) {
 		)
 		require.NoErrorf(t, err, "failed to connect new block")
 
-		tx := NewLuaTxCall("user1", "A", 0, fmt.Sprintf(`{"Name":"test_vm_isolation", "Args":["%s"]}`, nameToAddress("B")))
+		tx := NewLuaTxCall("user1", "A", 0, fmt.Sprintf(`{"Name":"test_vm_isolation_forward", "Args":["%s"]}`, nameToAddress("B")))
 		err = bc.ConnectBlock(tx)
 		require.NoErrorf(t, err, "failed to connect new block")
 		receipt := bc.GetReceipt(tx.Hash())
+		require.Equalf(t, ``, receipt.GetRet(), "contract call ret error")
+
+		tx = NewLuaTxCall("user1", "A", 0, fmt.Sprintf(`{"Name":"test_vm_isolation_reverse", "Args":["%s"]}`, nameToAddress("B")))
+		err = bc.ConnectBlock(tx)
+		require.NoErrorf(t, err, "failed to connect new block")
+		receipt = bc.GetReceipt(tx.Hash())
 		require.Equalf(t, ``, receipt.GetRet(), "contract call ret error")
 
 	}
