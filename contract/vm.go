@@ -239,7 +239,7 @@ func NewVmContextQuery(
 }
 
 func (ctx *vmContext) IsGasSystem() bool {
-	return !ctx.isQuery && PubNet && ctx.blockInfo.ForkVersion >= 2
+	return fee.GasEnabled(ctx.blockInfo.ForkVersion) && !ctx.isQuery
 }
 
 // get the remaining gas from the given LState
@@ -257,17 +257,7 @@ func (ctx *vmContext) setRemainingGas(L *LState) {
 }
 
 func (ctx *vmContext) usedFee() *big.Int {
-	if fee.IsZeroFee() {
-		return fee.NewZeroFee()
-	}
-	if ctx.IsGasSystem() {
-		usedGas := ctx.usedGas()
-		if ctrLgr.IsDebugEnabled() {
-			ctrLgr.Debug().Uint64("gas used", usedGas).Str("lua vm", "executed").Msg("gas information")
-		}
-		return new(big.Int).Mul(ctx.bs.GasPrice, new(big.Int).SetUint64(usedGas))
-	}
-	return fee.PaymentDataFee(ctx.dbUpdateTotalSize)
+	return fee.TxExecuteFee(ctx.blockInfo.ForkVersion, ctx.bs.GasPrice, ctx.usedGas(), ctx.dbUpdateTotalSize)
 }
 
 func (ctx *vmContext) usedGas() uint64 {

@@ -18,6 +18,7 @@ import (
 	"github.com/aergoio/aergo/v2/contract"
 	"github.com/aergoio/aergo/v2/contract/name"
 	"github.com/aergoio/aergo/v2/contract/system"
+	"github.com/aergoio/aergo/v2/fee"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/internal/enc/proto"
 	"github.com/aergoio/aergo/v2/message"
@@ -952,15 +953,11 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 			logger.Warn().Err(err).Str("txhash", base58.Encode(tx.GetHash())).Msg("governance tx Error")
 		}
 	case types.TxType_FEEDELEGATION:
-		balance := receiver.Balance()
-		var fee *big.Int
-		fee, err = tx.GetMaxFee(balance, bs.GasPrice, bi.ForkVersion)
+		err = tx.ValidateMaxFee(receiver.Balance(), bs.GasPrice, bi.ForkVersion)
 		if err != nil {
 			return err
 		}
-		if fee.Cmp(balance) > 0 {
-			return types.ErrInsufficientBalance
-		}
+
 		var contractState *state.ContractState
 		contractState, err = bs.OpenContractState(receiver.AccountID(), receiver.State())
 		if err != nil {
@@ -1035,7 +1032,8 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 	receipt.TxHash = tx.GetHash()
 	receipt.Events = events
 	receipt.FeeDelegation = txBody.Type == types.TxType_FEEDELEGATION
-	receipt.GasUsed = contract.GasUsed(txFee, bs.GasPrice, txBody.Type, bi.ForkVersion)
+	isGovernance := txBody.Type == types.TxType_GOVERNANCE
+	receipt.GasUsed = fee.ReceiptGasUsed(bi.ForkVersion, isGovernance, txFee, bs.GasPrice)
 
 	return bs.AddReceipt(receipt)
 }

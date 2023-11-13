@@ -1,7 +1,6 @@
 package contract
 
 import (
-	"math"
 	"math/big"
 	"testing"
 
@@ -15,91 +14,6 @@ func initContractTest(t *testing.T) {
 
 func deinitContractTest(t *testing.T) {
 	PubNet = false
-}
-
-//----------------------------------------------------------------------------------------//
-// tests for tx Execute functions
-
-func TestTxFee(t *testing.T) {
-	initContractTest(t)
-	defer deinitContractTest(t)
-
-	for _, test := range []struct {
-		forkVersion int32
-		payloadSize int
-		gasPrice    *big.Int
-		expectFee   *big.Int
-	}{
-		// v1
-		{1, 0, types.NewAmount(1, types.Gaer), types.NewAmount(2000000, types.Gaer)},          // gas price not affect in v1
-		{1, 200, types.NewAmount(5, types.Gaer), types.NewAmount(2000000, types.Gaer)},        // max freeByteSize
-		{1, 201, types.NewAmount(5, types.Gaer), types.NewAmount(2005000, types.Gaer)},        // 2000000+5000
-		{1, 2047800, types.NewAmount(5, types.Gaer), types.NewAmount(1026000000, types.Gaer)}, // 2000000+5000*2048000 ( 2047800 + freeByteSize )
-		{1, 2048000, types.NewAmount(5, types.Gaer), types.NewAmount(1026000000, types.Gaer)}, // exceed payload max size
-		{1, 20480000, types.NewAmount(5, types.Gaer), types.NewAmount(1026000000, types.Gaer)},
-
-		// v2 - 1 gaer
-		{2, 0, types.NewAmount(1, types.Gaer), types.NewAmount(100000, types.Gaer)},
-		{2, 200, types.NewAmount(1, types.Gaer), types.NewAmount(100000, types.Gaer)},      // max freeByteSize
-		{2, 201, types.NewAmount(1, types.Gaer), types.NewAmount(100005, types.Gaer)},      // 100000+5
-		{2, 2047800, types.NewAmount(1, types.Gaer), types.NewAmount(1124000, types.Gaer)}, // 100000+5*204800 ( 2047800 + freeByteSize )
-		{2, 2048000, types.NewAmount(1, types.Gaer), types.NewAmount(1124000, types.Gaer)}, // exceed payload max size
-		{2, 20480000, types.NewAmount(1, types.Gaer), types.NewAmount(1124000, types.Gaer)},
-
-		// v2 - 5 gaer
-		{2, 0, types.NewAmount(5, types.Gaer), types.NewAmount(500000, types.Gaer)},
-		{2, 200, types.NewAmount(5, types.Gaer), types.NewAmount(500000, types.Gaer)}, // max freeByteSize
-		{2, 201, types.NewAmount(5, types.Gaer), types.NewAmount(500025, types.Gaer)},
-		{2, 700, types.NewAmount(5, types.Gaer), types.NewAmount(512500, types.Gaer)},
-		{2, 2047800, types.NewAmount(5, types.Gaer), types.NewAmount(5620000, types.Gaer)},
-		{2, 2048000, types.NewAmount(5, types.Gaer), types.NewAmount(5620000, types.Gaer)}, // exceed payload max size
-
-		// v3 is same as v2
-		{3, 100, types.NewAmount(5, types.Gaer), types.NewAmount(500000, types.Gaer)},
-	} {
-		resultFee := TxFee(test.payloadSize, test.gasPrice, test.forkVersion)
-		assert.EqualValues(t, test.expectFee, resultFee, "TxFee(forkVersion:%d, payloadSize:%d, gasPrice:%s)", test.forkVersion, test.payloadSize, test.gasPrice)
-	}
-}
-
-func TestGasLimit(t *testing.T) {
-	initContractTest(t)
-	defer deinitContractTest(t)
-
-	for _, test := range []struct {
-		version        int32
-		feeDelegation  bool
-		txGasLimit     uint64
-		payloadSize    int
-		gasPrice       *big.Int
-		usedFee        *big.Int
-		sender         *big.Int
-		receiver       *big.Int
-		expectErr      error
-		expectGasLimit uint64
-	}{
-		// no gas limit
-		{version: 1, expectErr: nil, expectGasLimit: 0},
-
-		// fee delegation
-		{version: 2, feeDelegation: true, gasPrice: types.NewAmount(1, types.Gaer), receiver: types.NewAmount(5, types.Gaer), usedFee: types.NewAmount(10, types.Gaer), expectErr: nil, expectGasLimit: math.MaxUint64},                 // max
-		{version: 2, feeDelegation: true, gasPrice: types.NewAmount(1, types.Gaer), receiver: types.NewAmount(5, types.Gaer), usedFee: types.NewAmount(5, types.Gaer), expectErr: newVmError(types.ErrNotEnoughGas), expectGasLimit: 0}, // not enough error
-		{version: 2, feeDelegation: true, gasPrice: types.NewAmount(1, types.Gaer), receiver: types.NewAmount(10, types.Gaer), usedFee: types.NewAmount(5, types.Gaer), expectErr: nil, expectGasLimit: 5},
-
-		// no gas limit specified in tx, the limit is the sender's balance
-		{version: 2, gasPrice: types.NewAmount(1, types.Gaer), sender: types.NewAmount(5, types.Gaer), usedFee: types.NewAmount(10, types.Gaer), expectErr: nil, expectGasLimit: math.MaxUint64},                 // max
-		{version: 2, gasPrice: types.NewAmount(1, types.Gaer), sender: types.NewAmount(5, types.Gaer), usedFee: types.NewAmount(5, types.Gaer), expectErr: newVmError(types.ErrNotEnoughGas), expectGasLimit: 0}, // not enough error
-		{version: 2, gasPrice: types.NewAmount(1, types.Gaer), sender: types.NewAmount(10, types.Gaer), usedFee: types.NewAmount(5, types.Gaer), expectErr: nil, expectGasLimit: 5},
-
-		// if gas limit specified in tx, check if the sender has enough balance for gas
-		{version: 2, txGasLimit: 100000, payloadSize: 100, expectErr: newVmError(types.ErrNotEnoughGas), expectGasLimit: 100000},
-		{version: 2, txGasLimit: 150000, payloadSize: 100, expectErr: nil, expectGasLimit: 50000},
-		{version: 2, txGasLimit: 200000, payloadSize: 100, expectErr: nil, expectGasLimit: 100000},
-	} {
-		gasLimit, resultErr := GasLimit(test.version, test.feeDelegation, test.txGasLimit, test.payloadSize, test.gasPrice, test.usedFee, test.sender, test.receiver)
-		assert.EqualValues(t, test.expectErr, resultErr, "GasLimit(forkVersion:%d, isFeeDelegation:%t, txGasLimit:%d, payloadSize:%d, gasPrice:%s, usedFee:%s, senderBalance:%s, receiverBalance:%s)", test.version, test.feeDelegation, test.txGasLimit, test.payloadSize, test.gasPrice, test.usedFee, test.sender, test.receiver)
-		assert.EqualValues(t, test.expectGasLimit, gasLimit, "GasLimit(forkVersion:%d, isFeeDelegation:%t, txGasLimit:%d, payloadSize:%d, gasPrice:%s, usedFee:%s, senderBalance:%s, receiverBalance:%s)", test.version, test.feeDelegation, test.txGasLimit, test.payloadSize, test.gasPrice, test.usedFee, test.sender, test.receiver)
-	}
 }
 
 func TestCheckExecution(t *testing.T) {
@@ -169,31 +83,5 @@ func TestCreateContractID(t *testing.T) {
 	} {
 		resultContractID := CreateContractID(test.account, test.nonce)
 		assert.Equal(t, test.expectContractID, resultContractID, "CreateContractID(account:%x, nonce:%d)", test.account, test.nonce)
-	}
-}
-
-func TestGasUsed(t *testing.T) {
-	initContractTest(t)
-	defer deinitContractTest(t)
-
-	for _, test := range []struct {
-		version       int32
-		txType        types.TxType
-		txFee         *big.Int
-		gasPrice      *big.Int
-		expectGasUsed uint64
-	}{
-		// no gas used
-		{1, types.TxType_NORMAL, types.NewAmount(100, types.Gaer), types.NewAmount(5, types.Gaer), 0},     // v1
-		{2, types.TxType_GOVERNANCE, types.NewAmount(100, types.Gaer), types.NewAmount(5, types.Gaer), 0}, // governance
-
-		// gas used
-		{2, types.TxType_NORMAL, types.NewAmount(10, types.Gaer), types.NewAmount(1, types.Gaer), 10},
-		{2, types.TxType_NORMAL, types.NewAmount(10, types.Gaer), types.NewAmount(5, types.Gaer), 2},
-		{2, types.TxType_NORMAL, types.NewAmount(100, types.Gaer), types.NewAmount(1, types.Gaer), 100},
-		{2, types.TxType_NORMAL, types.NewAmount(100, types.Gaer), types.NewAmount(5, types.Gaer), 20},
-	} {
-		resultGasUsed := GasUsed(test.txFee, test.gasPrice, test.txType, test.version)
-		assert.Equal(t, test.expectGasUsed, resultGasUsed, "GasUsed(txFee:%s, gasPrice:%s, txType:%d, version:%d)", test.txFee, test.gasPrice, test.txType, test.version)
 	}
 }

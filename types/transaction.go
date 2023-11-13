@@ -51,11 +51,11 @@ type Transaction interface {
 	CalculateTxHash() []byte
 	Validate([]byte, bool) error
 	ValidateWithSenderState(senderState *State, gasPrice *big.Int, version int32) error
+	ValidateMaxFee(balance, gasPrice *big.Int, version int32) error
 	HasVerifedAccount() bool
 	GetVerifedAccount() Address
 	SetVerifedAccount(account Address) bool
 	RemoveVerifedAccount() bool
-	GetMaxFee(balance, gasPrice *big.Int, version int32) (*big.Int, error)
 }
 
 type transaction struct {
@@ -308,12 +308,9 @@ func (tx *transaction) ValidateWithSenderState(senderState *State, gasPrice *big
 		if b.Sign() < 0 {
 			return ErrInsufficientBalance
 		}
-		fee, err := tx.GetMaxFee(b, gasPrice, version)
+		err := tx.ValidateMaxFee(b, gasPrice, version)
 		if err != nil {
 			return err
-		}
-		if fee.Cmp(b) > 0 {
-			return ErrInsufficientBalance
 		}
 	case TxType_GOVERNANCE:
 		switch string(tx.GetBody().GetRecipient()) {
@@ -391,22 +388,19 @@ func (tx *transaction) Clone() *transaction {
 	return res
 }
 
-func (tx *transaction) GetMaxFee(balance, gasPrice *big.Int, version int32) (*big.Int, error) {
-	if fee.IsZeroFee() {
-		return fee.NewZeroFee(), nil
+func (tx *transaction) ValidateMaxFee(balance, gasPrice *big.Int, version int32) error {
+	var (
+		lenPayload = len(tx.GetBody().GetPayload())
+		gasLimit   = tx.GetBody().GetGasLimit()
+	)
+
+	maxFee, err := fee.TxMaxFee(version, lenPayload, gasLimit, balance, gasPrice)
+	if err != nil {
+		return err
+	} else if maxFee.Cmp(balance) > 0 {
+		return ErrInsufficientBalance
 	}
-	if version >= 2 {
-		minGasLimit := fee.TxGas(len(tx.GetBody().GetPayload()))
-		gasLimit := tx.GetBody().GasLimit
-		if gasLimit == 0 {
-			gasLimit = fee.MaxGasLimit(balance, gasPrice)
-		}
-		if minGasLimit > gasLimit {
-			return nil, fmt.Errorf("the minimum required amount of gas: %d", minGasLimit)
-		}
-		return new(big.Int).Mul(new(big.Int).SetUint64(gasLimit), gasPrice), nil
-	}
-	return fee.MaxPayloadTxFee(len(tx.GetBody().GetPayload())), nil
+	return nil
 }
 
 const allowedNameChar = "abcdefghijklmnopqrstuvwxyz1234567890"

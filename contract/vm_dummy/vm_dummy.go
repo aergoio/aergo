@@ -465,7 +465,7 @@ func contractFrame(l luaTxContract, bs *state.BlockState, cdb contract.ChainAcce
 	if err != nil {
 		return err
 	}
-	usedFee := contract.TxFee(len(l.payload()), types.NewAmount(1, types.Aer), 2)
+	usedFee := fee.TxBaseFee(2, types.NewAmount(1, types.Aer), len(l.payload()))
 
 	if l.isFeeDelegate() {
 		balance := contractState.Balance()
