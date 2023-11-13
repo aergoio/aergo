@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/aergoio/aergo/v2/fee"
-	"github.com/golang/protobuf/proto"
-	"github.com/mr-tron/base58/base58"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/internal/enc/proto"
 )
 
 //governance type transaction which has aergo.system in recipient

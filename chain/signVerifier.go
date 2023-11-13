@@ -7,7 +7,7 @@ import (
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo/v2/account/key"
 	"github.com/aergoio/aergo/v2/contract/name"
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/message"
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/state"
@@ -83,7 +83,7 @@ func (sv *SignVerifier) verifyTxLoop(workerNo int) {
 		hit, err := sv.verifyTx(sv.comm, txWork.tx, txWork.useMempool)
 
 		if err != nil {
-			logger.Error().Int("worker", workerNo).Bool("hit", hit).Str("hash", enc.ToString(txWork.tx.GetHash())).
+			logger.Error().Int("worker", workerNo).Bool("hit", hit).Str("hash", base58.Encode(txWork.tx.GetHash())).
 				Err(err).Msg("error verify tx")
 		}
 

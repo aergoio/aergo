@@ -1,16 +1,15 @@
 package chain
 
 import (
-	"bytes"
-	"encoding/gob"
 	"errors"
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/internal/enc/gob"
+	"github.com/aergoio/aergo/v2/internal/enc/proto"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/dbkey"
 	"github.com/aergoio/etcd/raft/raftpb"
-	"github.com/golang/protobuf/proto"
 )
 
 var (
@@ -127,7 +126,7 @@ func (cdb *ChainDB) WriteHardState(hardstate *raftpb.HardState) error {
 
 	logger.Info().Uint64("term", hardstate.Term).Str("vote", types.Uint64ToHexaString(hardstate.Vote)).Uint64("commit", hardstate.Commit).Msg("save hard state")
 
-	if data, err = proto.Marshal(hardstate); err != nil {
+	if data, err = proto.Encode(hardstate); err != nil {
 		logger.Panic().Msg("failed to marshal raft state")
 	}
 	dbTx.Set(dbkey.RaftState(), data)
@@ -144,7 +143,7 @@ func (cdb *ChainDB) GetHardState() (*raftpb.HardState, error) {
 	}
 
 	state := &raftpb.HardState{}
-	if err := proto.Unmarshal(data, state); err != nil {
+	if err := proto.Decode(data, state); err != nil {
 		logger.Panic().Msg("failed to unmarshal raft state")
 	}
 
@@ -235,10 +234,7 @@ func (cdb *ChainDB) GetRaftEntry(idx uint64) (*consensus.WalEntry, error) {
 	}
 
 	var entry consensus.WalEntry
-	var b bytes.Buffer
-	b.Write(data)
-	decoder := gob.NewDecoder(&b)
-	if err := decoder.Decode(&entry); err != nil {
+	if err := gob.Decode(data, &entry); err != nil {
 		return nil, err
 	}
 
@@ -358,7 +354,7 @@ func (cdb *ChainDB) WriteSnapshot(snap *raftpb.Snapshot) error {
 	}
 
 	logger.Debug().Str("snapshot", consensus.SnapToString(snap, &snapdata)).Msg("write snapshot to wal")
-	data, err := proto.Marshal(snap)
+	data, err := proto.Encode(snap)
 	if err != nil {
 		return err
 	}
@@ -406,7 +402,7 @@ func (cdb *ChainDB) GetSnapshot() (*raftpb.Snapshot, error) {
 	}
 
 	snap := &raftpb.Snapshot{}
-	if err := proto.Unmarshal(data, snap); err != nil {
+	if err := proto.Decode(data, snap); err != nil {
 		logger.Panic().Msg("failed to unmarshal raft snap")
 		return nil, ErrInvalidRaftSnapshot
 	}
@@ -425,14 +421,12 @@ func (cdb *ChainDB) WriteIdentity(identity *consensus.RaftIdentity) error {
 
 	logger.Info().Str("id", identity.ToString()).Msg("save raft identity")
 
-	var val bytes.Buffer
-
-	enc := gob.NewEncoder(&val)
-	if err := enc.Encode(identity); err != nil {
+	enc, err := gob.Encode(identity)
+	if err != nil {
 		return ErrEncodeRaftIdentity
 	}
 
-	dbTx.Set(dbkey.RaftIdentity(), val.Bytes())
+	dbTx.Set(dbkey.RaftIdentity(), enc)
 	dbTx.Commit()
 
 	return nil
@@ -445,10 +439,7 @@ func (cdb *ChainDB) GetIdentity() (*consensus.RaftIdentity, error) {
 	}
 
 	var id consensus.RaftIdentity
-	var b bytes.Buffer
-	b.Write(data)
-	decoder := gob.NewDecoder(&b)
-	if err := decoder.Decode(&id); err != nil {
+	if err := gob.Decode(data, &id); err != nil {
 		return nil, ErrDecodeRaftIdentity
 	}
 
@@ -480,7 +471,7 @@ func (cdb *ChainDB) writeConfChangeProgress(dbTx db.Transaction, id uint64, prog
 	var data []byte
 	var err error
 
-	if data, err = proto.Marshal(progress); err != nil {
+	if data, err = proto.Encode(progress); err != nil {
 		logger.Error().Msg("failed to marshal confChangeProgress")
 		return err
 	}
@@ -498,7 +489,7 @@ func (cdb *ChainDB) GetConfChangeProgress(id uint64) (*types.ConfChangeProgress,
 
 	var progress types.ConfChangeProgress
 
-	if err := proto.Unmarshal(data, &progress); err != nil {
+	if err := proto.Decode(data, &progress); err != nil {
 		logger.Error().Msg("failed to unmarshal raft state")
 		return nil, ErrInvalidCCProgress
 	}

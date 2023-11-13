@@ -5,13 +5,13 @@ import (
 	"context"
 	"crypto/sha1"
 	"encoding/binary"
-	"encoding/gob"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/internal/enc/gob"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/etcd/raft"
 	"github.com/aergoio/etcd/raft/raftpb"
@@ -59,13 +59,7 @@ type WalEntry struct {
 }
 
 func (we *WalEntry) ToBytes() ([]byte, error) {
-	var val bytes.Buffer
-	encoder := gob.NewEncoder(&val)
-	if err := encoder.Encode(we); err != nil {
-		logger.Panic().Err(err).Msg("raft entry to bytes error")
-	}
-
-	return val.Bytes(), nil
+	return gob.Encode(we)
 }
 
 func (we *WalEntry) ToString() string {
@@ -203,7 +197,7 @@ func (csnap *ChainSnapshot) ToString() string {
 	if csnap == nil || csnap.Hash == nil {
 		return "csnap: empty"
 	}
-	return fmt.Sprintf("chainsnap:(no=%d, hash=%s)", csnap.No, enc.ToString(csnap.Hash))
+	return fmt.Sprintf("chainsnap:(no=%d, hash=%s)", csnap.No, base58.Encode(csnap.Hash))
 }
 
 /*

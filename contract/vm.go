@@ -22,7 +22,6 @@ import "C"
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -39,7 +38,8 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	luacUtil "github.com/aergoio/aergo/v2/cmd/aergoluac/util"
 	"github.com/aergoio/aergo/v2/fee"
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/internal/enc/hex"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/dbkey"
@@ -174,7 +174,7 @@ func newContractInfo(cs *callState, sender, contractId []byte, rp uint64, amount
 func getTraceFile(blkno uint64, tx []byte) *os.File {
 	f, _ := os.OpenFile(fmt.Sprintf("%s%s%d.trace", os.TempDir(), string(os.PathSeparator), blkno), os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 	if f != nil {
-		_, _ = f.WriteString(fmt.Sprintf("[START TX]: %s\n", enc.ToString(tx)))
+		_, _ = f.WriteString(fmt.Sprintf("[START TX]: %s\n", base58.Encode(tx)))
 	}
 	return f
 }
@@ -904,8 +904,8 @@ func setRandomSeed(ctx *vmContext) {
 	if ctx.isQuery {
 		randSrc = rand.NewSource(ctx.blockInfo.Ts)
 	} else {
-		b, _ := new(big.Int).SetString(enc.ToString(ctx.blockInfo.PrevBlockHash[:7]), 62)
-		t, _ := new(big.Int).SetString(enc.ToString(ctx.txHash[:7]), 62)
+		b, _ := new(big.Int).SetString(base58.Encode(ctx.blockInfo.PrevBlockHash[:7]), 62)
+		t, _ := new(big.Int).SetString(base58.Encode(ctx.txHash[:7]), 62)
 		b.Add(b, t)
 		randSrc = rand.NewSource(b.Int64())
 	}
@@ -1449,7 +1449,7 @@ func (ce *executor) vmLoadCode(id []byte) {
 	if ce.ctx.blockInfo.ForkVersion >= 3 {
 		chunkId = C.CString("@" + types.EncodeAddress(id))
 	} else {
-		chunkId = C.CString(hex.EncodeToString(id))
+		chunkId = C.CString(hex.Encode(id))
 	}
 	defer C.free(unsafe.Pointer(chunkId))
 	if cErrMsg := C.vm_loadbuff(
