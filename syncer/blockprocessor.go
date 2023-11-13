@@ -6,7 +6,7 @@ import (
 	"sort"
 
 	"github.com/aergoio/aergo/v2/chain"
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/message"
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/types"
@@ -136,8 +136,8 @@ func (bproc *BlockProcessor) GetBlockChunkRsp(msg *message.GetBlockChunksRsp) er
 		//TODO invalid peer
 		logger.Error().Stringer("peer", types.LogPeerShort(msg.ToWhom)).
 			Int("count", len(msg.Blocks)).
-			Str("from", enc.ToString(msg.Blocks[0].GetHash())).
-			Str("to", enc.ToString(msg.Blocks[len(msg.Blocks)-1].GetHash())).
+			Str("from", base58.Encode(msg.Blocks[0].GetHash())).
+			Str("to", base58.Encode(msg.Blocks[len(msg.Blocks)-1].GetHash())).
 			Msg("dropped unknown block response message")
 		return nil
 	}
@@ -172,7 +172,7 @@ func (bproc *BlockProcessor) GetBlockChunkRspError(msg *message.GetBlockChunksRs
 
 func (bproc *BlockProcessor) AddBlockResponse(msg *message.AddBlockRsp) error {
 	if err := bproc.isValidResponse(msg); err != nil {
-		logger.Info().Err(err).Uint64("no", msg.BlockNo).Str("hash", enc.ToString(msg.BlockHash)).Msg("block connect failed")
+		logger.Info().Err(err).Uint64("no", msg.BlockNo).Str("hash", base58.Encode(msg.BlockHash)).Msg("block connect failed")
 		return err
 	}
 
@@ -182,12 +182,12 @@ func (bproc *BlockProcessor) AddBlockResponse(msg *message.AddBlockRsp) error {
 
 	if curNo != msg.BlockNo || !bytes.Equal(curHash, msg.BlockHash) {
 		logger.Error().Uint64("curNo", curNo).Uint64("msgNo", msg.BlockNo).
-			Str("curHash", enc.ToString(curHash)).Str("msgHash", enc.ToString(msg.BlockHash)).
+			Str("curHash", base58.Encode(curHash)).Str("msgHash", base58.Encode(msg.BlockHash)).
 			Msg("invalid add block response")
 		return &ErrSyncMsg{msg: msg, str: "drop unknown add response"}
 	}
 
-	logger.Info().Uint64("no", msg.BlockNo).Str("hash", enc.ToString(msg.BlockHash)).Msg("block connect succeed")
+	logger.Info().Uint64("no", msg.BlockNo).Str("hash", base58.Encode(msg.BlockHash)).Msg("block connect succeed")
 
 	bproc.blockFetcher.stat.setLastAddBlock(curBlock)
 
@@ -266,7 +266,7 @@ func (bproc *BlockProcessor) connectBlock(block *types.Block) {
 	}
 
 	logger.Info().Uint64("no", block.GetHeader().BlockNo).
-		Str("hash", enc.ToString(block.GetHash())).
+		Str("hash", base58.Encode(block.GetHash())).
 		Msg("request connecting block to chainsvc")
 
 	bproc.compRequester.RequestTo(message.ChainSvc, &message.AddBlock{PeerID: "", Block: block, Bstate: nil, IsSync: true})
@@ -283,7 +283,7 @@ func (bproc *BlockProcessor) pushToConnQueue(newReq *ConnectTask) {
 	bproc.connQueue = sortedList
 
 	logger.Info().Int("len", len(bproc.connQueue)).Uint64("firstno", newReq.firstNo).
-		Str("firstHash", enc.ToString(newReq.Blocks[0].GetHash())).
+		Str("firstHash", base58.Encode(newReq.Blocks[0].GetHash())).
 		Msg("add new task to connect queue")
 }
 
@@ -307,7 +307,7 @@ func (bproc *BlockProcessor) popFromConnQueue() *ConnectTask {
 	bproc.connQueue = sortedList
 
 	logger.Info().Int("len", len(sortedList)).Uint64("firstno", newReq.firstNo).
-		Str("firstHash", enc.ToString(newReq.Blocks[0].GetHash())).
+		Str("firstHash", base58.Encode(newReq.Blocks[0].GetHash())).
 		Msg("pop task from connect queue")
 
 	return newReq

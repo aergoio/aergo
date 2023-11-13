@@ -6,8 +6,8 @@
 package p2putil
 
 import (
+	"github.com/aergoio/aergo/v2/internal/enc/proto"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
-	"github.com/golang/protobuf/proto"
 )
 
 func CalculateFieldDescSize(varSize int) int {
@@ -30,13 +30,13 @@ func CalculateFieldDescSize(varSize int) int {
 }
 
 func MarshalMessageBody(message p2pcommon.MessageBody) ([]byte, error) {
-	return proto.Marshal(message)
+	return proto.Encode(message)
 }
 
 func UnmarshalMessageBody(data []byte, msgData p2pcommon.MessageBody) error {
-	return proto.Unmarshal(data, msgData)
+	return proto.Decode(data, msgData)
 }
 
 func UnmarshalAndReturn(data []byte, msgData p2pcommon.MessageBody) (p2pcommon.MessageBody, error) {
-	return msgData, proto.Unmarshal(data, msgData)
+	return msgData, proto.Decode(data, msgData)
 }

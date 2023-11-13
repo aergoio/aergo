@@ -20,7 +20,7 @@ import (
 	"github.com/aergoio/aergo/v2/contract"
 	"github.com/aergoio/aergo/v2/contract/system"
 	"github.com/aergoio/aergo/v2/fee"
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
 	sha256 "github.com/minio/sha256-simd"
@@ -477,7 +477,7 @@ func contractFrame(l luaTxContract, bs *state.BlockState, cdb contract.ChainAcce
 			l.Hash(), l.sender(), l.amount().Bytes())
 		if err != nil {
 			if err != types.ErrNotAllowedFeeDelegation {
-				logger.Debug().Err(err).Str("txhash", enc.ToString(l.Hash())).Msg("checkFeeDelegation Error")
+				logger.Debug().Err(err).Str("txhash", base58.Encode(l.Hash())).Msg("checkFeeDelegation Error")
 				return err
 			}
 			return types.ErrNotAllowedFeeDelegation
