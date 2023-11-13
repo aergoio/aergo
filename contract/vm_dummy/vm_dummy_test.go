@@ -2797,7 +2797,6 @@ func TestPcallStateRollback1(t *testing.T) {
 		)
 		require.NoErrorf(t, err, "failed to deploy the contracts")
 
-
 		// A -> A -> A (3 calls on the same contract)
 
 		script := `[[
@@ -2809,7 +2808,8 @@ func TestPcallStateRollback1(t *testing.T) {
 		],[
 			['set','x',333]
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 333}, nil)
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 333}, nil)
 
 		script = `[[
 			['set','x',111],
@@ -2821,7 +2821,8 @@ func TestPcallStateRollback1(t *testing.T) {
 			['set','x',333],
 			['fail']
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 222}, nil)
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 222}, nil)
 
 		script = `[[
 			['set','x',111],
@@ -2833,7 +2834,8 @@ func TestPcallStateRollback1(t *testing.T) {
 		],[
 			['set','x',333]
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 111}, nil)
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 111}, nil)
 
 		script = `[[
 			['set','x',111],
@@ -2845,8 +2847,8 @@ func TestPcallStateRollback1(t *testing.T) {
 		],[
 			['set','x',333]
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 0}, nil)
-
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 0}, nil)
 
 		// A -> B -> C (3 different contracts)
 
@@ -2859,8 +2861,9 @@ func TestPcallStateRollback1(t *testing.T) {
 		],[
 			['set','x',333]
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 111, "B": 222, "C": 333},
-										 map[string]int64{"A": 1, "B": 1, "C": 1})
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 111, "B": 222, "C": 333},
+			map[string]int64{"A": 1, "B": 1, "C": 1})
 
 		script = `[[
 			['set','x',111],
@@ -2872,8 +2875,9 @@ func TestPcallStateRollback1(t *testing.T) {
 			['set','x',333],
 			['fail']
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 111, "B": 222, "C": 0},
-										 map[string]int64{"A": 1, "B": 2, "C": 0})
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 111, "B": 222, "C": 0},
+			map[string]int64{"A": 1, "B": 2, "C": 0})
 
 		script = `[[
 			['set','x',111],
@@ -2885,8 +2889,9 @@ func TestPcallStateRollback1(t *testing.T) {
 		],[
 			['set','x',333]
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 111, "B": 0, "C": 0},
-										 map[string]int64{"A": 3, "B": 0, "C": 0})
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 111, "B": 0, "C": 0},
+			map[string]int64{"A": 3, "B": 0, "C": 0})
 
 		script = `[[
 			['set','x',111],
@@ -2898,9 +2903,9 @@ func TestPcallStateRollback1(t *testing.T) {
 		],[
 			['set','x',333]
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 0, "B": 0, "C": 0},
-										 map[string]int64{"A": 3, "B": 0, "C": 0})
-
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 0, "B": 0, "C": 0},
+			map[string]int64{"A": 3, "B": 0, "C": 0})
 
 		// A -> B -> A (call back to original contract)
 
@@ -2913,8 +2918,9 @@ func TestPcallStateRollback1(t *testing.T) {
 		],[
 			['set','x',333]
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 333, "B": 222},
-										 map[string]int64{"A": 2, "B": 1})
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 333, "B": 222},
+			map[string]int64{"A": 2, "B": 1})
 
 		script = `[[
 			['set','x',111],
@@ -2926,8 +2932,9 @@ func TestPcallStateRollback1(t *testing.T) {
 			['set','x',333],
 			['fail']
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 111, "B": 222},
-										 map[string]int64{"A": 1, "B": 2})
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 111, "B": 222},
+			map[string]int64{"A": 1, "B": 2})
 
 		script = `[[
 			['set','x',111],
@@ -2939,8 +2946,9 @@ func TestPcallStateRollback1(t *testing.T) {
 		],[
 			['set','x',333]
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 111, "B": 0},
-										 map[string]int64{"A": 3, "B": 0})
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 111, "B": 0},
+			map[string]int64{"A": 3, "B": 0})
 
 		script = `[[
 			['set','x',111],
@@ -2952,9 +2960,9 @@ func TestPcallStateRollback1(t *testing.T) {
 		],[
 			['set','x',333]
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 0, "B": 0},
-										 map[string]int64{"A": 3, "B": 0})
-
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 0, "B": 0},
+			map[string]int64{"A": 3, "B": 0})
 
 		// A -> B -> B
 
@@ -2967,8 +2975,9 @@ func TestPcallStateRollback1(t *testing.T) {
 		],[
 			['set','x',333]
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 111, "B": 333},
-										 map[string]int64{"A": 0, "B": 3})
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 111, "B": 333},
+			map[string]int64{"A": 0, "B": 3})
 
 		script = `[[
 			['set','x',111],
@@ -2980,8 +2989,9 @@ func TestPcallStateRollback1(t *testing.T) {
 			['set','x',333],
 			['fail']
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 111, "B": 222},
-										 map[string]int64{"A": 0, "B": 3})
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 111, "B": 222},
+			map[string]int64{"A": 0, "B": 3})
 
 		script = `[[
 			['set','x',111],
@@ -2993,8 +3003,9 @@ func TestPcallStateRollback1(t *testing.T) {
 		],[
 			['set','x',333]
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 111, "B": 0},
-										 map[string]int64{"A": 3, "B": 0})
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 111, "B": 0},
+			map[string]int64{"A": 3, "B": 0})
 
 		script = `[[
 			['set','x',111],
@@ -3006,9 +3017,9 @@ func TestPcallStateRollback1(t *testing.T) {
 		],[
 			['set','x',333]
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 0, "B": 0},
-										 map[string]int64{"A": 3, "B": 0})
-
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 0, "B": 0},
+			map[string]int64{"A": 3, "B": 0})
 
 		// A -> A -> B
 
@@ -3021,8 +3032,9 @@ func TestPcallStateRollback1(t *testing.T) {
 		],[
 			['set','x',333]
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 222, "B": 333},
-										 map[string]int64{"A": 0, "B": 3})
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 222, "B": 333},
+			map[string]int64{"A": 0, "B": 3})
 
 		script = `[[
 			['set','x',111],
@@ -3034,8 +3046,9 @@ func TestPcallStateRollback1(t *testing.T) {
 			['set','x',333],
 			['fail']
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 222, "B": 0},
-										 map[string]int64{"A": 3, "B": 0})
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 222, "B": 0},
+			map[string]int64{"A": 3, "B": 0})
 
 		script = `[[
 			['set','x',111],
@@ -3047,8 +3060,9 @@ func TestPcallStateRollback1(t *testing.T) {
 		],[
 			['set','x',333]
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 111, "B": 0},
-										 map[string]int64{"A": 3, "B": 0})
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 111, "B": 0},
+			map[string]int64{"A": 3, "B": 0})
 
 		script = `[[
 			['set','x',111],
@@ -3060,9 +3074,9 @@ func TestPcallStateRollback1(t *testing.T) {
 		],[
 			['set','x',333]
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 0, "B": 0},
-										 map[string]int64{"A": 3, "B": 0})
-
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 0, "B": 0},
+			map[string]int64{"A": 3, "B": 0})
 
 		// A -> B -> A -> B -> A  (zigzag)
 
@@ -3081,8 +3095,9 @@ func TestPcallStateRollback1(t *testing.T) {
 		],[
 			['set','x',555]
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 555, "B": 444},
-										 map[string]int64{"A": 3, "B": 0})
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 555, "B": 444},
+			map[string]int64{"A": 3, "B": 0})
 
 		script = `[[
 			['set','x',111],
@@ -3100,8 +3115,9 @@ func TestPcallStateRollback1(t *testing.T) {
 			['set','x',555],
 			['fail']
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 333, "B": 444},
-										 map[string]int64{"A": 2, "B": 1})
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 333, "B": 444},
+			map[string]int64{"A": 2, "B": 1})
 
 		script = `[[
 			['set','x',111],
@@ -3119,8 +3135,9 @@ func TestPcallStateRollback1(t *testing.T) {
 		],[
 			['set','x',555]
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 333, "B": 222},
-										 map[string]int64{"A": 3, "B": 0})
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 333, "B": 222},
+			map[string]int64{"A": 3, "B": 0})
 
 		script = `[[
 			['set','x',111],
@@ -3138,8 +3155,9 @@ func TestPcallStateRollback1(t *testing.T) {
 		],[
 			['set','x',555]
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 111, "B": 222},
-										 map[string]int64{"A": 2, "B": 1})
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 111, "B": 222},
+			map[string]int64{"A": 2, "B": 1})
 
 		script = `[[
 			['set','x',111],
@@ -3157,8 +3175,9 @@ func TestPcallStateRollback1(t *testing.T) {
 		],[
 			['set','x',555]
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 111, "B": 0},
-										 map[string]int64{"A": 3, "B": 0})
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 111, "B": 0},
+			map[string]int64{"A": 3, "B": 0})
 
 		script = `[[
 			['set','x',111],
@@ -3176,8 +3195,9 @@ func TestPcallStateRollback1(t *testing.T) {
 		],[
 			['set','x',555]
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 0, "B": 0},
-										 map[string]int64{"A": 3, "B": 0})
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 0, "B": 0},
+			map[string]int64{"A": 3, "B": 0})
 
 	}
 }
@@ -3213,7 +3233,6 @@ func TestPcallStateRollback2(t *testing.T) {
 		)
 		require.NoErrorf(t, err, "failed to deploy the contracts")
 
-
 		// A -> A -> A (3 calls on the same contract)
 
 		script := `[[
@@ -3228,8 +3247,9 @@ func TestPcallStateRollback2(t *testing.T) {
 			['set','x',333],
 			['send','E',1]
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 333},
-										 map[string]int64{"A": 0, "B": 1, "C": 1, "E": 1})
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 333},
+			map[string]int64{"A": 0, "B": 1, "C": 1, "E": 1})
 
 		script = `[[
 			['set','x',111],
@@ -3244,8 +3264,9 @@ func TestPcallStateRollback2(t *testing.T) {
 			['send','D',1],
 			['fail']
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 222},
-										 map[string]int64{"A": 1, "B": 1, "C": 1, "D": 0})
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 222},
+			map[string]int64{"A": 1, "B": 1, "C": 1, "D": 0})
 
 		script = `[[
 			['set','x',111],
@@ -3260,8 +3281,9 @@ func TestPcallStateRollback2(t *testing.T) {
 			['set','x',333],
 			['send','D',1]
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 111},
-										 map[string]int64{"A": 2, "B": 1, "C": 0, "D": 0})
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 111},
+			map[string]int64{"A": 2, "B": 1, "C": 0, "D": 0})
 
 		script = `[[
 			['set','x',111],
@@ -3276,9 +3298,9 @@ func TestPcallStateRollback2(t *testing.T) {
 			['set','x',333],
 			['send','D',1]
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 0},
-										 map[string]int64{"A": 3, "B": 0, "C": 0, "D": 0})
-
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 0},
+			map[string]int64{"A": 3, "B": 0, "C": 0, "D": 0})
 
 		// A -> B -> C (3 different contracts)
 
@@ -3294,8 +3316,9 @@ func TestPcallStateRollback2(t *testing.T) {
 			['set','x',333],
 			['send','A',1]
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 111, "B": 222, "C": 333},
-										 map[string]int64{"A": 1, "B": 1, "C": 1})
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 111, "B": 222, "C": 333},
+			map[string]int64{"A": 1, "B": 1, "C": 1})
 
 		script = `[[
 			['set','x',111],
@@ -3310,8 +3333,9 @@ func TestPcallStateRollback2(t *testing.T) {
 			['send','A',1],
 			['fail']
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 111, "B": 222, "C": 0},
-										 map[string]int64{"A": 0, "B": 1, "C": 2})
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 111, "B": 222, "C": 0},
+			map[string]int64{"A": 0, "B": 1, "C": 2})
 
 		script = `[[
 			['set','x',111],
@@ -3326,8 +3350,9 @@ func TestPcallStateRollback2(t *testing.T) {
 			['set','x',333],
 			['send','A',1]
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 111, "B": 0, "C": 0},
-										 map[string]int64{"A": 0, "B": 3, "C": 0})
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 111, "B": 0, "C": 0},
+			map[string]int64{"A": 0, "B": 3, "C": 0})
 
 		script = `[[
 			['set','x',111],
@@ -3342,9 +3367,9 @@ func TestPcallStateRollback2(t *testing.T) {
 			['set','x',333],
 			['send','A',1]
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 0, "B": 0, "C": 0},
-										 map[string]int64{"A": 3, "B": 0, "C": 0})
-
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 0, "B": 0, "C": 0},
+			map[string]int64{"A": 3, "B": 0, "C": 0})
 
 		// A -> B -> A (call back to original contract)
 
@@ -3360,8 +3385,9 @@ func TestPcallStateRollback2(t *testing.T) {
 			['set','x',333],
 			['send','B',1]
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 333, "B": 222},
-										 map[string]int64{"A": 1, "B": 2})
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 333, "B": 222},
+			map[string]int64{"A": 1, "B": 2})
 
 		script = `[[
 			['set','x',111],
@@ -3376,8 +3402,9 @@ func TestPcallStateRollback2(t *testing.T) {
 			['send','B',1],
 			['fail']
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 111, "B": 222},
-										 map[string]int64{"A": 2, "B": 1})
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 111, "B": 222},
+			map[string]int64{"A": 2, "B": 1})
 
 		script = `[[
 			['set','x',111],
@@ -3392,8 +3419,9 @@ func TestPcallStateRollback2(t *testing.T) {
 			['set','x',333],
 			['send','B',1]
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 111, "B": 0},
-										 map[string]int64{"A": 0, "B": 3})
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 111, "B": 0},
+			map[string]int64{"A": 0, "B": 3})
 
 		script = `[[
 			['set','x',111],
@@ -3408,9 +3436,9 @@ func TestPcallStateRollback2(t *testing.T) {
 			['set','x',333],
 			['send','B',1]
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 0, "B": 0},
-										 map[string]int64{"A": 3, "B": 0})
-
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 0, "B": 0},
+			map[string]int64{"A": 3, "B": 0})
 
 		// A -> B -> B
 
@@ -3426,8 +3454,9 @@ func TestPcallStateRollback2(t *testing.T) {
 			['set','x',333],
 			['send','A',1]
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 111, "B": 333},
-										 map[string]int64{"A": 1, "B": 1, "C": 1})
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 111, "B": 333},
+			map[string]int64{"A": 1, "B": 1, "C": 1})
 
 		script = `[[
 			['set','x',111],
@@ -3442,8 +3471,9 @@ func TestPcallStateRollback2(t *testing.T) {
 			['send','A',1],
 			['fail']
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 111, "B": 222},
-										 map[string]int64{"A": 0, "B": 2, "C": 1})
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 111, "B": 222},
+			map[string]int64{"A": 0, "B": 2, "C": 1})
 
 		script = `[[
 			['set','x',111],
@@ -3458,8 +3488,9 @@ func TestPcallStateRollback2(t *testing.T) {
 			['set','x',333],
 			['send','A',1]
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 111, "B": 0},
-										 map[string]int64{"A": 0, "B": 3, "C": 0})
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 111, "B": 0},
+			map[string]int64{"A": 0, "B": 3, "C": 0})
 
 		script = `[[
 			['set','x',111],
@@ -3474,9 +3505,9 @@ func TestPcallStateRollback2(t *testing.T) {
 			['set','x',333],
 			['send','A',1]
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 0, "B": 0},
-										 map[string]int64{"A": 3, "B": 0, "C": 0})
-
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 0, "B": 0},
+			map[string]int64{"A": 3, "B": 0, "C": 0})
 
 		// A -> A -> B
 
@@ -3492,8 +3523,9 @@ func TestPcallStateRollback2(t *testing.T) {
 			['set','x',333],
 			['send','A',1]
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 222, "B": 333},
-										 map[string]int64{"A": 1, "B": 1, "C": 1})
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 222, "B": 333},
+			map[string]int64{"A": 1, "B": 1, "C": 1})
 
 		script = `[[
 			['set','x',111],
@@ -3508,8 +3540,9 @@ func TestPcallStateRollback2(t *testing.T) {
 			['send','A',1],
 			['fail']
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 222, "B": 0},
-										 map[string]int64{"A": 0, "B": 2, "C": 1})
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 222, "B": 0},
+			map[string]int64{"A": 0, "B": 2, "C": 1})
 
 		script = `[[
 			['set','x',111],
@@ -3524,8 +3557,9 @@ func TestPcallStateRollback2(t *testing.T) {
 			['set','x',333],
 			['send','A',1]
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 111, "B": 0},
-										 map[string]int64{"A": 1, "B": 2, "C": 0})
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 111, "B": 0},
+			map[string]int64{"A": 1, "B": 2, "C": 0})
 
 		script = `[[
 			['set','x',111],
@@ -3540,9 +3574,9 @@ func TestPcallStateRollback2(t *testing.T) {
 			['set','x',333],
 			['send','A',1]
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 0, "B": 0},
-										 map[string]int64{"A": 3, "B": 0, "C": 0})
-
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 0, "B": 0},
+			map[string]int64{"A": 3, "B": 0, "C": 0})
 
 		// A -> B -> A -> B -> A  (zigzag)
 
@@ -3566,8 +3600,9 @@ func TestPcallStateRollback2(t *testing.T) {
 			['set','x',555],
 			['send','B',1]
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 555, "B": 444},
-										 map[string]int64{"A": 2, "B": 1})
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 555, "B": 444},
+			map[string]int64{"A": 2, "B": 1})
 
 		script = `[[
 			['set','x',111],
@@ -3590,8 +3625,9 @@ func TestPcallStateRollback2(t *testing.T) {
 			['send','B',1],
 			['fail']
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 333, "B": 444},
-										 map[string]int64{"A": 3, "B": 0})
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 333, "B": 444},
+			map[string]int64{"A": 3, "B": 0})
 
 		script = `[[
 			['set','x',111],
@@ -3614,8 +3650,9 @@ func TestPcallStateRollback2(t *testing.T) {
 			['set','x',555],
 			['send','B',1]
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 333, "B": 222},
-										 map[string]int64{"A": 2, "B": 1})
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 333, "B": 222},
+			map[string]int64{"A": 2, "B": 1})
 
 		script = `[[
 			['set','x',111],
@@ -3638,8 +3675,9 @@ func TestPcallStateRollback2(t *testing.T) {
 			['set','x',555],
 			['send','B',1]
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 111, "B": 222},
-										 map[string]int64{"A": 3, "B": 0})
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 111, "B": 222},
+			map[string]int64{"A": 3, "B": 0})
 
 		script = `[[
 			['set','x',111],
@@ -3662,8 +3700,9 @@ func TestPcallStateRollback2(t *testing.T) {
 			['set','x',555],
 			['send','B',1]
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 111, "B": 0},
-										 map[string]int64{"A": 2, "B": 1})
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 111, "B": 0},
+			map[string]int64{"A": 2, "B": 1})
 
 		script = `[[
 			['set','x',111],
@@ -3686,8 +3725,9 @@ func TestPcallStateRollback2(t *testing.T) {
 			['set','x',555],
 			['send','B',1]
 		]]`
-		testStateRollback(t, bc, script, map[string]int{"A": 0, "B": 0},
-										 map[string]int64{"A": 3, "B": 0})
+		testStateRollback(t, bc, script,
+			map[string]int{"A": 0, "B": 0},
+			map[string]int64{"A": 3, "B": 0})
 
 	}
 }
@@ -3719,7 +3759,6 @@ func TestPcallStateRollback3(t *testing.T) {
 		)
 		require.NoErrorf(t, err, "failed to call resolver contract")
 
-
 		// A -> A -> A (3 calls on the same contract)
 
 		script := `[[
@@ -3731,7 +3770,8 @@ func TestPcallStateRollback3(t *testing.T) {
 		],[
 			['db.set',333]
 		]]`
-		testDbStateRollback(t, bc, script, map[string]int{"A": 333})
+		testDbStateRollback(t, bc, script,
+			map[string]int{"A": 333})
 
 		script = `[[
 			['db.set',111],
@@ -3743,7 +3783,8 @@ func TestPcallStateRollback3(t *testing.T) {
 			['db.set',333],
 			['fail']
 		]]`
-		testDbStateRollback(t, bc, script, map[string]int{"A": 222})
+		testDbStateRollback(t, bc, script,
+			map[string]int{"A": 222})
 
 		script = `[[
 			['db.set',111],
@@ -3755,7 +3796,8 @@ func TestPcallStateRollback3(t *testing.T) {
 		],[
 			['db.set',333]
 		]]`
-		testDbStateRollback(t, bc, script, map[string]int{"A": 111})
+		testDbStateRollback(t, bc, script,
+			map[string]int{"A": 111})
 
 		script = `[[
 			['db.set',111],
@@ -3767,8 +3809,8 @@ func TestPcallStateRollback3(t *testing.T) {
 		],[
 			['db.set',333]
 		]]`
-		testDbStateRollback(t, bc, script, map[string]int{"A": 0})
-
+		testDbStateRollback(t, bc, script,
+			map[string]int{"A": 0})
 
 		// A -> B -> C (3 different contracts)
 
@@ -3781,7 +3823,8 @@ func TestPcallStateRollback3(t *testing.T) {
 		],[
 			['db.set',333]
 		]]`
-		testDbStateRollback(t, bc, script, map[string]int{"A": 111, "B": 222, "C": 333})
+		testDbStateRollback(t, bc, script,
+			map[string]int{"A": 111, "B": 222, "C": 333})
 
 		script = `[[
 			['db.set',111],
@@ -3793,7 +3836,8 @@ func TestPcallStateRollback3(t *testing.T) {
 			['db.set',333],
 			['fail']
 		]]`
-		testDbStateRollback(t, bc, script, map[string]int{"A": 111, "B": 222, "C": 0})
+		testDbStateRollback(t, bc, script,
+			map[string]int{"A": 111, "B": 222, "C": 0})
 
 		script = `[[
 			['db.set',111],
@@ -3805,7 +3849,8 @@ func TestPcallStateRollback3(t *testing.T) {
 		],[
 			['db.set',333]
 		]]`
-		testDbStateRollback(t, bc, script, map[string]int{"A": 111, "B": 0, "C": 0})
+		testDbStateRollback(t, bc, script,
+			map[string]int{"A": 111, "B": 0, "C": 0})
 
 		script = `[[
 			['db.set',111],
@@ -3817,8 +3862,8 @@ func TestPcallStateRollback3(t *testing.T) {
 		],[
 			['db.set',333]
 		]]`
-		testDbStateRollback(t, bc, script, map[string]int{"A": 0, "B": 0, "C": 0})
-
+		testDbStateRollback(t, bc, script,
+			map[string]int{"A": 0, "B": 0, "C": 0})
 
 		// A -> B -> A (call back to original contract)
 
@@ -3831,7 +3876,8 @@ func TestPcallStateRollback3(t *testing.T) {
 		],[
 			['db.set',333]
 		]]`
-		testDbStateRollback(t, bc, script, map[string]int{"A": 333, "B": 222})
+		testDbStateRollback(t, bc, script,
+			map[string]int{"A": 333, "B": 222})
 
 		script = `[[
 			['db.set',111],
@@ -3843,7 +3889,8 @@ func TestPcallStateRollback3(t *testing.T) {
 			['db.set',333],
 			['fail']
 		]]`
-		testDbStateRollback(t, bc, script, map[string]int{"A": 111, "B": 222})
+		testDbStateRollback(t, bc, script,
+			map[string]int{"A": 111, "B": 222})
 
 		script = `[[
 			['db.set',111],
@@ -3855,7 +3902,8 @@ func TestPcallStateRollback3(t *testing.T) {
 		],[
 			['db.set',333]
 		]]`
-		testDbStateRollback(t, bc, script, map[string]int{"A": 111, "B": 0})
+		testDbStateRollback(t, bc, script,
+			map[string]int{"A": 111, "B": 0})
 
 		script = `[[
 			['db.set',111],
@@ -3867,8 +3915,8 @@ func TestPcallStateRollback3(t *testing.T) {
 		],[
 			['db.set',333]
 		]]`
-		testDbStateRollback(t, bc, script, map[string]int{"A": 0, "B": 0})
-
+		testDbStateRollback(t, bc, script,
+			map[string]int{"A": 0, "B": 0})
 
 		// A -> B -> B
 
@@ -3881,7 +3929,8 @@ func TestPcallStateRollback3(t *testing.T) {
 		],[
 			['db.set',333]
 		]]`
-		testDbStateRollback(t, bc, script, map[string]int{"A": 111, "B": 333})
+		testDbStateRollback(t, bc, script,
+			map[string]int{"A": 111, "B": 333})
 
 		script = `[[
 			['db.set',111],
@@ -3893,7 +3942,8 @@ func TestPcallStateRollback3(t *testing.T) {
 			['db.set',333],
 			['fail']
 		]]`
-		testDbStateRollback(t, bc, script, map[string]int{"A": 111, "B": 222})
+		testDbStateRollback(t, bc, script,
+			map[string]int{"A": 111, "B": 222})
 
 		script = `[[
 			['db.set',111],
@@ -3905,7 +3955,8 @@ func TestPcallStateRollback3(t *testing.T) {
 		],[
 			['db.set',333]
 		]]`
-		testDbStateRollback(t, bc, script, map[string]int{"A": 111, "B": 0})
+		testDbStateRollback(t, bc, script,
+			map[string]int{"A": 111, "B": 0})
 
 		script = `[[
 			['db.set',111],
@@ -3917,8 +3968,8 @@ func TestPcallStateRollback3(t *testing.T) {
 		],[
 			['db.set',333]
 		]]`
-		testDbStateRollback(t, bc, script, map[string]int{"A": 0, "B": 0})
-
+		testDbStateRollback(t, bc, script,
+			map[string]int{"A": 0, "B": 0})
 
 		// A -> A -> B
 
@@ -3931,7 +3982,8 @@ func TestPcallStateRollback3(t *testing.T) {
 		],[
 			['db.set',333]
 		]]`
-		testDbStateRollback(t, bc, script, map[string]int{"A": 222, "B": 333})
+		testDbStateRollback(t, bc, script,
+			map[string]int{"A": 222, "B": 333})
 
 		script = `[[
 			['db.set',111],
@@ -3943,7 +3995,8 @@ func TestPcallStateRollback3(t *testing.T) {
 			['db.set',333],
 			['fail']
 		]]`
-		testDbStateRollback(t, bc, script, map[string]int{"A": 222, "B": 0})
+		testDbStateRollback(t, bc, script,
+			map[string]int{"A": 222, "B": 0})
 
 		script = `[[
 			['db.set',111],
@@ -3955,7 +4008,8 @@ func TestPcallStateRollback3(t *testing.T) {
 		],[
 			['db.set',333]
 		]]`
-		testDbStateRollback(t, bc, script, map[string]int{"A": 111, "B": 0})
+		testDbStateRollback(t, bc, script,
+			map[string]int{"A": 111, "B": 0})
 
 		script = `[[
 			['db.set',111],
@@ -3967,8 +4021,8 @@ func TestPcallStateRollback3(t *testing.T) {
 		],[
 			['db.set',333]
 		]]`
-		testDbStateRollback(t, bc, script, map[string]int{"A": 0, "B": 0})
-
+		testDbStateRollback(t, bc, script,
+			map[string]int{"A": 0, "B": 0})
 
 		// A -> B -> A -> B -> A  (zigzag)
 
@@ -3987,7 +4041,8 @@ func TestPcallStateRollback3(t *testing.T) {
 		],[
 			['db.set',555]
 		]]`
-		testDbStateRollback(t, bc, script, map[string]int{"A": 555, "B": 444})
+		testDbStateRollback(t, bc, script,
+			map[string]int{"A": 555, "B": 444})
 
 		script = `[[
 			['db.set',111],
@@ -4005,7 +4060,8 @@ func TestPcallStateRollback3(t *testing.T) {
 			['db.set',555],
 			['fail']
 		]]`
-		testDbStateRollback(t, bc, script, map[string]int{"A": 333, "B": 444})
+		testDbStateRollback(t, bc, script,
+			map[string]int{"A": 333, "B": 444})
 
 		script = `[[
 			['db.set',111],
@@ -4023,7 +4079,8 @@ func TestPcallStateRollback3(t *testing.T) {
 		],[
 			['db.set',555]
 		]]`
-		testDbStateRollback(t, bc, script, map[string]int{"A": 333, "B": 222})
+		testDbStateRollback(t, bc, script,
+			map[string]int{"A": 333, "B": 222})
 
 		script = `[[
 			['db.set',111],
@@ -4041,7 +4098,8 @@ func TestPcallStateRollback3(t *testing.T) {
 		],[
 			['db.set',555]
 		]]`
-		testDbStateRollback(t, bc, script, map[string]int{"A": 111, "B": 222})
+		testDbStateRollback(t, bc, script,
+			map[string]int{"A": 111, "B": 222})
 
 		script = `[[
 			['db.set',111],
@@ -4059,7 +4117,8 @@ func TestPcallStateRollback3(t *testing.T) {
 		],[
 			['db.set',555]
 		]]`
-		testDbStateRollback(t, bc, script, map[string]int{"A": 111, "B": 0})
+		testDbStateRollback(t, bc, script,
+			map[string]int{"A": 111, "B": 0})
 
 		script = `[[
 			['db.set',111],
@@ -4077,7 +4136,8 @@ func TestPcallStateRollback3(t *testing.T) {
 		],[
 			['db.set',555]
 		]]`
-		testDbStateRollback(t, bc, script, map[string]int{"A": 0, "B": 0})
+		testDbStateRollback(t, bc, script,
+			map[string]int{"A": 0, "B": 0})
 
 	}
 }
@@ -4109,7 +4169,7 @@ func testStateRollback(t *testing.T, bc *DummyChain, script string, expected_sta
 	names["C"] = 0
 	for name, amount := range names {
 		account, _ := bc.GetAccountState(name)
-		assert.Equal(t, amount, account.GetBalanceBigInt().Int64(), "balance of " + name + " is not reset")
+		assert.Equal(t, amount, account.GetBalanceBigInt().Int64(), "balance of "+name+" is not reset")
 		err = bc.Query(name, `{"Name":"get", "Args":["x"]}`, "", "0")
 		require.NoErrorf(t, err, "failed to query on reset")
 	}
