@@ -7,13 +7,13 @@ package v030
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"reflect"
 	"testing"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/internal/enc/hex"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/aergoio/aergo/v2/p2p/p2pkey"
 	"github.com/aergoio/aergo/v2/p2p/p2pmock"
@@ -30,7 +30,7 @@ var (
 	myChainID, newVerChainID, theirChainID          *types.ChainID
 	myChainBytes, newVerChainBytes, theirChainBytes []byte
 	samplePeerID, _                                        = types.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
-	dummyBlockHash, _                                      = hex.DecodeString("4f461d85e869ade8a0544f8313987c33a9c06534e50c4ad941498299579bd7ac")
+	dummyBlockHash, _                                      = hex.Decode("4f461d85e869ade8a0544f8313987c33a9c06534e50c4ad941498299579bd7ac")
 	dummyBlockHeight                                uint64 = 100215
 )
 

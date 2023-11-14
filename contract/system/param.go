@@ -2,11 +2,11 @@ package system
 
 import (
 	"math/big"
-	"strings"
 	"sync"
 
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/dbkey"
 )
 
 type parameters struct {
@@ -83,10 +83,6 @@ var (
 	}
 )
 
-func genParamKey(id string) []byte {
-	return []byte("param\\" + strings.ToUpper(id))
-}
-
 // This is also called on chain reorganization
 func InitSystemParams(g dataGetter, bpCount int) {
 	// discard any new params computed for the next block
@@ -110,7 +106,7 @@ func loadParams(g dataGetter) *parameters {
 	ret := map[string]*big.Int{}
 	for i := sysParamIndex(0); i < sysParamMax; i++ {
 		id := i.ID()
-		data, err := g.GetData(genParamKey(id))
+		data, err := g.GetData(dbkey.SystemParam(id))
 		if err != nil {
 			panic("could not load blockchain parameter")
 		}
@@ -128,7 +124,7 @@ func loadParams(g dataGetter) *parameters {
 
 func updateParam(s dataSetter, id string, value *big.Int) error {
 	// save the param to the database (in a db txn, commit when the block is connected)
-	if err := s.SetData(genParamKey(id), value.Bytes()); err != nil {
+	if err := s.SetData(dbkey.SystemParam(id), value.Bytes()); err != nil {
 		return err
 	}
 	// save the new value for the param, only active on the next block
@@ -211,7 +207,7 @@ func GetGasPriceFromState(ar AccountStateReader) *big.Int {
 }
 
 func getParamFromState(scs *state.ContractState, id sysParamIndex) *big.Int {
-	data, err := scs.GetInitialData(genParamKey(id.ID()))
+	data, err := scs.GetInitialData(dbkey.SystemParam(id.ID()))
 	if err != nil {
 		panic("could not get blockchain parameter")
 	}
