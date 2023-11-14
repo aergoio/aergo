@@ -2,15 +2,16 @@ package chain
 
 import (
 	"bytes"
-	"encoding/gob"
 	"errors"
 	"fmt"
 	"os"
 	"runtime"
 	"runtime/debug"
 
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/internal/enc/gob"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/dbkey"
 )
 
 var (
@@ -62,7 +63,7 @@ func (cs *ChainService) Recover() error {
 
 	// check status of chain
 	if !bytes.Equal(best.BlockHash(), marker.BrBestHash) {
-		logger.Error().Str("best", best.ID()).Str("markerbest", enc.ToString(marker.BrBestHash)).Msg("best block is not equal to old chain")
+		logger.Error().Str("best", best.ID()).Str("markerbest", base58.Encode(marker.BrBestHash)).Msg("best block is not equal to old chain")
 		return ErrRecoInvalidBest
 	}
 
@@ -191,7 +192,7 @@ func (rm *ReorgMarker) RecoverChainMapping(cdb *ChainDB) error {
 
 	logger.Info().Uint64("bestno", rm.BrBestNo).Msg("update best block")
 
-	bulk.Set(latestKey, types.BlockNoToBytes(rm.BrBestNo))
+	bulk.Set(dbkey.LatestBlock(), types.BlockNoToBytes(rm.BrBestNo))
 	bulk.Flush()
 
 	cdb.setLatest(bestBlock)
@@ -217,26 +218,20 @@ func (rm *ReorgMarker) delete() {
 }
 
 func (rm *ReorgMarker) toBytes() ([]byte, error) {
-	var val bytes.Buffer
-	encoder := gob.NewEncoder(&val)
-	if err := encoder.Encode(rm); err != nil {
-		return nil, err
-	}
-
-	return val.Bytes(), nil
+	return gob.Encode(rm)
 }
 
 func (rm *ReorgMarker) toString() string {
 	buf := ""
 
 	if len(rm.BrStartHash) != 0 {
-		buf = buf + fmt.Sprintf("branch root=(%d, %s).", rm.BrStartNo, enc.ToString(rm.BrStartHash))
+		buf = buf + fmt.Sprintf("branch root=(%d, %s).", rm.BrStartNo, base58.Encode(rm.BrStartHash))
 	}
 	if len(rm.BrTopHash) != 0 {
-		buf = buf + fmt.Sprintf("branch top=(%d, %s).", rm.BrTopNo, enc.ToString(rm.BrTopHash))
+		buf = buf + fmt.Sprintf("branch top=(%d, %s).", rm.BrTopNo, base58.Encode(rm.BrTopHash))
 	}
 	if len(rm.BrBestHash) != 0 {
-		buf = buf + fmt.Sprintf("org best=(%d, %s).", rm.BrBestNo, enc.ToString(rm.BrBestHash))
+		buf = buf + fmt.Sprintf("org best=(%d, %s).", rm.BrBestNo, base58.Encode(rm.BrBestHash))
 	}
 
 	return buf
