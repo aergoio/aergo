@@ -5,6 +5,7 @@ end
 function start(addr)
     system.setItem("key", "start")
     contract.call(addr, "called")
+    return system.getItem("key")
 end
 
 function callback()

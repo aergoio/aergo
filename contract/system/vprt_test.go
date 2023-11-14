@@ -11,7 +11,7 @@ import (
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/stretchr/testify/assert"
@@ -176,8 +176,8 @@ func openSystemAccount(t *testing.T) *state.ContractState {
 	assert.NoError(t, err, "fail to open the system contract state")
 	logger.Debug().Msgf(
 		"(after) state, contract: %s, %s\n",
-		enc.ToString(vprStateDB.GetRoot()),
-		enc.ToString(s.GetStorageRoot()))
+		base58.Encode(vprStateDB.GetRoot()),
+		base58.Encode(s.GetStorageRoot()))
 
 	return s
 }
