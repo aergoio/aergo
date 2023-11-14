@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/mr-tron/base58/base58"
 	"github.com/stretchr/testify/assert"
 )
 

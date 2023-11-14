@@ -7,14 +7,12 @@ import (
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/v2/consensus"
-	"github.com/aergoio/aergo/v2/internal/common"
+	"github.com/aergoio/aergo/v2/internal/enc/gob"
 	"github.com/aergoio/aergo/v2/p2p/p2pkey"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/dbkey"
 	"github.com/davecgh/go-spew/spew"
 )
-
-// LibStatusKey is the key when a LIB information is put into the chain DB.
-var LibStatusKey = []byte("dpos.LibStatus")
 
 type errLibUpdate struct {
 	current string
@@ -237,12 +235,12 @@ func (ls *libStatus) load(endBlockNo types.BlockNo) {
 }
 
 func (ls *libStatus) save(tx consensus.TxWriter) error {
-	b, err := common.GobEncode(ls)
+	b, err := gob.Encode(ls)
 	if err != nil {
 		return err
 	}
 
-	tx.Set(LibStatusKey, b)
+	tx.Set(dbkey.DposLibStatus(), b)
 
 	logger.Debug().Int("proposed lib len", len(ls.Prpsd)).Msg("lib status stored to DB")
 
@@ -250,7 +248,7 @@ func (ls *libStatus) save(tx consensus.TxWriter) error {
 }
 
 func reset(tx db.Transaction) {
-	tx.Delete(LibStatusKey)
+	tx.Delete(dbkey.DposLibStatus())
 }
 
 func (ls *libStatus) gc(bps []string) {
@@ -385,7 +383,7 @@ func newConfirmInfo(block *types.Block, confirmsRequired uint16) *confirmInfo {
 
 func (bs *bootLoader) loadLibStatus() *libStatus {
 	pls := newLibStatus(bs.confirmsRequired)
-	if err := bs.decodeStatus(LibStatusKey, pls); err != nil {
+	if err := bs.decodeStatus(dbkey.DposLibStatus(), pls); err != nil {
 		return nil
 	}
 	pls.load(bs.best.BlockNo())
@@ -399,7 +397,7 @@ func (bs *bootLoader) decodeStatus(key []byte, dst interface{}) error {
 		return fmt.Errorf("LIB status not found: key = %v", string(key))
 	}
 
-	err := common.GobDecode(value, dst)
+	err := gob.Decode(value, dst)
 	if err != nil {
 		logger.Panic().Err(err).Str("key", string(key)).
 			Msg("failed to decode DPoS status")

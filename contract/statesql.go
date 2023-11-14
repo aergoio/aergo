@@ -15,7 +15,7 @@ import (
 	"sync"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
 )
@@ -49,7 +49,7 @@ func init() {
 	sql.Register(statesqlDriver, &SQLiteDriver{
 		ConnectHook: func(conn *SQLiteConn) error {
 			if _, ok := database.DBs[database.OpenDbName]; !ok {
-				b, err := enc.ToBytes(database.OpenDbName)
+				b, err := base58.Decode(database.OpenDbName)
 				if err != nil {
 					sqlLgr.Error().Err(err).Msg("Open SQL Connection")
 					return nil

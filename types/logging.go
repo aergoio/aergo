@@ -7,7 +7,8 @@ package types
 
 import (
 	"fmt"
-	"github.com/aergoio/aergo/v2/internal/enc"
+
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/rs/zerolog"
 )
 
@@ -16,7 +17,7 @@ type LogTxHash struct {
 }
 
 func (t LogTxHash) MarshalZerologObject(e *zerolog.Event) {
-	e.Str("txID", enc.ToString(t.Hash))
+	e.Str("txID", base58.Encode(t.Hash))
 }
 
 type LogTx struct {
@@ -24,7 +25,7 @@ type LogTx struct {
 }
 
 func (t LogTx) MarshalZerologObject(e *zerolog.Event) {
-	e.Str("txID", enc.ToString(t.GetHash())).Str("account", enc.ToString(t.Body.Account)).Uint64("nonce", t.Body.Nonce)
+	e.Str("txID", base58.Encode(t.GetHash())).Str("account", base58.Encode(t.Body.Account)).Uint64("nonce", t.Body.Nonce)
 }
 
 type LogTrsactions struct {
@@ -63,7 +64,7 @@ func marshalTrx(tr Transaction, a *zerolog.Array) {
 type LogBase58 []byte
 
 func (t LogBase58) String() string {
-	return enc.ToString(t)
+	return base58.Encode(t)
 }
 
 // LogAddr is thin wrapper which show base58 encoded form of wallet or smart contract

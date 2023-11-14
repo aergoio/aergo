@@ -12,10 +12,10 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/mr-tron/base58"
+	"github.com/aergoio/aergo/v2/types/dbkey"
 )
 
 const (
@@ -25,11 +25,8 @@ const (
 )
 
 var (
-	votingCatalog []types.VotingIssue
-
-	voteKey        = []byte("vote")
-	totalKey       = []byte("total")
-	sortKey        = []byte("sort")
+	votingCatalog  []types.VotingIssue
+	lastBpCount    int
 	defaultVoteKey = []byte(types.OpvoteBP.ID())
 )
 
@@ -293,8 +290,7 @@ func GetVote(scs *state.ContractState, voter []byte, issue []byte) (*types.Vote,
 }
 
 func getVote(scs *state.ContractState, key, voter []byte) (*types.Vote, error) {
-	dataKey := append(append(voteKey, key...), voter...)
-	data, err := scs.GetData(dataKey)
+	data, err := scs.GetData(dbkey.SystemVote(key, voter))
 	if err != nil {
 		return nil, err
 	}
@@ -311,11 +307,10 @@ func getVote(scs *state.ContractState, key, voter []byte) (*types.Vote, error) {
 }
 
 func setVote(scs *state.ContractState, key, voter []byte, vote *types.Vote) error {
-	dataKey := append(append(voteKey, key...), voter...)
 	if bytes.Equal(key, defaultVoteKey) {
-		return scs.SetData(dataKey, serializeVote(vote))
+		return scs.SetData(dbkey.SystemVote(key, voter), serializeVote(vote))
 	} else {
-		return scs.SetData(dataKey, serializeVoteEx(vote))
+		return scs.SetData(dbkey.SystemVote(key, voter), serializeVoteEx(vote))
 	}
 }
 
@@ -327,7 +322,7 @@ func BuildOrderedCandidates(vote map[string]*big.Int) []string {
 	l := voteResult.buildVoteList()
 	bps := make([]string, 0, len(l.Votes))
 	for _, v := range l.Votes {
-		bp := enc.ToString(v.Candidate)
+		bp := base58.Encode(v.Candidate)
 		bps = append(bps, bp)
 	}
 	return bps
@@ -361,7 +356,7 @@ func GetRankers(ar AccountStateReader) ([]string, error) {
 
 	bps := make([]string, 0, n)
 	for _, v := range vl.Votes {
-		bps = append(bps, enc.ToString(v.Candidate))
+		bps = append(bps, base58.Encode(v.Candidate))
 	}
 	return bps, nil
 }
