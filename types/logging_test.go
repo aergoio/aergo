@@ -1,10 +1,11 @@
 package types
 
 import (
-	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/v2/internal/enc"
-	"github.com/rs/zerolog"
 	"testing"
+
+	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/rs/zerolog"
 )
 
 func BenchmarkLogMemAllocationCompared(b *testing.B) {
@@ -69,7 +70,7 @@ func BenchmarkLogMemAllocationRunD(b *testing.B) {
 type LogB58Wrapper []byte
 
 func (t LogB58Wrapper) MarshalZerologObject(e *zerolog.Event) {
-	e.Str("b58", enc.ToString(t))
+	e.Str("b58", base58.Encode(t))
 }
 
 func BenchmarkLogMemAllocationWrapper(b *testing.B) {

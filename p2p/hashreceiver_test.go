@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo/v2/chain"
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/message"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/aergoio/aergo/v2/p2p/p2pmock"
@@ -120,7 +120,7 @@ func TestBlockHashesReceiver_ReceiveResp(t *testing.T) {
 							for _, h := range arg.Hashes {
 								_, err := types.ParseToBlockID(h)
 								if err != nil {
-									t.Fatalf("Wrong block hash %s, err %v)", enc.ToString(h), err.Error())
+									t.Fatalf("Wrong block hash %s, err %v)", base58.Encode(h), err.Error())
 								}
 							}
 						}

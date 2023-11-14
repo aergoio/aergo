@@ -1,12 +1,12 @@
 package types
 
 import (
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
 
-	"github.com/anaskhan96/base58check"
+	"github.com/aergoio/aergo/v2/internal/enc/base58check"
+	"github.com/aergoio/aergo/v2/internal/enc/hex"
 )
 
 const AddressLength = 33
@@ -50,7 +50,7 @@ func EncodeAddress(addr Address) string {
 	if len(addr) != AddressLength {
 		return string(addr)
 	}
-	encoded, _ := base58check.Encode(fmt.Sprintf("%x", AddressVersion), hex.EncodeToString(addr))
+	encoded, _ := base58check.Encode(fmt.Sprintf("%x", AddressVersion), hex.Encode(addr))
 	return encoded
 }
 
@@ -72,7 +72,7 @@ func DecodeAddress(encodedAddr string) (Address, error) {
 	if err != nil {
 		return nil, err
 	}
-	decodedBytes, err := hex.DecodeString(decodedString)
+	decodedBytes, err := hex.Decode(decodedString)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +95,7 @@ func DecodeAddressBytes(decodedBytes []byte) (Address, error) {
 }
 
 func EncodePrivKey(key []byte) string {
-	encoded, _ := base58check.Encode(fmt.Sprintf("%x", PrivKeyVersion), hex.EncodeToString(key))
+	encoded, _ := base58check.Encode(fmt.Sprintf("%x", PrivKeyVersion), hex.Encode(key))
 	return encoded
 }
 
@@ -104,7 +104,7 @@ func DecodePrivKey(encodedKey string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	decodedBytes, err := hex.DecodeString(decodedString)
+	decodedBytes, err := hex.Decode(decodedString)
 	if err != nil {
 		return nil, err
 	}
