@@ -3,7 +3,6 @@ package cmd
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,9 +13,10 @@ import (
 	luacEncoding "github.com/aergoio/aergo/v2/cmd/aergoluac/encoding"
 	luac "github.com/aergoio/aergo/v2/cmd/aergoluac/util"
 	"github.com/aergoio/aergo/v2/internal/common"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/internal/enc/hex"
 	"github.com/aergoio/aergo/v2/types"
 	aergorpc "github.com/aergoio/aergo/v2/types"
-	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
 )
 
@@ -201,7 +201,7 @@ func runDeployCmd(cmd *cobra.Command, args []string) error {
 		if isHexString(data) {
 			// the data is expected to be copied from aergoscan view of
 			// the transaction that deployed the contract
-			payload, err = hex.DecodeString(data)
+			payload, err = hex.Decode(data)
 		} else {
 			// the data is the output of aergoluac
 			code, err = luacEncoding.DecodeCode(data)

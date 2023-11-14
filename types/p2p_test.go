@@ -6,23 +6,23 @@
 package types
 
 import (
-	"encoding/hex"
 	"fmt"
 	"testing"
 
-	"github.com/aergoio/aergo/v2/internal/enc"
-	"github.com/golang/protobuf/proto"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/internal/enc/hex"
+	"github.com/aergoio/aergo/v2/internal/enc/proto"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestUnmarshalSize(t *testing.T) {
-	var dummyTxHash, _ = enc.ToBytes("4H4zAkAyRV253K5SNBJtBxqUgHEbZcXbWFFc6cmQHY45")
-	fmt.Println("Hash: ", hex.EncodeToString(dummyTxHash))
+	var dummyTxHash, _ = base58.Decode("4H4zAkAyRV253K5SNBJtBxqUgHEbZcXbWFFc6cmQHY45")
+	fmt.Println("Hash: ", hex.Encode(dummyTxHash))
 
 	sample := &NewTransactionsNotice{}
 
 	expectedLen := proto.Size(sample)
-	actual, err := proto.Marshal(sample)
+	actual, err := proto.Encode(sample)
 	assert.Nil(t, err)
 	fmt.Println("Empty notice size ", len(actual))
 	assert.Equal(t, expectedLen, len(actual))
@@ -32,10 +32,10 @@ func TestUnmarshalSize(t *testing.T) {
 	hashes = append(hashes, dummyTxHash)
 	sample.TxHashes = hashes
 	expectedLen = proto.Size(sample)
-	actual, err = proto.Marshal(sample)
+	actual, err = proto.Encode(sample)
 	assert.Nil(t, err)
 	fmt.Println("Single hash notice size ", len(actual))
-	fmt.Println("Hex: ", hex.EncodeToString(actual))
+	fmt.Println("Hex: ", hex.Encode(actual))
 	assert.Equal(t, expectedLen, len(actual))
 
 	// 100 hashes
@@ -45,10 +45,10 @@ func TestUnmarshalSize(t *testing.T) {
 	}
 	sample.TxHashes = hashes
 	expectedLen = proto.Size(sample)
-	actual, err = proto.Marshal(sample)
+	actual, err = proto.Encode(sample)
 	assert.Nil(t, err)
 	fmt.Println("Hundred hashes notice size ", len(actual))
-	fmt.Println("Hex: ", hex.EncodeToString(actual[0:40]))
+	fmt.Println("Hex: ", hex.Encode(actual[0:40]))
 	assert.Equal(t, expectedLen, len(actual))
 
 	// 1000 hashes
@@ -58,10 +58,10 @@ func TestUnmarshalSize(t *testing.T) {
 	}
 	sample.TxHashes = hashes
 	expectedLen = proto.Size(sample)
-	actual, err = proto.Marshal(sample)
+	actual, err = proto.Encode(sample)
 	assert.Nil(t, err)
 	fmt.Println("Thousand hashes notice size ", len(actual))
-	fmt.Println("Hex: ", hex.EncodeToString(actual[0:40]))
+	fmt.Println("Hex: ", hex.Encode(actual[0:40]))
 	assert.Equal(t, expectedLen, len(actual))
 
 }

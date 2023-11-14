@@ -78,7 +78,7 @@ func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, t
 	)
 
 	// compute the base fee
-	usedFee = TxFee(len(txPayload), bs.GasPrice, bi.ForkVersion)
+	usedFee = fee.TxBaseFee(bi.ForkVersion, bs.GasPrice, len(txPayload))
 
 	// check if sender and receiver are not the same
 	if sender.AccountID() != receiver.AccountID() {
@@ -100,7 +100,8 @@ func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, t
 
 	// compute gas limit
 	var gasLimit uint64
-	if gasLimit, err = GasLimit(bi.ForkVersion, isFeeDelegation, txGasLimit, len(txPayload), bs.GasPrice, usedFee, sender.Balance(), receiver.Balance()); err != nil {
+	if gasLimit, err = fee.GasLimit(bi.ForkVersion, isFeeDelegation, txGasLimit, len(txPayload), bs.GasPrice, usedFee, sender.Balance(), receiver.Balance()); err != nil {
+		err = newVmError(types.ErrNotEnoughGas)
 		return
 	}
 
@@ -342,69 +343,6 @@ func checkRedeploy(sender, receiver *state.V, contractState *state.ContractState
 	return nil
 }
 
-// compute the base fee for a transaction
-func TxFee(payloadSize int, GasPrice *big.Int, version int32) *big.Int {
-	if version < 2 {
-		return fee.PayloadTxFee(payloadSize)
-	}
-	// get the amount of gas needed for the payload
-	txGas := fee.TxGas(payloadSize)
-	// multiply the amount of gas with the gas price
-	return new(big.Int).Mul(new(big.Int).SetUint64(txGas), GasPrice)
-}
-
-func GasLimit(version int32, isFeeDelegation bool, txGasLimit uint64, payloadSize int, gasPrice, usedFee, senderBalance, receiverBalance *big.Int) (gasLimit uint64, err error) {
-	// 1. no gas limit
-	if useGas(version) != true {
-		return
-	}
-
-	// 2. fee delegation
-	if isFeeDelegation {
-		// check if the contract has enough balance for fee
-		balance := new(big.Int).Sub(receiverBalance, usedFee)
-		gasLimit = fee.MaxGasLimit(balance, gasPrice)
-		if gasLimit == 0 {
-			err = newVmError(types.ErrNotEnoughGas)
-		}
-		return
-	}
-
-	// read the gas limit from the tx
-	gasLimit = txGasLimit
-	// 3. no gas limit specified, the limit is the sender's balance
-	if gasLimit == 0 {
-		balance := new(big.Int).Sub(senderBalance, usedFee)
-		gasLimit = fee.MaxGasLimit(balance, gasPrice)
-		if gasLimit == 0 {
-			err = newVmError(types.ErrNotEnoughGas)
-		}
-		return
-	}
-
-	// 4. check if the sender has enough balance for gas
-	usedGas := fee.TxGas(payloadSize)
-	if gasLimit <= usedGas {
-		err = newVmError(types.ErrNotEnoughGas)
-		return
-	}
-	// subtract the used gas from the gas limit
-	gasLimit -= usedGas
-
-	return gasLimit, nil
-}
-
-func useGas(version int32) bool {
-	return version >= 2 && PubNet
-}
-
-func GasUsed(txFee, gasPrice *big.Int, txType types.TxType, version int32) uint64 {
-	if fee.IsZeroFee() || txType == types.TxType_GOVERNANCE || version < 2 {
-		return 0
-	}
-	return new(big.Int).Div(txFee, gasPrice).Uint64()
-}
-
 func CreateContractID(account []byte, nonce uint64) []byte {
 	h := sha256.New()
 	h.Write(account)
@@ -421,7 +359,7 @@ func SetStateSQLMaxDBSize(size uint64) {
 	} else {
 		maxSQLDBSize = size
 	}
-	sqlLgr.Info().Uint64("size", maxSQLDBSize).Msg("set max database size(MB)")
+	//sqlLgr.Info().Uint64("size", maxSQLDBSize).Msg("set max database size(MB)")
 }
 
 func StrHash(d string) []byte {
