@@ -4,10 +4,10 @@ end
 
 function init()
     db.exec([[create table if not exists r (
-    id integer primary key
-    , n integer check(n >= 10)
-    , nonull text not null
-    , only integer unique)
+    id integer primary key,
+    n integer check(n >= 10),
+    nonull text not null,
+    norepeat integer unique)
     ]])
     db.exec("insert into r values (1, 11, 'text', 1)")
 end
@@ -24,9 +24,7 @@ end
 function pkget()
     local rs = db.query("select count(*) from r")
     if rs:next() then
-        local n = rs:get()
-        --rs:next()
-        return n
+        return rs:get()
     else
         return "error in count()"
     end

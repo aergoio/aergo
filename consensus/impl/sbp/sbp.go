@@ -12,7 +12,7 @@ import (
 	"github.com/aergoio/aergo/v2/consensus/chain"
 	"github.com/aergoio/aergo/v2/contract"
 	"github.com/aergoio/aergo/v2/contract/system"
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
@@ -202,7 +202,7 @@ func (s *SimpleBlockFactory) Start() {
 					continue
 				}
 				logger.Info().Uint64("no", block.GetHeader().GetBlockNo()).Str("hash", block.ID()).
-					Str("TrieRoot", enc.ToString(block.GetHeader().GetBlocksRootHash())).
+					Str("TrieRoot", base58.Encode(block.GetHeader().GetBlocksRootHash())).
 					Err(err).Msg("block produced")
 
 				chain.ConnectBlock(s, block, blockState, time.Second)

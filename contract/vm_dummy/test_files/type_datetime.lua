@@ -3,26 +3,32 @@ state.var {
 }
 
 function constructor()
-    cdate:set(906000490)
+    cdate:set(905465118)
 end
 
-function CreateDate()
-    return system.date("%c", cdate:get())
+function SetTimestamp(value)
+    cdate:set(value)
 end
 
-function Extract(fmt)
-    return system.date(fmt, cdate:get())
+function CreateDate(format, timestamp)
+    return system.date(format, timestamp)
+end
+
+function Extract(format)
+    return system.date(format, cdate:get())
 end
 
 function Difftime()
-    system.print(system.date("%c", cdate:get()))
+    -- test convertion to table
     s = system.date("*t", cdate:get())
-    system.print(s)
+    -- modification of table
     s.hour = 2
     s.min = 0
     s.sec = 0
-    system.print(system.date("*t", system.time(s)))
-    return system.difftime(cdate:get(), system.time(s))
+    -- system.difftime() and system.time()
+    diff = system.difftime(cdate:get(), system.time(s))
+    -- conversion of diff to hours
+    return diff, system.date("%T",diff)
 end
 
-abi.register(CreateDate, Extract, Difftime)
+abi.register(CreateDate, SetTimestamp, Extract, Difftime)

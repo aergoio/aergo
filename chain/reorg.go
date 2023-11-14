@@ -8,7 +8,7 @@ import (
 
 	"github.com/aergoio/aergo/v2/consensus"
 	"github.com/aergoio/aergo/v2/contract/system"
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/message"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
@@ -52,7 +52,7 @@ type ErrReorgBlock struct {
 
 func (ec *ErrReorgBlock) Error() string {
 	if ec.blockHash != nil {
-		return fmt.Sprintf("%s, block:%d,%s", ec.msg, ec.blockNo, enc.ToString(ec.blockHash))
+		return fmt.Sprintf("%s, block:%d,%s", ec.msg, ec.blockNo, base58.Encode(ec.blockHash))
 	} else if ec.blockNo != 0 {
 		return fmt.Sprintf("%s, block:%d", ec.msg, ec.blockNo)
 	} else {

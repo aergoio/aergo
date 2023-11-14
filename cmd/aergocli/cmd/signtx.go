@@ -8,9 +8,9 @@ import (
 	"github.com/aergoio/aergo/v2/account/key"
 	crypto "github.com/aergoio/aergo/v2/account/key/crypto"
 	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/btcsuite/btcd/btcec"
-	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
 )
 
