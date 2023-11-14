@@ -2,13 +2,13 @@ package enterprise
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/internal/enc/base64"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
 )
@@ -75,7 +75,7 @@ func ValidateEnterpriseTx(tx *types.TxBody, sender *state.V,
 		if err := checkArgs(context, &ci); err != nil {
 			return nil, err
 		}
-		key := genKey([]byte(context.Args[0]))
+		key := []byte(context.Args[0])
 		admins, err := checkAdmin(scs, sender.ID())
 		if err != nil {
 			return nil, err
@@ -112,7 +112,7 @@ func ValidateEnterpriseTx(tx *types.TxBody, sender *state.V,
 		context.Conf = conf
 		context.Admins = admins
 
-		key := genKey([]byte(context.Args[0]))
+		key := []byte(context.Args[0])
 		if ci.Name == AppendConf {
 			if context.HasConfValue(context.Args[1]) {
 				return nil, fmt.Errorf("already included config value : %v", context.Args)
@@ -141,7 +141,7 @@ func ValidateEnterpriseTx(tx *types.TxBody, sender *state.V,
 			return nil, fmt.Errorf("not allowed key : %s", ci.Args[0])
 		}
 		context.Args = append(context.Args, arg0)
-		key := genKey([]byte(arg0))
+		key := []byte(arg0)
 		value, ok := ci.Args[1].(bool)
 		if !ok {
 			return nil, fmt.Errorf("not bool in payload for enableConf : %s", ci.Args)
@@ -265,7 +265,7 @@ func checkRPCPermissions(v string) error {
 		return fmt.Errorf("invalid RPC permission %s", v)
 	}
 
-	if _, err := base64.StdEncoding.DecodeString(values[0]); err != nil {
+	if _, err := base64.Decode(values[0]); err != nil {
 		return fmt.Errorf("invalid RPC cert %s", v)
 	}
 

@@ -10,9 +10,9 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/mr-tron/base58"
 )
 
 // SystemContext is context of executing aergo.system transaction and filled after validation.

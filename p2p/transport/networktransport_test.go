@@ -6,13 +6,13 @@
 package transport
 
 import (
-	"encoding/hex"
 	"testing"
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/v2/config"
 	cfg "github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/internal/enc/hex"
 	"github.com/aergoio/aergo/v2/message"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/aergoio/aergo/v2/p2p/p2pkey"
@@ -35,7 +35,7 @@ func init() {
 // TODO split this test into two... one is to attempt make connection and the other is test peermanager if same peerid is given
 // Ignoring test for now, for lack of abstraction on AergoPeer struct
 func IgnoredTestP2PServiceRunAddPeer(t *testing.T) {
-	var sampleBlockHash, _ = hex.DecodeString("4f461d85e869ade8a0544f8313987c33a9c06534e50c4ad941498299579bd7ac")
+	var sampleBlockHash, _ = hex.Decode("4f461d85e869ade8a0544f8313987c33a9c06534e50c4ad941498299579bd7ac")
 	var sampleBlockHeight uint64 = 100215
 
 	ctrl := gomock.NewController(t)

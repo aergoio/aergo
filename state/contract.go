@@ -6,8 +6,8 @@ import (
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/v2/internal/common"
+	"github.com/aergoio/aergo/v2/internal/enc/proto"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/golang/protobuf/proto"
 )
 
 func (states *StateDB) OpenContractStateAccount(aid types.AccountID) (*ContractState, error) {
@@ -192,7 +192,7 @@ func (st *ContractState) Hash() []byte {
 
 // Marshal implements types.ImplMarshal
 func (st *ContractState) Marshal() ([]byte, error) {
-	return proto.Marshal(st.State)
+	return proto.Encode(st.State)
 }
 
 func (st *ContractState) cache() *stateBuffer {

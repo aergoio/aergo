@@ -23,7 +23,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/mr-tron/base58/base58"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 )
 
 // Marshal returns the JSON encoding of v.
