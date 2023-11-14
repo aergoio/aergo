@@ -10,8 +10,8 @@ import (
 	"errors"
 
 	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/mr-tron/base58"
 	"github.com/spf13/cobra"
 )
 
