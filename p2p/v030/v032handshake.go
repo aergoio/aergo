@@ -12,7 +12,7 @@ import (
 	"io"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/aergoio/aergo/v2/p2p/p2putil"
 	"github.com/aergoio/aergo/v2/types"
@@ -47,7 +47,7 @@ func (h *V032Handshaker) checkRemoteStatus(remotePeerStatus *types.Status) error
 	genHash := h.localGenesisHash
 	if !bytes.Equal(genHash, remotePeerStatus.Genesis) {
 		h.sendGoAway("different genesis block")
-		return fmt.Errorf("different genesis block local: %v , remote %v", enc.ToString(genHash), enc.ToString(remotePeerStatus.Genesis))
+		return fmt.Errorf("different genesis block local: %v , remote %v", base58.Encode(genHash), base58.Encode(remotePeerStatus.Genesis))
 	}
 
 	return nil
