@@ -15,15 +15,6 @@ start_nodes() {
     pid3=$!
   fi
 
-  # wait the node(s) to be ready
-  if [ "$consensus" == "sbp" ]; then
-    sleep 3
-  elif [ "$consensus" == "dpos" ]; then
-    sleep 5
-  elif [ "$consensus" == "raft" ]; then
-    sleep 2
-  fi
-
 }
 
 stop_nodes() {
@@ -34,6 +25,42 @@ stop_nodes() {
     kill $pid1 $pid2 $pid3
   fi
 
+}
+
+wait_version() {
+  expect_version=$1
+  counter=0
+  # do not stop on errors
+  set +e
+
+  while true; do
+    # get the current hardfork version
+    output=$(../bin/aergocli blockchain 2>/dev/null)
+    # check if 'output' is non-empty and starts with '{'
+    if [[ -n "$output" ]] && [[ "${output:0:1}" == "{" ]]; then
+      cur_version=$(echo "$output" | jq .ChainInfo.Chainid.Version | sed 's/"//g')
+    else
+      cur_version=0
+    fi
+
+    #echo "current version: $cur_version"
+
+    if [ $cur_version -eq $expect_version ]; then
+      version=$expect_version
+      break
+    else
+      sleep 0.5
+      counter=$((counter+1))
+      if [ $counter -gt 20 ]; then
+        echo "Failed to change the blockchain version on the nodes"
+        echo "Desired: $expect_version, Actual: $cur_version"
+        exit 1
+      fi
+    fi
+  done
+
+  # stop on errors
+  set -e
 }
 
 get_deploy_args() {
@@ -61,6 +88,7 @@ deploy() {
 get_receipt() {
   txhash=$1
   counter=0
+  # do not stop on errors
   set +e
 
   while true; do
@@ -75,7 +103,6 @@ get_receipt() {
         echo "Error: tx not found: $txhash"
         exit 1
       fi
-      continue
     elif [[ -n $output ]]; then
       echo "Error: $output"
       exit 1
@@ -84,6 +111,7 @@ get_receipt() {
     fi
   done
 
+  # stop on errors
   set -e
 }
 

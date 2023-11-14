@@ -7,9 +7,8 @@ import (
 
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/dbkey"
 )
-
-var prefix = []byte("name")
 
 type NameMap struct {
 	Version     byte
@@ -50,7 +49,7 @@ func UpdateName(bs *state.BlockState, scs *state.ContractState, tx *types.TxBody
 	if err != nil {
 		return types.ErrTxInvalidRecipient
 	}
-	creator, err := contract.GetData([]byte("Creator"))
+	creator, err := contract.GetData(dbkey.CreatorMeta())
 	if err != nil {
 		return err
 	}
@@ -137,14 +136,12 @@ func getOwner(scs *state.ContractState, name []byte, useInitial bool) []byte {
 }
 
 func getNameMap(scs *state.ContractState, name []byte, useInitial bool) *NameMap {
-	lowerCaseName := strings.ToLower(string(name))
-	key := append(prefix, lowerCaseName...)
 	var err error
 	var ownerdata []byte
 	if useInitial {
-		ownerdata, err = scs.GetInitialData(key)
+		ownerdata, err = scs.GetInitialData(dbkey.Name(name))
 	} else {
-		ownerdata, err = scs.GetData(key)
+		ownerdata, err = scs.GetData(dbkey.Name(name))
 	}
 	if err != nil {
 		return nil
@@ -167,9 +164,7 @@ func registerOwner(scs *state.ContractState, name, owner, destination []byte) er
 }
 
 func setNameMap(scs *state.ContractState, name []byte, n *NameMap) error {
-	lowerCaseName := strings.ToLower(string(name))
-	key := append(prefix, lowerCaseName...)
-	return scs.SetData(key, serializeNameMap(n))
+	return scs.SetData(dbkey.Name(name), serializeNameMap(n))
 }
 
 func serializeNameMap(n *NameMap) []byte {

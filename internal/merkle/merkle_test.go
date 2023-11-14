@@ -2,27 +2,18 @@ package merkle
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/binary"
 	"hash"
 	"testing"
 
+	"github.com/aergoio/aergo/v2/internal/enc/base64"
 	"github.com/minio/sha256-simd"
-	"github.com/mr-tron/base58/base58"
 	"github.com/stretchr/testify/assert"
 )
 
 var (
 	tms []MerkleEntry
 )
-
-func EncodeB64(bs []byte) string {
-	return base64.StdEncoding.EncodeToString(bs)
-}
-
-func EncodeB58(bs []byte) string {
-	return base58.Encode(bs)
-}
 
 func beforeTest(count int) error {
 	tms = make([]MerkleEntry, count)
@@ -100,7 +91,7 @@ func TestMerkle2Tx(t *testing.T) {
 
 	for i, merkle := range merkles {
 		assert.Equal(t, len(merkle), 32)
-		t.Logf("%d:%v", i, EncodeB64(merkle))
+		t.Logf("%d:%v", i, base64.Encode(merkle))
 	}
 }
 
@@ -123,7 +114,7 @@ func TestMerkle3Tx(t *testing.T) {
 	for i, merkle := range merkles {
 		assert.NotNil(t, merkle, "nil=%d", i)
 		assert.Equal(t, len(merkle), 32)
-		t.Logf("%d:%v", i, EncodeB64(merkle))
+		t.Logf("%d:%v", i, base64.Encode(merkle))
 	}
 }
 
