@@ -7,9 +7,9 @@ import (
 	"io"
 	"os"
 
-	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
 	"github.com/aergoio/aergo/v2/internal/enc/proto"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/jsonrpc"
 	"github.com/spf13/cobra"
 )
 

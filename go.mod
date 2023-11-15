@@ -7,12 +7,14 @@ require (
 	github.com/aergoio/aergo-lib v1.1.0
 	github.com/aergoio/etcd v0.0.0-20190429013412-e8b3f96f6399
 	github.com/anaskhan96/base58check v0.0.0-20181220122047-b05365d494c4
+	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2
 	github.com/bluele/gcache v0.0.0-20190518031135-bc40bd653833
 	github.com/btcsuite/btcd v0.0.0-20190824003749-130ea5bddde3
 	github.com/c-bata/go-prompt v0.2.3
 	github.com/coreos/go-semver v0.3.0
 	github.com/davecgh/go-spew v1.1.1
 	github.com/derekparker/trie v0.0.0-20190322172448-1ce4922c7ad9
+	github.com/didip/tollbooth v4.0.2+incompatible
 	github.com/emirpasic/gods v1.12.0
 	github.com/fsnotify/fsnotify v1.4.8-0.20180830220226-ccc981bf8038
 	github.com/funkygao/golib v0.0.0-20180314131852-90d4905c1961
@@ -35,6 +37,7 @@ require (
 	github.com/multiformats/go-multiaddr-net v0.1.0
 	github.com/opentracing/opentracing-go v1.1.0
 	github.com/pkg/errors v0.9.1
+	github.com/rs/cors v1.7.0
 	github.com/rs/zerolog v1.29.1
 	github.com/sanity-io/litter v1.5.5
 	github.com/soheilhy/cmux v0.1.4
@@ -51,8 +54,6 @@ require (
 	github.com/Workiva/go-datastructures v1.0.50 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.1.1 // indirect
-	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
-	github.com/beorn7/perks v1.0.0 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/coreos/go-systemd v0.0.0-20190321100706-95778dfbb74e // indirect
@@ -60,7 +61,6 @@ require (
 	github.com/desertbit/timer v0.0.0-20180107155436-c41aec40b27f // indirect
 	github.com/dgraph-io/badger/v3 v3.2103.2 // indirect
 	github.com/dgraph-io/ristretto v0.1.0 // indirect
-	github.com/didip/tollbooth v4.0.2+incompatible // indirect
 	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/funkygao/assert v0.0.0-20160929004900-4a267e33bc79 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
@@ -132,7 +132,6 @@ require (
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.15.0 // indirect
 	github.com/prometheus/procfs v0.3.0 // indirect
-	github.com/rs/cors v1.7.0 // indirect
 	github.com/serialx/hashring v0.0.0-20190515033939-7706f26af194 // indirect
 	github.com/smola/gocompat v0.2.0 // indirect
 	github.com/spacemonkeygo/spacelog v0.0.0-20180420211403-2296661a0572 // indirect
