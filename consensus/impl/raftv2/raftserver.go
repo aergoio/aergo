@@ -30,6 +30,7 @@ import (
 
 	"github.com/aergoio/aergo/v2/chain"
 	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/internal/enc/proto"
 	"github.com/aergoio/aergo/v2/message"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/aergoio/aergo/v2/pkg/component"
@@ -40,7 +41,6 @@ import (
 	"github.com/aergoio/etcd/raft/raftpb"
 	"github.com/aergoio/etcd/rafthttp"
 	"github.com/aergoio/etcd/snap"
-	"github.com/golang/protobuf/proto"
 )
 
 const (
@@ -1527,7 +1527,7 @@ func (rs *raftServer) GetExistingCluster() (*Cluster, *types.HardStateInfo, erro
 func marshalEntryData(block *types.Block) ([]byte, error) {
 	var data []byte
 	var err error
-	if data, err = proto.Marshal(block); err != nil {
+	if data, err = proto.Encode(block); err != nil {
 		logger.Fatal().Err(err).Msg("poposed data is invalid")
 	}
 
@@ -1540,7 +1540,7 @@ var (
 
 func unmarshalEntryData(data []byte) (*types.Block, error) {
 	block := &types.Block{}
-	if err := proto.Unmarshal(data, block); err != nil {
+	if err := proto.Decode(data, block); err != nil {
 		return block, ErrUnmarshal
 	}
 

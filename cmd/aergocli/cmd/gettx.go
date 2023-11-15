@@ -8,9 +8,9 @@ package cmd
 import (
 	"context"
 
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	aergorpc "github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/jsonrpc"
-	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
 )
 
