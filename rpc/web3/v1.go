@@ -3,7 +3,6 @@ package web3
 import (
 	"bytes"
 	"crypto/sha256"
-	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -14,11 +13,12 @@ import (
 	"strings"
 
 	"github.com/aergoio/aergo/v2/internal/common"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/internal/enc/base64"
 	"github.com/aergoio/aergo/v2/rpc"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/jsonrpc"
 	"github.com/asaskevich/govalidator"
-	"github.com/mr-tron/base58"
 )
 
 type Web3APIv1 struct {
@@ -1200,7 +1200,7 @@ func (api *Web3APIv1) GetConfChangeProgress() (handler http.Handler, ok bool) {
 	request := &types.SingleBytes{}
 	hash := values.Get("hash")
 	if hash != "" {
-		hashBytes, err := base64.StdEncoding.DecodeString(hash)
+		hashBytes, err := base64.Decode(hash)
 		if err != nil {
 			return commonResponseHandler(&types.Empty{}, err), true
 		}

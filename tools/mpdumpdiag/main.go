@@ -7,9 +7,9 @@ import (
 	"io"
 	"os"
 
+	"github.com/aergoio/aergo/v2/internal/enc/proto"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/jsonrpc"
-	"github.com/golang/protobuf/proto"
 	"github.com/spf13/cobra"
 )
 
@@ -74,7 +74,7 @@ func runPrintCmd(cmd *cobra.Command, args []string) {
 			break
 		}
 
-		err = proto.Unmarshal(buffer, &buf)
+		err = proto.Decode(buffer, &buf)
 		if err != nil {
 			cmd.Println("error: unmarshall tx err, continue", err.Error())
 			continue
@@ -111,7 +111,7 @@ func runGenCmd(cmd *cobra.Command, args []string) {
 	txlist, err := jsonrpc.ParseBase58Tx(b)
 	for _, v := range txlist {
 		var total_data []byte
-		data, err := proto.Marshal(v)
+		data, err := proto.Encode(v)
 		if err != nil {
 			cmd.Println("error: marshal failed", err.Error())
 			continue

@@ -1,24 +1,24 @@
 package vm_direct
 
 import (
-	"errors"
-	"math/big"
 	"bytes"
-	"encoding/json"
 	"context"
-	"os"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"math/big"
+	"os"
 	"time"
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/v2/consensus"
 	"github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/consensus"
 	"github.com/aergoio/aergo/v2/contract"
 	"github.com/aergoio/aergo/v2/contract/name"
 	"github.com/aergoio/aergo/v2/contract/system"
 	"github.com/aergoio/aergo/v2/fee"
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
 )
@@ -26,9 +26,9 @@ import (
 type ChainType int
 
 const (
-  ChainTypeMainNet ChainType = iota
-  ChainTypeTestNet
-  ChainTypeUnitTest
+	ChainTypeMainNet ChainType = iota
+	ChainTypeTestNet
+	ChainTypeUnitTest
 )
 
 const (
@@ -191,14 +191,13 @@ func (bc *DummyChain) SetCoinbaseAccount(address []byte) {
 
 ////////////////////////////////////////////////////////////////////////
 
-
 func (bc *DummyChain) newBlockState() *state.BlockState {
 	bc.cBlock = &types.Block{
 		Header: &types.BlockHeader{
 			PrevBlockHash: bc.bestBlockId[:],
 			BlockNo:       bc.bestBlockNo + 1,
 			Timestamp:     bc.getTimestamp(),
-			ChainID:       types.MakeChainId(bc.bestBlock.GetHeader().ChainID, bc.HardforkConfig.Version(bc.bestBlockNo + 1)),
+			ChainID:       types.MakeChainId(bc.bestBlock.GetHeader().ChainID, bc.HardforkConfig.Version(bc.bestBlockNo+1)),
 		},
 	}
 	return state.NewBlockState(
@@ -207,7 +206,6 @@ func (bc *DummyChain) newBlockState() *state.BlockState {
 		state.SetGasPrice(bc.gasPrice),
 	)
 }
-
 
 func (bc *DummyChain) ExecuteTxs(txs []*types.Tx) ([]*types.Receipt, error) {
 
@@ -254,7 +252,7 @@ func newBlockExecutor(bc *DummyChain, txs []*types.Tx) (*blockExecutor, error) {
 
 	blockState.SetGasPrice(system.GetGasPriceFromState(blockState))
 
-	blockState.Receipts().SetHardFork(bc.HardforkConfig, bc.bestBlockNo + 1)
+	blockState.Receipts().SetHardFork(bc.HardforkConfig, bc.bestBlockNo+1)
 
 	return &blockExecutor{
 		BlockState:       blockState,
@@ -265,7 +263,7 @@ func newBlockExecutor(bc *DummyChain, txs []*types.Tx) (*blockExecutor, error) {
 		//validatePost: func() error {
 		//	return cs.validator.ValidatePost(blockState.GetRoot(), blockState.Receipts(), block)
 		//},
-		bi:               bi,
+		bi: bi,
 	}, nil
 
 }
@@ -285,7 +283,7 @@ func NewTxExecutor(execCtx context.Context, ccc consensus.ChainConsensusCluster,
 
 		err := executeTx(execCtx, ccc, cdb, blockState, tx, bi, preloadService)
 		if err != nil {
-			logger.Error().Err(err).Str("hash", enc.ToString(tx.GetHash())).Msg("tx failed")
+			logger.Error().Err(err).Str("hash", base58.Encode(tx.GetHash())).Msg("tx failed")
 			if err2 := blockState.Rollback(blockSnap); err2 != nil {
 				logger.Panic().Err(err).Msg("failed to rollback block state")
 			}
@@ -448,21 +446,21 @@ func executeTx(
 				senderState.Balance = amount.Bytes()
 			}
 		}
-		case types.TxType_FEEDELEGATION:
-			if balance.Cmp(amount) <= 0 {
-				// set the balance as = amount
-				senderState.Balance = amount.Bytes()
-			}
+	case types.TxType_FEEDELEGATION:
+		if balance.Cmp(amount) <= 0 {
+			// set the balance as = amount
+			senderState.Balance = amount.Bytes()
+		}
 	}
 
 	err = tx.ValidateWithSenderState(senderState, bs.GasPrice, bi.ForkVersion)
 	if err != nil {
-			err = fmt.Errorf("%w: balance %s, amount %s, gasPrice %s, block %v, txhash: %s",
-				err,
-				sender.Balance().String(),
-				tx.GetBody().GetAmountBigInt().String(),
-				bs.GasPrice.String(),
-				bi.No, enc.ToString(tx.GetHash()))
+		err = fmt.Errorf("%w: balance %s, amount %s, gasPrice %s, block %v, txhash: %s",
+			err,
+			sender.Balance().String(),
+			tx.GetBody().GetAmountBigInt().String(),
+			bs.GasPrice.String(),
+			bi.No, base58.Encode(tx.GetHash()))
 		return err
 	}
 
@@ -496,17 +494,12 @@ func executeTx(
 		txFee = new(big.Int).SetUint64(0)
 		events, err = executeGovernanceTx(ccc, bs, txBody, sender, receiver, bi)
 		if err != nil {
-			logger.Warn().Err(err).Str("txhash", enc.ToString(tx.GetHash())).Msg("governance tx Error")
+			logger.Warn().Err(err).Str("txhash", base58.Encode(tx.GetHash())).Msg("governance tx Error")
 		}
 	case types.TxType_FEEDELEGATION:
-		balance := receiver.Balance()
-		var fee *big.Int
-		fee, err = tx.GetMaxFee(balance, bs.GasPrice, bi.ForkVersion)
+		err = tx.ValidateMaxFee(receiver.Balance(), bs.GasPrice, bi.ForkVersion)
 		if err != nil {
 			return err
-		}
-		if fee.Cmp(balance) > 0 {
-			return types.ErrInsufficientBalance
 		}
 		var contractState *state.ContractState
 		contractState, err = bs.OpenContractState(receiver.AccountID(), receiver.State())
@@ -517,7 +510,7 @@ func executeTx(
 			tx.GetHash(), txBody.GetAccount(), txBody.GetAmount())
 		if err != nil {
 			if err != types.ErrNotAllowedFeeDelegation {
-				logger.Warn().Err(err).Str("txhash", enc.ToString(tx.GetHash())).Msg("checkFeeDelegation Error")
+				logger.Warn().Err(err).Str("txhash", base58.Encode(tx.GetHash())).Msg("checkFeeDelegation Error")
 				return err
 			}
 			return types.ErrNotAllowedFeeDelegation
@@ -582,7 +575,8 @@ func executeTx(
 	receipt.TxHash = tx.GetHash()
 	receipt.Events = events
 	receipt.FeeDelegation = txBody.Type == types.TxType_FEEDELEGATION
-	receipt.GasUsed = contract.GasUsed(txFee, bs.GasPrice, txBody.Type, bi.ForkVersion)
+	isGovernance := txBody.Type == types.TxType_GOVERNANCE
+	receipt.GasUsed = fee.ReceiptGasUsed(bi.ForkVersion, isGovernance, txFee, bs.GasPrice)
 
 	return bs.AddReceipt(receipt)
 }

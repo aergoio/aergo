@@ -8,11 +8,10 @@ import (
 	"math/big"
 	"sort"
 
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/dbkey"
-	"github.com/mr-tron/base58"
 )
 
 type VoteResult struct {
@@ -99,7 +98,7 @@ func (vr *VoteResult) buildVoteList() *types.VoteList {
 		if vr.ex {
 			vote.Candidate = []byte(k)
 		} else {
-			vote.Candidate, _ = enc.ToBytes(k)
+			vote.Candidate, _ = base58.Decode(k)
 		}
 		voteList.Votes = append(voteList.Votes, vote)
 	}

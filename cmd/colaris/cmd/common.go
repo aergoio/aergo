@@ -8,9 +8,9 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/aergoio/aergo/v2/internal/enc/proto"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/jsonrpc/encoding/json"
-	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc"
 )
 

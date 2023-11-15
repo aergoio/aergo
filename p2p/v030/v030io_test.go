@@ -13,11 +13,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/internal/enc/proto"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/gofrs/uuid"
-	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -48,7 +48,7 @@ func init() {
 	sampleTxs = make([][]byte, len(sampleTxsB58))
 	sampleTxHashes = make([]types.TxID, len(sampleTxsB58))
 	for i, hashb58 := range sampleTxsB58 {
-		hash, _ := enc.ToBytes(hashb58)
+		hash, _ := base58.Decode(hashb58)
 		sampleTxs[i] = hash
 		copy(sampleTxHashes[i][:], hash)
 	}
@@ -56,7 +56,7 @@ func init() {
 	sampleBlks = make([][]byte, len(sampleBlksB58))
 	sampleBlksHashes = make([]types.BlockID, len(sampleBlksB58))
 	for i, hashb58 := range sampleTxsB58 {
-		hash, _ := enc.ToBytes(hashb58)
+		hash, _ := base58.Decode(hashb58)
 		sampleBlks[i] = hash
 		copy(sampleBlksHashes[i][:], hash)
 	}
@@ -86,7 +86,7 @@ func Test_ReadWrite(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			sizeChecker, sizeChecker2 := ioSum{}, ioSum{}
 			samplePData := &types.NewTransactionsNotice{TxHashes: test.ids}
-			payload, _ := proto.Marshal(samplePData)
+			payload, _ := proto.Encode(samplePData)
 			sample := p2pcommon.NewMessageValue(p2pcommon.NewTxNotice, sampleID, p2pcommon.EmptyID, time.Now().UnixNano(), payload)
 
 			buf := bytes.NewBuffer(nil)
@@ -138,7 +138,7 @@ func TestV030Writer_WriteError(t *testing.T) {
 	//sampleUUID, _ := uuid.NewRandom()
 	//copy(sampleID[:], sampleUUID[:])
 	//samplePData := &types.NewTransactionsNotice{TxHashes:sampleTxs}
-	//payload, _ := proto.Marshal(samplePData)
+	//payload, _ := proto.Encode(samplePData)
 	//sample := &MessageValue{subProtocol: subproto.NewTxNotice, id: sampleID, timestamp: time.Now().UnixNano(), length: uint32(len(payload)), payload: payload}
 	//mockWriter := make(MockWriter)
 	//mockWriter.On("Write", mock.Anything).Return(fmt.Errorf("writer error"))
@@ -154,14 +154,14 @@ func BenchmarkV030Writer_WriteMsg(b *testing.B) {
 	timestamp := time.Now().UnixNano()
 
 	smallPData := &types.NewTransactionsNotice{}
-	payload, _ := proto.Marshal(smallPData)
+	payload, _ := proto.Encode(smallPData)
 	smallMsg := p2pcommon.NewMessageValue(p2pcommon.NewTxNotice, sampleID, p2pcommon.EmptyID, timestamp, payload)
 	bigHashes := make([][]byte, 0, len(sampleTxs)*10000)
 	for i := 0; i < 10000; i++ {
 		bigHashes = append(bigHashes, sampleTxs...)
 	}
 	bigPData := &types.NewTransactionsNotice{TxHashes: bigHashes}
-	payload, _ = proto.Marshal(bigPData)
+	payload, _ = proto.Encode(bigPData)
 	bigMsg := p2pcommon.NewMessageValue(p2pcommon.NewTxNotice, sampleID, p2pcommon.EmptyID, timestamp, payload)
 
 	benchmarks := []struct {
@@ -198,7 +198,7 @@ func BenchmarkV030Reader_ReadMsg(b *testing.B) {
 	timestamp := time.Now().UnixNano()
 
 	smallPData := &types.NewTransactionsNotice{}
-	payload, _ := proto.Marshal(smallPData)
+	payload, _ := proto.Encode(smallPData)
 	smallMsg := p2pcommon.NewMessageValue(p2pcommon.NewTxNotice, sampleID, p2pcommon.EmptyID, timestamp, payload)
 	smallBytes := getMarshaledV030(smallMsg, 1)
 	bigHashes := make([][]byte, 0, len(sampleTxs)*10000)
@@ -206,7 +206,7 @@ func BenchmarkV030Reader_ReadMsg(b *testing.B) {
 		bigHashes = append(bigHashes, sampleTxs...)
 	}
 	bigPData := &types.NewTransactionsNotice{TxHashes: bigHashes}
-	payload, _ = proto.Marshal(bigPData)
+	payload, _ = proto.Encode(bigPData)
 	bigMsg := p2pcommon.NewMessageValue(p2pcommon.NewTxNotice, sampleID, p2pcommon.EmptyID, timestamp, payload)
 	bigBytes := getMarshaledV030(bigMsg, 1)
 

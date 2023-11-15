@@ -1,13 +1,13 @@
 package cmd
 
 import (
-	"encoding/hex"
 	"testing"
 
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/internal/enc/hex"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/jsonrpc/encoding/json"
 	"github.com/golang/mock/gomock"
-	"github.com/mr-tron/base58/base58"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -49,6 +49,6 @@ func TestBlockchainWithMock(t *testing.T) {
 		t.Fatal(err)
 	}
 	testBlockHashByte, _ := base58.Decode(testBlockHashString)
-	assert.Equal(t, hex.EncodeToString(testBlockHashByte), result["Hash"])
+	assert.Equal(t, hex.Encode(testBlockHashByte), result["Hash"])
 	assert.Equal(t, float64(1), result["Height"])
 }

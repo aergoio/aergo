@@ -14,9 +14,7 @@ import (
 	"github.com/rs/cors"
 )
 
-type RestAPI struct {
-	rpc     *rpc.AergoRPCService
-	request *http.Request
+type Web3 struct {
 }
 
 var (

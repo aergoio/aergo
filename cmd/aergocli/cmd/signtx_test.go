@@ -6,10 +6,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/jsonrpc"
 	"github.com/aergoio/aergo/v2/types/jsonrpc/encoding/json"
-	"github.com/mr-tron/base58/base58"
 	"github.com/stretchr/testify/assert"
 )
 

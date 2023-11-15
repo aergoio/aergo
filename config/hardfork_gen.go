@@ -47,7 +47,6 @@ func (dc HardforkDbConfig) FixDbConfig(hConfig HardforkConfig) HardforkDbConfig 
 	return dc
 }
 
-
 func (c *HardforkConfig) IsV2Fork(h types.BlockNo) bool {
 	return isFork(c.V2, h)
 }
@@ -81,7 +80,7 @@ func (c *HardforkConfig) Version(h types.BlockNo) int32 {
 
 func (c *HardforkConfig) Height(verStr string) types.BlockNo {
 	v := reflect.ValueOf(c)
-    f := reflect.Indirect(v).FieldByName(verStr)
+	f := reflect.Indirect(v).FieldByName(verStr)
 	return types.BlockNo(f.Uint())
 }
 
