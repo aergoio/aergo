@@ -41,14 +41,14 @@ func execGetTX(cmd *cobra.Command, args []string) {
 	}
 	msg, err := client.GetTX(context.Background(), &aergorpc.SingleBytes{Value: txHash})
 	if err == nil {
-		cmd.Println(jsonrpc.ConvTxEx(msg, payloadEncodingType))
+		cmd.Println(jsonrpc.ConvTx(msg, payloadEncodingType))
 	} else {
 		msgblock, err := client.GetBlockTX(context.Background(), &aergorpc.SingleBytes{Value: txHash})
 		if err != nil {
 			cmd.Printf("Failed: %s", err.Error())
 			return
 		}
-		cmd.Println(jsonrpc.ConvTxInBlockEx(msgblock, payloadEncodingType))
+		cmd.Println(jsonrpc.ConvTxInBlock(msgblock, payloadEncodingType))
 	}
 
 }

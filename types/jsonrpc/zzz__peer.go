@@ -8,6 +8,27 @@ import (
 	"github.com/aergoio/aergo/v2/types"
 )
 
+func ConvPeer(msg *types.Peer) *InOutPeer {
+	p := &InOutPeer{}
+	p.Role = msg.AcceptedRole.String()
+	if msg.GetAddress() != nil {
+		p.Address = *ConvPeerAddress(msg.GetAddress())
+	}
+	if msg.GetBestblock() != nil {
+		p.BestBlock = *ConvBlockIdx(msg.GetBestblock())
+	}
+	p.LastCheck = time.Unix(0, msg.GetLashCheck())
+	p.State = types.PeerState(msg.State).String()
+	p.Hidden = msg.Hidden
+	p.Self = msg.Selfpeer
+	if msg.Version != "" {
+		p.Version = msg.Version
+	} else {
+		p.Version = "(old)"
+	}
+	return p
+}
+
 type InOutPeer struct {
 	Role      string
 	Address   InOutPeerAddress
@@ -19,23 +40,12 @@ type InOutPeer struct {
 	Version   string
 }
 
-func (p *InOutPeer) FromProto(msg *types.Peer) {
-	p.Role = msg.AcceptedRole.String()
-	if msg.GetAddress() != nil {
-		p.Address.FromProto(msg.GetAddress())
-	}
-	if msg.GetBestblock() != nil {
-		p.BestBlock.FromProto(msg.GetBestblock())
-	}
-	p.LastCheck = time.Unix(0, msg.GetLashCheck())
-	p.State = types.PeerState(msg.State).String()
-	p.Hidden = msg.Hidden
-	p.Self = msg.Selfpeer
-	if msg.Version != "" {
-		p.Version = msg.Version
-	} else {
-		p.Version = "(old)"
-	}
+func ConvPeerAddress(msg *types.PeerAddress) *InOutPeerAddress {
+	pa := &InOutPeerAddress{}
+	pa.Address = msg.GetAddress()
+	pa.Port = strconv.Itoa(int(msg.GetPort()))
+	pa.PeerId = base58.Encode(msg.GetPeerID())
+	return pa
 }
 
 type InOutPeerAddress struct {
@@ -44,10 +54,23 @@ type InOutPeerAddress struct {
 	PeerId  string
 }
 
-func (pa *InOutPeerAddress) FromProto(msg *types.PeerAddress) {
-	pa.Address = msg.GetAddress()
-	pa.Port = strconv.Itoa(int(msg.GetPort()))
-	pa.PeerId = base58.Encode(msg.GetPeerID())
+func ConvLongPeer(msg *types.Peer) *LongInOutPeer {
+	p := &LongInOutPeer{}
+	p.InOutPeer = *ConvPeer(msg)
+
+	p.ProducerIDs = make([]string, len(msg.Address.ProducerIDs))
+	for i, pid := range msg.Address.ProducerIDs {
+		p.ProducerIDs[i] = base58.Encode(pid)
+	}
+
+	if msg.Address.Role == types.PeerRole_Agent {
+		p.Certificates = make([]*InOutCert, len(msg.Certificates))
+		for i, cert := range msg.Certificates {
+			p.Certificates[i] = &InOutCert{}
+			p.Certificates[i] = ConvCert(cert)
+		}
+	}
+	return p
 }
 
 type LongInOutPeer struct {
@@ -56,21 +79,18 @@ type LongInOutPeer struct {
 	Certificates []*InOutCert
 }
 
-func (out *LongInOutPeer) FromProto(p *types.Peer) {
-	out.InOutPeer.FromProto(p)
-
-	out.ProducerIDs = make([]string, len(p.Address.ProducerIDs))
-	for i, pid := range p.Address.ProducerIDs {
-		out.ProducerIDs[i] = base58.Encode(pid)
+func ConvCert(msg *types.AgentCertificate) *InOutCert {
+	c := &InOutCert{}
+	c.CertVersion = msg.CertVersion
+	c.ProducerID = base58.Encode(msg.BPID)
+	c.AgentID = base58.Encode(msg.AgentID)
+	c.CreateTime = time.Unix(0, msg.CreateTime)
+	c.ExpireTime = time.Unix(0, msg.ExpireTime)
+	c.Addresses = []string{}
+	for _, ad := range msg.AgentAddress {
+		c.Addresses = append(c.Addresses, string(ad))
 	}
-
-	if p.Address.Role == types.PeerRole_Agent {
-		out.Certificates = make([]*InOutCert, len(p.Certificates))
-		for i, cert := range p.Certificates {
-			out.Certificates[i] = &InOutCert{}
-			out.Certificates[i].FromProto(cert)
-		}
-	}
+	return c
 }
 
 type InOutCert struct {
@@ -80,16 +100,4 @@ type InOutCert struct {
 	ExpireTime  time.Time
 	AgentID     string
 	Addresses   []string
-}
-
-func (out *InOutCert) FromProto(msg *types.AgentCertificate) {
-	out.CertVersion = msg.CertVersion
-	out.ProducerID = base58.Encode(msg.BPID)
-	out.AgentID = base58.Encode(msg.AgentID)
-	out.CreateTime = time.Unix(0, msg.CreateTime)
-	out.ExpireTime = time.Unix(0, msg.ExpireTime)
-	out.Addresses = []string{}
-	for _, ad := range msg.AgentAddress {
-		out.Addresses = append(out.Addresses, string(ad))
-	}
 }

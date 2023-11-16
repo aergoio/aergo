@@ -8,22 +8,8 @@ import (
 	"github.com/aergoio/aergo/v2/types"
 )
 
-type InOutBlockchainStatus struct {
-	Hash          string
-	Height        uint64
-	ConsensusInfo *json.RawMessage `json:",omitempty"`
-	ChainIdHash   string
-	ChainStat     *json.RawMessage `json:",omitempty"`
-	ChainInfo     *InOutChainInfo  `json:",omitempty"`
-}
-
-func (bs *InOutBlockchainStatus) FromProtoHex(msg *types.BlockchainStatus) {
-	bs.Hash = hex.Encode(msg.BestBlockHash)
-	bs.Height = msg.BestHeight
-	bs.ChainIdHash = hex.Encode(msg.BestChainIdHash)
-}
-
-func (bs *InOutBlockchainStatus) FromProtoBase58(msg *types.BlockchainStatus) {
+func ConvBlockchainStatus(msg *types.BlockchainStatus) *InOutBlockchainStatus {
+	bs := &InOutBlockchainStatus{}
 	bs.Hash = base58.Encode(msg.BestBlockHash)
 	bs.Height = msg.BestHeight
 	bs.ChainIdHash = base58.Encode(msg.BestChainIdHash)
@@ -37,6 +23,24 @@ func (bs *InOutBlockchainStatus) FromProtoBase58(msg *types.BlockchainStatus) {
 	}
 	bs.ConsensusInfo = toJRM(msg.ConsensusInfo)
 	if msg.ChainInfo != nil {
-		bs.ChainInfo.FromProto(msg.ChainInfo)
+		bs.ChainInfo = ConvChainInfo(msg.ChainInfo)
 	}
+	return bs
+}
+
+func ConvHexBlockchainStatus(msg *types.BlockchainStatus) *InOutBlockchainStatus {
+	bs := &InOutBlockchainStatus{}
+	bs.Hash = hex.Encode(msg.BestBlockHash)
+	bs.Height = msg.BestHeight
+	bs.ChainIdHash = hex.Encode(msg.BestChainIdHash)
+	return bs
+}
+
+type InOutBlockchainStatus struct {
+	Hash          string
+	Height        uint64
+	ConsensusInfo *json.RawMessage `json:",omitempty"`
+	ChainIdHash   string
+	ChainStat     *json.RawMessage `json:",omitempty"`
+	ChainInfo     *InOutChainInfo  `json:",omitempty"`
 }

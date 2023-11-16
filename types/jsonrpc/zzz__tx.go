@@ -8,36 +8,26 @@ import (
 	"github.com/aergoio/aergo/v2/types"
 )
 
+func ConvTx(msg *types.Tx, payloadType EncodingType) (tx *InOutTx) {
+	tx = &InOutTx{}
+	tx.Body = &InOutTxBody{}
+	if msg == nil {
+		return
+	}
+	tx.Hash = base58.Encode(msg.Hash)
+	if msg.Body != nil {
+		tx.Body = ConvTxBody(msg.Body, payloadType)
+	}
+	return tx
+}
+
 type InOutTx struct {
 	Hash string       `json:",omitempty"`
 	Body *InOutTxBody `json:",omitempty"`
 }
 
-func (t *InOutTx) FromProto(msg *types.Tx, payloadType EncodingType) {
-	t.Body = &InOutTxBody{}
-	if msg == nil {
-		return
-	}
-	t.Hash = base58.Encode(msg.Hash)
-	if msg.Body != nil {
-		t.Body.FromProto(msg.Body, payloadType)
-	}
-}
-
-type InOutTxBody struct {
-	Nonce       uint64       `json:",omitempty"`
-	Account     string       `json:",omitempty"`
-	Recipient   string       `json:",omitempty"`
-	Amount      string       `json:",omitempty"`
-	Payload     string       `json:",omitempty"`
-	GasLimit    uint64       `json:",omitempty"`
-	GasPrice    string       `json:",omitempty"`
-	Type        types.TxType `json:",omitempty"`
-	ChainIdHash string       `json:",omitempty"`
-	Sign        string       `json:",omitempty"`
-}
-
-func (tb *InOutTxBody) FromProto(msg *types.TxBody, payloadType EncodingType) {
+func ConvTxBody(msg *types.TxBody, payloadType EncodingType) *InOutTxBody {
+	tb := &InOutTxBody{}
 	tb.Nonce = msg.Nonce
 	if msg.Account != nil {
 		tb.Account = types.EncodeAddress(msg.Account)
@@ -61,12 +51,14 @@ func (tb *InOutTxBody) FromProto(msg *types.TxBody, payloadType EncodingType) {
 	tb.ChainIdHash = base58.Encode(msg.ChainIdHash)
 	tb.Sign = base58.Encode(msg.Sign)
 	tb.Type = msg.Type
+	return tb
 }
 
-func (tb *InOutTxBody) ToProto() (msg *types.TxBody, err error) {
+func ParseTxBody(tb *InOutTxBody) (msg *types.TxBody, err error) {
 	if tb == nil {
 		return nil, errors.New("tx body is empty")
 	}
+	msg = &types.TxBody{}
 
 	msg.Nonce = tb.Nonce
 	if tb.Account != "" {
@@ -118,29 +110,46 @@ func (tb *InOutTxBody) ToProto() (msg *types.TxBody, err error) {
 	return msg, nil
 }
 
+type InOutTxBody struct {
+	Nonce       uint64       `json:",omitempty"`
+	Account     string       `json:",omitempty"`
+	Recipient   string       `json:",omitempty"`
+	Amount      string       `json:",omitempty"`
+	Payload     string       `json:",omitempty"`
+	GasLimit    uint64       `json:",omitempty"`
+	GasPrice    string       `json:",omitempty"`
+	Type        types.TxType `json:",omitempty"`
+	ChainIdHash string       `json:",omitempty"`
+	Sign        string       `json:",omitempty"`
+}
+
+func ConvTxInBlock(msg *types.TxInBlock, payloadType EncodingType) *InOutTxInBlock {
+	tib := &InOutTxInBlock{}
+	tib.TxIdx = &InOutTxIdx{}
+	tib.Tx = &InOutTx{}
+
+	if msg.GetTxIdx() != nil {
+		tib.TxIdx = ConvTxIdx(msg.GetTxIdx())
+	}
+	if msg.GetTx() != nil {
+		tib.Tx = ConvTx(msg.GetTx(), payloadType)
+	}
+	return tib
+}
+
 type InOutTxInBlock struct {
 	TxIdx *InOutTxIdx
 	Tx    *InOutTx
 }
 
-func (tib *InOutTxInBlock) FromProto(txInBlock *types.TxInBlock, payloadType EncodingType) {
-	tib.TxIdx = &InOutTxIdx{}
-	tib.Tx = &InOutTx{}
-
-	if txInBlock.GetTxIdx() != nil {
-		tib.TxIdx.FromProto(txInBlock.GetTxIdx())
-	}
-	if txInBlock.GetTx() != nil {
-		tib.Tx.FromProto(txInBlock.GetTx(), payloadType)
-	}
+func ConvTxIdx(msg *types.TxIdx) *InOutTxIdx {
+	ti := &InOutTxIdx{}
+	ti.BlockHash = base58.Encode(msg.GetBlockHash())
+	ti.Idx = msg.GetIdx()
+	return ti
 }
 
 type InOutTxIdx struct {
 	BlockHash string
 	Idx       int32
-}
-
-func (ti *InOutTxIdx) FromProto(msg *types.TxIdx) {
-	ti.BlockHash = base58.Encode(msg.GetBlockHash())
-	ti.Idx = msg.GetIdx()
 }

@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/big"
-	"strconv"
 	"time"
 
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
@@ -115,97 +113,6 @@ func ParseBase58TxBody(jsonTx []byte) (*types.TxBody, error) {
 	return body, nil
 }
 
-func ConvTxEx(tx *types.Tx, payloadType EncodingType) *InOutTx {
-	out := &InOutTx{Body: &InOutTxBody{}}
-	if tx == nil {
-		return out
-	}
-	out.Hash = base58.Encode(tx.Hash)
-	out.Body.Nonce = tx.Body.Nonce
-	if tx.Body.Account != nil {
-		out.Body.Account = types.EncodeAddress(tx.Body.Account)
-	}
-	if tx.Body.Recipient != nil {
-		out.Body.Recipient = types.EncodeAddress(tx.Body.Recipient)
-	}
-	if tx.Body.Amount != nil {
-		out.Body.Amount = new(big.Int).SetBytes(tx.Body.Amount).String()
-	}
-	switch payloadType {
-	case Raw:
-		out.Body.Payload = string(tx.Body.Payload)
-	case Base58:
-		out.Body.Payload = base58.Encode(tx.Body.Payload)
-	}
-	out.Body.GasLimit = tx.Body.GasLimit
-	if tx.Body.GasPrice != nil {
-		out.Body.GasPrice = new(big.Int).SetBytes(tx.Body.GasPrice).String()
-	}
-	out.Body.ChainIdHash = base58.Encode(tx.Body.ChainIdHash)
-	out.Body.Sign = base58.Encode(tx.Body.Sign)
-	out.Body.Type = tx.Body.Type
-	return out
-}
-
-func ConvTxInBlockEx(txInBlock *types.TxInBlock, payloadType EncodingType) *InOutTxInBlock {
-	out := &InOutTxInBlock{TxIdx: &InOutTxIdx{}, Tx: &InOutTx{}}
-	out.TxIdx.BlockHash = base58.Encode(txInBlock.GetTxIdx().GetBlockHash())
-	out.TxIdx.Idx = txInBlock.GetTxIdx().GetIdx()
-	out.Tx = ConvTxEx(txInBlock.GetTx(), payloadType)
-	return out
-}
-
-func ConvBlock(b *types.Block) *InOutBlock {
-	out := &InOutBlock{}
-	if b != nil {
-		out.Hash = base58.Encode(b.Hash)
-		out.Header.ChainID = base58.Encode(b.GetHeader().GetChainID())
-		out.Header.Version = types.DecodeChainIdVersion(b.GetHeader().GetChainID())
-		out.Header.PrevBlockHash = base58.Encode(b.GetHeader().GetPrevBlockHash())
-		out.Header.BlockNo = b.GetHeader().GetBlockNo()
-		out.Header.Timestamp = b.GetHeader().GetTimestamp()
-		out.Header.BlockRootHash = base58.Encode(b.GetHeader().GetBlocksRootHash())
-		out.Header.TxRootHash = base58.Encode(b.GetHeader().GetTxsRootHash())
-		out.Header.ReceiptsRootHash = base58.Encode(b.GetHeader().GetReceiptsRootHash())
-		out.Header.Confirms = b.GetHeader().GetConfirms()
-		out.Header.PubKey = base58.Encode(b.GetHeader().GetPubKey())
-		out.Header.Sign = base58.Encode(b.GetHeader().GetSign())
-		if b.GetHeader().GetCoinbaseAccount() != nil {
-			out.Header.CoinbaseAccount = types.EncodeAddress(b.GetHeader().GetCoinbaseAccount())
-		}
-		if consensus := b.GetHeader().GetConsensus(); consensus != nil {
-			out.Header.Consensus = types.EncodeAddress(consensus)
-		}
-
-		if b.Body != nil {
-			for _, tx := range b.Body.Txs {
-				out.Body.Txs = append(out.Body.Txs, ConvTx(tx))
-			}
-		}
-	}
-	return out
-}
-
-func ConvPeer(p *types.Peer) *InOutPeer {
-	out := &InOutPeer{}
-	out.Role = p.AcceptedRole.String()
-	out.Address.Address = p.GetAddress().GetAddress()
-	out.Address.Port = strconv.Itoa(int(p.GetAddress().GetPort()))
-	out.Address.PeerId = base58.Encode(p.GetAddress().GetPeerID())
-	out.LastCheck = time.Unix(0, p.GetLashCheck())
-	out.BestBlock.BlockNo = p.GetBestblock().GetBlockNo()
-	out.BestBlock.BlockHash = base58.Encode(p.GetBestblock().GetBlockHash())
-	out.State = types.PeerState(p.State).String()
-	out.Hidden = p.Hidden
-	out.Self = p.Selfpeer
-	if p.Version != "" {
-		out.Version = p.Version
-	} else {
-		out.Version = "(old)"
-	}
-	return out
-}
-
 func ConvPeerLong(p *types.Peer) *LongInOutPeer {
 	out := &LongInOutPeer{InOutPeer: *ConvPeer(p)}
 	out.ProducerIDs = make([]string, len(p.Address.ProducerIDs))
@@ -226,34 +133,6 @@ func ConvPeerLong(p *types.Peer) *LongInOutPeer {
 		}
 	}
 	return out
-}
-
-func ConvBlockchainStatus(in *types.BlockchainStatus) string {
-	out := &InOutBlockchainStatus{}
-	if in == nil {
-		return ""
-	}
-	out.Hash = base58.Encode(in.BestBlockHash)
-	out.Height = in.BestHeight
-
-	out.ChainIdHash = base58.Encode(in.BestChainIdHash)
-
-	toJRM := func(s string) *json.RawMessage {
-		if len(s) > 0 {
-			m := json.RawMessage(s)
-			return &m
-		}
-		return nil
-	}
-	out.ConsensusInfo = toJRM(in.ConsensusInfo)
-	if in.ChainInfo != nil {
-		out.ChainInfo = convChainInfo(in.ChainInfo)
-	}
-	jsonout, err := json.Marshal(out)
-	if err != nil {
-		return ""
-	}
-	return string(jsonout)
 }
 
 func BlockConvBase58Addr(b *types.Block) string {

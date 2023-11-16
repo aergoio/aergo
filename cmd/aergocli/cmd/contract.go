@@ -350,7 +350,8 @@ func runCallCmd(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return fmt.Errorf("failed to commit tx: %v", err.Error())
 		}
-		cmd.Println(jsonrpc.JSON(msgs.Results[0]))
+		res := jsonrpc.ConvCommitResult(msgs.Results[0])
+		cmd.Println(jsonrpc.B58JSON(res))
 	}
 	return nil
 }

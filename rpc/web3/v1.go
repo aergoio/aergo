@@ -707,14 +707,14 @@ func (api *Web3APIv1) GetTX() (handler http.Handler, ok bool) {
 
 	msg, err := api.rpc.GetTX(api.request.Context(), request)
 	if err == nil {
-		return commonResponseHandler(jsonrpc.ConvTxEx(msg, jsonrpc.Base58), nil), true
+		return commonResponseHandler(jsonrpc.ConvTx(msg, jsonrpc.Base58), nil), true
 	} else {
 		msgblock, err := api.rpc.GetBlockTX(api.request.Context(), request)
 
 		if err != nil {
 			return commonResponseHandler(&types.Empty{}, err), true
 		}
-		return commonResponseHandler(jsonrpc.ConvTxInBlockEx(msgblock, jsonrpc.Base58), nil), true
+		return commonResponseHandler(jsonrpc.ConvTxInBlock(msgblock, jsonrpc.Base58), nil), true
 	}
 
 }
@@ -741,14 +741,14 @@ func (api *Web3APIv1) GetBlockTX() (handler http.Handler, ok bool) {
 
 	msg, err := api.rpc.GetTX(api.request.Context(), request)
 	if err == nil {
-		return commonResponseHandler(jsonrpc.ConvTxEx(msg, jsonrpc.Base58), nil), true
+		return commonResponseHandler(jsonrpc.ConvTx(msg, jsonrpc.Base58), nil), true
 
 	} else {
 		msgblock, err := api.rpc.GetBlockTX(api.request.Context(), request)
 		if err != nil {
 			return commonResponseHandler(&types.Empty{}, err), true
 		}
-		return commonResponseHandler(jsonrpc.ConvTxInBlockEx(msgblock, jsonrpc.Base58), nil), true
+		return commonResponseHandler(jsonrpc.ConvTxInBlock(msgblock, jsonrpc.Base58), nil), true
 	}
 }
 

@@ -82,7 +82,7 @@ func runPrintCmd(cmd *cobra.Command, args []string) {
 		count++
 		//mp.put(types.NewTransaction(&buf)) // nolint: errcheck
 
-		out = append(out, jsonrpc.ConvTx(types.NewTransaction(&buf).GetTx()))
+		out = append(out, jsonrpc.ConvTx(types.NewTransaction(&buf).GetTx(), jsonrpc.Base58))
 	}
 	b, e := json.MarshalIndent(out, "", " ")
 	if e == nil {

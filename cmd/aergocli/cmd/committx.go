@@ -67,7 +67,8 @@ func execCommitTX(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return errors.New("Failed request to aergo server\n" + err.Error())
 		}
-		cmd.Println(jsonrpc.JSON(msg))
+		res := jsonrpc.ConvCommitResultList(msg)
+		cmd.Println(jsonrpc.B58JSON(res))
 	}
 	return nil
 }
