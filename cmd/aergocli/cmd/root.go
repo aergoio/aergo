@@ -13,7 +13,6 @@ import (
 	"os"
 
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/aergoio/aergo/v2/types/jsonrpc"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
@@ -159,7 +158,7 @@ func connectAergo(cmd *cobra.Command, args []string) {
 		opts = append(opts, grpc.WithInsecure())
 	}
 	var ok bool
-	client, ok = jsonrpc.GetClient(serverAddr, opts).(*jsonrpc.ConnClient)
+	client, ok = GetClient(serverAddr, opts).(*ConnClient)
 	if !ok {
 		log.Fatal("internal error. wrong RPC client type")
 	}

@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/aergoio/aergo/v2/types/jsonrpc"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 )
@@ -77,6 +76,6 @@ func newAergoAdminClient(sockPath string) types.AdminRPCServiceClient {
 		grpc.WithInsecure(),
 	}
 	return types.NewAdminRPCServiceClient(
-		jsonrpc.GetConn(fmt.Sprintf("unix:%s", sockPath), opts),
+		GetConn(fmt.Sprintf("unix:%s", sockPath), opts),
 	)
 }

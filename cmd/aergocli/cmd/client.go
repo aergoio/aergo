@@ -3,14 +3,12 @@
  *  @copyright defined in aergo/LICENSE.txt
  */
 
-package jsonrpc
+package cmd
 
 import (
 	"fmt"
 
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/aergoio/aergo/v2/types/jsonrpc/encoding/json"
-	protobuf "github.com/golang/protobuf/proto"
 	"google.golang.org/grpc"
 )
 
@@ -41,23 +39,4 @@ func GetConn(serverAddr string, opts []grpc.DialOption) *grpc.ClientConn {
 func (c *ConnClient) Close() {
 	c.conn.Close()
 	c.conn = nil
-}
-
-// JSON converts protobuf message(struct) to json notation
-func JSON(pb protobuf.Message) string {
-	jsonout, err := json.MarshalIndent(pb, "", " ")
-	if err != nil {
-		fmt.Printf("Failed: %s\n", err.Error())
-		return ""
-	}
-	return string(jsonout)
-}
-
-func B58JSON(i interface{}) string {
-	jsonout, err := json.MarshalIndent(i, "", " ")
-	if err != nil {
-		fmt.Printf("Failed: %s\n", err.Error())
-		return ""
-	}
-	return string(jsonout)
 }

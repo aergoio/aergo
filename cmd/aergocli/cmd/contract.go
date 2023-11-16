@@ -21,7 +21,7 @@ import (
 )
 
 var (
-	client        *jsonrpc.ConnClient
+	client        *ConnClient
 	admClient     types.AdminRPCServiceClient
 	data          string
 	nonce         uint64
