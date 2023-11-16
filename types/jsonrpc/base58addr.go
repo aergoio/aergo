@@ -13,69 +13,6 @@ import (
 	"github.com/aergoio/aergo/v2/types"
 )
 
-type InOutBlockHeader struct {
-	ChainID          string
-	Version          int32
-	PrevBlockHash    string
-	BlockNo          uint64
-	Timestamp        int64
-	BlockRootHash    string
-	TxRootHash       string
-	ReceiptsRootHash string
-	Confirms         uint64
-	PubKey           string
-	Sign             string
-	CoinbaseAccount  string
-	Consensus        string
-}
-
-type InOutBlockBody struct {
-	Txs []*InOutTx
-}
-
-type InOutBlock struct {
-	Hash   string
-	Header InOutBlockHeader
-	Body   InOutBlockBody
-}
-
-type InOutBlockIdx struct {
-	BlockHash string
-	BlockNo   uint64
-}
-
-type InOutPeerAddress struct {
-	Address string
-	Port    string
-	PeerId  string
-}
-
-type InOutPeer struct {
-	Role      string
-	Address   InOutPeerAddress
-	BestBlock InOutBlockIdx
-	LastCheck time.Time
-	State     string
-	Hidden    bool
-	Self      bool
-	Version   string
-}
-
-type LongInOutPeer struct {
-	InOutPeer
-	ProducerIDs  []string
-	Certificates []*InOutCert
-}
-
-type InOutCert struct {
-	CertVersion uint32
-	ProducerID  string
-	CreateTime  time.Time
-	ExpireTime  time.Time
-	AgentID     string
-	Addresses   []string
-}
-
 func FillTxBody(source *InOutTxBody, target *types.TxBody) error {
 	var err error
 	if source == nil {

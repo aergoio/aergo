@@ -8,27 +8,6 @@ import (
 	"github.com/aergoio/aergo/v2/types"
 )
 
-type InOutChainId struct {
-	Magic     string
-	Public    bool
-	Mainnet   bool
-	Consensus string
-	Version   int32
-}
-
-type InOutChainInfo struct {
-	Chainid          InOutChainId
-	BpNumber         uint32
-	MaxBlockSize     uint64
-	MaxTokens        string
-	StakingMinimum   string `json:",omitempty"`
-	StakingTotal     string `json:",omitempty"`
-	GasPrice         string `json:",omitempty"`
-	NamePrice        string `json:",omitempty"`
-	TotalVotingPower string `json:",omitempty"`
-	VotingReward     string `json:",omitempty"`
-}
-
 func ConvChainInfoMsg(msg *types.ChainInfo) string {
 	jsonout, err := json.MarshalIndent(convChainInfo(msg), "", " ")
 	if err != nil {

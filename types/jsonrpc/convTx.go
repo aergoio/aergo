@@ -9,34 +9,6 @@ const (
 	Base58
 )
 
-type InOutTx struct {
-	Hash string       `json:",omitempty"`
-	Body *InOutTxBody `json:",omitempty"`
-}
-
-type InOutTxBody struct {
-	Nonce       uint64       `json:",omitempty"`
-	Account     string       `json:",omitempty"`
-	Recipient   string       `json:",omitempty"`
-	Amount      string       `json:",omitempty"`
-	Payload     string       `json:",omitempty"`
-	GasLimit    uint64       `json:",omitempty"`
-	GasPrice    string       `json:",omitempty"`
-	Type        types.TxType `json:",omitempty"`
-	ChainIdHash string       `json:",omitempty"`
-	Sign        string       `json:",omitempty"`
-}
-
-type InOutTxIdx struct {
-	BlockHash string
-	Idx       int32
-}
-
-type InOutTxInBlock struct {
-	TxIdx *InOutTxIdx
-	Tx    *InOutTx
-}
-
 func (b *InOutTxBody) String() string {
 	return toString(b)
 }
