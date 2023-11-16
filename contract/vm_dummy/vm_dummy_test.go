@@ -1373,17 +1373,47 @@ func TestSqlOnConflict(t *testing.T) {
 
 		err = bc.ConnectBlock(
 			NewLuaTxCall("user1", "on_conflict", 0, `{"name":"stmt_exec", "args": ["insert into t values (5)"]}`),
-			NewLuaTxCall("user1", "on_conflict", 0, `{"name":"stmt_exec", "args": ["insert or rollback into t values (5)"]}`).Fail("syntax error"),
+			NewLuaTxCall("user1", "on_conflict", 0, `{"name":"stmt_exec", "args": ["insert or rollback into t values (6),(5),(7)"]}`).Fail("syntax error"),
 		)
 		require.NoErrorf(t, err, "failed to call tx")
 
 		err = bc.Query("on_conflict", `{"name":"get"}`, "", `[1,2,3,4,5]`)
 		require.NoErrorf(t, err, "failed to query")
 
-		err = bc.ConnectBlock(NewLuaTxCall("user1", "on_conflict", 0, `{"name":"stmt_exec_pcall", "args": ["insert or fail into t values (6),(7),(5),(8),(9)"]}`))
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "on_conflict", 0, `{"name":"stmt_exec", "args": ["insert or abort into t values (6),(7),(5),(8),(9)"]}`).Fail("UNIQUE constraint failed"))
 		require.NoErrorf(t, err, "failed to call tx")
 
-		err = bc.Query("on_conflict", `{"name":"get"}`, "", `[1,2,3,4,5,6,7]`)
+		err = bc.Query("on_conflict", `{"name":"get"}`, "", `[1,2,3,4,5]`)
+		require.NoErrorf(t, err, "failed to query")
+
+		// successful pcall
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "on_conflict", 0, `{"name":"stmt_exec_pcall", "args": ["insert into t values (6)"]}`))
+		require.NoErrorf(t, err, "failed to call tx")
+
+		err = bc.Query("on_conflict", `{"name":"get"}`, "", `[1,2,3,4,5,6]`)
+		require.NoErrorf(t, err, "failed to query")
+
+		// pcall fails but the tx succeeds
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "on_conflict", 0, `{"name":"stmt_exec_pcall", "args": ["insert or fail into t values (7),(5),(8)"]}`))
+		require.NoErrorf(t, err, "failed to call tx")
+
+		var expected string
+		if version >= 4 {
+			// pcall reverts the changes
+			expected = `[1,2,3,4,5,6]`
+		} else {
+			// pcall does not revert the changes
+			expected = `[1,2,3,4,5,6,7]`
+		}
+
+		err = bc.Query("on_conflict", `{"name":"get"}`, "", expected)
+		require.NoErrorf(t, err, "failed to query")
+
+		// here the tx is reverted
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "on_conflict", 0, `{"name":"stmt_exec", "args": ["insert or fail into t values (7),(5),(8)"]}`).Fail("UNIQUE constraint failed"))
+		require.NoErrorf(t, err, "failed to call tx")
+
+		err = bc.Query("on_conflict", `{"name":"get"}`, "", expected)
 		require.NoErrorf(t, err, "failed to query")
 
 	}

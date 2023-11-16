@@ -68,56 +68,85 @@ static void preloadModules(lua_State *L) {
 #endif
 }
 
-/* override pcall to drop events upon error */
+// overridden version of pcall
+// used to rollback state and drop events upon error
 static int pcall(lua_State *L) {
 	int argc = lua_gettop(L);
-	int status;
-
-	// get the current number of events
 	int service = getLuaExecContext(L);
 	int num_events = luaGetEventCount(L, service);
+	struct luaSetRecoveryPoint_return start_seq;
+	int ret;
 
 	if (argc < 1) {
 		return luaL_error(L, "pcall: not enough arguments");
+	}
+
+	lua_gasuse(L, 300);
+
+	start_seq = luaSetRecoveryPoint(L, service);
+	if (start_seq.r0 < 0) {
+		strPushAndRelease(L, start_seq.r1);
+		luaL_throwerror(L);
 	}
 
 	// the stack is like this:
 	//   func arg1 arg2 ... argn
 
 	// call the function
-	status = lua_pcall(L, argc - 1, LUA_MULTRET, 0);
+	ret = lua_pcall(L, argc - 1, LUA_MULTRET, 0);
 
 	// if failed, drop the events
-	if (status != 0) {
+	if (ret != 0) {
 		if (vm_is_hardfork(L, 4)) {
 			luaDropEvent(L, service, num_events);
 		}
 	}
 
 	// throw the error if out of memory
-	if (status == LUA_ERRMEM) {
+	if (ret == LUA_ERRMEM) {
 		luaL_throwerror(L);
 	}
 
 	// insert the status at the bottom of the stack
-	lua_pushboolean(L, status == 0);
+	lua_pushboolean(L, ret == 0);
 	lua_insert(L, 1);
+
+	// release the recovery point or revert the contract state
+	if (start_seq.r0 > 0) {
+		bool is_error = (ret != 0);
+		char *errStr = luaClearRecovery(L, service, start_seq.r0, is_error);
+		if (errStr != NULL) {
+			if (vm_is_hardfork(L, 4)) {
+				luaDropEvent(L, service, num_events);
+			}
+			strPushAndRelease(L, errStr);
+			luaL_throwerror(L);
+		}
+	}
 
 	// return the number of items in the stack
 	return lua_gettop(L);
 }
 
+// overridden version of xpcall
+// used to rollback state and drop events upon error
 static int xpcall(lua_State *L) {
 	int argc = lua_gettop(L);
-	int errfunc;
-	int status;
-
-	// get the current number of events
 	int service = getLuaExecContext(L);
 	int num_events = luaGetEventCount(L, service);
+	struct luaSetRecoveryPoint_return start_seq;
+	int ret, errfunc;
 
 	if (argc < 2) {
 		return luaL_error(L, "xpcall: not enough arguments");
+	}
+
+	lua_gasuse(L, 300);
+
+	start_seq = luaSetRecoveryPoint(L, service);
+	if (start_seq.r0 < 0) {
+		strPushAndRelease(L, start_seq.r1);
+		luaL_throwerror(L);
 	}
 
 	// the stack is like this:
@@ -142,17 +171,17 @@ static int xpcall(lua_State *L) {
 	errfunc = 1;
 
 	// call the function
-	status = lua_pcall(L, argc - 2, LUA_MULTRET, errfunc);
+	ret = lua_pcall(L, argc - 2, LUA_MULTRET, errfunc);
 
 	// if failed, drop the events
-	if (status != 0) {
+	if (ret != 0) {
 		if (vm_is_hardfork(L, 4)) {
 			luaDropEvent(L, service, num_events);
 		}
 	}
 
 	// throw the error if out of memory
-	if (status == LUA_ERRMEM) {
+	if (ret == LUA_ERRMEM) {
 		luaL_throwerror(L);
 	}
 
@@ -166,8 +195,21 @@ static int xpcall(lua_State *L) {
 	}
 
 	// store the status at the bottom of the stack, replacing the error handler
-	lua_pushboolean(L, status == 0);
+	lua_pushboolean(L, ret == 0);
 	lua_replace(L, 1);
+
+	// release the recovery point or revert the contract state
+	if (start_seq.r0 > 0) {
+		bool is_error = (ret != 0);
+		char *errStr = luaClearRecovery(L, service, start_seq.r0, is_error);
+		if (errStr != NULL) {
+			if (vm_is_hardfork(L, 4)) {
+				luaDropEvent(L, service, num_events);
+			}
+			strPushAndRelease(L, errStr);
+			luaL_throwerror(L);
+		}
+	}
 
 	// return the number of items in the stack
 	return lua_gettop(L);
