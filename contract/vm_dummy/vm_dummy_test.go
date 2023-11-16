@@ -2801,10 +2801,23 @@ func TestFeaturePcallNested(t *testing.T) {
 
 // test rollback of state variable and balance
 func TestPcallStateRollback1(t *testing.T) {
-	code := readLuaCode(t, "feature_pcall_rollback_4.lua")
 	resolver := readLuaCode(t, "resolver.lua")
 
 	for version := min_version; version <= max_version; version++ {
+
+		files := make([]string, 0)
+		files = append(files, "feature_pcall_rollback_4a.lua")   // contract.pcall
+		if version >= 4 {
+			files = append(files, "feature_pcall_rollback_4b.lua") // pcall
+			files = append(files, "feature_pcall_rollback_4c.lua") // xpcall
+		}
+
+		// iterate over all files
+		for _, file := range files {
+
+			code := readLuaCode(t, file)
+
+
 		bc, err := LoadDummyChain(SetHardForkVersion(version))
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		defer bc.Release()
@@ -3229,16 +3242,28 @@ func TestPcallStateRollback1(t *testing.T) {
 			map[string]int{"A": 0, "B": 0},
 			map[string]int64{"A": 3, "B": 0})
 
+		}
 	}
 }
 
 // test rollback of state variable and balance - send separate from call
 func TestPcallStateRollback2(t *testing.T) {
 	t.Skip("disabled until bug with test is fixed")
-	code := readLuaCode(t, "feature_pcall_rollback_4.lua")
 	resolver := readLuaCode(t, "resolver.lua")
 
 	for version := min_version; version <= max_version; version++ {
+		files := make([]string, 0)
+		files = append(files, "feature_pcall_rollback_4a.lua")   // contract.pcall
+		if version >= 4 {
+			files = append(files, "feature_pcall_rollback_4b.lua") // pcall
+			files = append(files, "feature_pcall_rollback_4c.lua") // xpcall
+		}
+
+		// iterate over all files
+		for _, file := range files {
+
+			code := readLuaCode(t, file)
+
 		bc, err := LoadDummyChain(SetHardForkVersion(version))
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		defer bc.Release()
@@ -3759,6 +3784,7 @@ func TestPcallStateRollback2(t *testing.T) {
 			map[string]int{"A": 0, "B": 0},
 			map[string]int64{"A": 3, "B": 0})
 
+		}
 	}
 }
 
@@ -3766,9 +3792,20 @@ func TestPcallStateRollback2(t *testing.T) {
 func TestPcallStateRollback3(t *testing.T) {
 	t.Skip("disabled until bug with test is fixed")
 	resolver := readLuaCode(t, "resolver.lua")
-	code := readLuaCode(t, "feature_pcall_rollback_4.lua")
 
 	for version := min_version; version <= max_version; version++ {
+		files := make([]string, 0)
+		files = append(files, "feature_pcall_rollback_4a.lua")   // contract.pcall
+		if version >= 4 {
+			files = append(files, "feature_pcall_rollback_4b.lua") // pcall
+			files = append(files, "feature_pcall_rollback_4c.lua") // xpcall
+		}
+
+		// iterate over all files
+		for _, file := range files {
+
+			code := readLuaCode(t, file)
+
 		bc, err := LoadDummyChain(SetHardForkVersion(version))
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		defer bc.Release()
@@ -4169,6 +4206,7 @@ func TestPcallStateRollback3(t *testing.T) {
 		testDbStateRollback(t, bc, script,
 			map[string]int{"A": 0, "B": 0})
 
+		}
 	}
 }
 
