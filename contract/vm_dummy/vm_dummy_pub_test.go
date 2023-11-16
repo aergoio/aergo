@@ -816,14 +816,14 @@ func TestContractGasLeft(t *testing.T) {
 		err = bc.ConnectBlock(tx)
 		require.NoErrorf(t, err, "failed to connect new block")
 		receipt := bc.GetReceipt(tx.Hash())
-		expected := `[{"_bignum":"0"},{"_bignum":"0"},{"_bignum":"0"}]`
+		expected := `[{"_bignum":"18446744073709548605"},{"_bignum":"18446744073709548172"},{"_bignum":"433"}]`
 		require.Equalf(t, expected, receipt.GetRet(), "contract call ret error")
 
 		tx = NewLuaTxCall("user1", "A", 0, fmt.Sprintf(`{"Name":"test2", "Args":["%s","loop",10]}`, nameToAddress("loop")))
 		err = bc.ConnectBlock(tx)
 		require.NoErrorf(t, err, "failed to connect new block")
 		receipt = bc.GetReceipt(tx.Hash())
-		expected := `[{"_bignum":"0"},{"_bignum":"0"},{"_bignum":"0"}]`
+		expected = `[{"_bignum":"18446744073709547285"},{"_bignum":"18446744073709543337"},{"_bignum":"3948"}]`
 		require.Equalf(t, expected, receipt.GetRet(), "contract call ret error")
 
 		// make an external call and a callback, like this: A -> B -> A
@@ -831,7 +831,7 @@ func TestContractGasLeft(t *testing.T) {
 		err = bc.ConnectBlock(tx)
 		require.NoErrorf(t, err, "failed to connect new block")
 		receipt = bc.GetReceipt(tx.Hash())
-		expected := `["0","0","0","0"]`
+		expected = `["18446744073709548612","18446744073709543257","18446744073709536656","18446744073709535921"]`
 		require.Equalf(t, expected, receipt.GetRet(), "contract call ret error")
 
 	}
