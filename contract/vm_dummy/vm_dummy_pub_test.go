@@ -794,3 +794,45 @@ func TestTypeBigTable(t *testing.T) {
 		require.NoErrorf(t, err, "failed to call tx")
 	}
 }
+
+func TestContractGasLeft(t *testing.T) {
+	code1 := readLuaCode(t, "contract_gasleft.lua")
+	code2 := readLuaCode(t, "loop.lua")
+
+	for version := int32(4); version <= max_version; version++ {
+		bc, err := LoadDummyChain(SetHardForkVersion(version), SetPubNet())
+		require.NoErrorf(t, err, "failed to create dummy chain")
+		defer bc.Release()
+
+		err = bc.ConnectBlock(
+			NewLuaTxAccount("user1", 1, types.Aergo),
+			NewLuaTxDeploy("user1", "A", 0, code1),
+			NewLuaTxDeploy("user1", "B", 0, code1),
+			NewLuaTxDeploy("user1", "loop", 0, code2),
+		)
+		require.NoErrorf(t, err, "failed to connect new block")
+
+		tx := NewLuaTxCall("user1", "A", 0, `{"Name":"test1", "Args":[]}`)
+		err = bc.ConnectBlock(tx)
+		require.NoErrorf(t, err, "failed to connect new block")
+		receipt := bc.GetReceipt(tx.Hash())
+		expected := `[{"_bignum":"0"},{"_bignum":"0"},{"_bignum":"0"}]`
+		require.Equalf(t, expected, receipt.GetRet(), "contract call ret error")
+
+		tx = NewLuaTxCall("user1", "A", 0, fmt.Sprintf(`{"Name":"test2", "Args":["%s","loop",10]}`, nameToAddress("loop")))
+		err = bc.ConnectBlock(tx)
+		require.NoErrorf(t, err, "failed to connect new block")
+		receipt = bc.GetReceipt(tx.Hash())
+		expected := `[{"_bignum":"0"},{"_bignum":"0"},{"_bignum":"0"}]`
+		require.Equalf(t, expected, receipt.GetRet(), "contract call ret error")
+
+		// make an external call and a callback, like this: A -> B -> A
+		tx = NewLuaTxCall("user1", "A", 0, fmt.Sprintf(`{"Name":"test3", "Args":["%s"]}`, nameToAddress("B")))
+		err = bc.ConnectBlock(tx)
+		require.NoErrorf(t, err, "failed to connect new block")
+		receipt = bc.GetReceipt(tx.Hash())
+		expected := `["0","0","0","0"]`
+		require.Equalf(t, expected, receipt.GetRet(), "contract call ret error")
+
+	}
+}
