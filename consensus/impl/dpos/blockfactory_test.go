@@ -13,17 +13,18 @@ func TestBlockFactory_context(t *testing.T) {
 	factory.initContext()
 
 	timeoutCtx, _ := context.WithTimeout(factory.ctx, time.Millisecond)
+	contextDeadline, _ := timeoutCtx.Deadline()
 	cancelCtx, cancelFunc := context.WithTimeout(factory.ctx, time.Minute)
 	quitCtx, _ := context.WithTimeout(factory.ctx, time.Minute)
-	time.Sleep(time.Millisecond * time.Duration(2))
 
 	// first channel is done by deadline
 	select {
 	case <-timeoutCtx.Done():
 		err := timeoutCtx.Err()
 		assert.Equal(t, context.DeadlineExceeded, err, "err by deadline")
-		//assert.Equal(t, err, context.Cause(timeoutCtx), "cause and err is differ")
-	default:
+		// check if timeout occured not before deadline
+		assert.True(t, time.Now().After(contextDeadline))
+	case <-time.NewTimer(time.Second * 5).C:
 		assert.Fail(t, "deadline expected, but not")
 	}
 
