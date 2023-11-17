@@ -45,13 +45,12 @@ func TestName(t *testing.T) {
 	receiver, _ := sdb.GetStateDB().GetAccountStateV(tx.Recipient)
 	bs := sdb.NewBlockState(sdb.GetRoot())
 	scs := openContractState(t, bs)
-	systemcs := openSystemContractState(t, bs)
 
 	err := CreateName(scs, tx, sender, receiver, name)
 	assert.NoError(t, err, "create name")
 
 	scs = nextBlockContractState(t, bs, scs)
-	_, err = ValidateNameTx(tx, sender, scs, systemcs)
+	_, err = ValidateNameTx(tx, sender, scs)
 	assert.Error(t, err, "same name")
 
 	ret := getAddress(scs, []byte(name))

@@ -14,10 +14,10 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo-lib/db"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/mr-tron/base58"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -35,7 +35,6 @@ func initTest(t *testing.T) (*state.ContractState, *state.V, *state.V) {
 		t.Fatalf("failed init : %s", err.Error())
 	}
 	// Need to pass the
-	InitGovernance("dpos")
 	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
 
 	scs, err := bs.GetSystemAccountState()

@@ -15,6 +15,7 @@ import (
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/internal/enc/proto"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/aergoio/aergo/v2/p2p/p2putil"
 	"github.com/aergoio/aergo/v2/types"
@@ -22,7 +23,6 @@ import (
 	"github.com/aergoio/etcd/raft"
 	"github.com/aergoio/etcd/raft/raftpb"
 	"github.com/aergoio/etcd/snap"
-	"github.com/golang/protobuf/proto"
 	core "github.com/libp2p/go-libp2p-core"
 )
 
@@ -171,7 +171,7 @@ func readWireHSResp(rd io.Reader) (resp types.SnapshotResponse, err error) {
 		return
 	}
 
-	err = proto.Unmarshal(bodyBuf, &resp)
+	err = proto.Decode(bodyBuf, &resp)
 	return
 }
 func (s *snapshotSender) createSnapBody(merged snap.Message) io.ReadCloser {

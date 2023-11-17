@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/internal/enc/proto"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/aergoio/aergo/v2/p2p/p2pmock"
 	"github.com/aergoio/aergo/v2/p2p/p2putil"
@@ -21,7 +22,6 @@ import (
 	"github.com/aergoio/aergo/v2/polaris/common"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/golang/mock/gomock"
-	"github.com/golang/protobuf/proto"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/stretchr/testify/assert"
 )

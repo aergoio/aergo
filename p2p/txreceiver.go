@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/message"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/aergoio/aergo/v2/p2p/p2putil"
@@ -116,7 +116,7 @@ func (br *GetTxsReceiver) handleInWaiting(msg p2pcommon.Message, msgBody p2pcomm
 		}
 		// missing tx
 		for !bytes.Equal(br.hashes[br.offset], tx.Hash) {
-			br.logger.Trace().Str("expect", enc.ToString(br.hashes[br.offset])).Str("received", enc.ToString(tx.Hash)).Int("offset", br.offset).Msg("expected hash was missing")
+			br.logger.Trace().Str("expect", base58.Encode(br.hashes[br.offset])).Str("received", base58.Encode(tx.Hash)).Int("offset", br.offset).Msg("expected hash was missing")
 			br.missed = append(br.missed, tx.Hash)
 			br.offset++
 			if br.offset >= len(br.hashes) {
