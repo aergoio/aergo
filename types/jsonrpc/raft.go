@@ -15,8 +15,8 @@ func ConvConfChange(msg *raftpb.ConfChange) *InOutConfChange {
 }
 
 type InOutConfChange struct {
-	ID      uint64
-	Type    raftpb.ConfChangeType
-	NodeID  uint64
-	Context string `json:"Context,omitempty"`
+	ID      uint64                `json:"ID,omitempty"`
+	Type    raftpb.ConfChangeType `json:"type,omitempty"`
+	NodeID  uint64                `json:"nodeID,omitempty"`
+	Context string                `json:"context,omitempty"`
 }

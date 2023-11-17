@@ -35,7 +35,7 @@ func ConvPeer(msg *types.Peer) *InOutPeer {
 	p.LastCheck = time.Unix(0, msg.GetLashCheck())
 	p.State = types.PeerState(msg.State).String()
 	p.Hidden = msg.Hidden
-	p.Self = msg.Selfpeer
+	p.SelfPeer = msg.Selfpeer
 	if msg.Version != "" {
 		p.Version = msg.Version
 	} else {
@@ -45,28 +45,28 @@ func ConvPeer(msg *types.Peer) *InOutPeer {
 }
 
 type InOutPeer struct {
-	Role      string
-	Address   InOutPeerAddress
-	BestBlock InOutBlockIdx
-	LastCheck time.Time
-	State     string
-	Hidden    bool
-	Self      bool
-	Version   string
+	Role      string           `json:"peerrole,omitempty"`
+	Address   InOutPeerAddress `json:"address,omitempty"`
+	BestBlock InOutBlockIdx    `json:"bestblock,omitempty"`
+	LastCheck time.Time        `json:"lastCheck,omitempty"`
+	State     string           `json:"state,omitempty"`
+	Hidden    bool             `json:"hidden,omitempty"`
+	SelfPeer  bool             `json:"selfpeer,omitempty"`
+	Version   string           `json:"version,omitempty"`
 }
 
 func ConvPeerAddress(msg *types.PeerAddress) *InOutPeerAddress {
 	return &InOutPeerAddress{
 		Address: msg.Address,
 		Port:    strconv.Itoa(int(msg.Port)),
-		PeerId:  base58.Encode(msg.PeerID),
+		PeerID:  base58.Encode(msg.PeerID),
 	}
 }
 
 type InOutPeerAddress struct {
-	Address string
-	Port    string
-	PeerId  string
+	Address string `json:"address,omitempty"`
+	Port    string `json:"port,omitempty"`
+	PeerID  string `json:"peerID,omitempty"`
 }
 
 func ConvShortPeerList(msg *types.PeerList) *InOutShortPeerList {
@@ -80,7 +80,7 @@ func ConvShortPeerList(msg *types.PeerList) *InOutShortPeerList {
 }
 
 type InOutShortPeerList struct {
-	Peers []string
+	Peers []string `json:"peers,omitempty"`
 }
 
 func ConvLongPeerList(msg *types.PeerList) *InOutLongPeerList {
@@ -93,7 +93,7 @@ func ConvLongPeerList(msg *types.PeerList) *InOutLongPeerList {
 }
 
 type InOutLongPeerList struct {
-	Peers []*InOutLongPeer
+	Peers []*InOutLongPeer `json:"peers,omitempty"`
 }
 
 func ConvLongPeer(msg *types.Peer) *InOutLongPeer {
@@ -116,9 +116,9 @@ func ConvLongPeer(msg *types.Peer) *InOutLongPeer {
 }
 
 type InOutLongPeer struct {
-	InOutPeer
-	ProducerIDs  []string
-	Certificates []*InOutCert
+	InOutPeer    `json:",inline"`
+	ProducerIDs  []string     `json:"producerIDs,omitempty"`
+	Certificates []*InOutCert `json:"certificates,omitempty"`
 }
 
 func ConvCert(msg *types.AgentCertificate) *InOutCert {
@@ -136,10 +136,10 @@ func ConvCert(msg *types.AgentCertificate) *InOutCert {
 }
 
 type InOutCert struct {
-	CertVersion uint32
-	ProducerID  string
-	CreateTime  time.Time
-	ExpireTime  time.Time
-	AgentID     string
-	Addresses   []string
+	CertVersion uint32    `json:"certVersion,omitempty"`
+	ProducerID  string    `json:"producerID,omitempty"`
+	CreateTime  time.Time `json:"createTime,omitempty"`
+	ExpireTime  time.Time `json:"expireTime,omitempty"`
+	AgentID     string    `json:"agentID,omitempty"`
+	Addresses   []string  `json:"addresses,omitempty"`
 }

@@ -13,12 +13,12 @@ import (
 func ConvChainInfo(msg *types.ChainInfo) *InOutChainInfo {
 	ci := &InOutChainInfo{}
 	if msg.Id != nil {
-		ci.Chainid = *ConvChainId(msg.Id)
+		ci.Id = *ConvChainId(msg.Id)
 	}
 	ci.MaxTokens = new(big.Int).SetBytes(msg.Maxtokens).String()
 	if consensus.IsDposName(msg.Id.Consensus) {
 		ci.StakingMinimum = new(big.Int).SetBytes(msg.Stakingminimum).String()
-		ci.StakingTotal = new(big.Int).SetBytes(msg.Totalstaking).String()
+		ci.Totalstaking = new(big.Int).SetBytes(msg.Totalstaking).String()
 	}
 	ci.GasPrice = new(big.Int).SetBytes(msg.Gasprice).String()
 	ci.NamePrice = new(big.Int).SetBytes(msg.Nameprice).String()
@@ -28,16 +28,16 @@ func ConvChainInfo(msg *types.ChainInfo) *InOutChainInfo {
 }
 
 type InOutChainInfo struct {
-	Chainid          InOutChainId
-	BpNumber         uint32
-	MaxBlockSize     uint64
-	MaxTokens        string
-	StakingMinimum   string `json:",omitempty"`
-	StakingTotal     string `json:",omitempty"`
-	GasPrice         string `json:",omitempty"`
-	NamePrice        string `json:",omitempty"`
-	TotalVotingPower string `json:",omitempty"`
-	VotingReward     string `json:",omitempty"`
+	Id               InOutChainId `json:"id,omitempty"`
+	BpNumber         uint32       `json:"bpNumber,omitempty"`
+	MaxBlockSize     uint64       `json:"maxblocksize,omitempty"`
+	MaxTokens        string       `json:"maxtokens,omitempty"`
+	StakingMinimum   string       `json:"stakingminimum,omitempty"`
+	Totalstaking     string       `json:"totalstaking,omitempty"`
+	GasPrice         string       `json:"gasprice,omitempty"`
+	NamePrice        string       `json:"nameprice,omitempty"`
+	TotalVotingPower string       `json:"totalvotingpower,omitempty"`
+	VotingReward     string       `json:"votingreward,omitempty"`
 }
 
 func ConvChainId(msg *types.ChainId) *InOutChainId {
@@ -51,17 +51,17 @@ func ConvChainId(msg *types.ChainId) *InOutChainId {
 }
 
 type InOutChainId struct {
-	Magic     string
-	Public    bool
-	Mainnet   bool
-	Consensus string
-	Version   int32
+	Magic     string `json:"magic,omitempty"`
+	Public    bool   `json:"public,omitempty"`
+	Mainnet   bool   `json:"mainnet,omitempty"`
+	Consensus string `json:"consensus,omitempty"`
+	Version   int32  `json:"version,omitempty"`
 }
 
 func ConvBlockchainStatus(msg *types.BlockchainStatus) *InOutBlockchainStatus {
 	bs := &InOutBlockchainStatus{}
-	bs.Hash = base58.Encode(msg.BestBlockHash)
-	bs.Height = msg.BestHeight
+	bs.BestBlockHash = base58.Encode(msg.BestBlockHash)
+	bs.BestHeight = msg.BestHeight
 	bs.ChainIdHash = base58.Encode(msg.BestChainIdHash)
 
 	toJRM := func(s string) *json.RawMessage {
@@ -80,19 +80,19 @@ func ConvBlockchainStatus(msg *types.BlockchainStatus) *InOutBlockchainStatus {
 
 func ConvHexBlockchainStatus(msg *types.BlockchainStatus) *InOutBlockchainStatus {
 	bs := &InOutBlockchainStatus{}
-	bs.Hash = hex.Encode(msg.BestBlockHash)
-	bs.Height = msg.BestHeight
+	bs.BestBlockHash = hex.Encode(msg.BestBlockHash)
+	bs.BestHeight = msg.BestHeight
 	bs.ChainIdHash = hex.Encode(msg.BestChainIdHash)
 	return bs
 }
 
 type InOutBlockchainStatus struct {
-	Hash          string
-	Height        uint64
-	ConsensusInfo *json.RawMessage `json:",omitempty"`
-	ChainIdHash   string
-	ChainStat     *json.RawMessage `json:",omitempty"`
-	ChainInfo     *InOutChainInfo  `json:",omitempty"`
+	BestBlockHash string           `json:"best_block_hash,omitempty"`
+	BestHeight    uint64           `json:"best_height,omitempty"`
+	ConsensusInfo *json.RawMessage `json:"consensus_info,omitempty"`
+	ChainIdHash   string           `json:"best_chain_id_hash,omitempty"`
+	ChainStat     *json.RawMessage `json:"chain_stat,omitempty"`
+	ChainInfo     *InOutChainInfo  `json:"chain_info,omitempty"`
 }
 
 func ConvMetrics(msg *types.Metrics) *InOutMetrics {
@@ -105,7 +105,7 @@ func ConvMetrics(msg *types.Metrics) *InOutMetrics {
 }
 
 type InOutMetrics struct {
-	Peers []*InOutPeerMetric
+	Peers []*InOutPeerMetric `json:"peers,omitempty"`
 }
 
 func ConvPeerMetric(msg *types.PeerMetric) *InOutPeerMetric {
@@ -119,9 +119,9 @@ func ConvPeerMetric(msg *types.PeerMetric) *InOutPeerMetric {
 }
 
 type InOutPeerMetric struct {
-	PeerID string
-	SumIn  int64 `json:",omitempty"`
-	AvrIn  int64 `json:",omitempty"`
-	SumOut int64 `json:",omitempty"`
-	AvrOut int64 `json:",omitempty"`
+	PeerID string `json:"peerID,omitempty"`
+	SumIn  int64  `json:"sumIn,omitempty"`
+	AvrIn  int64  `json:"avrIn,omitempty"`
+	SumOut int64  `json:"sumOut,omitempty"`
+	AvrOut int64  `json:"avrOut,omitempty"`
 }

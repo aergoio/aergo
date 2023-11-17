@@ -22,9 +22,9 @@ func ConvBlock(msg *types.Block) *InOutBlock {
 }
 
 type InOutBlock struct {
-	Hash   string
-	Header InOutBlockHeader
-	Body   InOutBlockBody
+	Hash   string           `json:"hash,omitempty"`
+	Header InOutBlockHeader `json:"header,omitempty"`
+	Body   InOutBlockBody   `json:"body,omitempty"`
 }
 
 func ConvBlockHeader(msg *types.BlockHeader) *InOutBlockHeader {
@@ -39,7 +39,7 @@ func ConvBlockHeader(msg *types.BlockHeader) *InOutBlockHeader {
 	bh.BlockNo = msg.GetBlockNo()
 	bh.Timestamp = msg.GetTimestamp()
 	bh.BlockRootHash = base58.Encode(msg.GetBlocksRootHash())
-	bh.TxRootHash = base58.Encode(msg.GetTxsRootHash())
+	bh.TxsRootHash = base58.Encode(msg.GetTxsRootHash())
 	bh.ReceiptsRootHash = base58.Encode(msg.GetReceiptsRootHash())
 	bh.Confirms = msg.GetConfirms()
 	bh.PubKey = base58.Encode(msg.GetPubKey())
@@ -57,20 +57,20 @@ func ConvBlockHeader(msg *types.BlockHeader) *InOutBlockHeader {
 }
 
 type InOutBlockHeader struct {
-	ChainID          string
-	Version          int32
-	PrevBlockHash    string
-	BlockNo          uint64
-	Timestamp        int64
-	BlockRootHash    string
-	TxRootHash       string
-	ReceiptsRootHash string
-	Confirms         uint64
-	PubKey           string
-	PeerID           string
-	Sign             string
-	CoinbaseAccount  string
-	Consensus        string
+	ChainID          string `json:"chainID,omitempty"`
+	Version          int32  `json:"version,omitempty"`
+	PrevBlockHash    string `json:"prevBlockHash,omitempty"`
+	BlockNo          uint64 `json:"blockNo,omitempty"`
+	Timestamp        int64  `json:"timestamp,omitempty"`
+	BlockRootHash    string `json:"blockRootHash,omitempty"`
+	TxsRootHash      string `json:"txsRootHash,omitempty"`
+	ReceiptsRootHash string `json:"receiptsRootHash,omitempty"`
+	Confirms         uint64 `json:"confirms,omitempty"`
+	PubKey           string `json:"pubKey,omitempty"`
+	PeerID           string `json:"peerID,omitempty"`
+	CoinbaseAccount  string `json:"coinbaseAccount,omitempty"`
+	Sign             string `json:"sign,omitempty"`
+	Consensus        string `json:"consensus,omitempty"`
 }
 
 func ConvBlockBody(msg *types.BlockBody) *InOutBlockBody {
@@ -87,7 +87,7 @@ func ConvBlockBody(msg *types.BlockBody) *InOutBlockBody {
 }
 
 type InOutBlockBody struct {
-	Txs []*InOutTx
+	Txs []*InOutTx `json:"txs,omitempty"`
 }
 
 func ConvBlockIdx(msg *types.NewBlockNotice) *InOutBlockIdx {
@@ -102,8 +102,8 @@ func ConvBlockIdx(msg *types.NewBlockNotice) *InOutBlockIdx {
 }
 
 type InOutBlockIdx struct {
-	BlockHash string
-	BlockNo   uint64
+	BlockHash string `json:"blockHash,omitempty"`
+	BlockNo   uint64 `json:"blockNo,omitempty"`
 }
 
 func ConvBlockHeaderList(msg *types.BlockHeaderList) *InOutBlockHeaderList {

@@ -17,8 +17,8 @@ func ConvInOutAccountVoteInfo(msg *types.AccountVoteInfo) *InOutAccountVoteInfo 
 }
 
 type InOutAccountVoteInfo struct {
-	Staking InOutStaking
-	Voting  []*InOutVoteInfo
+	Staking InOutStaking     `json:"staking,omitempty"`
+	Voting  []*InOutVoteInfo `json:"voting,omitempty"`
 }
 
 func ConvStaking(msg *types.Staking) *InOutStaking {
@@ -29,8 +29,8 @@ func ConvStaking(msg *types.Staking) *InOutStaking {
 }
 
 type InOutStaking struct {
-	Amount string
-	When   uint64
+	Amount string `json:"amount,omitempty"`
+	When   uint64 `json:"when,omitempty"`
 }
 
 func ConvVoteInfo(msg *types.VoteInfo) *InOutVoteInfo {
@@ -42,7 +42,7 @@ func ConvVoteInfo(msg *types.VoteInfo) *InOutVoteInfo {
 }
 
 type InOutVoteInfo struct {
-	Id         string
-	Candidates []string
-	Amount     string
+	Id         string   `json:"id,omitempty"`
+	Candidates []string `json:"candidates,omitempty"`
+	Amount     string   `json:"amount,omitempty"`
 }

@@ -15,7 +15,7 @@ func ConvCommitResultList(msg *types.CommitResultList) *InOutCommitResultList {
 }
 
 type InOutCommitResultList struct {
-	Results []*InOutCommitResult
+	Results []*InOutCommitResult `json:"results,omitempty"`
 }
 
 func ConvCommitResult(msg *types.CommitResult) *InOutCommitResult {
@@ -27,7 +27,7 @@ func ConvCommitResult(msg *types.CommitResult) *InOutCommitResult {
 }
 
 type InOutCommitResult struct {
-	Hash   string
-	Error  types.CommitStatus
-	Detail string
+	Hash   string             `json:"hash,omitempty"`
+	Error  types.CommitStatus `json:"error,omitempty"`
+	Detail string             `json:"detail,omitempty"`
 }
