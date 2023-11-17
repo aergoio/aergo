@@ -1188,7 +1188,7 @@ func (api *Web3APIv1) GetEnterpriseConfig() (handler http.Handler, ok bool) {
 		out.On = &msg.On
 	}
 
-	return stringResponseHandler(jsonrpc.B58JSON(out), nil), true
+	return stringResponseHandler(jsonrpc.MarshalJSON(out), nil), true
 }
 
 func (api *Web3APIv1) GetConfChangeProgress() (handler http.Handler, ok bool) {

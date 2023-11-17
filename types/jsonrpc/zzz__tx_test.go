@@ -44,8 +44,8 @@ func TestParseBase58TxBody(t *testing.T) {
 
 func TestConvTx(t *testing.T) {
 	testTx := &types.Tx{Body: &types.TxBody{Payload: []byte("{\"Name\":\"v1createName\",\"Args\":[\"honggildong3\"]}")}}
-	result := B58JSON(ConvTx(testTx, Base58))
+	result := MarshalJSON(ConvTx(testTx, Base58))
 	assert.Equal(t, "{\n \"Body\": {\n  \"Payload\": \"22MZAFWvxtVWehpgwEVxrvoqGL5xmcPmyLBiwraDfxRwKUNrV9tmhuB7Uu6ZeJWvp\"\n }\n}", result, "")
-	result = B58JSON(ConvTx(testTx, Raw))
+	result = MarshalJSON(ConvTx(testTx, Raw))
 	assert.Equal(t, "{\n \"Body\": {\n  \"Payload\": \"{\\\"Name\\\":\\\"v1createName\\\",\\\"Args\\\":[\\\"honggildong3\\\"]}\"\n }\n}", result, "")
 }

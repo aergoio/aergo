@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"os"
 	"regexp"
 	"strings"
@@ -9,7 +10,6 @@ import (
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/jsonrpc"
-	"github.com/aergoio/aergo/v2/types/jsonrpc/encoding/json"
 	"github.com/stretchr/testify/assert"
 )
 

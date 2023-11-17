@@ -65,5 +65,5 @@ func execListBlockHeaders(cmd *cobra.Command, args []string) {
 		return
 	}
 	res := jsonrpc.ConvBlockHeaderList(msg)
-	cmd.Println(jsonrpc.B58JSON(res))
+	cmd.Println(jsonrpc.MarshalJSON(res))
 }

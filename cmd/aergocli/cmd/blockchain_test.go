@@ -1,12 +1,12 @@
 package cmd
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/internal/enc/hex"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/aergoio/aergo/v2/types/jsonrpc/encoding/json"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )

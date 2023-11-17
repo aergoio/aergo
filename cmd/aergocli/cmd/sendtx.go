@@ -101,13 +101,13 @@ func sendTX(cmd *cobra.Command, tx *types.Tx, account []byte) string {
 			return "Failed request to aergo server: " + err.Error()
 		}
 		res := jsonrpc.ConvCommitResult(msgs.Results[0])
-		return jsonrpc.B58JSON(res)
+		return jsonrpc.MarshalJSON(res)
 	} else {
 		msg, err := client.SendTX(context.Background(), tx)
 		if err != nil {
 			return "Failed request to aergo sever: " + err.Error()
 		}
 		res := jsonrpc.ConvCommitResult(msg)
-		return jsonrpc.B58JSON(res)
+		return jsonrpc.MarshalJSON(res)
 	}
 }

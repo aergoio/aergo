@@ -83,7 +83,7 @@ func execListEvent(cmd *cobra.Command, args []string) {
 	}
 	for _, event := range events.GetEvents() {
 		res := jsonrpc.ConvEvent(event)
-		cmd.Println(jsonrpc.B58JSON(res))
+		cmd.Println(jsonrpc.MarshalJSON(res))
 	}
 }
 
@@ -110,6 +110,6 @@ func execStreamEvent(cmd *cobra.Command, args []string) {
 			return
 		}
 		res := jsonrpc.ConvEvent(event)
-		cmd.Println(jsonrpc.B58JSON(res))
+		cmd.Println(jsonrpc.MarshalJSON(res))
 	}
 }

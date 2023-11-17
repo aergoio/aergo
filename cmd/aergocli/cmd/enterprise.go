@@ -8,6 +8,7 @@ package cmd
 import (
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -18,7 +19,6 @@ import (
 	"github.com/aergoio/aergo/v2/types"
 	aergorpc "github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/jsonrpc"
-	"github.com/aergoio/aergo/v2/types/jsonrpc/encoding/json"
 	"github.com/spf13/cobra"
 )
 
@@ -67,7 +67,7 @@ var enterpriseKeyCmd = &cobra.Command{
 		if strings.ToUpper(args[0]) != "PERMISSIONS" {
 			out.On = &msg.On //it's for print false
 		}
-		cmd.Println(jsonrpc.B58JSON(out))
+		cmd.Println(jsonrpc.MarshalJSON(out))
 	},
 }
 
@@ -86,7 +86,7 @@ func getConfChangeBlockNo(blockHash []byte) (aergorpc.BlockNo, error) {
 
 type OutConfChange struct {
 	Payload  string
-	TxStatus *aergorpc.EnterpriseTxStatus
+	TxStatus *jsonrpc.InOutEnterpriseTxStatus
 }
 
 func (occ *OutConfChange) ToString() string {
@@ -222,21 +222,21 @@ var enterpriseTxCmd = &cobra.Command{
 				cmd.Println(output.ToString())
 				return
 			}
-			output.TxStatus = &aergorpc.EnterpriseTxStatus{
+			TxStatus := &aergorpc.EnterpriseTxStatus{
 				Status: receipt.GetStatus(),
 				Ret:    receipt.GetRet(),
 			}
 
 			if ci.Name == enterprise.ChangeCluster {
 				if confChange, err = getChangeClusterStatus(cmd, msgblock.TxIdx.BlockHash, timer); err != nil {
-					output.TxStatus.CCStatus = &types.ChangeClusterStatus{Error: err.Error()}
+					TxStatus.CCStatus = &types.ChangeClusterStatus{Error: err.Error()}
 				}
 
 				if confChange != nil {
-					output.TxStatus.CCStatus = confChange.ToPrintable()
+					TxStatus.CCStatus = confChange.ToPrintable()
 				}
 			}
-
+			output.TxStatus = jsonrpc.ConvEnterpriseTxStatus(TxStatus)
 			cmd.Println(output.ToString())
 		}
 

@@ -64,8 +64,8 @@ func listBlacklistEntries(cmd *cobra.Command, args []string) {
 		cmd.Printf("Failed: %s", err.Error())
 		return
 	}
-
-	cmd.Println(jsonrpc.JSON(msg))
+	res := jsonrpc.ConvBLConfEntries(msg)
+	cmd.Println(jsonrpc.MarshalJSON(res))
 }
 
 func addBlacklistEntry(cmd *cobra.Command, args []string) {

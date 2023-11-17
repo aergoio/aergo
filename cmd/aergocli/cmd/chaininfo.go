@@ -22,6 +22,6 @@ var chaininfoCmd = &cobra.Command{
 			return
 		}
 		res := jsonrpc.ConvChainInfo(msg)
-		cmd.Println(jsonrpc.B58JSON(res))
+		cmd.Println(jsonrpc.MarshalJSON(res))
 	},
 }

@@ -75,6 +75,10 @@ type InOutTx struct {
 	Body *InOutTxBody `json:",omitempty"`
 }
 
+func (t *InOutTx) String() string {
+	return MarshalJSON(t)
+}
+
 func ConvTxBody(msg *types.TxBody, payloadType EncodingType) *InOutTxBody {
 	tb := &InOutTxBody{}
 	tb.Nonce = msg.Nonce
@@ -172,6 +176,10 @@ type InOutTxBody struct {
 	Sign        string       `json:",omitempty"`
 }
 
+func (b *InOutTxBody) String() string {
+	return MarshalJSON(b)
+}
+
 func ConvTxInBlock(msg *types.TxInBlock, payloadType EncodingType) *InOutTxInBlock {
 	tib := &InOutTxInBlock{}
 	tib.TxIdx = &InOutTxIdx{}
@@ -201,4 +209,8 @@ func ConvTxIdx(msg *types.TxIdx) *InOutTxIdx {
 type InOutTxIdx struct {
 	BlockHash string
 	Idx       int32
+}
+
+func (t *InOutTxInBlock) String() string {
+	return MarshalJSON(t)
 }

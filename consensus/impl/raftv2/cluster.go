@@ -1009,8 +1009,8 @@ func (cl *Cluster) AfterConfChange(cc *raftpb.ConfChange, member *consensus.Memb
 	}
 
 	propose := cl.savedChange
-
-	logger.Info().Str("req", jsonrpc.JSON(propose.Cc)).Msg("conf change succeed")
+	res := jsonrpc.ConvConfChange(propose.Cc)
+	logger.Info().Str("req", jsonrpc.MarshalJSON(res)).Msg("conf change succeed")
 
 	cl.resetSavedConfChangePropose()
 

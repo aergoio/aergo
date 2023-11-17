@@ -60,14 +60,14 @@ func execGetPeers(cmd *cobra.Command, args []string) {
 	sorter.Sort(msg.Peers)
 	if detailed == 0 {
 		res := jsonrpc.ConvPeerList(msg)
-		cmd.Println(jsonrpc.B58JSON(res))
+		cmd.Println(jsonrpc.MarshalJSON(res))
 	} else if detailed > 0 {
 		// TODO show long fields
 		res := jsonrpc.ConvLongPeerList(msg)
-		cmd.Println(jsonrpc.B58JSON(res))
+		cmd.Println(jsonrpc.MarshalJSON(res))
 	} else {
 		res := jsonrpc.ConvShortPeerList(msg)
-		cmd.Println(jsonrpc.B58JSON(res))
+		cmd.Println(jsonrpc.MarshalJSON(res))
 	}
 }
 

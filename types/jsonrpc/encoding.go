@@ -7,7 +7,14 @@ import (
 	"github.com/aergoio/aergo/v2/internal/enc/proto"
 )
 
-// JSON converts protobuf message(struct) to json notation
+type EncodingType int
+
+const (
+	Raw EncodingType = 0 + iota
+	Base58
+)
+
+// Deprecated - TODO remove
 func JSON(pb proto.Message) string {
 	jsonout, err := json.MarshalIndent(pb, "", " ")
 	if err != nil {
@@ -17,7 +24,7 @@ func JSON(pb proto.Message) string {
 	return string(jsonout)
 }
 
-func B58JSON(i interface{}) string {
+func MarshalJSON(i interface{}) string {
 	jsonout, err := json.MarshalIndent(i, "", " ")
 	if err != nil {
 		fmt.Printf("Failed: %s\n", err.Error())

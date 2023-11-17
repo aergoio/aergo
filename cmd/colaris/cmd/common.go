@@ -8,9 +8,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/aergoio/aergo/v2/internal/enc/proto"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/aergoio/aergo/v2/types/jsonrpc/encoding/json"
 	"google.golang.org/grpc"
 )
 
@@ -37,14 +35,4 @@ func GetClient(serverAddr string, opts []grpc.DialOption) interface{} {
 func (c *PolarisClient) Close() {
 	c.conn.Close()
 	c.conn = nil
-}
-
-// JSON converts protobuf message(struct) to json notation
-func JSON(pb proto.Message) string {
-	jsonout, err := json.MarshalIndent(pb, "", " ")
-	if err != nil {
-		fmt.Printf("Failed: %s\n", err.Error())
-		return ""
-	}
-	return string(jsonout)
 }

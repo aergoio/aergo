@@ -343,7 +343,7 @@ func runCallCmd(cmd *cobra.Command, args []string) error {
 
 	if toJSON {
 		res := jsonrpc.ConvTx(tx, jsonrpc.Base58)
-		cmd.Println(jsonrpc.B58JSON(res))
+		cmd.Println(jsonrpc.MarshalJSON(res))
 	} else {
 		txs := []*types.Tx{tx}
 		var msgs *types.CommitResultList
@@ -352,7 +352,7 @@ func runCallCmd(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to commit tx: %v", err.Error())
 		}
 		res := jsonrpc.ConvCommitResult(msgs.Results[0])
-		cmd.Println(jsonrpc.B58JSON(res))
+		cmd.Println(jsonrpc.MarshalJSON(res))
 	}
 	return nil
 }
@@ -369,7 +369,7 @@ func runGetABICmd(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to get abi: %v", err.Error())
 	}
 	res := jsonrpc.ConvAbi(abi)
-	cmd.Println(jsonrpc.B58JSON(res))
+	cmd.Println(jsonrpc.MarshalJSON(res))
 	return nil
 }
 

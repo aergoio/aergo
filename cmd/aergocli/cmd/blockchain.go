@@ -30,9 +30,11 @@ var blockchainCmd = &cobra.Command{
 			return
 		}
 		if printHex {
-			cmd.Println(jsonrpc.ConvHexBlockchainStatus(msg))
+			res := jsonrpc.ConvHexBlockchainStatus(msg)
+			cmd.Println(jsonrpc.MarshalJSON(res))
 		} else {
-			cmd.Println(jsonrpc.ConvBlockchainStatus(msg))
+			res := jsonrpc.ConvBlockchainStatus(msg)
+			cmd.Println(jsonrpc.MarshalJSON(res))
 		}
 	},
 }

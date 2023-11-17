@@ -61,7 +61,7 @@ func execCurrentPeers(cmd *cobra.Command, args []string) {
 	for i, p := range msg.Peers {
 		ppList[i] = NewJSONPolarisPeer(p)
 	}
-	cmd.Println(jsonrpc.B58JSON(ppList))
+	cmd.Println(jsonrpc.MarshalJSON(ppList))
 }
 
 type PolarisPeerAlias types.PolarisPeer

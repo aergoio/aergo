@@ -41,5 +41,5 @@ func execMetric(cmd *cobra.Command, args []string) {
 	}
 	// address and peerid should be encoded, respectively
 	res := jsonrpc.ConvMetrics(msg)
-	cmd.Println(jsonrpc.B58JSON(res))
+	cmd.Println(jsonrpc.MarshalJSON(res))
 }

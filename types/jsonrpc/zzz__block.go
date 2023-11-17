@@ -12,9 +12,6 @@ func ConvBlock(msg *types.Block) *InOutBlock {
 
 	b := &InOutBlock{}
 	b.Hash = base58.Encode(msg.Hash)
-	if bpid, err := msg.BPID(); err == nil {
-		b.PeerID = bpid.String()
-	}
 	if msg.Header != nil {
 		b.Header = *ConvBlockHeader(msg.Header)
 	}
@@ -26,7 +23,6 @@ func ConvBlock(msg *types.Block) *InOutBlock {
 
 type InOutBlock struct {
 	Hash   string
-	PeerID string
 	Header InOutBlockHeader
 	Body   InOutBlockBody
 }
@@ -47,6 +43,9 @@ func ConvBlockHeader(msg *types.BlockHeader) *InOutBlockHeader {
 	bh.ReceiptsRootHash = base58.Encode(msg.GetReceiptsRootHash())
 	bh.Confirms = msg.GetConfirms()
 	bh.PubKey = base58.Encode(msg.GetPubKey())
+	if bpid, err := msg.BPID(); err == nil {
+		bh.PeerID = bpid.String()
+	}
 	bh.Sign = base58.Encode(msg.GetSign())
 	if msg.GetCoinbaseAccount() != nil {
 		bh.CoinbaseAccount = types.EncodeAddress(msg.GetCoinbaseAccount())
@@ -68,6 +67,7 @@ type InOutBlockHeader struct {
 	ReceiptsRootHash string
 	Confirms         uint64
 	PubKey           string
+	PeerID           string
 	Sign             string
 	CoinbaseAccount  string
 	Consensus        string
