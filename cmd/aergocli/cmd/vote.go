@@ -136,7 +136,8 @@ func execVoteStat(cmd *cobra.Command, args []string) {
 			cmd.Printf("Failed: %s\n", err.Error())
 			return
 		}
-		cmd.Println(jsonrpc.JSON(msg))
+		res := jsonrpc.ConvInOutAccountVoteInfo(msg)
+		cmd.Println(jsonrpc.B58JSON(res))
 		return
 	} else if fflags.Changed("id") == true {
 		msg, err := client.GetVotes(context.Background(), &types.VoteParams{

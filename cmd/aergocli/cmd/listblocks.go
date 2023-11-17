@@ -64,5 +64,6 @@ func execListBlockHeaders(cmd *cobra.Command, args []string) {
 		cmd.Printf("Failed: %s", err.Error())
 		return
 	}
-	cmd.Println(jsonrpc.JSON(msg))
+	res := jsonrpc.ConvBlockHeaderList(msg)
+	cmd.Println(jsonrpc.B58JSON(res))
 }

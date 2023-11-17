@@ -36,7 +36,8 @@ func init() {
 				if err != nil {
 					log.Fatal(err)
 				}
-				cmd.Println(jsonrpc.JSON(msg))
+				res := jsonrpc.ConvReceipt(msg)
+				cmd.Println(jsonrpc.B58JSON(res))
 			},
 		},
 	)

@@ -45,7 +45,8 @@ func streamBlocks(cmd *cobra.Command) error {
 		if err != nil {
 			return fmt.Errorf("failed to receive block: %v", err)
 		}
-		cmd.Println(jsonrpc.BlockConvBase58Addr(b))
+		res := jsonrpc.ConvBlock(b)
+		cmd.Println(jsonrpc.B58JSON(res))
 	}
 }
 
@@ -70,7 +71,8 @@ func getSingleBlock(cmd *cobra.Command) error {
 	if err != nil {
 		return fmt.Errorf("failed to get block: %v", err)
 	}
-	cmd.Println(jsonrpc.BlockConvBase58Addr(msg))
+	res := jsonrpc.ConvBlock(msg)
+	cmd.Println(jsonrpc.B58JSON(res))
 	return nil
 }
 

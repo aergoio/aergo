@@ -89,7 +89,8 @@ var signCmd = &cobra.Command{
 		}
 
 		if nil == err && msg != nil {
-			cmd.Println(jsonrpc.TxConvBase58Addr(msg))
+			res := jsonrpc.ConvTx(msg, jsonrpc.Base58)
+			cmd.Println(jsonrpc.B58JSON(res))
 		} else {
 			cmd.Printf("Failed: %s\n", err.Error())
 		}
@@ -117,7 +118,8 @@ var verifyCmd = &cobra.Command{
 				return
 			}
 			if msg.Tx != nil {
-				cmd.Println(jsonrpc.TxConvBase58Addr(msg.Tx))
+				res := jsonrpc.ConvTx(msg.Tx, jsonrpc.Base58)
+				cmd.Println(jsonrpc.B58JSON(res))
 			} else {
 				cmd.Println(msg.Error)
 			}
@@ -127,7 +129,8 @@ var verifyCmd = &cobra.Command{
 				cmd.Printf("Failed: %s\n", err.Error())
 				return
 			}
-			cmd.Println(jsonrpc.TxConvBase58Addr(param[0]))
+			res := jsonrpc.ConvTx(param[0], jsonrpc.Base58)
+			cmd.Println(jsonrpc.B58JSON(res))
 		}
 	},
 }

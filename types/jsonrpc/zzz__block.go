@@ -6,8 +6,15 @@ import (
 )
 
 func ConvBlock(msg *types.Block) *InOutBlock {
+	if msg == nil {
+		return nil
+	}
+
 	b := &InOutBlock{}
 	b.Hash = base58.Encode(msg.Hash)
+	if bpid, err := msg.BPID(); err == nil {
+		b.PeerID = bpid.String()
+	}
 	if msg.Header != nil {
 		b.Header = *ConvBlockHeader(msg.Header)
 	}
@@ -19,11 +26,16 @@ func ConvBlock(msg *types.Block) *InOutBlock {
 
 type InOutBlock struct {
 	Hash   string
+	PeerID string
 	Header InOutBlockHeader
 	Body   InOutBlockBody
 }
 
 func ConvBlockHeader(msg *types.BlockHeader) *InOutBlockHeader {
+	if msg == nil {
+		return nil
+	}
+
 	bh := &InOutBlockHeader{}
 	bh.ChainID = base58.Encode(msg.GetChainID())
 	bh.Version = types.DecodeChainIdVersion(msg.GetChainID())
@@ -62,6 +74,10 @@ type InOutBlockHeader struct {
 }
 
 func ConvBlockBody(msg *types.BlockBody) *InOutBlockBody {
+	if msg == nil {
+		return nil
+	}
+
 	bb := &InOutBlockBody{}
 	bb.Txs = make([]*InOutTx, len(msg.Txs))
 	for i, tx := range msg.Txs {
@@ -75,13 +91,34 @@ type InOutBlockBody struct {
 }
 
 func ConvBlockIdx(msg *types.NewBlockNotice) *InOutBlockIdx {
-	bh := &InOutBlockIdx{}
-	bh.BlockNo = msg.GetBlockNo()
-	bh.BlockHash = base58.Encode(msg.GetBlockHash())
-	return bh
+	if msg == nil {
+		return nil
+	}
+
+	return &InOutBlockIdx{
+		BlockHash: base58.Encode(msg.GetBlockHash()),
+		BlockNo:   msg.GetBlockNo(),
+	}
 }
 
 type InOutBlockIdx struct {
 	BlockHash string
 	BlockNo   uint64
+}
+
+func ConvBlockHeaderList(msg *types.BlockHeaderList) *InOutBlockHeaderList {
+	if msg == nil {
+		return nil
+	}
+
+	b := &InOutBlockHeaderList{}
+	b.Blocks = make([]*InOutBlock, len(msg.Blocks))
+	for i, block := range msg.Blocks {
+		b.Blocks[i] = ConvBlock(block)
+	}
+	return b
+}
+
+type InOutBlockHeaderList struct {
+	Blocks []*InOutBlock
 }

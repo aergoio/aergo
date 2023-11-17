@@ -59,12 +59,15 @@ func execGetPeers(cmd *cobra.Command, args []string) {
 	// address and peerid should be encoded, respectively
 	sorter.Sort(msg.Peers)
 	if detailed == 0 {
-		cmd.Println(jsonrpc.PeerListToString(msg))
+		res := jsonrpc.ConvPeerList(msg)
+		cmd.Println(jsonrpc.B58JSON(res))
 	} else if detailed > 0 {
 		// TODO show long fields
-		cmd.Println(jsonrpc.LongPeerListToString(msg))
+		res := jsonrpc.ConvLongPeerList(msg)
+		cmd.Println(jsonrpc.B58JSON(res))
 	} else {
-		cmd.Println(jsonrpc.ShortPeerListToString(msg))
+		res := jsonrpc.ConvShortPeerList(msg)
+		cmd.Println(jsonrpc.B58JSON(res))
 	}
 }
 

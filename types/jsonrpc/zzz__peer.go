@@ -1,12 +1,27 @@
 package jsonrpc
 
 import (
+	"fmt"
 	"strconv"
 	"time"
 
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
 	"github.com/aergoio/aergo/v2/types"
 )
+
+func ConvPeerList(msg *types.PeerList) *InOutPeerList {
+	p := &InOutPeerList{}
+	p.Peers = make([]*InOutPeer, len(msg.Peers))
+	for i, peer := range msg.Peers {
+		p.Peers[i] = ConvPeer(peer)
+	}
+	return p
+}
+
+type InOutPeerList struct {
+	Peers []*InOutPeer
+}
 
 func ConvPeer(msg *types.Peer) *InOutPeer {
 	p := &InOutPeer{}
@@ -41,11 +56,11 @@ type InOutPeer struct {
 }
 
 func ConvPeerAddress(msg *types.PeerAddress) *InOutPeerAddress {
-	pa := &InOutPeerAddress{}
-	pa.Address = msg.GetAddress()
-	pa.Port = strconv.Itoa(int(msg.GetPort()))
-	pa.PeerId = base58.Encode(msg.GetPeerID())
-	return pa
+	return &InOutPeerAddress{
+		Address: msg.Address,
+		Port:    strconv.Itoa(int(msg.Port)),
+		PeerId:  base58.Encode(msg.PeerID),
+	}
 }
 
 type InOutPeerAddress struct {
@@ -54,8 +69,35 @@ type InOutPeerAddress struct {
 	PeerId  string
 }
 
-func ConvLongPeer(msg *types.Peer) *LongInOutPeer {
-	p := &LongInOutPeer{}
+func ConvShortPeerList(msg *types.PeerList) *InOutShortPeerList {
+	p := &InOutShortPeerList{}
+	p.Peers = make([]string, len(msg.Peers))
+	for i, peer := range msg.Peers {
+		pa := peer.Address
+		p.Peers[i] = fmt.Sprintf("%s;%s/%d;%s;%d", p2putil.ShortForm(types.PeerID(pa.PeerID)), pa.Address, pa.Port, peer.AcceptedRole.String(), peer.Bestblock.BlockNo)
+	}
+	return p
+}
+
+type InOutShortPeerList struct {
+	Peers []string
+}
+
+func ConvLongPeerList(msg *types.PeerList) *InOutLongPeerList {
+	p := &InOutLongPeerList{}
+	p.Peers = make([]*InOutLongPeer, len(msg.Peers))
+	for i, peer := range msg.Peers {
+		p.Peers[i] = ConvLongPeer(peer)
+	}
+	return p
+}
+
+type InOutLongPeerList struct {
+	Peers []*InOutLongPeer
+}
+
+func ConvLongPeer(msg *types.Peer) *InOutLongPeer {
+	p := &InOutLongPeer{}
 	p.InOutPeer = *ConvPeer(msg)
 
 	p.ProducerIDs = make([]string, len(msg.Address.ProducerIDs))
@@ -73,7 +115,7 @@ func ConvLongPeer(msg *types.Peer) *LongInOutPeer {
 	return p
 }
 
-type LongInOutPeer struct {
+type InOutLongPeer struct {
 	InOutPeer
 	ProducerIDs  []string
 	Certificates []*InOutCert

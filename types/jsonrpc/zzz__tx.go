@@ -1,12 +1,61 @@
 package jsonrpc
 
 import (
+	"encoding/json"
 	"errors"
 	"math/big"
 
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/types"
 )
+
+func ParseBase58Tx(jsonTx []byte) ([]*types.Tx, error) {
+	var inputlist []InOutTx
+	err := json.Unmarshal([]byte(jsonTx), &inputlist)
+	if err != nil {
+		var input InOutTx
+		err = json.Unmarshal([]byte(jsonTx), &input)
+		if err != nil {
+			return nil, err
+		}
+		inputlist = append(inputlist, input)
+	}
+	txs := make([]*types.Tx, len(inputlist))
+	for i, in := range inputlist {
+		tx := &types.Tx{Body: &types.TxBody{}}
+		if in.Hash != "" {
+			tx.Hash, err = base58.Decode(in.Hash)
+			if err != nil {
+				return nil, err
+			}
+		}
+		tx.Body, err = ParseTxBody(in.Body)
+		if err != nil {
+			return nil, err
+		}
+		txs[i] = tx
+	}
+
+	return txs, nil
+}
+
+func ParseBase58TxBody(jsonTx []byte) (*types.TxBody, error) {
+	in := &InOutTxBody{}
+	err := json.Unmarshal(jsonTx, in)
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := ParseTxBody(in)
+	if err != nil {
+		return nil, err
+	}
+
+	return body, nil
+}
+
+//-----------------------------------------------------------------------//
+//
 
 func ConvTx(msg *types.Tx, payloadType EncodingType) (tx *InOutTx) {
 	tx = &InOutTx{}

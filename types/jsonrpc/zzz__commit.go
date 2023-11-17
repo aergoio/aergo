@@ -19,11 +19,11 @@ type InOutCommitResultList struct {
 }
 
 func ConvCommitResult(msg *types.CommitResult) *InOutCommitResult {
-	c := &InOutCommitResult{}
-	c.Hash = base58.Encode(msg.Hash)
-	c.Error = msg.Error
-	c.Detail = msg.Detail
-	return c
+	return &InOutCommitResult{
+		Hash:   base58.Encode(msg.Hash),
+		Error:  msg.Error,
+		Detail: msg.Detail,
+	}
 }
 
 type InOutCommitResult struct {

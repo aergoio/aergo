@@ -21,6 +21,7 @@ var chaininfoCmd = &cobra.Command{
 			cmd.Printf("Failed: %s\n", err.Error())
 			return
 		}
-		cmd.Println(jsonrpc.ConvChainInfoMsg(msg))
+		res := jsonrpc.ConvChainInfo(msg)
+		cmd.Println(jsonrpc.B58JSON(res))
 	},
 }
