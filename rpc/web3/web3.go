@@ -30,11 +30,11 @@ type Web3 struct {
 	*component.BaseComponent
 	cfg *cfg.Config
 
-	web3svc		*Web3APIv1
-	mux			*http.ServeMux
+	web3svc *Web3APIv1
+	mux     *http.ServeMux
 
-	port 		int
-	status		Status
+	port   int
+	status Status
 }
 
 var (
@@ -45,7 +45,7 @@ var (
 	logger = log.NewLogger("web3")
 )
 
-func NewWeb3(cfg *config.Config, rpc *rpc.AergoRPCService) *Web3{
+func NewWeb3(cfg *config.Config, rpc *rpc.AergoRPCService) *Web3 {
 	mux := http.NewServeMux()
 
 	// set limit per second
@@ -72,11 +72,11 @@ func NewWeb3(cfg *config.Config, rpc *rpc.AergoRPCService) *Web3{
 	web3svc := &Web3APIv1{rpc: rpc}
 	mux.Handle("/v1/", tollbooth.LimitHandler(limiter, c.Handler(http.HandlerFunc(web3svc.handler))))
 
-	web3svr := &Web3 {
-		cfg: cfg,
+	web3svr := &Web3{
+		cfg:     cfg,
 		web3svc: web3svc,
-		mux: mux,
-		status: CLOSE,
+		mux:     mux,
+		status:  CLOSE,
 	}
 	web3svr.BaseComponent = component.NewBaseComponent(message.Web3Svc, web3svr, logger)
 
@@ -89,34 +89,33 @@ func (web3 *Web3) Start() {
 
 func (web3 *Web3) run() {
 	port := getPortFromConfig(web3.cfg)
-	err := http.ListenAndServe(":"+strconv.Itoa(port), web3.mux)	
+	err := http.ListenAndServe(":"+strconv.Itoa(port), web3.mux)
 
 	if err != nil {
 		fmt.Println("Web3 Server running fail:", err)
 	} else {
 		fmt.Println("Web3 Server is listening on port " + strconv.Itoa(port) + "...")
 		web3.port = port
-		web3.status = OPEN;
+		web3.status = OPEN
 	}
 }
 
-func (web3 *Web3) Statistics() *map[string]interface{} {	
+func (web3 *Web3) Statistics() *map[string]interface{} {
 	ret := map[string]interface{}{
 		"status": web3.status,
-		"port" : web3.port,
+		"port":   web3.port,
 	}
-	
+
 	return &ret
 }
 
 func (web3 *Web3) Receive(context actor.Context) {
 	switch msg := context.Message().(type) {
-	case *actor.Started, *actor.Stopping, *actor.Stopped, *component.CompStatReq:		
+	case *actor.Started, *actor.Stopping, *actor.Stopped, *component.CompStatReq:
 	default:
 		web3.Warn().Msgf("unknown msg received in web3 %s", reflect.TypeOf(msg).String())
 	}
 }
-
 
 func getPortFromConfig(cfg *config.Config) int {
 	if cfg == nil || cfg.Web3 == nil || cfg.Web3.NetServicePort == 0 {
@@ -125,8 +124,6 @@ func getPortFromConfig(cfg *config.Config) int {
 
 	return cfg.Web3.NetServicePort
 }
-
-
 
 func serveSwaggerYAML(w http.ResponseWriter, r *http.Request) {
 	yamlContent, err := os.ReadFile("./rpc/swagger/swagger.yaml")
@@ -185,4 +182,3 @@ func stringResponseHandler(response string, err error) http.Handler {
 		w.Write([]byte(response))
 	})
 }
-
