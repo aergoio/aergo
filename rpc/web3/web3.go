@@ -5,16 +5,36 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"reflect"
 	"strconv"
 
+	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/v2/config"
+	cfg "github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/rpc"
 	"github.com/didip/tollbooth"
 	"github.com/rs/cors"
 )
 
+type Status string
+
+const (
+	CLOSE Status = "CLOSE"
+	OPEN  Status = "OPEN"
+)
+
 type Web3 struct {
+	*component.BaseComponent
+	cfg *cfg.Config
+
+	web3svc		*Web3APIv1
+	mux			*http.ServeMux
+
+	port 		int
+	status		Status
 }
 
 var (
@@ -25,7 +45,7 @@ var (
 	logger = log.NewLogger("web3")
 )
 
-func NewWeb3(cfg *config.Config, rpc *rpc.AergoRPCService) {
+func NewWeb3(cfg *config.Config, rpc *rpc.AergoRPCService) *Web3{
 	mux := http.NewServeMux()
 
 	// set limit per second
@@ -49,14 +69,64 @@ func NewWeb3(cfg *config.Config, rpc *rpc.AergoRPCService) {
 	})
 
 	// API v1
-	web3svcV1 := &Web3APIv1{rpc: rpc}
-	mux.Handle("/v1/", tollbooth.LimitHandler(limiter, c.Handler(http.HandlerFunc(web3svcV1.handler))))
+	web3svc := &Web3APIv1{rpc: rpc}
+	mux.Handle("/v1/", tollbooth.LimitHandler(limiter, c.Handler(http.HandlerFunc(web3svc.handler))))
 
-	go func() {
-		fmt.Println("Web3 Server is listening on port " + strconv.Itoa(cfg.Web3.NetServicePort) + "...")
-		http.ListenAndServe(":"+strconv.Itoa(cfg.Web3.NetServicePort), mux)
-	}()
+	web3svr := &Web3 {
+		cfg: cfg,
+		web3svc: web3svc,
+		mux: mux,
+		status: CLOSE,
+	}
+	web3svr.BaseComponent = component.NewBaseComponent(message.Web3Svc, web3svr, logger)
+
+	return web3svr
 }
+
+func (web3 *Web3) Start() {
+	go web3.run()
+}
+
+func (web3 *Web3) run() {
+	port := getPortFromConfig(web3.cfg)
+	err := http.ListenAndServe(":"+strconv.Itoa(port), web3.mux)	
+
+	if err != nil {
+		fmt.Println("Web3 Server running fail:", err)
+	} else {
+		fmt.Println("Web3 Server is listening on port " + strconv.Itoa(port) + "...")
+		web3.port = port
+		web3.status = OPEN;
+	}
+}
+
+func (web3 *Web3) Statistics() *map[string]interface{} {	
+	ret := map[string]interface{}{
+		"status": web3.status,
+		"port" : web3.port,
+	}
+	
+	return &ret
+}
+
+func (web3 *Web3) Receive(context actor.Context) {
+	switch msg := context.Message().(type) {
+	case *actor.Started, *actor.Stopping, *actor.Stopped, *component.CompStatReq:		
+	default:
+		web3.Warn().Msgf("unknown msg received in web3 %s", reflect.TypeOf(msg).String())
+	}
+}
+
+
+func getPortFromConfig(cfg *config.Config) int {
+	if cfg == nil || cfg.Web3 == nil || cfg.Web3.NetServicePort == 0 {
+		return 80
+	}
+
+	return cfg.Web3.NetServicePort
+}
+
+
 
 func serveSwaggerYAML(w http.ResponseWriter, r *http.Request) {
 	yamlContent, err := os.ReadFile("./rpc/swagger/swagger.yaml")
@@ -115,3 +185,4 @@ func stringResponseHandler(response string, err error) http.Handler {
 		w.Write([]byte(response))
 	})
 }
+
