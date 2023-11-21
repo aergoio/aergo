@@ -122,3 +122,83 @@ func ConvBlockHeaderList(msg *types.BlockHeaderList) *InOutBlockHeaderList {
 type InOutBlockHeaderList struct {
 	Blocks []*InOutBlock
 }
+
+func ConvBlockBodyPaged(msg *types.BlockBodyPaged) *InOutBlockBodyPaged {
+	if msg == nil {
+		return nil
+	}
+
+	bbp := &InOutBlockBodyPaged{}
+	bbp.Body = ConvBlockBody(msg.GetBody())
+	bbp.Total = msg.GetTotal()
+	bbp.Offset = msg.GetOffset()
+	bbp.Size = msg.GetSize()
+
+	return bbp
+}
+
+type InOutBlockBodyPaged struct {
+	Total  uint32     `json:"total,omitempty"`
+	Offset uint32     `json:"offset,omitempty"`
+	Size   uint32     `json:"size,omitempty"`
+	Body   *InOutBlockBody `json:"body,omitempty"`
+}
+
+func ConvBlockMetadata(msg *types.BlockMetadata) *InOutBlockMetadata {
+	if msg == nil {
+		return nil
+	}
+
+	bbm := &InOutBlockMetadata{}
+	bbm.Hash = base58.Encode(msg.Hash)
+	bbm.Header = ConvBlockHeader(msg.GetHeader())
+	bbm.Txcount = msg.GetTxcount()
+	bbm.Size = msg.GetSize()
+
+	return bbm
+}
+
+type InOutBlockMetadata struct {
+	Hash   	string           	`json:"hash,omitempty"`
+	Header  *InOutBlockHeader 	`json:"header,omitempty"`
+	Txcount int32        		`json:"txcount,omitempty"`
+	Size    int64        		`json:"size,omitempty"`
+}
+
+func ConvListBlockMetadata(msg *types.BlockMetadataList) *InOutBlockMetadataList {
+	if msg == nil {
+		return nil
+	}
+
+	bbml := &InOutBlockMetadataList{}
+	bbml.Blocks = make([]*InOutBlockMetadata, len(msg.Blocks))
+	for i, block := range msg.Blocks {
+		bbml.Blocks[i] = ConvBlockMetadata(block)
+	}
+
+	return bbml
+}
+
+type InOutBlockMetadataList struct {
+	Blocks []*InOutBlockMetadata `json:"blocks,omitempty"`
+}
+
+func ConvBlockTransactionCount(msg *types.Block) *InOutBlockTransactionCount {
+	if msg == nil {
+		return nil
+	}
+
+	btc := &InOutBlockTransactionCount{}
+	if msg.Body.Txs != nil {
+		btc.Count = len(msg.Body.Txs)
+	} else {
+		btc.Count = 0
+	}
+
+	return btc
+}
+
+type InOutBlockTransactionCount struct {
+	Count   int 	`json:"count,omitempty"`
+	
+}

@@ -125,3 +125,31 @@ type InOutPeerMetric struct {
 	SumOut int64  `json:"sumOut,omitempty"`
 	AvrOut int64  `json:"avrOut,omitempty"`
 }
+
+func ConvChainStat(msg *types.ChainStats) *InOutChainStats {
+	return &InOutChainStats{
+		Report: msg.GetReport(),
+	}
+}
+
+type InOutChainStats struct {
+	Report string `json:"report,omitempty"`
+}
+
+func ConvConsensusInfo(msg *types.ConsensusInfo) *InOutConsensusInfo {
+	
+	ci := &InOutConsensusInfo{}
+	ci.Type = msg.GetType()
+	ci.Info = msg.GetInfo()
+	ci.Bps = make([]string, len(msg.Bps))
+	for i, bps := range msg.Bps {
+		ci.Bps[i] = bps
+	}
+	return ci
+}
+
+type InOutConsensusInfo struct {
+	Type string   `json:"type,omitempty"`
+	Info string   `json:"info,omitempty"`
+	Bps  []string `json:"bps,omitempty"`
+}

@@ -140,3 +140,31 @@ type InOutStateVar struct {
 	Type string
 	Len  int32
 }
+
+func ConvReceipts(msg *types.Receipts) *InOutReceipts {
+	rs := &InOutReceipts{}
+	rs.BlockNo = msg.BlockNo
+	rs.Receipts = make([]*InOutReceipt, len(msg.Receipts))
+	for i, receipt := range msg.Receipts {
+		rs.Receipts[i] = ConvReceipt(receipt)
+	}
+	return rs
+}
+
+type InOutReceipts struct {
+	Receipts       	[]*InOutReceipt
+	BlockNo        	uint64	
+}
+
+func ConvEvents(msg *types.EventList) *InOutEventList {
+	rs := &InOutEventList{}
+	rs.Events = make([]*InOutEvent, len(msg.Events))
+	for i, event := range msg.Events {
+		rs.Events[i] = ConvEvent(event)
+	}
+	return rs
+}
+
+type InOutEventList struct {
+	Events []*InOutEvent `json:"events,omitempty"`
+}
