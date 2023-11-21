@@ -164,16 +164,16 @@ func ParseTxBody(tb *InOutTxBody) (msg *types.TxBody, err error) {
 }
 
 type InOutTxBody struct {
-	Nonce       uint64       `json:"nonce,omitempty"`
-	Account     string       `json:"account,omitempty"`
-	Recipient   string       `json:"recipient,omitempty"`
-	Amount      string       `json:"amount,omitempty"`
-	Payload     string       `json:"payload,omitempty"`
-	GasLimit    uint64       `json:"gasLimit,omitempty"`
-	GasPrice    string       `json:"gasPrice,omitempty"`
-	Type        types.TxType `json:"type,omitempty"`
-	ChainIdHash string       `json:"chainIdHash,omitempty"`
-	Sign        string       `json:"sign,omitempty"`
+	Nonce       uint64       `json:",omitempty"`
+	Account     string       `json:",omitempty"`
+	Recipient   string       `json:",omitempty"`
+	Amount      string       `json:",omitempty"`
+	Payload     string       `json:",omitempty"`
+	GasLimit    uint64       `json:",omitempty"`
+	GasPrice    string       `json:",omitempty"`
+	Type        types.TxType `json:",omitempty"`
+	ChainIdHash string       `json:",omitempty"`
+	Sign        string       `json:",omitempty"`
 }
 
 func (b *InOutTxBody) String() string {
@@ -182,33 +182,31 @@ func (b *InOutTxBody) String() string {
 
 func ConvTxInBlock(msg *types.TxInBlock, payloadType EncodingType) *InOutTxInBlock {
 	tib := &InOutTxInBlock{}
-	tib.TxIdx = &InOutTxIdx{}
-	tib.Tx = &InOutTx{}
 
 	if msg.GetTxIdx() != nil {
-		tib.TxIdx = ConvTxIdx(msg.GetTxIdx())
+		tib.TxIdx = *ConvTxIdx(msg.GetTxIdx())
 	}
 	if msg.GetTx() != nil {
-		tib.Tx = ConvTx(msg.GetTx(), payloadType)
+		tib.Tx = *ConvTx(msg.GetTx(), payloadType)
 	}
 	return tib
 }
 
 type InOutTxInBlock struct {
-	TxIdx *InOutTxIdx
-	Tx    *InOutTx
+	TxIdx InOutTxIdx
+	Tx    InOutTx
 }
 
 func ConvTxIdx(msg *types.TxIdx) *InOutTxIdx {
-	ti := &InOutTxIdx{}
-	ti.BlockHash = base58.Encode(msg.GetBlockHash())
-	ti.Idx = msg.GetIdx()
-	return ti
+	return &InOutTxIdx{
+		BlockHash: base58.Encode(msg.GetBlockHash()),
+		Idx:       msg.GetIdx(),
+	}
 }
 
 type InOutTxIdx struct {
-	BlockHash string
-	Idx       int32
+	BlockHash string `json:",omitempty"`
+	Idx       int32  `json:",omitempty"`
 }
 
 func (t *InOutTxInBlock) String() string {
