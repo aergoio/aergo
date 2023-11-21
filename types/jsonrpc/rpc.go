@@ -143,3 +143,46 @@ type InOutCert struct {
 	AgentID     string    `json:"agentID,omitempty"`
 	Addresses   []string  `json:"addresses,omitempty"`
 }
+
+func ConvMetrics(msg *types.Metrics) *InOutMetrics {
+	m := &InOutMetrics{}
+	m.Peers = make([]*InOutPeerMetric, len(msg.Peers))
+	for i, peer := range msg.Peers {
+		m.Peers[i] = ConvPeerMetric(peer)
+	}
+	return m
+}
+
+type InOutMetrics struct {
+	Peers []*InOutPeerMetric `json:"peers,omitempty"`
+}
+
+func ConvPeerMetric(msg *types.PeerMetric) *InOutPeerMetric {
+	return &InOutPeerMetric{
+		PeerID: base58.Encode(msg.PeerID),
+		SumIn:  msg.SumIn,
+		AvrIn:  msg.AvrIn,
+		SumOut: msg.SumOut,
+		AvrOut: msg.AvrOut,
+	}
+}
+
+type InOutPeerMetric struct {
+	PeerID string `json:"peerID,omitempty"`
+	SumIn  int64  `json:"sumIn,omitempty"`
+	AvrIn  int64  `json:"avrIn,omitempty"`
+	SumOut int64  `json:"sumOut,omitempty"`
+	AvrOut int64  `json:"avrOut,omitempty"`
+}
+
+func ConvBLConfEntries(msg *types.BLConfEntries) *InOutBLConfEntries {
+	return &InOutBLConfEntries{
+		Enabled: msg.Enabled,
+		Entries: msg.Entries,
+	}
+}
+
+type InOutBLConfEntries struct {
+	Enabled bool     `json:"enabled,omitempty"`
+	Entries []string `json:"entries,omitempty"`
+}

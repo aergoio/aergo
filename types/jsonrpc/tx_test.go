@@ -49,3 +49,101 @@ func TestConvTx(t *testing.T) {
 	result = MarshalJSON(ConvTx(testTx, Raw))
 	assert.Equal(t, "{\n \"Body\": {\n  \"Payload\": \"{\\\"Name\\\":\\\"v1createName\\\",\\\"Args\\\":[\\\"honggildong3\\\"]}\"\n }\n}", result, "")
 }
+
+func TestConvTxBody(t *testing.T) {
+	account, err := types.DecodeAddress(testAccountBase58)
+	assert.NoError(t, err, "should be success")
+	recipient, err := types.DecodeAddress(testRecipientBase58)
+	assert.NoError(t, err, "should be decode recipient")
+	payload, err := base58.Decode(testPayloadBase58)
+	assert.NoError(t, err, "should be decode payload")
+	chainIdHash, err := base58.Decode(testChainIdHashBase58)
+	assert.NoError(t, err, "should be decode chainIdHash")
+	sign, err := base58.Decode(testSignBase58)
+	assert.NoError(t, err, "should be decode sign")
+
+	for _, test := range []struct {
+		encType EncodingType
+		types   *types.TxBody
+		inout   *InOutTxBody
+	}{
+		{Base58, &types.TxBody{
+			Nonce:       1,
+			Account:     account,
+			Recipient:   recipient,
+			Payload:     payload,
+			GasLimit:    100000,
+			GasPrice:    types.NewAmount(5, types.Aergo).Bytes(),
+			Type:        types.TxType_NORMAL,
+			ChainIdHash: chainIdHash,
+			Sign:        sign,
+		}, &InOutTxBody{
+			Nonce:       1,
+			Account:     testAccountBase58,
+			Recipient:   testRecipientBase58,
+			Payload:     testPayloadBase58,
+			GasLimit:    100000,
+			GasPrice:    types.NewAmount(5, types.Aergo).String(),
+			Type:        types.TxType_NORMAL,
+			ChainIdHash: testChainIdHashBase58,
+			Sign:        testSignBase58,
+		}},
+		{Raw, &types.TxBody{
+			Nonce:       1,
+			Account:     account,
+			Recipient:   recipient,
+			Payload:     payload,
+			GasLimit:    100000,
+			GasPrice:    types.NewAmount(5, types.Aergo).Bytes(),
+			Type:        types.TxType_NORMAL,
+			ChainIdHash: chainIdHash,
+			Sign:        sign,
+		}, &InOutTxBody{
+			Nonce:       1,
+			Account:     testAccountBase58,
+			Recipient:   testRecipientBase58,
+			Payload:     string(payload),
+			GasLimit:    100000,
+			GasPrice:    types.NewAmount(5, types.Aergo).String(),
+			Type:        types.TxType_NORMAL,
+			ChainIdHash: testChainIdHashBase58,
+			Sign:        testSignBase58,
+		}},
+	} {
+		assert.Equal(t, test.inout, ConvTxBody(test.types, test.encType))
+	}
+}
+
+func TestConvTxInBlock(t *testing.T) {
+	for _, test := range []struct {
+		types *types.TxInBlock
+		inout *InOutTxInBlock
+	}{
+		{&types.TxInBlock{}, &InOutTxInBlock{
+			TxIdx: InOutTxIdx{},
+			Tx:    InOutTx{},
+		}},
+	} {
+		assert.Equal(t, test.inout, ConvTxInBlock(test.types, Base58))
+	}
+}
+
+func TestConvTxIdx(t *testing.T) {
+	blockHash, err := base58.Decode(testBlockHashBase58)
+	assert.NoError(t, err, "should be decode blockHash")
+
+	for _, test := range []struct {
+		types *types.TxIdx
+		inout *InOutTxIdx
+	}{
+		{&types.TxIdx{
+			BlockHash: blockHash,
+			Idx:       1,
+		}, &InOutTxIdx{
+			BlockHash: testBlockHashBase58,
+			Idx:       1,
+		}},
+	} {
+		assert.Equal(t, test.inout, ConvTxIdx(test.types))
+	}
+}
