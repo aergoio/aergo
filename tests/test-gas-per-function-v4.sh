@@ -64,9 +64,6 @@ add_test "assert" 143146
 add_test "ipairs" 143039
 add_test "pairs" 143039
 add_test "next" 143087
-add_test "rawequal" 143216
-add_test "rawget" 143087
-add_test "rawset" 143941
 add_test "select" 143166
 add_test "tonumber" 143186
 add_test "tostring" 143457

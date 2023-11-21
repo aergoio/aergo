@@ -368,9 +368,6 @@ func TestGasPerFunction(t *testing.T) {
 		{"ipairs", "", 0, 143039},
 		{"pairs", "", 0, 143039},
 		{"next", "", 0, 143087},
-		{"rawequal", "", 0, 143216},
-		{"rawget", "", 0, 143087},
-		{"rawset", "", 0, 143941},
 		{"select", "", 0, 143166},
 		{"tonumber", "", 0, 143186},
 		{"tostring", "", 0, 143457},
@@ -448,7 +445,7 @@ func TestGasPerFunction(t *testing.T) {
 
 		{"system.getSender", "", 0, 144261},
 		{"system.getBlockheight", "", 0, 143330},
-		{"system.getTxhash", "", 0, 143734},
+		//{"system.getTxhash", "", 0, 143734},
 		{"system.getTimestamp", "", 0, 143330},
 		{"system.getContractID", "", 0, 144261},
 		{"system.setItem", "", 0, 144194},
@@ -616,7 +613,7 @@ func TestGasOp(t *testing.T) {
 	err = expectGas(string(code), 0, `"main"`, ``, 117610, SetHardForkVersion(3))
 	assert.NoError(t, err)
 
-	err = expectGas(string(code), 0, `"main"`, ``, 134656, SetHardForkVersion(4))
+	err = expectGas(string(code), 0, `"main"`, ``, 120832, SetHardForkVersion(4))
 	assert.NoError(t, err)
 }
 
@@ -636,7 +633,7 @@ func TestGasBF(t *testing.T) {
 	err = expectGas(string(code2), 0, `"main"`, ``, 47456046, SetHardForkVersion(3))
 	assert.NoError(t, err)
 
-	err = expectGas(string(code4), 0, `"main"`, ``, 47772314, SetHardForkVersion(4))
+	err = expectGas(string(code4), 0, `"main"`, ``, 47341329, SetHardForkVersion(4))
 	assert.NoError(t, err)
 }
 

@@ -46,15 +46,22 @@ static void preloadModules(lua_State *L) {
 	}
 
 	if (vm_is_hardfork(L, 4)) {
-		// disable getmetatable
 		lua_getglobal(L, "_G");
+		// disable getmetatable
 		lua_pushnil(L);
 		lua_setfield(L, -2, "getmetatable");
-		lua_pop(L, 1);
 		// disable setmetatable
-		lua_getglobal(L, "_G");
 		lua_pushnil(L);
 		lua_setfield(L, -2, "setmetatable");
+		// disable rawget
+		lua_pushnil(L);
+		lua_setfield(L, -2, "rawget");
+		// disable rawset
+		lua_pushnil(L);
+		lua_setfield(L, -2, "rawset");
+		// disable rawequal
+		lua_pushnil(L);
+		lua_setfield(L, -2, "rawequal");
 		lua_pop(L, 1);
 		// disable string.dump
 		lua_getglobal(L, "string");
