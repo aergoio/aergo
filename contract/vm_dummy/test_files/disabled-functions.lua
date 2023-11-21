@@ -21,6 +21,8 @@ function check_disabled_functions()
   assert(loadfile == nil, "loadfile is available")
   assert(loadstring == nil, "loadstring is available")
   assert(print == nil, "print is available")
+  assert(getmetatable == nil, "getmetatable is available")
+  assert(setmetatable == nil, "setmetatable is available")
   assert(string.dump == nil, "string.dump is available")
 
   local success, result = pcall(function() newproxy() end)

@@ -365,7 +365,6 @@ func TestGasPerFunction(t *testing.T) {
 		{"function_header_ops", "", 0, 143016},
 
 		{"assert", "", 0, 143146},
-		{"metatable", "", 0, 143988},
 		{"ipairs", "", 0, 143039},
 		{"pairs", "", 0, 143039},
 		{"next", "", 0, 143087},

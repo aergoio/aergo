@@ -29,16 +29,6 @@ function basic_fns()
     m1k(assert, long_str == long_str, 'true')
     m1k(assert, long_str ~= long_str1, 'true')
     local x = { value = 5 }
-    local mt = {
-        __add = function(lhs, rhs)
-            return { value = lhs.value + rhs.value }
-        end,
-        __tostring = function(self)
-            return "Hello Aergo"
-        end
-    }
-    setmetatable(x, mt)
-    m1k(getmetatable, x)
     m1k(ipairs, arr)
     m1k(next, tbl)
     m1k(next, tbl, "year")
@@ -68,7 +58,6 @@ function basic_fns()
     m1k(select, '2', arr)
     m1k(select, '6', arr)
     m1k(select, '9', arr)
-    m1k(setmetatable, x, mt)
     m1k(tonumber, 0x10, 16)
     m1k(tonumber, '112134', 16)
     m1k(tonumber, '112134')

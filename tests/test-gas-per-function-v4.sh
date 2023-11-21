@@ -61,7 +61,6 @@ add_test "loop_n_branche_ops" 146372
 add_test "function_header_ops" 143016
 
 add_test "assert" 143146
-add_test "metatable" 143988
 add_test "ipairs" 143039
 add_test "pairs" 143039
 add_test "next" 143087
