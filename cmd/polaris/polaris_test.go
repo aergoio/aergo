@@ -1,7 +1,6 @@
 package main
 
 import (
-	_ "net/http/pprof"
 	"testing"
 
 	"github.com/aergoio/aergo/v2/config"
