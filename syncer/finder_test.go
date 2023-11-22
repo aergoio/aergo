@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo/v2/chain"
-	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/types/message"
 )
 
 func testFullscanSucceed(t *testing.T, expAncestor uint64) {

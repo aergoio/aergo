@@ -5,7 +5,7 @@
 package p2pmock
 
 import (
-	message "github.com/aergoio/aergo/v2/message"
+	message "github.com/aergoio/aergo/v2/types/message"
 	p2pcommon "github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	types "github.com/aergoio/aergo/v2/types"
 	gomock "github.com/golang/mock/gomock"
