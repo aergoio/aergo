@@ -21,9 +21,9 @@ import (
 	"github.com/aergoio/aergo/v2/p2p"
 	"github.com/aergoio/aergo/v2/p2p/p2pkey"
 	"github.com/aergoio/aergo/v2/pkg/component"
-	polarisclient "github.com/aergoio/aergo/v2/polaris/client"
 	"github.com/aergoio/aergo/v2/rpc"
 	"github.com/aergoio/aergo/v2/syncer"
+	polarisclient "github.com/aergoio/aergo/v2/tools/polaris/client"
 	"github.com/spf13/cobra"
 )
 

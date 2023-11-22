@@ -21,7 +21,7 @@ import (
 	"github.com/aergoio/aergo/v2/p2p/p2putil"
 	v030 "github.com/aergoio/aergo/v2/p2p/v030"
 	"github.com/aergoio/aergo/v2/pkg/component"
-	"github.com/aergoio/aergo/v2/polaris/common"
+	"github.com/aergoio/aergo/v2/tools/polaris/common"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/gofrs/uuid"
 )

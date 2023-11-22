@@ -16,8 +16,8 @@ import (
 	"github.com/aergoio/aergo/v2/internal/common"
 	"github.com/aergoio/aergo/v2/p2p/p2pkey"
 	"github.com/aergoio/aergo/v2/pkg/component"
-	common2 "github.com/aergoio/aergo/v2/polaris/common"
-	"github.com/aergoio/aergo/v2/polaris/server"
+	common2 "github.com/aergoio/aergo/v2/tools/polaris/common"
+	"github.com/aergoio/aergo/v2/tools/polaris/server"
 	"github.com/spf13/cobra"
 )
 

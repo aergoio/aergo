@@ -14,7 +14,7 @@ import (
 	"github.com/aergoio/aergo/v2/p2p/p2pmock"
 	"github.com/aergoio/aergo/v2/p2p/p2putil"
 	"github.com/aergoio/aergo/v2/pkg/component"
-	"github.com/aergoio/aergo/v2/polaris/common"
+	"github.com/aergoio/aergo/v2/tools/polaris/common"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/golang/mock/gomock"
 )
