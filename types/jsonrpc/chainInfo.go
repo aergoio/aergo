@@ -89,10 +89,10 @@ func ConvHexBlockchainStatus(msg *types.BlockchainStatus) *InOutBlockchainStatus
 }
 
 type InOutBlockchainStatus struct {
-	Hash          string
-	Height        uint64
-	ConsensusInfo *json.RawMessage `json:",omitempty"`
-	ChainIdHash   string
-	ChainStat     *json.RawMessage `json:",omitempty"`
-	ChainInfo     *InOutChainInfo  `json:",omitempty"`
+	Hash          string           `json:"hash"`
+	Height        uint64           `json:"height"`
+	ConsensusInfo *json.RawMessage `json:"consensusInfo,omitempty"`
+	ChainIdHash   string           `json:"chainIdHash"`
+	ChainStat     *json.RawMessage `json:"chainStat,omitempty"`
+	ChainInfo     *InOutChainInfo  `json:"chainInfo,omitempty"`
 }

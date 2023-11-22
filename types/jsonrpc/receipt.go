@@ -33,21 +33,21 @@ func ConvReceipt(msg *types.Receipt) *InOutReceipt {
 }
 
 type InOutReceipt struct {
-	ContractAddress   string
-	Status            string
-	Ret               string
-	TxHash            string
-	FeeUsed           string
-	CumulativeFeeUsed string        `json:",omitempty"`
-	Bloom             []byte        `json:",omitempty"`
-	Events            []*InOutEvent `json:",omitempty"`
-	BlockHash         string
-	BlockNo           uint64
-	TxIndex           int32
-	From              string
-	To                string
-	FeeDelegation     bool
-	GasUsed           uint64
+	ContractAddress   string        `json:"contractAddress"`
+	Status            string        `json:"status"`
+	Ret               string        `json:"ret"`
+	TxHash            string        `json:"txHash"`
+	FeeUsed           string        `json:"feeUsed"`
+	CumulativeFeeUsed string        `json:"cumulativeFeeUsed,omitempty"`
+	Bloom             []byte        `json:"bloom,omitempty"`
+	Events            []*InOutEvent `json:"events,omitempty"`
+	BlockHash         string        `json:"blockHash,omitempty"`
+	BlockNo           uint64        `json:"blockNo,omitempty"`
+	TxIndex           int32         `json:"txIndex,omitempty"`
+	From              string        `json:"from,omitempty"`
+	To                string        `json:"to,omitempty"`
+	FeeDelegation     bool          `json:"feeDelegation,omitempty"`
+	GasUsed           uint64        `json:"gasUsed,omitempty"`
 }
 
 func ConvEvent(msg *types.Event) *InOutEvent {
@@ -64,14 +64,14 @@ func ConvEvent(msg *types.Event) *InOutEvent {
 }
 
 type InOutEvent struct {
-	ContractAddress string
-	EventName       string
-	JsonArgs        string
-	EventIdx        int32
-	TxHash          string
-	BlockHash       string
-	BlockNo         uint64
-	TxIndex         int32
+	ContractAddress string `json:"contractAddress"`
+	EventName       string `json:"eventName"`
+	JsonArgs        string `json:"jsonArgs"`
+	EventIdx        int32  `json:"eventIdx"`
+	TxHash          string `json:"txHash"`
+	BlockHash       string `json:"blockHash"`
+	BlockNo         uint64 `json:"blockNo"`
+	TxIndex         int32  `json:"txIndex"`
 }
 
 func ConvAbi(msg *types.ABI) *InOutAbi {
@@ -90,10 +90,10 @@ func ConvAbi(msg *types.ABI) *InOutAbi {
 }
 
 type InOutAbi struct {
-	Version        string
-	Language       string
-	Functions      []*InOutFunction
-	StateVariables []*InOutStateVar
+	Version        string           `json:"version"`
+	Language       string           `json:"language"`
+	Functions      []*InOutFunction `json:"functions"`
+	StateVariables []*InOutStateVar `json:"stateVariables"`
 }
 
 func ConvFunction(msg *types.Function) *InOutFunction {
@@ -110,11 +110,11 @@ func ConvFunction(msg *types.Function) *InOutFunction {
 }
 
 type InOutFunction struct {
-	Name          string
-	Arguments     []*InOutFunctionArgument
-	Payable       bool
-	View          bool
-	FeeDelegation bool
+	Name          string                   `json:"name"`
+	Arguments     []*InOutFunctionArgument `json:"arguments"`
+	Payable       bool                     `json:"payable"`
+	View          bool                     `json:"view"`
+	FeeDelegation bool                     `json:"feeDelegation"`
 }
 
 func ConvFunctionArgument(msg *types.FnArgument) *InOutFunctionArgument {
@@ -124,7 +124,7 @@ func ConvFunctionArgument(msg *types.FnArgument) *InOutFunctionArgument {
 }
 
 type InOutFunctionArgument struct {
-	Name string
+	Name string `json:"name"`
 }
 
 func ConvStateVar(msg *types.StateVar) *InOutStateVar {
@@ -136,7 +136,7 @@ func ConvStateVar(msg *types.StateVar) *InOutStateVar {
 }
 
 type InOutStateVar struct {
-	Name string
-	Type string
-	Len  int32
+	Name string `json:"name"`
+	Type string `json:"type"`
+	Len  int32  `json:"len"`
 }

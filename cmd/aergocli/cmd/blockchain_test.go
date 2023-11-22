@@ -35,8 +35,8 @@ func TestBlockchainWithMock(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, testBlockHashString, result["Hash"])
-	assert.Equal(t, float64(1), result["Height"])
+	assert.Equal(t, testBlockHashString, result["hash"])
+	assert.Equal(t, float64(1), result["height"])
 
 	output, err = executeCommand(rootCmd, "blockchain", "trashargs")
 	assert.NoError(t, err, "should be success")
@@ -49,6 +49,6 @@ func TestBlockchainWithMock(t *testing.T) {
 		t.Fatal(err)
 	}
 	testBlockHashByte, _ := base58.Decode(testBlockHashString)
-	assert.Equal(t, hex.Encode(testBlockHashByte), result["Hash"])
-	assert.Equal(t, float64(1), result["Height"])
+	assert.Equal(t, hex.Encode(testBlockHashByte), result["hash"])
+	assert.Equal(t, float64(1), result["height"])
 }
