@@ -71,8 +71,8 @@ func ConvTx(msg *types.Tx, payloadType EncodingType) (tx *InOutTx) {
 }
 
 type InOutTx struct {
-	Hash string       `json:",omitempty"`
-	Body *InOutTxBody `json:",omitempty"`
+	Hash string       `json:"hash,omitempty"`
+	Body *InOutTxBody `json:"body,omitempty"`
 }
 
 func (t *InOutTx) String() string {
@@ -164,16 +164,16 @@ func ParseTxBody(tb *InOutTxBody) (msg *types.TxBody, err error) {
 }
 
 type InOutTxBody struct {
-	Nonce       uint64       `json:",omitempty"`
-	Account     string       `json:",omitempty"`
-	Recipient   string       `json:",omitempty"`
-	Amount      string       `json:",omitempty"`
-	Payload     string       `json:",omitempty"`
-	GasLimit    uint64       `json:",omitempty"`
-	GasPrice    string       `json:",omitempty"`
-	Type        types.TxType `json:",omitempty"`
-	ChainIdHash string       `json:",omitempty"`
-	Sign        string       `json:",omitempty"`
+	Nonce       uint64       `json:"nonce,omitempty"`
+	Account     string       `json:"account,omitempty"`
+	Recipient   string       `json:"recipient,omitempty"`
+	Amount      string       `json:"amount,omitempty"`
+	Payload     string       `json:"payload,omitempty"`
+	GasLimit    uint64       `json:"gasLimit,omitempty"`
+	GasPrice    string       `json:"gasPrice,omitempty"`
+	Type        types.TxType `json:"type,omitempty"`
+	ChainIdHash string       `json:"chainIdHash,omitempty"`
+	Sign        string       `json:"sign,omitempty"`
 }
 
 func (b *InOutTxBody) String() string {
@@ -205,8 +205,8 @@ func ConvTxIdx(msg *types.TxIdx) *InOutTxIdx {
 }
 
 type InOutTxIdx struct {
-	BlockHash string `json:",omitempty"`
-	Idx       int32  `json:",omitempty"`
+	BlockHash string `json:"blockHash,omitempty"`
+	Idx       int32  `json:"idx,omitempty"`
 }
 
 func (t *InOutTxInBlock) String() string {
