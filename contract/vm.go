@@ -687,7 +687,7 @@ func (ce *executor) commitCalledContract() error {
 			continue
 		}
 		if v.ctrState != nil {
-			err = bs.StageContractState(v.ctrState)
+			err = bs.LuaStateDB.StageContractState(v.ctrState)
 			if err != nil {
 				return newDbSystemError(err)
 			}
@@ -696,7 +696,7 @@ func (ce *executor) commitCalledContract() error {
 		if v.prevState == nil {
 			continue
 		}
-		err = bs.PutState(k, v.curState)
+		err = bs.LuaStateDB.PutState(k, v.curState)
 		if err != nil {
 			return newDbSystemError(err)
 		}

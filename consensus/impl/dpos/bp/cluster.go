@@ -495,7 +495,7 @@ func (sn *Snapshots) loadClusterSnapshot(blockNo types.BlockNo) ([]string, error
 		return nil, err
 	}
 
-	stateDB := sn.sdb.OpenNewStateDB(block.GetHeader().GetBlocksRootHash())
+	stateDB := sn.sdb.OpenLuaStateDB(block.GetHeader().GetBlocksRootHash())
 
 	return system.GetRankers(stateDB)
 }

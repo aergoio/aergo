@@ -59,7 +59,7 @@ type MemPool struct {
 	sdb           *state.ChainStateDB
 	bestBlockID   types.BlockID
 	bestBlockInfo *types.BlockHeaderInfo
-	stateDB       *state.StateDB
+	luaStateDB    *state.StateDB
 	verifier      *actor.PID
 	orphan        int
 	//cache       map[types.TxID]types.Transaction
@@ -434,15 +434,15 @@ func (mp *MemPool) setStateDB(block *types.Block) (bool, bool) {
 		mp.bestBlockInfo = types.NewBlockHeaderInfo(block)
 		mp.acceptChainIdHash = common.Hasher(types.MakeChainId(block.GetHeader().GetChainID(), mp.nextBlockVersion()))
 		stateRoot := block.GetHeader().GetBlocksRootHash()
-		if mp.stateDB == nil {
-			mp.stateDB = mp.sdb.OpenNewStateDB(stateRoot)
+		if mp.luaStateDB == nil {
+			mp.luaStateDB = mp.sdb.OpenLuaStateDB(stateRoot)
 			cid := types.NewChainID()
 			if err := cid.Read(block.GetHeader().GetChainID()); err != nil {
 				mp.Error().Err(err).Msg("failed to read chain ID")
 			} else {
 				mp.isPublic = cid.PublicNet
 				if !mp.isPublic {
-					conf, err := enterprise.GetConf(mp.stateDB, enterprise.AccountWhite)
+					conf, err := enterprise.GetConf(mp.luaStateDB, enterprise.AccountWhite)
 					if err != nil {
 						mp.Warn().Err(err).Msg("failed to init whitelist")
 					}
@@ -454,8 +454,8 @@ func (mp *MemPool) setStateDB(block *types.Block) (bool, bool) {
 				Str("chainidhash", base58.Encode(mp.bestChainIdHash)).
 				Str("next chainidhash", base58.Encode(mp.acceptChainIdHash)).
 				Msg("new StateDB opened")
-		} else if !bytes.Equal(mp.stateDB.GetRoot(), stateRoot) {
-			if err := mp.stateDB.SetRoot(stateRoot); err != nil {
+		} else if !bytes.Equal(mp.luaStateDB.GetRoot(), stateRoot) {
+			if err := mp.luaStateDB.SetRoot(stateRoot); err != nil {
 				mp.Error().Err(err).Msg("failed to set root of StateDB")
 			}
 		}
@@ -586,7 +586,7 @@ func (mp *MemPool) getNameDest(account []byte, owner bool) []byte {
 		return account
 	}
 
-	scs, err := mp.stateDB.GetNameAccountState()
+	scs, err := mp.luaStateDB.GetNameAccountState()
 	if err != nil {
 		mp.Error().Str("for name", string(account)).Msgf("failed to open contract %s", types.AergoName)
 		return nil
@@ -658,13 +658,13 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 			return err
 		}
 		aid := types.ToAccountID(tx.GetBody().GetRecipient())
-		scs, err := mp.stateDB.OpenContractState(aid, aergoState)
+		scs, err := mp.luaStateDB.OpenContractState(aid, aergoState)
 		if err != nil {
 			return err
 		}
 		switch string(tx.GetBody().GetRecipient()) {
 		case types.AergoSystem:
-			sender, err := mp.stateDB.GetAccountStateV(account)
+			sender, err := mp.luaStateDB.GetAccountStateV(account)
 			if err != nil {
 				return err
 			}
@@ -676,7 +676,7 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 				return err
 			}
 		case types.AergoName:
-			sender, err := mp.stateDB.GetAccountStateV(account)
+			sender, err := mp.luaStateDB.GetAccountStateV(account)
 			if err != nil {
 				return err
 			}
@@ -684,11 +684,11 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 				return err
 			}
 		case types.AergoEnterprise:
-			enterprisecs, err := mp.stateDB.GetEnterpriseAccountState()
+			enterprisecs, err := mp.luaStateDB.GetEnterpriseAccountState()
 			if err != nil {
 				return err
 			}
-			sender, err := mp.stateDB.GetAccountStateV(account)
+			sender, err := mp.luaStateDB.GetAccountStateV(account)
 			if err != nil {
 				return err
 			}
@@ -794,10 +794,10 @@ func (mp *MemPool) getAccountState(acc []byte) (*types.State, error) {
 		return &types.State{Balance: new(big.Int).SetUint64(bal).Bytes(), Nonce: nonce}, nil
 	}
 
-	state, err := mp.stateDB.GetAccountState(types.ToAccountID(acc))
+	state, err := mp.luaStateDB.GetAccountState(types.ToAccountID(acc))
 
 	if err != nil {
-		mp.Fatal().Err(err).Str("sroot", base58.Encode(mp.stateDB.GetRoot())).Msg("failed to get state")
+		mp.Fatal().Err(err).Str("sroot", base58.Encode(mp.luaStateDB.GetRoot())).Msg("failed to get state")
 
 		//FIXME PANIC?
 		//mp.Fatal().Err(err).Msg("failed to get state")

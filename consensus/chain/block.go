@@ -147,7 +147,7 @@ func (g *BlockGenerator) GenerateBlock() (*types.Block, error) {
 		txs[i] = x.GetTx()
 	}
 
-	block := types.NewBlock(g.bi, bState.GetRoot(), bState.Receipts(), txs, chain.CoinbaseAccount, bState.Consensus())
+	block := types.NewBlock(g.bi, bState.LuaStateDB.GetRoot(), bState.Receipts(), txs, chain.CoinbaseAccount, bState.Consensus())
 	if n != 0 && logger.IsDebugEnabled() {
 		logger.Debug().
 			Str("txroothash", types.EncodeB64(block.GetHeader().GetTxsRootHash())).

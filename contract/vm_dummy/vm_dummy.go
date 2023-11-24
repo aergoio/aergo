@@ -136,7 +136,7 @@ func LoadDummyChain(opts ...DummyChainOptions) (*DummyChain, error) {
 	types.InitGovernance("dpos", true)
 
 	// To pass dao parameters test
-	scs, err := bc.sdb.GetStateDB().GetSystemAccountState()
+	scs, err := bc.sdb.GetLuaStateDB().GetSystemAccountState()
 	system.InitSystemParams(scs, 3)
 
 	fee.EnableZeroFee()
@@ -190,7 +190,8 @@ func (bc *DummyChain) newBState() *state.BlockState {
 		},
 	}
 	return state.NewBlockState(
-		bc.sdb.OpenNewStateDB(bc.sdb.GetRoot()),
+		bc.sdb.OpenLuaStateDB(bc.sdb.GetLuaRoot()),
+		nil,
 		state.SetPrevBlockHash(bc.cBlock.GetHeader().PrevBlockHash),
 		state.SetGasPrice(bc.gasPrice),
 	)
@@ -201,7 +202,7 @@ func (bc *DummyChain) BeginReceiptTx() db.Transaction {
 }
 
 func (bc *DummyChain) GetABI(code string) (*types.ABI, error) {
-	cState, err := bc.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(contract.StrHash(code)))
+	cState, err := bc.sdb.GetLuaStateDB().OpenContractStateAccount(types.ToAccountID(contract.StrHash(code)))
 	if err != nil {
 		return nil, err
 	}
@@ -224,11 +225,11 @@ func (bc *DummyChain) GetReceipt(txHash []byte) *types.Receipt {
 }
 
 func (bc *DummyChain) GetAccountState(name string) (*types.State, error) {
-	return bc.sdb.GetStateDB().GetAccountState(types.ToAccountID(contract.StrHash(name)))
+	return bc.sdb.GetLuaStateDB().GetAccountState(types.ToAccountID(contract.StrHash(name)))
 }
 
 func (bc *DummyChain) GetStaking(name string) (*types.Staking, error) {
-	scs, err := bc.sdb.GetStateDB().GetSystemAccountState()
+	scs, err := bc.sdb.GetLuaStateDB().GetSystemAccountState()
 	if err != nil {
 		return nil, err
 	}
@@ -279,13 +280,13 @@ func (l *luaTxAccount) okMsg() string {
 
 func (l *luaTxAccount) run(execCtx context.Context, bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error {
 	id := types.ToAccountID(l.name)
-	accountState, err := bs.GetAccountState(id)
+	accountState, err := bs.LuaStateDB.GetAccountState(id)
 	if err != nil {
 		return err
 	}
 	updatedAccountState := *accountState
 	updatedAccountState.Balance = l.balance.Bytes()
-	bs.PutState(id, &updatedAccountState)
+	bs.LuaStateDB.PutState(id, &updatedAccountState)
 	return nil
 }
 
@@ -323,24 +324,24 @@ func (l *luaTxSend) run(execCtx context.Context, bs *state.BlockState, bc *Dummy
 		return fmt.Errorf("sender and receiever cannot be same")
 	}
 
-	senderState, err := bs.GetAccountState(senderID)
+	senderState, err := bs.LuaStateDB.GetAccountState(senderID)
 	if err != nil {
 		return err
 	} else if senderState.GetBalanceBigInt().Cmp(l.amount) < 0 {
 		return fmt.Errorf("insufficient balance to sender")
 	}
-	receiverState, err := bs.GetAccountState(receiverID)
+	receiverState, err := bs.LuaStateDB.GetAccountState(receiverID)
 	if err != nil {
 		return err
 	}
 
 	updatedSenderState := types.State(*senderState)
 	updatedSenderState.Balance = new(big.Int).Sub(updatedSenderState.GetBalanceBigInt(), l.amount).Bytes()
-	bs.PutState(senderID, &updatedSenderState)
+	bs.LuaStateDB.PutState(senderID, &updatedSenderState)
 
 	updatedReceiverState := types.State(*receiverState)
 	updatedReceiverState.Balance = new(big.Int).Add(updatedReceiverState.GetBalanceBigInt(), l.amount).Bytes()
-	bs.PutState(receiverID, &updatedReceiverState)
+	bs.LuaStateDB.PutState(receiverID, &updatedReceiverState)
 
 	r := types.NewReceipt(l.receiver, l.okMsg(), "")
 	r.TxHash = l.Hash()
@@ -450,18 +451,18 @@ func contractFrame(l luaTxContract, bs *state.BlockState, cdb contract.ChainAcce
 	run func(s, c *state.V, id types.AccountID, cs *state.ContractState) (string, []*types.Event, *big.Int, error)) error {
 
 	creatorId := types.ToAccountID(l.sender())
-	creatorState, err := bs.GetAccountStateV(l.sender())
+	creatorState, err := bs.LuaStateDB.GetAccountStateV(l.sender())
 	if err != nil {
 		return err
 	}
 
 	contractId := types.ToAccountID(l.recipient())
-	contractState, err := bs.GetAccountStateV(l.recipient())
+	contractState, err := bs.LuaStateDB.GetAccountStateV(l.recipient())
 	if err != nil {
 		return err
 	}
 
-	eContractState, err := bs.OpenContractState(contractId, contractState.State())
+	eContractState, err := bs.LuaStateDB.OpenContractState(contractId, contractState.State())
 	if err != nil {
 		return err
 	}
@@ -520,8 +521,8 @@ func contractFrame(l luaTxContract, bs *state.BlockState, cdb contract.ChainAcce
 		}
 		creatorState.SubBalance(usedFee)
 	}
-	bs.PutState(creatorId, creatorState.State())
-	bs.PutState(contractId, contractState.State())
+	bs.LuaStateDB.PutState(creatorId, creatorState.State())
+	bs.LuaStateDB.PutState(contractId, contractState.State())
 	return nil
 
 }
@@ -540,7 +541,7 @@ func (l *luaTxDeploy) run(execCtx context.Context, bs *state.BlockState, bc *Dum
 			if err != nil {
 				return "", nil, ctrFee, err
 			}
-			err = bs.StageContractState(eContractState)
+			err = bs.LuaStateDB.StageContractState(eContractState)
 			if err != nil {
 				return "", nil, ctrFee, err
 			}
@@ -599,7 +600,7 @@ func (l *luaTxCall) run(execCtx context.Context, bs *state.BlockState, bc *Dummy
 			if err != nil {
 				return "", nil, ctrFee, err
 			}
-			err = bs.StageContractState(eContractState)
+			err = bs.LuaStateDB.StageContractState(eContractState)
 			if err != nil {
 				return "", nil, ctrFee, err
 			}
@@ -645,7 +646,7 @@ func (bc *DummyChain) ConnectBlock(txs ...LuaTxTester) error {
 		return err
 	}
 	//FIXME newblock must be created after sdb.apply()
-	bc.cBlock.SetBlocksRootHash(bc.sdb.GetRoot())
+	bc.cBlock.SetBlocksRootHash(bc.sdb.GetLuaRoot())
 	bc.bestBlockNo = bc.bestBlockNo + 1
 	bc.bestBlock = bc.cBlock
 	bc.bestBlockId = types.ToBlockID(bc.cBlock.BlockHash())
@@ -670,11 +671,11 @@ func (bc *DummyChain) DisConnectBlock() error {
 	if bestBlock != nil {
 		sroot = bestBlock.GetHeader().GetBlocksRootHash()
 	}
-	return bc.sdb.SetRoot(sroot)
+	return bc.sdb.SetLuaRoot(sroot)
 }
 
 func (bc *DummyChain) Query(contract_name, queryInfo, expectedErr string, expectedRvs ...string) error {
-	cState, err := bc.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(contract.StrHash(contract_name)))
+	cState, err := bc.sdb.GetLuaStateDB().OpenContractStateAccount(types.ToAccountID(contract.StrHash(contract_name)))
 	if err != nil {
 		return err
 	}
@@ -703,7 +704,7 @@ func (bc *DummyChain) Query(contract_name, queryInfo, expectedErr string, expect
 }
 
 func (bc *DummyChain) QueryOnly(contract_name, queryInfo string, expectedErr string) (bool, string, error) {
-	cState, err := bc.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(contract.StrHash(contract_name)))
+	cState, err := bc.sdb.GetLuaStateDB().OpenContractStateAccount(types.ToAccountID(contract.StrHash(contract_name)))
 	if err != nil {
 		return false, "", err
 	}

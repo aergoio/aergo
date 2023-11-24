@@ -138,7 +138,7 @@ func (cv *ChainVerifier) VerifyBlockWithReport() error {
 	}
 	cv.report(prevBlock, nil, nil)
 
-	cv.Core.sdb.SetRoot(prevBlock.GetHeader().GetBlocksRootHash())
+	cv.Core.sdb.SetLuaRoot(prevBlock.GetHeader().GetBlocksRootHash())
 
 	cv.setStage(TestCurBlock)
 	if block, err = cv.cdb.GetBlockByNo(cv.targetBlockNo); err != nil {
@@ -221,7 +221,7 @@ func (cv *ChainVerifier) VerifyChain() error {
 		return err
 	}
 
-	if err = cv.Core.sdb.SetRoot(block.GetHeader().GetBlocksRootHash()); err != nil {
+	if err = cv.Core.sdb.SetLuaRoot(block.GetHeader().GetBlocksRootHash()); err != nil {
 		logger.Error().Err(err).Msg("failed to set root of sdb to root hash of genesis block")
 		return err
 	}

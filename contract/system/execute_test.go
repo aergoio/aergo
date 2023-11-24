@@ -242,7 +242,7 @@ func TestValidateSystemTxForStaking(t *testing.T) {
 	scs, sender, receiver := initTest(t)
 	defer deinitTest()
 
-	scs, err := cdb.GetStateDB().GetSystemAccountState()
+	scs, err := cdb.GetLuaStateDB().GetSystemAccountState()
 	assert.NoError(t, err, "could not open contract state")
 
 	tx := &types.Tx{
@@ -265,7 +265,7 @@ func TestValidateSystemTxForUnstaking(t *testing.T) {
 	defer deinitTest()
 	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
 
-	scs, err := cdb.GetStateDB().GetSystemAccountState()
+	scs, err := cdb.GetLuaStateDB().GetSystemAccountState()
 	assert.NoError(t, err, "could not open contract state")
 
 	account, err := types.DecodeAddress(testSender)

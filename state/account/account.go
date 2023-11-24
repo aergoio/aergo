@@ -3,34 +3,34 @@ package account
 import (
 	"math/big"
 
-	lua_state "github.com/aergoio/aergo/v2/state"
-	lua_types "github.com/aergoio/aergo/v2/types"
-	eth_common "github.com/ethereum/go-ethereum/common"
-	eth_state "github.com/ethereum/go-ethereum/core/state"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
+	ethcommon "github.com/ethereum/go-ethereum/common"
+	ethstate "github.com/ethereum/go-ethereum/core/state"
 )
 
 // address : compressed public key (33 bytes)
-func NewAccount(addr []byte, luaState *lua_state.StateDB, ethState *eth_state.StateDB) (*Account, error) {
+func NewAccount(addr []byte, luaState *state.StateDB, ethState *ethstate.StateDB) (*Account, error) {
 	var err error
 
 	acc := &Account{}
-	acc.LuaAccount = lua_types.ToAccountID(addr)
-	acc.EthAccount = eth_common.BytesToAddress(addr) // FIXME : is compressed key can encode to common.Address? check compressed pubkey
+	acc.LuaAccount = types.ToAccountID(addr)
+	acc.EthAccount = ethcommon.BytesToAddress(addr) // FIXME : is compressed key can encode to common.Address? check compressed pubkey
 
 	if acc.LuaAccState, err = luaState.GetAccountState(acc.LuaAccount); err != nil {
 		return nil, err
 	}
 
-	if balance := acc.LuaAccState.GetBalanceBigInt(); balance.Cmp(ethState.GetBalance(acc.EthAccount)) != 0 {
+	if b := acc.LuaAccState.GetBalanceBigInt(); b.Cmp(ethState.GetBalance(acc.EthAccount)) != 0 {
 		panic("impossible") // FIXME : handle exception
 	} else {
-		acc.Balance = balance
+		acc.Balance = b
 	}
 
-	if nonce := acc.LuaAccState.GetNonce(); nonce != ethState.GetNonce(acc.EthAccount) {
+	if n := acc.LuaAccState.GetNonce(); n != ethState.GetNonce(acc.EthAccount) {
 		panic("impossible") // FIXME : handle exception
 	} else {
-		acc.Nonce = nonce
+		acc.Nonce = n
 	}
 
 	return acc, nil
@@ -42,13 +42,13 @@ type Account struct {
 	Nonce   uint64
 
 	// lua
-	LuaAccount  lua_types.AccountID
-	LuaState    *lua_state.StateDB
-	LuaAccState *lua_types.State
+	LuaAccount  types.AccountID
+	LuaState    *state.StateDB
+	LuaAccState *types.State
 
 	// ethereum
-	EthAccount eth_common.Address
-	EthState   *eth_state.StateDB
+	EthAccount ethcommon.Address
+	EthState   *ethstate.StateDB
 }
 
 func (acc *Account) SetNonce(nonce uint64) {

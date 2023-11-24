@@ -590,7 +590,8 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 		}
 
 		bState = state.NewBlockState(
-			cs.sdb.OpenNewStateDB(cs.sdb.GetRoot()),
+			cs.sdb.OpenLuaStateDB(cs.sdb.GetLuaRoot()),
+			cs.sdb.OpenEvmStateDB(cs.sdb.GetEvmRoot()),
 			state.SetPrevBlockHash(block.GetHeader().GetPrevBlockHash()),
 		)
 		bi = types.NewBlockHeaderInfo(block)
@@ -616,7 +617,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 		txs:             block.GetBody().GetTxs(),
 		coinbaseAccount: block.GetHeader().GetCoinbaseAccount(),
 		validatePost: func() error {
-			return cs.validator.ValidatePost(bState.GetRoot(), bState.Receipts(), block)
+			return cs.validator.ValidatePost(bState.GetLuaRoot(), bState.GetEvmRoot(), bState.Receipts(), block)
 		},
 		commitOnly:       commitOnly,
 		verifyOnly:       verifyOnly,
@@ -795,7 +796,7 @@ func (cs *ChainService) verifyBlock(block *types.Block) error {
 	}
 
 	// set root of sdb to block root hash
-	if err = cs.sdb.SetRoot(block.GetHeader().GetBlocksRootHash()); err != nil {
+	if err = cs.sdb.SetLuaRoot(block.GetHeader().GetBlocksRootHash()); err != nil {
 		return fmt.Errorf("failed to set root of sdb(no=%d,hash=%v)", block.BlockNo(), block.ID())
 	}
 
@@ -824,13 +825,13 @@ func (cs *ChainService) executeBlockReco(_ *state.BlockState, block *types.Block
 		return err
 	}
 
-	if !cs.sdb.GetStateDB().HasMarker(block.GetHeader().GetBlocksRootHash()) {
+	if !cs.sdb.GetLuaStateDB().HasMarker(block.GetHeader().GetBlocksRootHash()) {
 		logger.Error().Str("hash", block.ID()).Uint64("no", block.GetHeader().GetBlockNo()).Msg("state marker does not exist")
 		return ErrStateNoMarker
 	}
 
 	// move stateroot
-	if err := cs.sdb.SetRoot(block.GetHeader().GetBlocksRootHash()); err != nil {
+	if err := cs.sdb.SetLuaRoot(block.GetHeader().GetBlocksRootHash()); err != nil {
 		return fmt.Errorf("failed to set sdb(branchRoot:no=%d,hash=%v)", block.GetHeader().GetBlockNo(),
 			block.ID())
 	}
@@ -918,7 +919,7 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 		return err
 	}
 
-	sender, err := bs.GetAccountStateV(account)
+	sender, err := bs.LuaStateDB.GetAccountStateV(account)
 	if err != nil {
 		return err
 	}
@@ -934,13 +935,13 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 	var receiver *state.V
 	status := "SUCCESS"
 	if len(recipient) > 0 {
-		receiver, err = bs.GetAccountStateV(recipient)
+		receiver, err = bs.LuaStateDB.GetAccountStateV(recipient)
 		if receiver != nil && txBody.Type == types.TxType_REDEPLOY {
 			status = "RECREATED"
 			receiver.SetRedeploy()
 		}
 	} else {
-		receiver, err = bs.CreateAccountStateV(contract.CreateContractID(txBody.Account, txBody.Nonce))
+		receiver, err = bs.LuaStateDB.CreateAccountStateV(contract.CreateContractID(txBody.Account, txBody.Nonce))
 		status = "CREATED"
 	}
 	if err != nil {
@@ -991,7 +992,7 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 		}
 
 		var contractState *state.ContractState
-		contractState, err = bs.OpenContractState(receiver.AccountID(), receiver.State())
+		contractState, err = bs.LuaStateDB.OpenContractState(receiver.AccountID(), receiver.State())
 		if err != nil {
 			return err
 		}
@@ -1088,7 +1089,7 @@ func sendRewardCoinbase(bState *state.BlockState, coinbaseAccount []byte) error 
 	}
 
 	receiverID := types.ToAccountID(coinbaseAccount)
-	receiverState, err := bState.GetAccountState(receiverID)
+	receiverState, err := bState.LuaStateDB.GetAccountState(receiverID)
 	if err != nil {
 		return err
 	}
@@ -1096,7 +1097,7 @@ func sendRewardCoinbase(bState *state.BlockState, coinbaseAccount []byte) error 
 	receiverChange := types.State(*receiverState)
 	receiverChange.Balance = new(big.Int).Add(receiverChange.GetBalanceBigInt(), bpReward).Bytes()
 
-	err = bState.PutState(receiverID, &receiverChange)
+	err = bState.LuaStateDB.PutState(receiverID, &receiverChange)
 	if err != nil {
 		return err
 	}

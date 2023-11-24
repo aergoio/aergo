@@ -41,9 +41,9 @@ func TestName(t *testing.T) {
 	tx := &types.TxBody{Account: owner, Payload: buildNamePayload(name, types.NameCreate, "")}
 	tx.Recipient = []byte(types.AergoName)
 
-	sender, _ := sdb.GetStateDB().GetAccountStateV(tx.Account)
-	receiver, _ := sdb.GetStateDB().GetAccountStateV(tx.Recipient)
-	bs := sdb.NewBlockState(sdb.GetRoot())
+	sender, _ := sdb.GetLuaStateDB().GetAccountStateV(tx.Account)
+	receiver, _ := sdb.GetLuaStateDB().GetAccountStateV(tx.Recipient)
+	bs := sdb.NewBlockState(sdb.GetLuaRoot(), nil)
 	scs := openContractState(t, bs)
 
 	err := CreateName(scs, tx, sender, receiver, name)
@@ -76,9 +76,9 @@ func TestNameRecursive(t *testing.T) {
 
 	tx := &types.TxBody{Account: owner, Recipient: []byte(types.AergoName), Payload: buildNamePayload(name1, types.NameCreate, "")}
 
-	sender, _ := sdb.GetStateDB().GetAccountStateV(tx.Account)
-	receiver, _ := sdb.GetStateDB().GetAccountStateV(tx.Recipient)
-	bs := sdb.NewBlockState(sdb.GetRoot())
+	sender, _ := sdb.GetLuaStateDB().GetAccountStateV(tx.Account)
+	receiver, _ := sdb.GetLuaStateDB().GetAccountStateV(tx.Recipient)
+	bs := sdb.NewBlockState(sdb.GetLuaRoot(), nil)
 	scs := openContractState(t, bs)
 	err := CreateName(scs, tx, sender, receiver, name1)
 	assert.NoError(t, err, "create name")
@@ -116,11 +116,11 @@ func TestNameNil(t *testing.T) {
 	name1 := "AB1234567890"
 	name2 := "1234567890CD"
 
-	scs, err := sdb.GetStateDB().GetSystemAccountState()
+	scs, err := sdb.GetLuaStateDB().GetSystemAccountState()
 	assert.NoError(t, err, "could not open contract state")
 	tx := &types.TxBody{Account: []byte(name1), Payload: buildNamePayload(name2, types.NameCreate, "")}
-	sender, _ := sdb.GetStateDB().GetAccountStateV(tx.Account)
-	receiver, _ := sdb.GetStateDB().GetAccountStateV(tx.Recipient)
+	sender, _ := sdb.GetLuaStateDB().GetAccountStateV(tx.Account)
+	receiver, _ := sdb.GetLuaStateDB().GetAccountStateV(tx.Recipient)
 
 	err = CreateName(scs, tx, sender, receiver, name2)
 	assert.NoError(t, err, "create name")
@@ -138,13 +138,13 @@ func TestNameSetContractOwner(t *testing.T) {
 	}
 	tx.Recipient = []byte(types.AergoName)
 
-	sender, _ := sdb.GetStateDB().GetAccountStateV(tx.Account)
-	receiver, _ := sdb.GetStateDB().GetAccountStateV(tx.Recipient)
+	sender, _ := sdb.GetLuaStateDB().GetAccountStateV(tx.Account)
+	receiver, _ := sdb.GetLuaStateDB().GetAccountStateV(tx.Recipient)
 	//owner, _ := sdb.GetStateDB().GetAccountStateV(ownerAddr)
 
 	receiver.AddBalance(big.NewInt(1000))
 
-	bs := sdb.NewBlockState(sdb.GetRoot())
+	bs := sdb.NewBlockState(sdb.GetLuaRoot(), nil)
 	scs := openContractState(t, bs)
 	//systemcs := openSystemContractState(t, bs)
 
@@ -177,7 +177,7 @@ func TestNameMap(t *testing.T) {
 	owner := types.ToAddress("AmMXVdJ8DnEFysN58cox9RADC74dF1CLrQimKCMdB4XXMkJeuQgL")
 	destination := types.ToAddress("AmhhvY54uW2ZbcyeADPs6MKtj6CrTYcuhHpxn1VxPST1usEY1rDm")
 
-	bs := sdb.NewBlockState(sdb.GetRoot())
+	bs := sdb.NewBlockState(sdb.GetLuaRoot(), nil)
 	scs := openContractState(t, bs)
 
 	testNameMap := &NameMap{Owner: owner, Destination: destination, Version: 1}

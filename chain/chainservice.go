@@ -502,7 +502,7 @@ func (cs *ChainService) GetChainTree() ([]byte, error) {
 func (cs *ChainService) getVotes(id string, n uint32) (*types.VoteList, error) {
 	switch ConsensusName() {
 	case consensus.ConsensusName[consensus.ConsensusDPOS]:
-		sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
+		sdb := cs.sdb.OpenLuaStateDB(cs.sdb.GetLuaRoot())
 		if n == 0 {
 			return system.GetVoteResult(sdb, []byte(id), system.GetBpCount())
 		}
@@ -520,7 +520,7 @@ func (cs *ChainService) getAccountVote(addr []byte) (*types.AccountVoteInfo, err
 		return nil, ErrNotSupportedConsensus
 	}
 
-	sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
+	sdb := cs.sdb.OpenLuaStateDB(cs.sdb.GetLuaRoot())
 	scs, err := sdb.GetSystemAccountState()
 	if err != nil {
 		return nil, err
@@ -542,7 +542,7 @@ func (cs *ChainService) getStaking(addr []byte) (*types.Staking, error) {
 		return nil, ErrNotSupportedConsensus
 	}
 
-	sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
+	sdb := cs.sdb.OpenLuaStateDB(cs.sdb.GetLuaRoot())
 	scs, err := sdb.GetSystemAccountState()
 	if err != nil {
 		return nil, err
@@ -565,15 +565,15 @@ func (cs *ChainService) getNameInfo(qname string, blockNo types.BlockNo) (*types
 		if err != nil {
 			return nil, err
 		}
-		stateDB = cs.sdb.OpenNewStateDB(block.GetHeader().GetBlocksRootHash())
+		stateDB = cs.sdb.OpenLuaStateDB(block.GetHeader().GetBlocksRootHash())
 	} else {
-		stateDB = cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
+		stateDB = cs.sdb.OpenLuaStateDB(cs.sdb.GetLuaRoot())
 	}
 	return name.GetNameInfo(stateDB, qname)
 }
 
 func (cs *ChainService) getEnterpriseConf(key string) (*types.EnterpriseConfig, error) {
-	sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
+	sdb := cs.sdb.OpenLuaStateDB(cs.sdb.GetLuaRoot())
 	if strings.ToUpper(key) != string(dbkey.EnterpriseAdmins()) {
 		return enterprise.GetConf(sdb, key)
 	}
@@ -581,7 +581,7 @@ func (cs *ChainService) getEnterpriseConf(key string) (*types.EnterpriseConfig, 
 }
 
 func (cs *ChainService) getSystemValue(key types.SystemValue) (*big.Int, error) {
-	stateDB := cs.sdb.GetStateDB()
+	stateDB := cs.sdb.GetLuaStateDB()
 	switch key {
 	case types.StakingTotal:
 		return system.GetStakingTotal(stateDB)
@@ -741,7 +741,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			Err:   err,
 		})
 	case *message.GetState:
-		sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetRoot())
+		sdb = cw.sdb.OpenLuaStateDB(cw.sdb.GetLuaRoot())
 		address, err := getAddressNameResolved(sdb, msg.Account)
 		if err != nil {
 			context.Respond(message.GetStateRsp{
@@ -762,7 +762,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			Err:     err,
 		})
 	case *message.GetStateAndProof:
-		sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetRoot())
+		sdb = cw.sdb.OpenLuaStateDB(cw.sdb.GetLuaRoot())
 		stateProof, err := getAccProof(sdb, msg.Account, msg.Root, msg.Compressed)
 		context.Respond(message.GetStateAndProofRsp{
 			StateProof: stateProof,
@@ -782,7 +782,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			Err:     err,
 		})
 	case *message.GetABI:
-		sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetRoot())
+		sdb = cw.sdb.OpenLuaStateDB(cw.sdb.GetLuaRoot())
 		address, err := getAddressNameResolved(sdb, msg.Contract)
 		if err != nil {
 			context.Respond(message.GetABIRsp{
@@ -807,7 +807,8 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 	case *message.GetQuery:
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
-		sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetRoot())
+		sdb = cw.sdb.OpenLuaStateDB(cw.sdb.GetLuaRoot())
+		evmdb := cw.sdb.OpenEvmStateDB(cw.sdb.GetLuaRoot())
 		address, err := getAddressNameResolved(sdb, msg.Contract)
 		if err != nil {
 			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
@@ -818,12 +819,12 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			logger.Error().Str("hash", base58.Encode(address)).Err(err).Msg("failed to get state for contract")
 			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
 		} else {
-			bs := state.NewBlockState(sdb)
+			bs := state.NewBlockState(sdb, evmdb)
 			ret, err := contract.Query(address, bs, cw.cdb, ctrState, msg.Queryinfo)
 			context.Respond(message.GetQueryRsp{Result: ret, Err: err})
 		}
 	case *message.GetStateQuery:
-		sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetRoot())
+		sdb = cw.sdb.OpenLuaStateDB(cw.sdb.GetLuaRoot())
 		contractProof, err := getAccProof(sdb, msg.ContractAddress, msg.Root, msg.Compressed)
 		if err != nil {
 			context.Respond(message.GetStateQueryRsp{
@@ -907,13 +908,13 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
 
-		sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetRoot())
+		sdb = cw.sdb.OpenLuaStateDB(cw.sdb.GetLuaRoot())
 		ctrState, err := sdb.OpenContractStateAccount(types.ToAccountID(msg.Contract))
 		if err != nil {
 			logger.Error().Str("hash", base58.Encode(msg.Contract)).Err(err).Msg("failed to get state for contract")
 			context.Respond(message.CheckFeeDelegationRsp{Err: err})
 		} else {
-			bs := state.NewBlockState(sdb)
+			bs := state.NewBlockState(sdb, nil)
 			err := contract.CheckFeeDelegation(msg.Contract, bs, nil, cw.cdb, ctrState, msg.Payload, msg.TxHash, msg.Sender, msg.Amount)
 			context.Respond(message.CheckFeeDelegationRsp{Err: err})
 		}

@@ -132,7 +132,7 @@ func (sv *SignVerifier) verifyTx(comm component.IComponentRequester, tx *types.T
 	}
 
 	if tx.NeedNameVerify() {
-		cs, err := sv.sdb.GetStateDB().GetNameAccountState()
+		cs, err := sv.sdb.GetLuaStateDB().GetNameAccountState()
 		if err != nil {
 			logger.Error().Err(err).Msg("failed to get verify because of opening contract error")
 			return false, err

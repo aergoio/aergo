@@ -136,7 +136,7 @@ func initVprtTestWithSc(t *testing.T, initTable func(*state.ContractState)) {
 func initDB(t *testing.T) {
 	vprChainStateDB = state.NewChainStateDB()
 	_ = vprChainStateDB.Init(string(db.BadgerImpl), "test", nil, false)
-	vprStateDB = vprChainStateDB.GetStateDB()
+	vprStateDB = vprChainStateDB.GetLuaStateDB()
 	genesis := types.GetTestGenesis()
 
 	err := vprChainStateDB.SetGenesis(genesis, nil)
@@ -148,7 +148,7 @@ func getStateRoot() []byte {
 }
 
 func openSystemAccountWith(root []byte) *state.ContractState {
-	s, err := vprChainStateDB.OpenNewStateDB(root).GetSystemAccountState()
+	s, err := vprChainStateDB.OpenLuaStateDB(root).GetSystemAccountState()
 	if err != nil {
 		return nil
 	}

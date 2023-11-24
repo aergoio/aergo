@@ -150,7 +150,7 @@ func (bv *BlockValidator) WaitVerifyDone() error {
 	return nil
 }
 
-func (bv *BlockValidator) ValidatePost(sdbRoot []byte, receipts *types.Receipts, block *types.Block) error {
+func (bv *BlockValidator) ValidatePost(sdbRoot []byte, evmRoot []byte, receipts *types.Receipts, block *types.Block) error {
 	hdrRoot := block.GetHeader().GetBlocksRootHash()
 
 	ret := bytes.Equal(hdrRoot, sdbRoot)

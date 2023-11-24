@@ -477,7 +477,7 @@ func (reorg *reorganizer) rollback() error {
 
 	logger.Info().Str("hash", brStartBlock.ID()).Uint64("no", brStartBlockNo).Msg("rollback chain to branch start block")
 
-	if err := reorg.cs.sdb.SetRoot(brStartBlock.GetHeader().GetBlocksRootHash()); err != nil {
+	if err := reorg.cs.sdb.SetLuaRoot(brStartBlock.GetHeader().GetBlocksRootHash()); err != nil {
 		return fmt.Errorf("failed to rollback sdb(branchRoot:no=%d,hash=%v)", brStartBlockNo,
 			brStartBlock.ID())
 	}

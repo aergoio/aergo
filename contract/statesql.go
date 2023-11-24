@@ -145,13 +145,13 @@ func SaveRecoveryPoint(bs *state.BlockState) error {
 				if sqlLgr.IsDebugEnabled() {
 					sqlLgr.Debug().Str("db_name", id).Uint64("commit_id", rp).Msg("save recovery point")
 				}
-				receiverState, err := bs.GetAccountState(db.accountID)
+				receiverState, err := bs.LuaStateDB.GetAccountState(db.accountID)
 				if err != nil {
 					return err
 				}
 				receiverChange := types.State(*receiverState)
 				receiverChange.SqlRecoveryPoint = uint64(rp)
-				err = bs.PutState(db.accountID, &receiverChange)
+				err = bs.LuaStateDB.PutState(db.accountID, &receiverChange)
 				if err != nil {
 					return err
 				}

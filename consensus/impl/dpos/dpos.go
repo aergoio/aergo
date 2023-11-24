@@ -98,7 +98,7 @@ func GetConstructor(cfg *config.Config, hub *component.ComponentHub, cdb consens
 	}
 }
 
-func getStateDB(cfg *config.Config, cdb consensus.ChainDB, sdb *state.ChainStateDB) (*state.StateDB, error) {
+func getLuaStateDB(cfg *config.Config, cdb consensus.ChainDB, sdb *state.ChainStateDB) (*state.StateDB, error) {
 	if cfg.Blockchain.VerifyOnly {
 		vprInitBlockNo := func(blockNo types.BlockNo) types.BlockNo {
 			if blockNo == 0 {
@@ -111,10 +111,10 @@ func getStateDB(cfg *config.Config, cdb consensus.ChainDB, sdb *state.ChainState
 		if block, err := cdb.GetBlockByNo(vprInitBlockNo(cfg.Blockchain.VerifyBlock)); err != nil {
 			return nil, err
 		} else {
-			return sdb.OpenNewStateDB(block.GetHeader().GetBlocksRootHash()), nil
+			return sdb.OpenLuaStateDB(block.GetHeader().GetBlocksRootHash()), nil
 		}
 	}
-	return sdb.GetStateDB(), nil
+	return sdb.GetLuaStateDB(), nil
 }
 
 // New returns a new DPos object
@@ -129,7 +129,7 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
 	}
 
 	var state *state.StateDB
-	if state, err = getStateDB(cfg, cdb, sdb); err != nil {
+	if state, err = getLuaStateDB(cfg, cdb, sdb); err != nil {
 		return nil, err
 	}
 
@@ -157,7 +157,7 @@ func sendVotingReward(bState *state.BlockState, dummy []byte) error {
 	}
 
 	vaultID := types.ToAccountID([]byte(types.AergoVault))
-	vs, err := bState.GetAccountState(vaultID)
+	vs, err := bState.LuaStateDB.GetAccountState(vaultID)
 	if err != nil {
 		logger.Info().Err(err).Msg("skip voting reward")
 		return nil
@@ -181,7 +181,7 @@ func sendVotingReward(bState *state.BlockState, dummy []byte) error {
 	}
 
 	ID := types.ToAccountID(addr)
-	s, err := bState.GetAccountState(ID)
+	s, err := bState.LuaStateDB.GetAccountState(ID)
 	if err != nil {
 		logger.Info().Err(err).Msg("skip voting reward")
 		return nil
@@ -190,13 +190,13 @@ func sendVotingReward(bState *state.BlockState, dummy []byte) error {
 	newBalance := new(big.Int).Add(s.GetBalanceBigInt(), reward)
 	s.Balance = newBalance.Bytes()
 
-	err = bState.PutState(ID, s)
+	err = bState.LuaStateDB.PutState(ID, s)
 	if err != nil {
 		return err
 	}
 
 	vs.Balance = vaultBalance.Sub(vaultBalance, reward).Bytes()
-	if err = bState.PutState(vaultID, vs); err != nil {
+	if err = bState.LuaStateDB.PutState(vaultID, vs); err != nil {
 		return err
 	}
 

@@ -30,22 +30,22 @@ func initTest(t *testing.T) (*state.ContractState, *state.V, *state.V) {
 	genesis := types.GetTestGenesis()
 	err := cdb.SetGenesis(genesis, nil)
 
-	bs = cdb.NewBlockState(cdb.GetRoot())
+	bs = cdb.NewBlockState(cdb.GetLuaRoot(), nil)
 	if err != nil {
 		t.Fatalf("failed init : %s", err.Error())
 	}
 	// Need to pass the
 	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
 
-	scs, err := bs.GetSystemAccountState()
+	scs, err := bs.LuaStateDB.GetSystemAccountState()
 	assert.NoError(t, err, "could not open contract state")
 	InitSystemParams(scs, 3)
 
 	account, err := types.DecodeAddress(testSender)
 	assert.NoError(t, err, "could not decode test address")
-	sender, err := bs.GetAccountStateV(account)
+	sender, err := bs.LuaStateDB.GetAccountStateV(account)
 	assert.NoError(t, err, "could not get test address state")
-	receiver, err := bs.GetAccountStateV([]byte(types.AergoSystem))
+	receiver, err := bs.LuaStateDB.GetAccountStateV([]byte(types.AergoSystem))
 	assert.NoError(t, err, "could not get test address state")
 	return scs, sender, receiver
 }
@@ -53,17 +53,17 @@ func initTest(t *testing.T) (*state.ContractState, *state.V, *state.V) {
 func getSender(t *testing.T, addr string) *state.V {
 	account, err := types.DecodeAddress(addr)
 	assert.NoError(t, err, "could not decode test address")
-	sender, err := bs.GetAccountStateV(account)
+	sender, err := bs.LuaStateDB.GetAccountStateV(account)
 	assert.NoError(t, err, "could not get test address state")
 	return sender
 }
 
 func commitNextBlock(t *testing.T, scs *state.ContractState) *state.ContractState {
-	bs.StageContractState(scs)
-	bs.Update()
-	bs.Commit()
+	bs.LuaStateDB.StageContractState(scs)
+	bs.LuaStateDB.Update()
+	bs.LuaStateDB.Commit()
 	cdb.UpdateRoot(bs)
-	ret, err := bs.GetSystemAccountState()
+	ret, err := bs.LuaStateDB.GetSystemAccountState()
 	assert.NoError(t, err, "could not open contract state")
 	return ret
 }
@@ -77,7 +77,7 @@ func TestVoteResult(t *testing.T) {
 	const testSize = 64
 	initTest(t)
 	defer deinitTest()
-	scs, err := cdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("testUpdateVoteResult")))
+	scs, err := cdb.GetLuaStateDB().OpenContractStateAccount(types.ToAccountID([]byte("testUpdateVoteResult")))
 	assert.NoError(t, err, "could not open contract state")
 	testResult := map[string]*big.Int{}
 	for i := 0; i < testSize; i++ {
@@ -106,7 +106,7 @@ func TestVoteData(t *testing.T) {
 	const testSize = 64
 	initTest(t)
 	defer deinitTest()
-	scs, err := cdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("testSetGetVoteDate")))
+	scs, err := cdb.GetLuaStateDB().OpenContractStateAccount(types.ToAccountID([]byte("testSetGetVoteDate")))
 	assert.NoError(t, err, "could not open contract state")
 
 	for i := 0; i < testSize; i++ {

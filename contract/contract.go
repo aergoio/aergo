@@ -106,7 +106,7 @@ func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, t
 	}
 
 	// open the contract state
-	contractState, err := bs.OpenContractState(receiver.AccountID(), receiver.State())
+	contractState, err := bs.LuaStateDB.OpenContractState(receiver.AccountID(), receiver.State())
 	if err != nil {
 		return
 	}
@@ -194,7 +194,7 @@ func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, t
 	}
 
 	// save the contract state
-	err = bs.StageContractState(contractState)
+	err = bs.LuaStateDB.StageContractState(contractState)
 	if err != nil {
 		return "", events, usedFee, err
 	}
@@ -254,7 +254,7 @@ func preloadWorker() {
 		}
 
 		// get the state of the recipient
-		receiver, err := bs.GetAccountStateV(recipient)
+		receiver, err := bs.LuaStateDB.GetAccountStateV(recipient)
 		if err != nil {
 			replyCh <- &preloadReply{tx, nil, err}
 			continue
@@ -268,7 +268,7 @@ func preloadWorker() {
 		}
 
 		// open the contract state
-		contractState, err := bs.OpenContractState(receiver.AccountID(), receiver.State())
+		contractState, err := bs.LuaStateDB.OpenContractState(receiver.AccountID(), receiver.State())
 		if err != nil {
 			replyCh <- &preloadReply{tx, nil, err}
 			continue

@@ -9,14 +9,18 @@ import (
 	"github.com/aergoio/aergo/v2/internal/common"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/types"
+	ethcommon "github.com/ethereum/go-ethereum/common"
+	ethstate "github.com/ethereum/go-ethereum/core/state"
 )
 
 // ChainStateDB manages statedb and additional informations about blocks like a state root hash
 type ChainStateDB struct {
 	sync.RWMutex
-	states   *StateDB
-	store    db.DB
-	testmode bool
+	luaStore  db.DB
+	luaStates *StateDB
+	evmStore  ethstate.Database
+	evmStates *ethstate.StateDB
+	testmode  bool
 }
 
 // NewChainStateDB creates instance of ChainStateDB
@@ -30,8 +34,8 @@ func (sdb *ChainStateDB) Clone() *ChainStateDB {
 	defer sdb.Unlock()
 
 	newSdb := &ChainStateDB{
-		store:  sdb.store,
-		states: sdb.GetStateDB().Clone(),
+		luaStore:  sdb.luaStore,
+		luaStates: sdb.GetLuaStateDB().Clone(),
 	}
 	return newSdb
 }
@@ -43,19 +47,19 @@ func (sdb *ChainStateDB) Init(dbType string, dataDir string, bestBlock *types.Bl
 
 	sdb.testmode = test
 	// init db
-	if sdb.store == nil {
+	if sdb.luaStore == nil {
 		dbPath := common.PathMkdirAll(dataDir, stateName)
-		sdb.store = db.NewDB(db.ImplType(dbType), dbPath)
+		sdb.luaStore = db.NewDB(db.ImplType(dbType), dbPath)
 	}
 
 	// init trie
-	if sdb.states == nil {
+	if sdb.luaStates == nil {
 		var sroot []byte
 		if bestBlock != nil {
 			sroot = bestBlock.GetHeader().GetBlocksRootHash()
 		}
 
-		sdb.states = NewStateDB(sdb.store, sroot, sdb.testmode)
+		sdb.luaStates = NewStateDB(sdb.luaStore, sroot, sdb.testmode)
 	}
 	return nil
 }
@@ -66,48 +70,58 @@ func (sdb *ChainStateDB) Close() error {
 	defer sdb.Unlock()
 
 	// close db
-	if sdb.store != nil {
-		sdb.store.Close()
+	if sdb.luaStore != nil {
+		sdb.luaStore.Close()
 	}
 	return nil
 }
 
+// GetLuaStateDB returns statedb stores account states
+func (sdb *ChainStateDB) GetLuaStateDB() *StateDB {
+	return sdb.luaStates
+}
+
 // GetStateDB returns statedb stores account states
-func (sdb *ChainStateDB) GetStateDB() *StateDB {
-	return sdb.states
+func (sdb *ChainStateDB) GetEvmStateDB() *ethstate.StateDB {
+	return sdb.evmStates
 }
 
 // GetSystemAccountState returns the state of the aergo system account.
 func (sdb *ChainStateDB) GetSystemAccountState() (*ContractState, error) {
-	return sdb.GetStateDB().GetSystemAccountState()
+	return sdb.GetLuaStateDB().GetSystemAccountState()
 }
 
-// OpenNewStateDB returns new instance of statedb given state root hash
-func (sdb *ChainStateDB) OpenNewStateDB(root []byte) *StateDB {
-	return NewStateDB(sdb.store, root, sdb.testmode)
+// OpenLuaStateDB returns new instance of statedb given state root hash
+func (sdb *ChainStateDB) OpenLuaStateDB(root []byte) *StateDB {
+	return NewStateDB(sdb.luaStore, root, sdb.testmode)
+}
+
+func (sdb *ChainStateDB) OpenEvmStateDB(root []byte) *ethstate.StateDB {
+	esdb, _ := ethstate.New(ethcommon.BytesToHash(root), sdb.evmStore, nil)
+	return esdb
 }
 
 func (sdb *ChainStateDB) SetGenesis(genesis *types.Genesis, bpInit func(*StateDB, *types.Genesis) error) error {
 	block := genesis.Block()
-	stateDB := sdb.OpenNewStateDB(sdb.GetRoot())
+	luaStateDB := sdb.OpenLuaStateDB(sdb.GetLuaRoot())
 
 	// create state of genesis block
-	gbState := sdb.NewBlockState(stateDB.GetRoot())
+	gbState := sdb.NewBlockState(luaStateDB.GetRoot(), nil)
 
 	if len(genesis.BPs) > 0 && bpInit != nil {
 		// To avoid cyclic dedendency, BP initilization is called via function
 		// pointer.
-		if err := bpInit(stateDB, genesis); err != nil {
+		if err := bpInit(luaStateDB, genesis); err != nil {
 			return err
 		}
 
 		aid := types.ToAccountID([]byte(types.AergoSystem))
-		scs, err := stateDB.GetSystemAccountState()
+		scs, err := luaStateDB.GetSystemAccountState()
 		if err != nil {
 			return err
 		}
 
-		if err := gbState.PutState(aid, scs.State); err != nil {
+		if err := gbState.LuaStateDB.PutState(aid, scs.State); err != nil {
 			return err
 		}
 	}
@@ -116,7 +130,7 @@ func (sdb *ChainStateDB) SetGenesis(genesis *types.Genesis, bpInit func(*StateDB
 		bytes := types.ToAddress(address)
 		id := types.ToAccountID(bytes)
 		if v, ok := new(big.Int).SetString(balance, 10); ok {
-			if err := gbState.PutState(id, &types.State{Balance: v.Bytes()}); err != nil {
+			if err := gbState.LuaStateDB.PutState(id, &types.State{Balance: v.Bytes()}); err != nil {
 				return err
 			}
 			genesis.AddBalance(v)
@@ -131,7 +145,7 @@ func (sdb *ChainStateDB) SetGenesis(genesis *types.Genesis, bpInit func(*StateDB
 		return err
 	}
 
-	block.SetBlocksRootHash(sdb.GetRoot())
+	block.SetBlocksRootHash(sdb.GetLuaRoot())
 
 	return nil
 }
@@ -168,30 +182,37 @@ func (sdb *ChainStateDB) UpdateRoot(bstate *BlockState) error {
 	// 	bstate.BlockInfo.StateRoot = types.ToHashID(sdb.GetRoot())
 	// }
 
-	logger.Debug().Str("before", base58.Encode(sdb.states.GetRoot())).
-		Str("stateRoot", base58.Encode(bstate.GetRoot())).Msg("apply block state")
+	logger.Debug().Str("before", base58.Encode(sdb.luaStates.GetRoot())).
+		Str("luaStateRoot", base58.Encode(bstate.GetLuaRoot())).Msg("apply block state")
 
-	if err := sdb.states.SetRoot(bstate.GetRoot()); err != nil {
+	if err := sdb.luaStates.SetRoot(bstate.GetLuaRoot()); err != nil {
 		return err
 	}
 
+	// no need to update evm root
+
 	return nil
 }
 
-func (sdb *ChainStateDB) SetRoot(targetBlockRoot []byte) error {
+func (sdb *ChainStateDB) SetLuaRoot(targetBlockRoot []byte) error {
 	sdb.Lock()
 	defer sdb.Unlock()
 
-	logger.Debug().Str("before", base58.Encode(sdb.states.GetRoot())).
+	logger.Debug().Str("before", base58.Encode(sdb.luaStates.GetRoot())).
 		Str("target", base58.Encode(targetBlockRoot)).Msg("rollback state")
 
-	sdb.states.SetRoot(targetBlockRoot)
+	sdb.luaStates.SetRoot(targetBlockRoot)
 	return nil
 }
 
+// GetLuaRoot returns state root hash
+func (sdb *ChainStateDB) GetLuaRoot() []byte {
+	return sdb.luaStates.GetRoot()
+}
+
 // GetRoot returns state root hash
-func (sdb *ChainStateDB) GetRoot() []byte {
-	return sdb.states.GetRoot()
+func (sdb *ChainStateDB) GetEvmRoot() []byte {
+	return sdb.evmStates.IntermediateRoot(false).Bytes()
 }
 
 func (sdb *ChainStateDB) IsExistState(hash []byte) bool {
@@ -199,6 +220,15 @@ func (sdb *ChainStateDB) IsExistState(hash []byte) bool {
 	return false
 }
 
-func (sdb *ChainStateDB) NewBlockState(root []byte, options ...BlockStateOptFn) *BlockState {
-	return NewBlockState(sdb.OpenNewStateDB(root), options...)
+func (sdb *ChainStateDB) NewBlockState(luaRoot []byte, evmRoot []byte, options ...BlockStateOptFn) *BlockState {
+	var ls *StateDB
+	if luaRoot != nil {
+		ls = sdb.OpenLuaStateDB(luaRoot)
+	}
+	var es *ethstate.StateDB
+	if evmRoot != nil {
+		es = sdb.OpenEvmStateDB(evmRoot)
+	}
+
+	return NewBlockState(ls, es, options...)
 }

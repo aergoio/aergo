@@ -17,14 +17,14 @@ func initTest(t *testing.T) (*state.ContractState, *state.V, *state.V) {
 	cdb = state.NewChainStateDB()
 	cdb.Init(string(db.BadgerImpl), "test", nil, false)
 	genesis := types.GetTestGenesis()
-	sdb = cdb.OpenNewStateDB(cdb.GetRoot())
+	sdb = cdb.OpenLuaStateDB(cdb.GetLuaRoot())
 	err := cdb.SetGenesis(genesis, nil)
 	if err != nil {
 		t.Fatalf("failed init : %s", err.Error())
 	}
 	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
 
-	scs, err := cdb.GetStateDB().GetSystemAccountState()
+	scs, err := cdb.GetLuaStateDB().GetSystemAccountState()
 	assert.NoError(t, err, "could not open contract state")
 
 	account, err := types.DecodeAddress(testSender)

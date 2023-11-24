@@ -109,7 +109,7 @@ func (s *Status) Update(block *types.Block) {
 		// Rollback Voting Power Rank: the snapshot fully re-loaded from the
 		// branch block. TODO: let's find a smarter way or use parallel
 		// loading.
-		if err := InitVPR(s.sdb.OpenNewStateDB(block.GetHeader().GetBlocksRootHash())); err != nil {
+		if err := InitVPR(s.sdb.OpenLuaStateDB(block.GetHeader().GetBlocksRootHash())); err != nil {
 			logger.Fatal().Err(err).Msg("failed to rollback Voting Power Rank")
 		} else {
 			logger.Debug().Uint64("from block no", block.BlockNo()).Msg("VPR reloaded")

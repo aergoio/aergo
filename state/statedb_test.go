@@ -213,7 +213,7 @@ func TestStateDBParallel(t *testing.T) {
 	assert.True(t, stateEquals(&testSecondStates[2], st))
 
 	// open another statedb with root hash of previous state
-	anotherStateDB := chainStateDB.OpenNewStateDB(testRoot)
+	anotherStateDB := chainStateDB.OpenLuaStateDB(testRoot)
 	assert.Equal(t, testRoot, anotherStateDB.GetRoot())
 	assert.Equal(t, testSecondRoot, stateDB.GetRoot())
 
