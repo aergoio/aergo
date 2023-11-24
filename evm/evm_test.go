@@ -91,9 +91,7 @@ func TestGETH(t *testing.T) {
 
 	testAddress := common.HexToAddress("0x0a")
 	// create evmCfg
-	evmCfg := vm.Config{
-		Debug: false,
-	}
+	evmCfg := vm.Config{}
 
 	// create call cfg
 	testCfg := &runtime.Config{
@@ -202,8 +200,7 @@ func TestGETH(t *testing.T) {
 }
 
 func TestEVM(t *testing.T) {
-
-	testFile, _ := ioutil.TempFile(os.TempDir(), "temp")
+	testFile, _ := os.CreateTemp(os.TempDir(), "temp")
 	testPath, _ := filepath.Abs(filepath.Dir(testFile.Name()))
 	testPath = testPath + "/ethleveldb/test"
 

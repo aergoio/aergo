@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"container/list"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,6 +19,7 @@ import (
 	"github.com/aergoio/aergo/v2/contract"
 	"github.com/aergoio/aergo/v2/contract/name"
 	"github.com/aergoio/aergo/v2/contract/system"
+	"github.com/aergoio/aergo/v2/evm"
 	"github.com/aergoio/aergo/v2/fee"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/internal/enc/proto"
@@ -659,9 +661,9 @@ func (e *blockExecutor) execute() error {
 		nCand := len(e.txs)
 		for i, tx := range e.txs {
 			// if tx is not the last one, preload the next tx
-			if i != numTxs-1 {
-				preloadTx = e.txs[i+1]
-				contract.RequestPreload(e.BlockState, e.bi, preloadTx, tx, contract.ChainService)
+			if i != nCand-1 {
+				preLoadTx = e.txs[i+1]
+				contract.RequestPreload(e.BlockState, e.bi, preLoadTx, tx, contract.ChainService)
 			}
 			// execute the transaction
 			if err := e.execTx(e.BlockState, types.NewTransaction(tx)); err != nil {
@@ -670,7 +672,7 @@ func (e *blockExecutor) execute() error {
 				return err
 			}
 			// mark the next preload tx to be executed
-			contract.SetPreloadTx(preloadTx, contract.ChainService)
+			contract.SetPreloadTx(preLoadTx, contract.ChainService)
 		}
 
 		if e.validateSignWait != nil {
@@ -957,7 +959,7 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 		logger.Info().Msgf("EVM contract deploy with payload length %d from %s", len(txBody.Payload), hex.EncodeToString(senderETHAddress))
 		_, contractAddress, _, err := evmService.Create(senderETHAddress, txBody.Payload)
 		if err != nil {
-			logger.Warn().Err(err).Str("txhash", enc.ToString(tx.GetHash())).Msg("EVM contract deploy failed")
+			logger.Warn().Err(err).Str("txhash", base58.Encode(tx.GetHash())).Msg("EVM contract deploy failed")
 		} else {
 			logger.Info().Msgf("EVM contract deployed at %s", hex.EncodeToString(contractAddress))
 		}
@@ -970,7 +972,7 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 		logger.Info().Msgf("EVM contract call at %s with payload %s from %s", hex.EncodeToString(contractAddress), hex.EncodeToString(payload), hex.EncodeToString(senderETHAddress))
 		res, _, err := evmService.Call(senderETHAddress, contractAddress, payload)
 		if err != nil {
-			logger.Warn().Err(err).Str("txhash", enc.ToString(tx.GetHash())).Msg("EVM contract call failed")
+			logger.Warn().Err(err).Str("txhash", base58.Encode(tx.GetHash())).Msg("EVM contract call failed")
 		} else {
 			logger.Info().Msgf("EVM contract called at %s with res %s", hex.EncodeToString(contractAddress), hex.EncodeToString(res))
 		}

@@ -79,7 +79,6 @@ func (evm *EVM) Commit() error {
 func (evm *EVM) Query(originAddress []byte, contractAddress []byte, payload []byte) ([]byte, uint64, error) {
 	// create evmCfg
 	evmCfg := vm.Config{
-		Debug:     false,
 		NoBaseFee: true,
 	}
 
@@ -106,7 +105,6 @@ func (evm *EVM) Query(originAddress []byte, contractAddress []byte, payload []by
 func (evm *EVM) Call(originAddress []byte, contractAddress []byte, payload []byte) ([]byte, uint64, error) {
 	// create evmCfg
 	evmCfg := vm.Config{
-		Debug:     false,
 		NoBaseFee: true,
 	}
 
@@ -131,9 +129,7 @@ func (evm *EVM) Call(originAddress []byte, contractAddress []byte, payload []byt
 
 func (evm *EVM) Create(originAddress []byte, payload []byte) ([]byte, []byte, uint64, error) {
 	// create evmCfg
-	evmCfg := vm.Config{
-		Debug: false,
-	}
+	evmCfg := vm.Config{}
 
 	ethAddress := common.BytesToAddress(originAddress)
 
