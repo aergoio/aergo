@@ -21,7 +21,10 @@ import (
 )
 
 const (
-	stateName   = "state"
+	stateName    = "state"
+	luaStateName = "lua_" + stateName
+	evmStateName = "evm_" + stateName
+
 	stateLatest = stateName + ".latest"
 )
 

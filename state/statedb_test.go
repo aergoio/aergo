@@ -13,7 +13,7 @@ var (
 	testAccount = types.ToAccountID([]byte("test_address"))
 	//testRoot, _ = enc.ToBytes("5eGvHsNc5526JBqd8FhKFrtti2fT7xiCyB6rJXt9egFc")
 	testRoot   = []byte{0xde, 0xf0, 0x85, 0x93, 0x70, 0x51, 0x4d, 0x51, 0x36, 0x82, 0x9e, 0xeb, 0x4a, 0xd1, 0x6, 0x57, 0x7c, 0xd1, 0xc8, 0x52, 0xc, 0xcb, 0x74, 0xb2, 0xa6, 0x4b, 0xf0, 0x34, 0xc6, 0xf4, 0x5d, 0x80}
-	testStates = []types.State{
+	testStates = []*types.State{
 		{Nonce: 1, Balance: new(big.Int).SetUint64(100).Bytes()},
 		{Nonce: 2, Balance: new(big.Int).SetUint64(200).Bytes()},
 		{Nonce: 3, Balance: new(big.Int).SetUint64(300).Bytes()},
@@ -22,7 +22,7 @@ var (
 	}
 	//testSecondRoot, _ = enc.ToBytes("GGKZy5XqNPU1VWYspHPwEtm8hnZX2yhcP236ztKf6Pif")
 	testSecondRoot   = []byte{0x66, 0xf9, 0x19, 0x2, 0x91, 0xe6, 0xb5, 0x74, 0x3, 0x69, 0x1e, 0x86, 0x87, 0x22, 0x78, 0x1f, 0x4, 0xc3, 0x67, 0x5, 0xf1, 0xb6, 0xce, 0x4b, 0x63, 0x61, 0x6, 0x2c, 0x24, 0xb1, 0xe7, 0xda}
-	testSecondStates = []types.State{
+	testSecondStates = []*types.State{
 		{Nonce: 6, Balance: new(big.Int).SetUint64(600).Bytes()},
 		{Nonce: 7, Balance: new(big.Int).SetUint64(700).Bytes()},
 		{Nonce: 8, Balance: new(big.Int).SetUint64(800).Bytes()},
@@ -62,7 +62,7 @@ func TestStateDBPutState(t *testing.T) {
 	defer deinitTest()
 
 	// put state
-	err := stateDB.PutState(testAccount, &testStates[0])
+	err := stateDB.PutState(testAccount, testStates[0])
 	if err != nil {
 		t.Errorf("failed to put state: %v", err.Error())
 	}
@@ -73,7 +73,7 @@ func TestStateDBPutState(t *testing.T) {
 		t.Errorf("failed to get account state: %v", err.Error())
 	}
 	assert.NotNil(t, st)
-	assert.True(t, stateEquals(&testStates[0], st))
+	assert.True(t, stateEquals(testStates[0], st))
 }
 
 func TestStateDBRollback(t *testing.T) {
@@ -83,11 +83,11 @@ func TestStateDBRollback(t *testing.T) {
 	// put states
 	initialRevision := stateDB.Snapshot()
 	for _, v := range testStates {
-		_ = stateDB.PutState(testAccount, &v)
+		_ = stateDB.PutState(testAccount, v)
 	}
 	revision := stateDB.Snapshot()
 	for _, v := range testSecondStates {
-		_ = stateDB.PutState(testAccount, &v)
+		_ = stateDB.PutState(testAccount, v)
 	}
 
 	// get state
@@ -96,7 +96,7 @@ func TestStateDBRollback(t *testing.T) {
 		t.Errorf("failed to get account state: %v", err.Error())
 	}
 	assert.NotNil(t, st)
-	assert.True(t, stateEquals(&testSecondStates[2], st))
+	assert.True(t, stateEquals(testSecondStates[2], st))
 
 	// rollback to snapshot
 	err = stateDB.Rollback(revision)
@@ -108,7 +108,7 @@ func TestStateDBRollback(t *testing.T) {
 		t.Errorf("failed to get account state: %v", err.Error())
 	}
 	assert.NotNil(t, st)
-	assert.True(t, stateEquals(&testStates[4], st))
+	assert.True(t, stateEquals(testStates[4], st))
 
 	// rollback to initial revision snapshot
 	err = stateDB.Rollback(initialRevision)
@@ -129,7 +129,7 @@ func TestStateDBUpdateAndCommit(t *testing.T) {
 
 	assert.Nil(t, stateDB.GetRoot())
 	for _, v := range testStates {
-		_ = stateDB.PutState(testAccount, &v)
+		_ = stateDB.PutState(testAccount, v)
 	}
 	assert.Nil(t, stateDB.GetRoot())
 
@@ -154,7 +154,7 @@ func TestStateDBSetRoot(t *testing.T) {
 	// put states
 	assert.Nil(t, stateDB.GetRoot())
 	for _, v := range testStates {
-		_ = stateDB.PutState(testAccount, &v)
+		_ = stateDB.PutState(testAccount, v)
 	}
 	_ = stateDB.Update()
 	_ = stateDB.Commit()
@@ -162,7 +162,7 @@ func TestStateDBSetRoot(t *testing.T) {
 
 	// put additional states
 	for _, v := range testSecondStates {
-		_ = stateDB.PutState(testAccount, &v)
+		_ = stateDB.PutState(testAccount, v)
 	}
 	_ = stateDB.Update()
 	_ = stateDB.Commit()
@@ -170,7 +170,7 @@ func TestStateDBSetRoot(t *testing.T) {
 
 	// get state
 	st, _ := stateDB.GetAccountState(testAccount)
-	assert.True(t, stateEquals(&testSecondStates[2], st))
+	assert.True(t, stateEquals(testSecondStates[2], st))
 
 	// set root
 	err := stateDB.SetRoot(testRoot)
@@ -184,7 +184,7 @@ func TestStateDBSetRoot(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to get account state: %v", err.Error())
 	}
-	assert.True(t, stateEquals(&testStates[4], st))
+	assert.True(t, stateEquals(testStates[4], st))
 }
 
 func TestStateDBParallel(t *testing.T) {
@@ -194,7 +194,7 @@ func TestStateDBParallel(t *testing.T) {
 	// put states
 	assert.Nil(t, stateDB.GetRoot())
 	for _, v := range testStates {
-		_ = stateDB.PutState(testAccount, &v)
+		_ = stateDB.PutState(testAccount, v)
 	}
 	_ = stateDB.Update()
 	_ = stateDB.Commit()
@@ -202,7 +202,7 @@ func TestStateDBParallel(t *testing.T) {
 
 	// put additional states
 	for _, v := range testSecondStates {
-		_ = stateDB.PutState(testAccount, &v)
+		_ = stateDB.PutState(testAccount, v)
 	}
 	_ = stateDB.Update()
 	_ = stateDB.Commit()
@@ -210,7 +210,7 @@ func TestStateDBParallel(t *testing.T) {
 
 	// get state
 	st, _ := stateDB.GetAccountState(testAccount)
-	assert.True(t, stateEquals(&testSecondStates[2], st))
+	assert.True(t, stateEquals(testSecondStates[2], st))
 
 	// open another statedb with root hash of previous state
 	anotherStateDB := chainStateDB.OpenLuaStateDB(testRoot)
@@ -222,14 +222,14 @@ func TestStateDBParallel(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to get state: %v", err.Error())
 	}
-	assert.True(t, stateEquals(&testSecondStates[2], st1))
+	assert.True(t, stateEquals(testSecondStates[2], st1))
 
 	// get state from another statedb
 	st2, err := anotherStateDB.GetAccountState(testAccount)
 	if err != nil {
 		t.Errorf("failed to get state: %v", err.Error())
 	}
-	assert.True(t, stateEquals(&testStates[4], st2))
+	assert.True(t, stateEquals(testStates[4], st2))
 }
 
 func TestStateDBMarker(t *testing.T) {
@@ -238,7 +238,7 @@ func TestStateDBMarker(t *testing.T) {
 	assert.Nil(t, stateDB.GetRoot())
 
 	for _, v := range testStates {
-		_ = stateDB.PutState(testAccount, &v)
+		_ = stateDB.PutState(testAccount, v)
 	}
 	_ = stateDB.Update()
 	_ = stateDB.Commit()

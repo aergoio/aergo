@@ -10,6 +10,7 @@ import (
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/types"
 	ethcommon "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	ethstate "github.com/ethereum/go-ethereum/core/state"
 )
 
@@ -34,8 +35,14 @@ func (sdb *ChainStateDB) Clone() *ChainStateDB {
 	defer sdb.Unlock()
 
 	newSdb := &ChainStateDB{
-		luaStore:  sdb.luaStore,
-		luaStates: sdb.GetLuaStateDB().Clone(),
+		luaStore: sdb.luaStore,
+		evmStore: sdb.evmStore,
+	}
+	if sdb.luaStates != nil {
+		newSdb.luaStates = sdb.luaStates.Clone()
+	}
+	if sdb.evmStates != nil {
+		newSdb.evmStates = sdb.evmStates.Copy()
 	}
 	return newSdb
 }
@@ -44,11 +51,12 @@ func (sdb *ChainStateDB) Clone() *ChainStateDB {
 func (sdb *ChainStateDB) Init(dbType string, dataDir string, bestBlock *types.Block, test bool) error {
 	sdb.Lock()
 	defer sdb.Unlock()
+	var err error
 
 	sdb.testmode = test
-	// init db
+	// init lua db
 	if sdb.luaStore == nil {
-		dbPath := common.PathMkdirAll(dataDir, stateName)
+		dbPath := common.PathMkdirAll(dataDir, luaStateName)
 		sdb.luaStore = db.NewDB(db.ImplType(dbType), dbPath)
 	}
 
@@ -61,6 +69,27 @@ func (sdb *ChainStateDB) Init(dbType string, dataDir string, bestBlock *types.Bl
 
 		sdb.luaStates = NewStateDB(sdb.luaStore, sroot, sdb.testmode)
 	}
+
+	if sdb.evmStore == nil {
+		dbPath := common.PathMkdirAll(dataDir, evmStateName)
+		testLevelDB, err := rawdb.NewLevelDBDatabase(dbPath, 128, 1024, "", false)
+		if err != nil {
+			return err
+		}
+		sdb.evmStore = ethstate.NewDatabase(testLevelDB)
+	}
+
+	if sdb.evmStates == nil {
+		var sroot ethcommon.Hash
+		if bestBlock != nil {
+			sroot = ethcommon.BytesToHash(bestBlock.GetHeader().GetEVMRootHash())
+		}
+		sdb.evmStates, err = ethstate.New(sroot, sdb.evmStore, nil)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -222,9 +251,7 @@ func (sdb *ChainStateDB) IsExistState(hash []byte) bool {
 
 func (sdb *ChainStateDB) NewBlockState(luaRoot []byte, evmRoot []byte, options ...BlockStateOptFn) *BlockState {
 	var ls *StateDB
-	if luaRoot != nil {
-		ls = sdb.OpenLuaStateDB(luaRoot)
-	}
+	ls = sdb.OpenLuaStateDB(luaRoot)
 	var es *ethstate.StateDB
 	if evmRoot != nil {
 		es = sdb.OpenEvmStateDB(evmRoot)

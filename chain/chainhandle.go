@@ -590,8 +590,8 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 		}
 
 		bState = state.NewBlockState(
-			cs.sdb.OpenLuaStateDB(cs.sdb.GetLuaRoot()),
-			cs.sdb.OpenEvmStateDB(cs.sdb.GetEvmRoot()),
+			cs.sdb.GetLuaStateDB(),
+			cs.sdb.GetEvmStateDB(),
 			state.SetPrevBlockHash(block.GetHeader().GetPrevBlockHash()),
 		)
 		bi = types.NewBlockHeaderInfo(block)

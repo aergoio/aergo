@@ -44,10 +44,14 @@ func SetGasPrice(gasPrice *big.Int) BlockStateOptFn {
 // NewBlockState create new blockState contains blockInfo, account states and undo states
 func NewBlockState(luaStates *StateDB, evmStates *ethstate.StateDB, options ...BlockStateOptFn) *BlockState {
 	b := &BlockState{
-		LuaStateDB: luaStates.Clone(),
-		EvmStateDB: evmStates.Copy(),
-		codeCache:  gcache.New(100).LRU().Build(),
-		abiCache:   gcache.New(100).LRU().Build(),
+		codeCache: gcache.New(100).LRU().Build(),
+		abiCache:  gcache.New(100).LRU().Build(),
+	}
+	if luaStates != nil {
+		b.LuaStateDB = luaStates.Clone()
+	}
+	if evmStates != nil {
+		b.EvmStateDB = evmStates.Copy()
 	}
 	for _, opt := range options {
 		opt(b)
@@ -65,7 +69,9 @@ func (bs *BlockState) Snapshot() BlockSnapshot {
 	result := BlockSnapshot{
 		LuaVersion: bs.LuaStateDB.Snapshot(),
 		luaStorage: bs.LuaStateDB.cache.snapshot(),
-		EvmVersion: bs.EvmStateDB.Snapshot(),
+	}
+	if bs.EvmStateDB != nil {
+		result.EvmVersion = bs.EvmStateDB.Snapshot()
 	}
 	return result
 }
@@ -77,7 +83,9 @@ func (bs *BlockState) Rollback(bSnap BlockSnapshot) error {
 	if err := bs.LuaStateDB.Rollback(bSnap.LuaVersion); err != nil {
 		return err
 	}
-	bs.EvmStateDB.RevertToSnapshot(bSnap.EvmVersion)
+	if bs.EvmStateDB != nil {
+		bs.EvmStateDB.RevertToSnapshot(bSnap.EvmVersion)
+	}
 
 	return nil
 }
@@ -91,26 +99,37 @@ func (bs *BlockState) SetLuaRoot(root []byte) {
 }
 
 func (bs *BlockState) GetEvmRoot() []byte {
+	if bs.EvmStateDB == nil {
+		return nil
+	}
 	return bs.EvmStateDB.IntermediateRoot(false).Bytes()
 }
 
 func (bs *BlockState) Update() error {
-	err := bs.LuaStateDB.Update()
-	if err != nil {
-		return err
+	if bs.LuaStateDB != nil {
+		err := bs.LuaStateDB.Update()
+		if err != nil {
+			return err
+		}
 	}
-	bs.EvmStateDB.Finalise(true)
+	if bs.EvmStateDB != nil {
+		bs.EvmStateDB.Finalise(true)
+	}
 	return nil
 }
 
 func (bs *BlockState) Commit() error {
-	err := bs.LuaStateDB.Commit()
-	if err != nil {
-		return err
+	if bs.LuaStateDB != nil {
+		err := bs.LuaStateDB.Commit()
+		if err != nil {
+			return err
+		}
 	}
-	_, err = bs.EvmStateDB.Commit(true)
-	if err != nil {
-		return err
+	if bs.EvmStateDB != nil {
+		_, err := bs.EvmStateDB.Commit(true)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
