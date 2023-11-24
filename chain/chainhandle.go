@@ -658,13 +658,13 @@ func (e *blockExecutor) execute() error {
 		defer contract.CloseDatabase()
 		defer evmService.CloseDatabase()
 
-		var preLoadTx *types.Tx
+		var preloadTx *types.Tx
 		nCand := len(e.txs)
 		for i, tx := range e.txs {
 			// if tx is not the last one, preload the next tx
 			if i != nCand-1 {
-				preLoadTx = e.txs[i+1]
-				contract.RequestPreload(e.BlockState, e.bi, preLoadTx, tx, contract.ChainService)
+				preloadTx = e.txs[i+1]
+				contract.RequestPreload(e.BlockState, e.bi, preloadTx, tx, contract.ChainService)
 			}
 			// execute the transaction
 			if err := e.execTx(e.BlockState, types.NewTransaction(tx)); err != nil {
@@ -673,7 +673,7 @@ func (e *blockExecutor) execute() error {
 				return err
 			}
 			// mark the next preload tx to be executed
-			contract.SetPreloadTx(preLoadTx, contract.ChainService)
+			contract.SetPreloadTx(preloadTx, contract.ChainService)
 		}
 
 		if e.validateSignWait != nil {
