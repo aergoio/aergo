@@ -1111,6 +1111,22 @@ func (rpc *AergoRPCService) QueryContractState(ctx context.Context, in *types.St
 	return rsp.Result, rsp.Err
 }
 
+func (rpc *AergoRPCService) QueryEVMContract(ctx context.Context, in *types.Query) (*types.SingleBytes, error) {
+	if err := rpc.checkAuth(ctx, ReadBlockChain); err != nil {
+		return nil, err
+	}
+	result, err := rpc.hub.RequestFuture(message.ChainSvc,
+		&message.GetEVMQuery{Contract: in.ContractAddress, Queryinfo: in.Queryinfo}, defaultActorTimeout, "rpc.(*AergoRPCService).QueryEVMContract").Result()
+	if err != nil {
+		return nil, err
+	}
+	rsp, ok := result.(message.GetEVMQueryRsp)
+	if !ok {
+		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
+	}
+	return &types.SingleBytes{Value: rsp.Result}, rsp.Err
+}
+
 func toTimestamp(time time.Time) *timestamp.Timestamp {
 	return &timestamp.Timestamp{
 		Seconds: time.Unix(),

@@ -30,6 +30,8 @@ const (
 	TxType_TRANSFER      TxType = 4
 	TxType_CALL          TxType = 5
 	TxType_DEPLOY        TxType = 6
+	TxType_EVMCALL       TxType = 7
+	TxType_EVMDEPLOY     TxType = 8
 )
 
 // Enum value maps for TxType.

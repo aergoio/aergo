@@ -6,6 +6,7 @@
 package chain
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math"
@@ -23,6 +24,7 @@ import (
 	"github.com/aergoio/aergo/v2/contract/enterprise"
 	"github.com/aergoio/aergo/v2/contract/name"
 	"github.com/aergoio/aergo/v2/contract/system"
+	"github.com/aergoio/aergo/v2/evm"
 	"github.com/aergoio/aergo/v2/fee"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/message"
@@ -43,6 +45,8 @@ var (
 	ErrRecoInvalidSdbRoot    = errors.New("state root of sdb is invalid")
 
 	TestDebugger *Debugger
+
+	evmService *evm.EVM
 )
 
 // Core represents a storage layer of a blockchain (chain & state DB).
@@ -93,6 +97,8 @@ func (core *Core) init(dbType string, dataDir string, testModeOn bool, forceRese
 	}
 
 	contract.LoadDatabase(dataDir)
+	evmService = evm.NewEVM()
+	evmService.LoadDatabase(dataDir)
 
 	return nil
 }
@@ -162,6 +168,7 @@ func (core *Core) Close() {
 		core.cdb.Close()
 	}
 	contract.CloseDatabase()
+	evmService.CloseDatabase()
 }
 
 // InitGenesisBlock initialize chain database and generate specified genesis block if necessary
@@ -436,6 +443,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 		*message.GetABI,
 		*message.GetQuery,
 		*message.GetStateQuery,
+		*message.GetEVMQuery,
 		*message.GetElected,
 		*message.GetVote,
 		*message.GetStaking,
@@ -846,6 +854,13 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			Result: stateQuery,
 			Err:    err,
 		})
+	case *message.GetEVMQuery:
+		// FIXME: implement using EVM module
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+		logger.Info().Msgf("evm query received for contract %s with payload %s", hex.EncodeToString(msg.Contract), hex.EncodeToString(msg.Queryinfo))
+		res, _, err := evmService.Query(nil, msg.Contract, msg.Queryinfo)
+		context.Respond(message.GetEVMQueryRsp{Result: res, Err: err})
 	case *message.GetElected:
 		top, err := cw.getVotes(msg.Id, msg.N)
 		context.Respond(&message.GetVoteRsp{

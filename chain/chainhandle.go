@@ -653,8 +653,10 @@ func (e *blockExecutor) execute() error {
 	// Receipt must be committed unconditionally.
 	if !e.commitOnly {
 		defer contract.CloseDatabase()
-		var preloadTx *types.Tx
-		numTxs := len(e.txs)
+		defer evmService.CloseDatabase()
+
+		var preLoadTx *types.Tx
+		nCand := len(e.txs)
 		for i, tx := range e.txs {
 			// if tx is not the last one, preload the next tx
 			if i != numTxs-1 {
@@ -715,6 +717,10 @@ func (e *blockExecutor) commit() error {
 
 	//TODO: after implementing BlockRootHash, remove statedb.lastest
 	if err := e.sdb.UpdateRoot(e.BlockState); err != nil {
+		return err
+	}
+
+	if err := evmService.Commit(); err != nil {
 		return err
 	}
 
@@ -946,6 +952,30 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 	case types.TxType_NORMAL, types.TxType_REDEPLOY, types.TxType_TRANSFER, types.TxType_CALL, types.TxType_DEPLOY:
 		rv, events, txFee, err = contract.Execute(execCtx, bs, cdb, tx.GetTx(), sender, receiver, bi, preloadService, false)
 		sender.SubBalance(txFee)
+	case types.TxType_EVMDEPLOY:
+		senderETHAddress := evm.ConvertAddress(sender.ID())
+		logger.Info().Msgf("EVM contract deploy with payload length %d from %s", len(txBody.Payload), hex.EncodeToString(senderETHAddress))
+		_, contractAddress, _, err := evmService.Create(senderETHAddress, txBody.Payload)
+		if err != nil {
+			logger.Warn().Err(err).Str("txhash", enc.ToString(tx.GetHash())).Msg("EVM contract deploy failed")
+		} else {
+			logger.Info().Msgf("EVM contract deployed at %s", hex.EncodeToString(contractAddress))
+		}
+
+		txFee = new(big.Int).SetUint64(0)
+	case types.TxType_EVMCALL:
+		senderETHAddress := evm.ConvertAddress(sender.ID())
+		contractAddress := txBody.Payload[0:20]
+		payload := txBody.Payload[20:]
+		logger.Info().Msgf("EVM contract call at %s with payload %s from %s", hex.EncodeToString(contractAddress), hex.EncodeToString(payload), hex.EncodeToString(senderETHAddress))
+		res, _, err := evmService.Call(senderETHAddress, contractAddress, payload)
+		if err != nil {
+			logger.Warn().Err(err).Str("txhash", enc.ToString(tx.GetHash())).Msg("EVM contract call failed")
+		} else {
+			logger.Info().Msgf("EVM contract called at %s with res %s", hex.EncodeToString(contractAddress), hex.EncodeToString(res))
+		}
+
+		txFee = new(big.Int).SetUint64(0)
 	case types.TxType_GOVERNANCE:
 		txFee = new(big.Int).SetUint64(0)
 		events, err = executeGovernanceTx(ccc, bs, txBody, sender, receiver, bi)

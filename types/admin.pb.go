@@ -4,7 +4,11 @@
 // 	protoc        v3.15.8
 // source: admin.proto
 
-package types
+package types // import "/types"
+
+import proto "github.com/golang/protobuf/proto"
+import fmt "fmt"
+import math "math"
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"

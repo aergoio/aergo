@@ -140,6 +140,10 @@ func (tx *transaction) Validate(chainidhash []byte, isPublic bool) error {
 			//contract deploy
 			return ErrTxInvalidRecipient
 		}
+	case TxType_EVMCALL:
+		// FIXME: do sanity check
+	case TxType_EVMDEPLOY:
+		// FIXME: do sanity check
 	case TxType_GOVERNANCE:
 		if len(tx.GetBody().GetPayload()) <= 0 {
 			return ErrTxFormatInvalid
