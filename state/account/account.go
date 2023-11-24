@@ -7,46 +7,48 @@ import (
 	lua_types "github.com/aergoio/aergo/v2/types"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	eth_state "github.com/ethereum/go-ethereum/core/state"
-	eth_types "github.com/ethereum/go-ethereum/core/types"
 )
 
 // address : compressed public key (33 bytes)
-func NewAccount(addr []byte, nonce uint64,
-	luaDB *lua_state.StateDB, luaState *lua_types.State,
-	ethDB *eth_state.StateDB, ethState *eth_types.StateAccount,
-) *Account {
+func NewAccount(addr []byte, luaState *lua_state.StateDB, ethState *eth_state.StateDB) (*Account, error) {
+	var err error
+
 	acc := &Account{}
-	acc.OldBalance = new(big.Int).SetBytes(luaState.Balance)
-	acc.Nonce = nonce
-
 	acc.LuaAccount = lua_types.ToAccountID(addr)
-	acc.LuaDB = luaDB
-	acc.LuaState = luaState
+	acc.EthAccount = eth_common.BytesToAddress(addr) // FIXME : is compressed key can encode to common.Address? check compressed pubkey
 
-	// FIXME : is compressed key can encode to common.Address?
-	// 안되면 uncompressed pubkey 로 conv 후 address 제작
-	acc.EthAccount = eth_common.BytesToAddress(addr)
-	acc.EthState = ethState
-	acc.EthDB = ethDB
+	if acc.LuaAccState, err = luaState.GetAccountState(acc.LuaAccount); err != nil {
+		return nil, err
+	}
 
-	return acc
+	if balance := acc.LuaAccState.GetBalanceBigInt(); balance.Cmp(ethState.GetBalance(acc.EthAccount)) != 0 {
+		panic("impossible") // FIXME : handle exception
+	} else {
+		acc.Balance = balance
+	}
+
+	if nonce := acc.LuaAccState.GetNonce(); nonce != ethState.GetNonce(acc.EthAccount) {
+		panic("impossible") // FIXME : handle exception
+	} else {
+		acc.Nonce = nonce
+	}
+
+	return acc, nil
 }
 
 type Account struct {
 	// common
-	OldBalance *big.Int
-	NewBalance *big.Int
-	Nonce      uint64
+	Balance *big.Int
+	Nonce   uint64
 
 	// lua
-	LuaAccount lua_types.AccountID
-	LuaDB      *lua_state.StateDB
-	LuaState   *lua_types.State
+	LuaAccount  lua_types.AccountID
+	LuaState    *lua_state.StateDB
+	LuaAccState *lua_types.State
 
 	// ethereum
 	EthAccount eth_common.Address
-	EthState   *eth_types.StateAccount
-	EthDB      *eth_state.StateDB
+	EthState   *eth_state.StateDB
 }
 
 func (acc *Account) SetNonce(nonce uint64) {
@@ -58,41 +60,36 @@ func (acc *Account) GetNonce() uint64 {
 }
 
 func (acc *Account) SetBalance(balance *big.Int) {
-	acc.NewBalance = new(big.Int).Set(balance)
+	acc.Balance = new(big.Int).Set(balance)
 }
 
-func (acc *Account) GetBalanceOld() *big.Int {
-	return acc.OldBalance
+func (acc *Account) AddBalance(balance *big.Int) {
+	acc.Balance.Add(acc.Balance, balance)
 }
 
-func (acc *Account) GetBalanceNew() *big.Int {
-	return acc.NewBalance
+func (acc *Account) SubBalance(balance *big.Int) {
+	acc.Balance.Sub(acc.Balance, balance)
+}
+
+func (acc *Account) GetBalance() *big.Int {
+	return acc.Balance
 }
 
 //-------------------------------------------------------------------------//
 // commit
 
-func (acc *Account) Commit() {
-	acc.OldBalance = new(big.Int).Set(acc.NewBalance)
-	acc.Nonce++
-}
-
-// eth tx 를 통해 변경된 balance 를 lua 에 동일하게 적용
 func (acc *Account) CommitLua() error {
-	acc.LuaState.Balance = acc.OldBalance.Bytes()
-	acc.LuaState.Nonce = acc.Nonce
-	err := acc.LuaDB.PutState(acc.LuaAccount, acc.LuaState)
+	acc.LuaAccState.Balance = acc.Balance.Bytes()
+	acc.LuaAccState.Nonce = acc.Nonce
+	err := acc.LuaState.PutState(acc.LuaAccount, acc.LuaAccState)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-// lua tx 를 통해 변경된 balance 를 eth 에 동일하게 적용
 func (acc *Account) CommitEth() error {
-	acc.EthState.Balance = acc.OldBalance
-	acc.EthState.Nonce = acc.Nonce
-	acc.EthDB.SetBalance(acc.EthAccount, acc.OldBalance)
-	acc.EthDB.SetNonce(acc.EthAccount, acc.Nonce)
+	acc.EthState.SetBalance(acc.EthAccount, acc.Balance)
+	acc.EthState.SetNonce(acc.EthAccount, acc.Nonce)
 	return nil
 }
