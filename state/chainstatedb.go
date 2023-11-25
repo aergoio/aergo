@@ -113,10 +113,13 @@ func (sdb *ChainStateDB) SetGenesis(genesis *types.Genesis, bpInit func(*StateDB
 	}
 
 	for address, balance := range genesis.Balance {
-		bytes := types.ToAddress(address)
-		id := types.ToAccountID(bytes)
 		if v, ok := new(big.Int).SetString(balance, 10); ok {
-			if err := gbState.PutState(id, &types.State{Balance: v.Bytes()}); err != nil {
+			accountState, err := GetAccountState(types.ToAddress(address), stateDB)
+			if err != nil {
+				return err
+			}
+			accountState.AddBalance(v)
+			if err := accountState.PutState(); err != nil {
 				return err
 			}
 			genesis.AddBalance(v)

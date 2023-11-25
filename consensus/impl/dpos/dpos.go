@@ -156,56 +156,49 @@ func sendVotingReward(bState *state.BlockState, dummy []byte) error {
 		return int64(binary.LittleEndian.Uint64(stateRoot))
 	}
 
-	vaultID := types.ToAccountID([]byte(types.AergoVault))
-	vs, err := bState.GetAccountState(vaultID)
+	// calc reward
+	vaultAccountState, err := state.GetAccountState([]byte(types.AergoVault), &bState.StateDB)
 	if err != nil {
 		logger.Info().Err(err).Msg("skip voting reward")
 		return nil
 	}
-
-	vaultBalance := vs.GetBalanceBigInt()
-
-	if vaultBalance.Cmp(new(big.Int).SetUint64(0)) == 0 {
+	vaultBalance := vaultAccountState.Balance()
+	if vaultBalance.Cmp(types.NewZeroAmount()) == 0 {
 		return nil
 	}
-
 	reward := system.GetVotingRewardAmount()
 	if vaultBalance.Cmp(reward) < 0 {
 		reward = new(big.Int).Set(vaultBalance)
 	}
 
-	addr, err := system.PickVotingRewardWinner(vrSeed(bState.PrevBlockHash()))
+	// pick winner
+	winner, err := system.PickVotingRewardWinner(vrSeed(bState.PrevBlockHash()))
 	if err != nil {
 		logger.Debug().Err(err).Msg("no voting reward winner")
 		return nil
 	}
-
-	ID := types.ToAccountID(addr)
-	s, err := bState.GetAccountState(ID)
+	winnerAccountState, err := state.GetAccountState(winner, &bState.StateDB)
 	if err != nil {
 		logger.Info().Err(err).Msg("skip voting reward")
 		return nil
 	}
 
-	newBalance := new(big.Int).Add(s.GetBalanceBigInt(), reward)
-	s.Balance = newBalance.Bytes()
-
-	err = bState.PutState(ID, s)
-	if err != nil {
+	// send reward ( vault -> winner )
+	winnerAccountState.AddBalance(reward)
+	if err = winnerAccountState.PutState(); err != nil {
+		return err
+	}
+	vaultAccountState.SubBalance(reward)
+	if err = vaultAccountState.PutState(); err != nil {
 		return err
 	}
 
-	vs.Balance = vaultBalance.Sub(vaultBalance, reward).Bytes()
-	if err = bState.PutState(vaultID, vs); err != nil {
-		return err
-	}
-
-	bState.SetConsensus(addr)
+	bState.SetConsensus(winner)
 
 	logger.Debug().
-		Str("address", types.EncodeAddress(addr)).
+		Str("address", types.EncodeAddress(winner)).
 		Str("amount", reward.String()).
-		Str("new balance", newBalance.String()).
+		Str("new balance", winnerAccountState.Balance().String()).
 		Str("vault balance", vaultBalance.String()).
 		Msg("voting reward winner appointed")
 

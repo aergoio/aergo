@@ -88,7 +88,7 @@ func Resolve(bs *state.BlockState, name []byte, legacy bool) ([]byte, error) {
 }
 
 func openContract(bs *state.BlockState) (*state.ContractState, error) {
-	v, err := state.GetAccountStateV([]byte(types.AergoName), &bs.StateDB)
+	v, err := state.GetAccountState([]byte(types.AergoName), &bs.StateDB)
 	if err != nil {
 		return nil, err
 	}

@@ -29,9 +29,9 @@ func initTest(t *testing.T) (*state.ContractState, *state.AccountState, *state.A
 
 	account, err := types.DecodeAddress(testSender)
 	assert.NoError(t, err, "could not decode test address")
-	sender, err := state.GetAccountStateV(account, sdb)
+	sender, err := state.GetAccountState(account, sdb)
 	assert.NoError(t, err, "could not get test address state")
-	receiver, err := state.GetAccountStateV([]byte(types.AergoEnterprise), sdb)
+	receiver, err := state.GetAccountState([]byte(types.AergoEnterprise), sdb)
 	assert.NoError(t, err, "could not get test address state")
 	return scs, sender, receiver
 }

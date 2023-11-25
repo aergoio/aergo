@@ -413,7 +413,7 @@ func executeTx(
 		return err
 	}
 
-	sender, err := state.GetAccountStateV(account, &bs.StateDB)
+	sender, err := state.GetAccountState(account, &bs.StateDB)
 	if err != nil {
 		return err
 	}
@@ -470,13 +470,13 @@ func executeTx(
 	var receiver *state.AccountState
 	status := "SUCCESS"
 	if len(recipient) > 0 {
-		receiver, err = state.GetAccountStateV(recipient, &bs.StateDB)
+		receiver, err = state.GetAccountState(recipient, &bs.StateDB)
 		if receiver != nil && txBody.Type == types.TxType_REDEPLOY {
 			status = "RECREATED"
 			receiver.SetRedeploy()
 		}
 	} else {
-		receiver, err = state.CreateAccountStateV(contract.CreateContractID(txBody.Account, txBody.Nonce), &bs.StateDB)
+		receiver, err = state.CreateAccountState(contract.CreateContractID(txBody.Account, txBody.Nonce), &bs.StateDB)
 		status = "CREATED"
 	}
 	if err != nil {

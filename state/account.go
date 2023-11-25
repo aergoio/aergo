@@ -95,8 +95,8 @@ func (v *AccountState) ClearAid() {
 //----------------------------------------------------------------------------------------------//
 //
 
-func CreateAccountStateV(id []byte, sdb *StateDB) (*AccountState, error) {
-	v, err := GetAccountStateV(id, sdb)
+func CreateAccountState(id []byte, sdb *StateDB) (*AccountState, error) {
+	v, err := GetAccountState(id, sdb)
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +108,7 @@ func CreateAccountStateV(id []byte, sdb *StateDB) (*AccountState, error) {
 	return v, nil
 }
 
-func GetAccountStateV(id []byte, states *StateDB) (*AccountState, error) {
+func GetAccountState(id []byte, states *StateDB) (*AccountState, error) {
 	aid := types.ToAccountID(id)
 	st, err := states.GetState(aid)
 	if err != nil {
@@ -146,7 +146,7 @@ func GetAccountStateV(id []byte, states *StateDB) (*AccountState, error) {
 	}, nil
 }
 
-func InitAccountStateV(id []byte, sdb *StateDB, old *types.State, new *types.State) *AccountState {
+func InitAccountState(id []byte, sdb *StateDB, old *types.State, new *types.State) *AccountState {
 	return &AccountState{
 		sdb:  sdb,
 		id:   id,

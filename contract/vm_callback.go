@@ -1178,7 +1178,7 @@ func luaDeployContract(
 	// create account for the contract
 	prevContractInfo := ctx.curContract
 	creator := prevContractInfo.callState.curState
-	newContract, err := state.CreateAccountStateV(CreateContractID(prevContractInfo.contractId, creator.GetNonce()), &bs.StateDB)
+	newContract, err := state.CreateAccountState(CreateContractID(prevContractInfo.contractId, creator.GetNonce()), &bs.StateDB)
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDeployContract]:" + err.Error())
 	}
@@ -1419,9 +1419,9 @@ func luaGovernance(L *LState, service C.int, gType C.char, arg *C.char) *C.char 
 	curContract := ctx.curContract
 
 	senderState := curContract.callState.curState
-	sender := state.InitAccountStateV(curContract.contractId, &ctx.bs.StateDB,
+	sender := state.InitAccountState(curContract.contractId, &ctx.bs.StateDB,
 		curContract.callState.prevState, curContract.callState.curState)
-	receiver := state.InitAccountStateV([]byte(types.AergoSystem), &ctx.bs.StateDB,
+	receiver := state.InitAccountState([]byte(types.AergoSystem), &ctx.bs.StateDB,
 		scsState.prevState, scsState.curState)
 
 	if sender.AccountID().String() == "A9zXKkooeGYAZC5ReCcgeg4ddsvMHAy2ivUafXhrnzpj" {
