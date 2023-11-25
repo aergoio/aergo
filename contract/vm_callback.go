@@ -194,8 +194,8 @@ func getCallState(ctx *vmContext, aid types.AccountID) (*callState, error) {
 			return nil, err
 		}
 
-		curState := types.Clone(*prevState).(types.State)
-		cs = &callState{prevState: prevState, curState: &curState}
+		curState := prevState.Clone()
+		cs = &callState{prevState: prevState, curState: curState}
 		ctx.callState[aid] = cs
 	}
 	return cs, nil

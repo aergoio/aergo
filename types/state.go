@@ -131,15 +131,6 @@ func (id AccountID) String() string {
 	return HashID(id).String()
 }
 
-// NewState returns an instance of account state
-func NewState() *State {
-	return &State{
-		Nonce:            0,
-		Balance:          []byte{0},
-		SqlRecoveryPoint: uint64(1),
-	}
-}
-
 // func (st *State) IsEmpty() bool {
 // 	return st.Nonce == 0 && st.Balance == 0
 // }
@@ -151,17 +142,21 @@ func NewState() *State {
 // 	return digest.Sum(nil)
 // }
 
-// func (st *State) Clone() *State {
-// 	if st == nil {
-// 		return nil
-// 	}
-// 	return &State{
-// 		Nonce:       st.Nonce,
-// 		Balance:     st.Balance,
-// 		CodeHash:    st.CodeHash,
-// 		StorageRoot: st.StorageRoot,
-// 	}
-// }
+func (st *State) Clone() *State {
+	if st == nil {
+		return nil
+	}
+	return &State{
+		// state:         st.state,
+		sizeCache:        st.sizeCache,
+		unknownFields:    st.unknownFields,
+		Nonce:            st.Nonce,
+		Balance:          st.Balance,
+		CodeHash:         st.CodeHash,
+		StorageRoot:      st.StorageRoot,
+		SqlRecoveryPoint: st.SqlRecoveryPoint,
+	}
+}
 
 func Clone(i interface{}) interface{} {
 	if i == nil {

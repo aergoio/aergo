@@ -627,10 +627,10 @@ func SendBlockReward(bState *state.BlockState, coinbaseAccount []byte) error {
 		return err
 	}
 
-	receiverChange := types.State(*receiverState)
+	receiverChange := receiverState.Clone()
 	receiverChange.Balance = new(big.Int).Add(receiverChange.GetBalanceBigInt(), bpReward).Bytes()
 
-	err = bState.PutState(receiverID, &receiverChange)
+	err = bState.PutState(receiverID, receiverChange)
 	if err != nil {
 		return err
 	}

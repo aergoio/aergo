@@ -15,7 +15,6 @@ type AccountState struct {
 	newV   *types.State
 	newOne bool
 	deploy int8
-	buffer *stateBuffer
 }
 
 const (
@@ -81,7 +80,7 @@ func (v *AccountState) IsRedeploy() bool {
 }
 
 func (v *AccountState) Reset() {
-	*v.newV = types.State(*v.oldV)
+	v.newV = v.oldV.Clone()
 }
 
 func (v *AccountState) PutState() error {
@@ -135,14 +134,12 @@ func GetAccountState(id []byte, states *StateDB) (*AccountState, error) {
 			newOne: true,
 		}, nil
 	}
-	newV := new(types.State)
-	*newV = types.State(*st)
 	return &AccountState{
 		sdb:  states,
 		id:   id,
 		aid:  aid,
 		oldV: st,
-		newV: newV,
+		newV: st.Clone(),
 	}, nil
 }
 

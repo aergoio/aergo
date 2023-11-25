@@ -334,13 +334,13 @@ func (l *luaTxSend) run(execCtx context.Context, bs *state.BlockState, bc *Dummy
 		return err
 	}
 
-	updatedSenderState := types.State(*senderState)
+	updatedSenderState := senderState.Clone()
 	updatedSenderState.Balance = new(big.Int).Sub(updatedSenderState.GetBalanceBigInt(), l.amount).Bytes()
-	bs.PutState(senderID, &updatedSenderState)
+	bs.PutState(senderID, updatedSenderState)
 
-	updatedReceiverState := types.State(*receiverState)
+	updatedReceiverState := receiverState.Clone()
 	updatedReceiverState.Balance = new(big.Int).Add(updatedReceiverState.GetBalanceBigInt(), l.amount).Bytes()
-	bs.PutState(receiverID, &updatedReceiverState)
+	bs.PutState(receiverID, updatedReceiverState)
 
 	r := types.NewReceipt(l.receiver, l.okMsg(), "")
 	r.TxHash = l.Hash()
