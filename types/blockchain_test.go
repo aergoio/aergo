@@ -7,18 +7,26 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/proto"
-	"github.com/minio/sha256-simd"
-
+	"github.com/aergoio/aergo/v2/internal/enc/proto"
 	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/minio/sha256-simd"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestValidateInitValue(t *testing.T) {
+	// Max Aergo value ( 500,000,000 aergo )
+	assert.Equalf(t, "500000000000000000000000000", MaxAER.String(), "MaxAER is not valid. check types/blockchain.go")
+	// Staking minimum amount ( 10,000 aergo )
+	assert.Equalf(t, "10000000000000000000000", StakingMinimum.String(), "StakingMinimum is not valid. check types/blockchain.go")
+	// Proposal price ( 0 aergo )
+	assert.Equalf(t, "0", ProposalPrice.String(), "ProposalPrice is not valid. check types/blockchain.go")
+}
 
 func TestBlockHash(t *testing.T) {
 	blockHash := func(block *Block) []byte {
 		header := block.Header
 		digest := sha256.New()
-		writeBlockHeaderOld(digest, header)
+		writeBlockHeader(digest, header)
 		return digest.Sum(nil)
 	}
 

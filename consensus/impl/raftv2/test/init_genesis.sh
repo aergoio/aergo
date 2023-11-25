@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env bash -x
 if [ $# != 1 ]; then
     echo "Usage: $0 <bpname>"
     exit 100
@@ -13,16 +13,16 @@ if [[ $bpname =~ "BP*" ]]; then
 	exit 100
 fi
 
-if [ ! -e genesis -o ! -e genesis.json ]; then 
+if [ ! -e genesis.json ]; then 
 	echo "no genesis file"
 	clean.sh
 
-	wallet=`aergocli account new --password 1234 --path genesis `
+	wallet=`aergocli account new --password 1234 --keystore .`
 
 	echo "create genesis wallet : $wallet" 
 	echo "$wallet" > genesis_wallet.txt
 
-	wif=`aergocli account export --address ${wallet} --password 1234 --path genesis `
+	wif=`aergocli account export --address ${wallet} --password 1234  --wif --keystore .`
 
 	echo "export wif : $wif"
 	echo $wif > ./wif.txt
@@ -57,17 +57,17 @@ if [ "${BP_NAME}" != "tmpl" -a "${BP_NAME}" != "arglog" ]; then
 	echo "aergosvr init --genesis ./genesis.json --home ${PWD} --config ./$file"
 	aergosvr init --genesis ./genesis.json --home ${PWD} --config ./$file
 
-	echo "import wallet ${wallet} to ${N_NAME} from local"
-	echo "aergocli account import --if ${wif} --password 1234 --path ${DATADIR}"
-	aergocli account import --if ${wif} --password 1234 --path ${DATADIR} 
+    echo "import wallet ${wallet} to ${N_NAME} from local"
+    echo "aergocli account import --if ${wif} --password 1234 --keystore ${DATADIR}"
+    aergocli account import --if ${wif} --password 1234 --keystore ${DATADIR}
 
 	echo "start server ${BP_NAME} "
-	echo "aergosvr --home ${PWD} --config ./$file >> server_${BP_NAME}.log 2>&1 &"
-#nohup aergosvr --home ${PWD} --config ./$file >> server_${BP_NAME}.log 2>&1 &
-	nohup aergosvr --home ${PWD} --config ./$file >> server_${BP_NAME}.log 2>&1 &
+	echo "nohup aergosvr --home ${PWD} --config ./$file >> server_${BP_NAME}.log 2>&1 &"
+    #nohup aergosvr --home ${PWD} --config ./$file >> server_${BP_NAME}.log 2>&1 &
+	nohup aergosvr --home ${PWD} --config ./$file >> server_${BP_NAME}.log  2>&1 &
 
 	echo "sleep 3s to wait boot"
-	sleep 3
+	sleep 3 
 
 	echo "unlock account ${wallet} "
 	echo "aergocli -p ${N_PORT} getstate --address ${wallet}"

@@ -5,10 +5,10 @@ import (
 	"sync"
 
 	"github.com/aergoio/aergo-lib/db"
-	"github.com/aergoio/aergo/internal/common"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/pkg/trie"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/internal/common"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/pkg/trie"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 var (
@@ -24,6 +24,31 @@ func newStorageCache() *storageCache {
 	return &storageCache{
 		storages: map[types.AccountID]*bufferedStorage{},
 	}
+}
+
+func (cache *storageCache) snapshot() map[types.AccountID]int {
+	cache.lock.RLock()
+	defer cache.lock.RUnlock()
+	result := make(map[types.AccountID]int)
+	for aid, bs := range cache.storages {
+		result[aid] = bs.buffer.snapshot()
+	}
+	return result
+}
+
+func (cache *storageCache) rollback(snap map[types.AccountID]int) error {
+	cache.lock.Lock()
+	defer cache.lock.Unlock()
+	for aid, bs := range cache.storages {
+		if rev, ok := snap[aid]; ok {
+			if err := bs.buffer.rollback(rev); err != nil {
+				return err
+			}
+		} else {
+			delete(cache.storages, aid)
+		}
+	}
+	return nil
 }
 
 func (cache *storageCache) get(key types.AccountID) *bufferedStorage {
@@ -109,8 +134,8 @@ func (storage *bufferedStorage) update() error {
 		return err
 	}
 	if !bytes.Equal(before, storage.trie.Root) {
-		logger.Debug().Str("before", enc.ToString(before)).
-			Str("after", enc.ToString(storage.trie.Root)).Msg("Changed storage trie root")
+		logger.Debug().Str("before", base58.Encode(before)).
+			Str("after", base58.Encode(storage.trie.Root)).Msg("Changed storage trie root")
 		storage.dirty = true
 	}
 	return nil

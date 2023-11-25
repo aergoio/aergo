@@ -7,7 +7,6 @@ package p2putil
 
 import (
 	"fmt"
-	"github.com/aergoio/aergo/types"
 	"net"
 	"net/url"
 	"reflect"
@@ -17,7 +16,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aergoio/aergo/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/gofrs/uuid"
 	lru "github.com/hashicorp/golang-lru"
 	addrutil "github.com/libp2p/go-addr-util"
@@ -68,36 +68,36 @@ func TestAddrUtil(t *testing.T) {
 }
 
 /*
-func Test_debugLogReceiveMsg(t *testing.T) {
-	logger := log.NewLogger("test.p2p")
-	peerID, _ := types.IDB58Decode("16Uiu2HAkvvhjxVm2WE9yFBDdPQ9qx6pX9taF6TTwDNHs8VPi1EeR")
-	peer := &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: peerID}, name: ShortForm(peerID) + "@1"}
-	msgID := uuid.Must(uuid.NewV4()).String()
-	dummyArray := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}
-	type args struct {
-		protocol   p2pcommon.SubProtocol
-		additional interface{}
+	func Test_debugLogReceiveMsg(t *testing.T) {
+		logger := log.NewLogger("test.p2p")
+		peerID, _ := types.IDB58Decode("16Uiu2HAkvvhjxVm2WE9yFBDdPQ9qx6pX9taF6TTwDNHs8VPi1EeR")
+		peer := &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: peerID}, name: ShortForm(peerID) + "@1"}
+		msgID := uuid.Must(uuid.NewV4()).String()
+		dummyArray := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}
+		type args struct {
+			protocol   p2pcommon.SubProtocol
+			additional interface{}
+		}
+		tests := []struct {
+			name string
+			args args
+		}{
+			{"nil", args{subproto.PingRequest, nil}},
+			{"int", args{subproto.PingResponse, len(msgID)}},
+			{"pointer", args{subproto.StatusRequest, &logger}},
+			{"array", args{subproto.StatusRequest, dummyArray}},
+			{"string", args{subproto.StatusRequest, "string addition"}},
+			{"obj", args{subproto.PingRequest, P2P{}}},
+			{"lazy", args{subproto.PingRequest, log.DoLazyEval(func() string {
+				return "Length is " + strconv.Itoa(len(dummyArray))
+			})}},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				DebugLogReceiveMsg(logger, tt.args.protocol, msgID, peer, tt.args.additional)
+			})
+		}
 	}
-	tests := []struct {
-		name string
-		args args
-	}{
-		{"nil", args{subproto.PingRequest, nil}},
-		{"int", args{subproto.PingResponse, len(msgID)}},
-		{"pointer", args{subproto.StatusRequest, &logger}},
-		{"array", args{subproto.StatusRequest, dummyArray}},
-		{"string", args{subproto.StatusRequest, "string addition"}},
-		{"obj", args{subproto.PingRequest, P2P{}}},
-		{"lazy", args{subproto.PingRequest, log.DoLazyEval(func() string {
-			return "Length is " + strconv.Itoa(len(dummyArray))
-		})}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			DebugLogReceiveMsg(logger, tt.args.protocol, msgID, peer, tt.args.additional)
-		})
-	}
-}
 */
 func Test_Encode(t *testing.T) {
 	tests := []struct {
@@ -111,10 +111,10 @@ func Test_Encode(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			got := enc.ToString(test.in)
+			got := base58.Encode(test.in)
 			assert.Equal(t, test.out, got)
 			if len(test.out) > 0 {
-				gotBytes, err := enc.ToBytes(test.out)
+				gotBytes, err := base58.Decode(test.out)
 				assert.Nil(t, err)
 				assert.Equal(t, test.in, gotBytes)
 			}
@@ -296,10 +296,10 @@ func TestParseURI(t *testing.T) {
 				t.Errorf("ParseRequestURI() err %v , wantErr %v", err, tt.wantErr)
 			}
 			if !tt.wantErr {
-				if (len(got.Host) >0 ) != tt.wantIP {
+				if (len(got.Host) > 0) != tt.wantIP {
 					t.Errorf("ParseRequestURI() Host %v , want %v", got.Host, tt.wantIP)
 				}
-				if (len(got.Port()) >0 ) != tt.wantPort {
+				if (len(got.Port()) > 0) != tt.wantPort {
 					t.Errorf("ParseRequestURI() Port %v , want %v", got.Port(), tt.wantPort)
 				}
 			}
@@ -322,40 +322,39 @@ func TestExternalIP(t *testing.T) {
 				t.Errorf("ExternalIP() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			t.Logf("Got IP %v",ip.String())
+			t.Logf("Got IP %v", ip.String())
 		})
 	}
 }
 
 func Test_getValidIP(t *testing.T) {
-	loIP4:="127.0.0.1"
-	llIP4:="169.254.0.2"
-	priIP4:="192.168.1.3"
-	pubIP4:="116.127.31.76"
-	loIP6:="::1"
-	llIP6:="fe80::"
-	priIP6:="192.168.1.3"
+	loIP4 := "127.0.0.1"
+	llIP4 := "169.254.0.2"
+	priIP4 := "192.168.1.3"
+	pubIP4 := "116.127.31.76"
+	loIP6 := "::1"
+	llIP6 := "fe80::"
+	priIP6 := "192.168.1.3"
 	//pubIP6:="116.127.31.76"
-	wrapped:="::ffff:df01:1111"
+	wrapped := "::ffff:df01:1111"
 
 	tests := []struct {
 		name string
 		args []string
 		want net.IP
 	}{
-		{"TEmpty",[]string{}, nil},
-		{"TLo4",[]string{loIP4}, nil},
-		{"TLo6",[]string{loIP6}, nil},
-		{"TLoLL",[]string{loIP4,llIP4}, nil},
-		{"TLoLL6",[]string{loIP6,llIP6}, nil},
-		{"TLL4",[]string{llIP4}, nil},
-		{"TLL6",[]string{llIP6}, nil},
-		{"T4Only",[]string{pubIP4}, net.ParseIP(pubIP4)},
-		{"TLo4Uo6",[]string{loIP4, priIP6}, net.ParseIP(priIP6)},
-		{"TLL6P4",[]string{priIP4, llIP6}, net.ParseIP(priIP4)},
-		{"TP4LL6",[]string{llIP6,priIP4}, net.ParseIP(priIP4)},
-		{"TWrapped6",[]string{wrapped}, net.ParseIP(wrapped)},
-
+		{"TEmpty", []string{}, nil},
+		{"TLo4", []string{loIP4}, nil},
+		{"TLo6", []string{loIP6}, nil},
+		{"TLoLL", []string{loIP4, llIP4}, nil},
+		{"TLoLL6", []string{loIP6, llIP6}, nil},
+		{"TLL4", []string{llIP4}, nil},
+		{"TLL6", []string{llIP6}, nil},
+		{"T4Only", []string{pubIP4}, net.ParseIP(pubIP4)},
+		{"TLo4Uo6", []string{loIP4, priIP6}, net.ParseIP(priIP6)},
+		{"TLL6P4", []string{priIP4, llIP6}, net.ParseIP(priIP4)},
+		{"TP4LL6", []string{llIP6, priIP4}, net.ParseIP(priIP4)},
+		{"TWrapped6", []string{wrapped}, net.ParseIP(wrapped)},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -365,7 +364,7 @@ func Test_getValidIP(t *testing.T) {
 				if ip == nil {
 					t.Fatalf("invalid ip sample %v", ipstr)
 				}
-				addrs = append(addrs, &net.IPAddr{IP:ip,Zone:"ip+net"})
+				addrs = append(addrs, &net.IPAddr{IP: ip, Zone: "ip+net"})
 			}
 			if got := getValidIP(addrs); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("getValidIP() = %v, want %v", got, tt.want)
@@ -381,12 +380,12 @@ func TestMonotonicClocks(t *testing.T) {
 	wt2 := wt.Add(time.Hour)
 
 	if !mt.Equal(wt) {
-		t.Errorf("Equal(): Monotonic and wall clock differ! %v and %v ",mt, wt)
+		t.Errorf("Equal(): Monotonic and wall clock differ! %v and %v ", mt, wt)
 	}
 	if !mt2.Equal(wt2) {
-		t.Errorf("Monotonic and wall clock differ! %v and %v ",mt, wt)
+		t.Errorf("Monotonic and wall clock differ! %v and %v ", mt, wt)
 	}
-	if !reflect.DeepEqual(mt,wt) {
+	if !reflect.DeepEqual(mt, wt) {
 		// this is expected situation. you should compare clocks by Equal() method, not by reflection.
 	}
 }

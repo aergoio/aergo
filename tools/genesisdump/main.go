@@ -1,12 +1,12 @@
 package main
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
 
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/internal/enc/hex"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 func getGenesis(path string) *types.Genesis {
@@ -41,6 +41,6 @@ func main() {
 		panic(err)
 	}
 
-	str := "\"" + hex.EncodeToString(bs) + "\""
+	str := "\"" + hex.Encode(bs) + "\""
 	fmt.Println(str)
 }

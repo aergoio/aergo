@@ -21,11 +21,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/aergoio/aergo/chain"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/pkg/component"
-	"github.com/golang/protobuf/proto"
 	"io"
 	"os"
 	"runtime/debug"
@@ -33,9 +28,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/types"
-
+	"github.com/aergoio/aergo/v2/chain"
+	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/internal/enc/proto"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/pkg/component"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/etcd/etcdserver/stats"
 	etcdtypes "github.com/aergoio/etcd/pkg/types"
 	raftlib "github.com/aergoio/etcd/raft"
@@ -48,7 +47,7 @@ const (
 	HasNoLeader uint64 = 0
 )
 
-//noinspection ALL
+// noinspection ALL
 var (
 	raftLogger raftlib.Logger
 )
@@ -548,10 +547,10 @@ func (rs *raftServer) createHttpTransporter() Transporter {
 }
 
 func (rs *raftServer) createAergoP2PTransporter() Transporter {
-	future := rs.RequestFuture(message.P2PSvc, message.GetRaftTransport{rs.cluster}, time.Second<<4, "getbackend")
+	future := rs.RequestFuture(message.P2PSvc, message.GetRaftTransport{Cluster: rs.cluster}, time.Second<<4, "getbackend")
 	result, err := future.Result()
 	if err != nil {
-		panic(err.Error())
+		logger.Panic().Err(err).Msg("failed to get backend")
 	}
 	return result.(Transporter)
 }
@@ -675,7 +674,7 @@ func (rs *raftServer) serveChannels() {
 
 	snapshot, err := rs.raftStorage.Snapshot()
 	if err != nil {
-		panic(err)
+		logger.Panic().Err(err).Msg("failed to get snapshot")
 	}
 	rs.setConfState(&snapshot.Metadata.ConfState)
 	rs.setSnapshotIndex(snapshot.Metadata.Index)
@@ -917,8 +916,9 @@ func (rs *raftServer) createSnapshot() ([]byte, error) {
 // raft can not wait until last applied entry commits. so snapshot must create from current best block.
 //
 // @ MatchBlockAndCluster
-// 	snapshot use current state of cluster and confstate. but last applied block may not be commited yet.
-// 	so raft use last commited block. because of this, some conf change log can cause error on node that received snapshot
+//
+//	snapshot use current state of cluster and confstate. but last applied block may not be commited yet.
+//	so raft use last commited block. because of this, some conf change log can cause error on node that received snapshot
 func (rs *raftServer) triggerSnapshot() {
 	ce := rs.commitProgress.GetConnect()
 	newSnapshotIndex, snapBlock := ce.index, ce.block
@@ -969,7 +969,7 @@ func (rs *raftServer) triggerSnapshot() {
 		if err == raftlib.ErrCompacted {
 			return
 		}
-		panic(err)
+		logger.Fatal().Err(err).Uint64("index", compactIndex).Msg("failed to compact raft log")
 	}
 
 	logger.Info().Uint64("index", compactIndex).Msg("compacted raftLog.at index")
@@ -1116,7 +1116,9 @@ func (rs *raftServer) ValidateConfChangeEntry(entry *raftpb.Entry) (*raftpb.Conf
 }
 
 // TODO refactoring by cc.Type
-//      separate unmarshal & apply[type]
+//
+//	separate unmarshal & apply[type]
+//
 // applyConfChange returns false if this node is removed from cluster
 func (rs *raftServer) applyConfChange(ent *raftpb.Entry) bool {
 	var cc *raftpb.ConfChange
@@ -1525,7 +1527,7 @@ func (rs *raftServer) GetExistingCluster() (*Cluster, *types.HardStateInfo, erro
 func marshalEntryData(block *types.Block) ([]byte, error) {
 	var data []byte
 	var err error
-	if data, err = proto.Marshal(block); err != nil {
+	if data, err = proto.Encode(block); err != nil {
 		logger.Fatal().Err(err).Msg("poposed data is invalid")
 	}
 
@@ -1538,7 +1540,7 @@ var (
 
 func unmarshalEntryData(data []byte) (*types.Block, error) {
 	block := &types.Block{}
-	if err := proto.Unmarshal(data, block); err != nil {
+	if err := proto.Decode(data, block); err != nil {
 		return block, ErrUnmarshal
 	}
 

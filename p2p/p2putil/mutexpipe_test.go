@@ -22,7 +22,7 @@ func TestMutexPipe(t *testing.T) {
 		mos[i] = &testItem{i}
 	}
 
-	logger := log.NewLogger("test")
+	logger := log.NewLogger("test.channel")
 	tests := []struct {
 		name      string
 		cap       int
@@ -86,7 +86,7 @@ func TestMutexPipe_nonBlockWriteChan2(t *testing.T) {
 	for i := 0; i < arrSize; i++ {
 		mos[i] = &testItem{i}
 	}
-	logger := log.NewLogger("test")
+	logger := log.NewLogger("test.channel")
 
 	tests := []struct {
 		name     string
@@ -137,7 +137,7 @@ func TestMutexPipe_Longterm(t *testing.T) {
 		mos[i] = &testItem{i}
 	}
 
-	logger := log.NewLogger("test")
+	logger := log.NewLogger("test.channel")
 	tests := []struct {
 		name     string
 		cap      int

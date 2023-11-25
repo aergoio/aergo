@@ -6,8 +6,8 @@
 package chain
 
 import (
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 type ChainAnchor []([]byte)
@@ -72,7 +72,7 @@ func (cs *ChainService) getAnchorsFromHash(blockHash []byte) ChainAnchor {
 			return nil
 		}
 
-		logger.Debug().Uint64("no", latestNo).Str("hash", enc.ToString(blockHash)).Msg("anchor")
+		logger.Debug().Uint64("no", latestNo).Str("hash", base58.Encode(blockHash)).Msg("anchor")
 
 		anchors = append(anchors, blockHash)
 		if latestNo == 0 {
@@ -91,7 +91,7 @@ func (cs *ChainService) getAnchorsFromHash(blockHash []byte) ChainAnchor {
 			return nil
 		}
 
-		logger.Debug().Uint64("no", latestNo).Str("hash", enc.ToString(blockHash)).Msg("anchor")
+		logger.Debug().Uint64("no", latestNo).Str("hash", base58.Encode(blockHash)).Msg("anchor")
 
 		anchors = append(anchors, blockHash)
 		if latestNo <= dec {

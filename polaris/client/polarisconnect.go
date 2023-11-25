@@ -9,20 +9,20 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"github.com/aergoio/aergo/p2p/p2pkey"
-	"github.com/aergoio/aergo/p2p/v030"
-	"github.com/aergoio/aergo/polaris/common"
-	"github.com/libp2p/go-libp2p-core/network"
 	"sync"
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2pkey"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+	v030 "github.com/aergoio/aergo/v2/p2p/v030"
+	"github.com/aergoio/aergo/v2/pkg/component"
+	"github.com/aergoio/aergo/v2/polaris/common"
+	"github.com/aergoio/aergo/v2/types"
+	"github.com/libp2p/go-libp2p-core/network"
 )
 
 var ErrTooLowVersion = errors.New("aergosvr version is too low")
@@ -139,9 +139,9 @@ func (pcs *PolarisConnectSvc) queryPeers(msg *message.MapQueryMsg) *message.MapQ
 		addrs, err := pcs.connectAndQuery(meta, msg.BestBlock.Hash, msg.BestBlock.Header.BlockNo)
 		if err != nil {
 			if err == ErrTooLowVersion {
-				pcs.Logger.Error().Err(err).Str("polarisID", p2putil.ShortForm(meta.ID)).Msg("Polaris responded this aergosvr is too low, check and upgrade aergosvr")
+				pcs.Logger.Error().Err(err).Stringer("polarisID", types.LogPeerShort(meta.ID)).Msg("Polaris responded this aergosvr is too low, check and upgrade aergosvr")
 			} else {
-				pcs.Logger.Warn().Err(err).Str("polarisID", p2putil.ShortForm(meta.ID)).Msg("failed to get peer addresses")
+				pcs.Logger.Warn().Err(err).Stringer("polarisID", types.LogPeerShort(meta.ID)).Msg("failed to get peer addresses")
 			}
 			continue
 		}
@@ -236,7 +236,7 @@ func (pcs *PolarisConnectSvc) readResponse(mapServerMeta p2pcommon.PeerMeta, rd 
 			if err != nil {
 				continue
 			}
-			addr.Addresses=[]string{ma.String()}
+			addr.Addresses = []string{ma.String()}
 		}
 	}
 	pcs.Logger.Debug().Str(p2putil.LogPeerID, mapServerMeta.ID.String()).Int("peer_cnt", len(queryResp.Addresses)).Msg("Received map query response")

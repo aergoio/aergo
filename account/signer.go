@@ -2,8 +2,8 @@ package account
 
 import (
 	"github.com/aergoio/aergo-actor/actor"
-	"github.com/aergoio/aergo/account/key"
-	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/v2/account/key"
+	"github.com/aergoio/aergo/v2/message"
 )
 
 type Signer struct {
@@ -14,7 +14,7 @@ func NewSigner(s *key.Store) *Signer {
 	return &Signer{keystore: s}
 }
 
-//Receive actor message
+// Receive actor message
 func (s *Signer) Receive(context actor.Context) {
 	switch msg := context.Message().(type) {
 	case *message.SignTx:

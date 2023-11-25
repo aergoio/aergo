@@ -1,0 +1,84 @@
+# aergo TOML Configuration File (https://github.com/toml-lang/toml)
+# base configurations
+datadir = "./aergo-files/data"
+dbtype = "badgerdb"
+enableprofile = false
+profileport = 6060
+enabledump = false
+dumpport = 7070
+personal = true
+authdir = "./aergo-files/auth"
+
+[rpc]
+netserviceaddr = "127.0.0.1"
+netserviceport = 7845
+netservicetrace = false
+nstls = false
+nscert = ""
+nskey = ""
+nscacert = ""
+nsallowcors = false
+
+[p2p]
+# Set address and port to which the inbound peers connect, and don't set loopback address or private network unless used in local network 
+netprotocoladdr = ""
+netprotocolport = 7846
+npbindaddr = ""
+npbindport = -1
+# TLS and certificate is not applied in alpha release.
+nptls = false
+npcert = ""
+# Set file path of key file
+npkey = ""
+npaddpeers = [
+]
+npdiscoverpeers = true
+npmaxpeers = "100"
+nppeerpool = "100"
+npexposeself = true
+npusepolaris = true
+npaddpolarises = [
+]
+peerrole = ""
+
+[polaris]
+allowprivate = false
+genesisfile = ""
+enableblacklist = "true"
+
+[blockchain]
+# blockchain configurations
+maxblocksize = 1048576
+coinbaseaccount = ""
+maxanchorcount = "20"
+verifiercount = "1"
+forceresetheight = "0"
+numworkers = "1"
+numclosers = "1"
+closelimit = "100"
+
+[mempool]
+showmetrics = false
+enablefadeout = false
+fadeoutperiod = 12
+verifiers = 1
+dumpfilepath = "./aergo-files/mempool.dump"
+
+[consensus]
+enablebp = true
+blockinterval = 1
+
+[monitor]
+protocol = ""
+endpoint = ""
+
+[account]
+unlocktimeout = "60"
+
+[auth]
+enablelocalconf = "false"
+
+[hardfork]
+v2 = "0"
+v3 = "10000"
+v4 = "10000"

@@ -10,19 +10,20 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
+	"time"
+
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/internal/enc/proto"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+	"github.com/aergoio/aergo/v2/types"
 	pioutil "github.com/aergoio/etcd/pkg/ioutil"
 	"github.com/aergoio/etcd/raft"
 	"github.com/aergoio/etcd/raft/raftpb"
 	"github.com/aergoio/etcd/snap"
-	"github.com/golang/protobuf/proto"
 	core "github.com/libp2p/go-libp2p-core"
-	"io"
-	"time"
 )
 
 type snapshotSender struct {
@@ -35,7 +36,7 @@ type snapshotSender struct {
 }
 
 func newSnapshotSender(logger *log.Logger, nt p2pcommon.NetworkTransport, rAcc consensus.AergoRaftAccessor, peer p2pcommon.RemotePeer) *snapshotSender {
-	return &snapshotSender{logger: logger, nt: nt, rAcc: rAcc, stopChan: make(chan interface{}), peer:peer}
+	return &snapshotSender{logger: logger, nt: nt, rAcc: rAcc, stopChan: make(chan interface{}), peer: peer}
 }
 
 func (s *snapshotSender) Send(snapMsg *snap.Message) {
@@ -170,7 +171,7 @@ func readWireHSResp(rd io.Reader) (resp types.SnapshotResponse, err error) {
 		return
 	}
 
-	err = proto.Unmarshal(bodyBuf, &resp)
+	err = proto.Decode(bodyBuf, &resp)
 	return
 }
 func (s *snapshotSender) createSnapBody(merged snap.Message) io.ReadCloser {

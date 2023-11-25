@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/aergoio/aergo/cmd/brick/context"
-	"github.com/aergoio/aergo/contract"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/cmd/brick/context"
+	"github.com/aergoio/aergo/v2/contract/vm_dummy"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 func init() {
@@ -66,7 +66,7 @@ func (c *getStateAccount) Run(args string) (string, uint64, []*types.Event, erro
 		return "", 0, nil, err
 	}
 	if expectedResult == "" {
-		return fmt.Sprintf("%s = %d", contract.StrToAddress(accountName), new(big.Int).SetBytes(state.GetBalance())), 0, nil, nil
+		return fmt.Sprintf("%s = %d", vm_dummy.StrToAddress(accountName), new(big.Int).SetBytes(state.GetBalance())), 0, nil, nil
 	} else {
 		strRet := fmt.Sprintf("%d", new(big.Int).SetBytes(state.GetBalance()))
 		if expectedResult == strRet {

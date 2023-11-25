@@ -13,32 +13,34 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2pmock"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2pmock"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/golang/mock/gomock"
 )
 
 type fakeChainID struct {
-	genID types.ChainID
+	genID    types.ChainID
 	versions []uint64
 }
-func newFC(genID types.ChainID, vers... uint64) fakeChainID {
-	genID.Version=0
+
+func newFC(genID types.ChainID, vers ...uint64) fakeChainID {
+	genID.Version = 0
 	sort.Sort(BlkNoASC(vers))
-	return fakeChainID{genID:genID, versions:vers}
+	return fakeChainID{genID: genID, versions: vers}
 }
-func (f fakeChainID) getChainID(no types.BlockNo) *types.ChainID{
+func (f fakeChainID) getChainID(no types.BlockNo) *types.ChainID {
 	cp := f.genID
-	for i:=len(f.versions)-1; i>=0 ; i-- {
+	for i := len(f.versions) - 1; i >= 0; i-- {
 		if f.versions[i] <= no {
-			cp.Version = int32(i+1)
+			cp.Version = int32(i + 1)
 			break
 		}
 	}
 	return &cp
 }
+
 type BlkNoASC []uint64
 
 func (a BlkNoASC) Len() int           { return len(a) }
@@ -54,7 +56,7 @@ func TestV033VersionedHS_DoForOutbound(t *testing.T) {
 	mockCA := p2pmock.NewMockChainAccessor(ctrl)
 	mockPM := p2pmock.NewMockPeerManager(ctrl)
 
-	fc := newFC(*myChainID, 10000,20000,dummyBlockHeight+100)
+	fc := newFC(*myChainID, 10000, 20000, dummyBlockHeight+100)
 	localChainID := *fc.getChainID(dummyBlockHeight)
 	localChainBytes, _ := localChainID.Bytes()
 	oldChainID := fc.getChainID(10000)
@@ -62,7 +64,7 @@ func TestV033VersionedHS_DoForOutbound(t *testing.T) {
 	newChainID := fc.getChainID(600000)
 	newChainBytes, _ := newChainID.Bytes()
 
- 	diffBlockNo := dummyBlockHeight+100000
+	diffBlockNo := dummyBlockHeight + 100000
 	dummyMeta := p2pcommon.NewMetaWith1Addr(samplePeerID, "dummy.aergo.io", 7846, "v2.0.0")
 	dummyAddr := dummyMeta.ToPeerAddress()
 	mockPM.EXPECT().SelfMeta().Return(dummyMeta).AnyTimes()
@@ -71,14 +73,14 @@ func TestV033VersionedHS_DoForOutbound(t *testing.T) {
 	mockCA.EXPECT().GetBestBlock().Return(dummyBlock, nil).AnyTimes()
 	dummyGenHash := []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 	diffGenesis := []byte{0xff, 0xfe, 0xfd, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
-	dummyStatusMsg := &types.Status{ChainID: localChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash, BestBlockHash:dummyBlockHash, BestHeight:dummyBlockHeight, Version:dummyAddr.Version}
-	succResult := &p2pcommon.HandshakeResult{Meta: dummyMeta, BestBlockHash:types.MustParseBlockID(dummyBlockHash), BestBlockNo:dummyBlockHeight}
-	diffGenesisStatusMsg := &types.Status{ChainID: localChainBytes, Sender: &dummyAddr, Genesis: diffGenesis, Version:dummyAddr.Version}
-	nilGenesisStatusMsg := &types.Status{ChainID: localChainBytes, Sender: &dummyAddr, Genesis: nil, Version:dummyAddr.Version}
+	dummyStatusMsg := &types.Status{ChainID: localChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash, BestBlockHash: dummyBlockHash, BestHeight: dummyBlockHeight, Version: dummyAddr.Version}
+	succResult := &p2pcommon.HandshakeResult{Meta: dummyMeta, BestBlockHash: types.MustParseBlockID(dummyBlockHash), BestBlockNo: dummyBlockHeight}
+	diffGenesisStatusMsg := &types.Status{ChainID: localChainBytes, Sender: &dummyAddr, Genesis: diffGenesis, Version: dummyAddr.Version}
+	nilGenesisStatusMsg := &types.Status{ChainID: localChainBytes, Sender: &dummyAddr, Genesis: nil, Version: dummyAddr.Version}
 	nilSenderStatusMsg := &types.Status{ChainID: localChainBytes, Sender: nil, Genesis: dummyGenHash}
-	diffStatusMsg := &types.Status{ChainID: theirChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash, BestHeight:diffBlockNo, Version:dummyAddr.Version}
-	olderStatusMsg := &types.Status{ChainID: oldChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash, BestHeight:10000, Version:dummyAddr.Version}
-	newerStatusMsg := &types.Status{ChainID: newChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash, BestHeight:600000, Version:dummyAddr.Version}
+	diffStatusMsg := &types.Status{ChainID: theirChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash, BestHeight: diffBlockNo, Version: dummyAddr.Version}
+	olderStatusMsg := &types.Status{ChainID: oldChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash, BestHeight: 10000, Version: dummyAddr.Version}
+	newerStatusMsg := &types.Status{ChainID: newChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash, BestHeight: 600000, Version: dummyAddr.Version}
 	diffVersionStatusMsg := &types.Status{ChainID: newVerChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash}
 
 	tests := []struct {
@@ -161,13 +163,13 @@ func TestV033VersionedHS_DoForInbound(t *testing.T) {
 
 	dummyGenHash := []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 	diffGenHash := []byte{0xff, 0xfe, 0xfd, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
-	dummyStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash, Version:dummyAddr.Version}
-	succResult := &p2pcommon.HandshakeResult{Meta: dummyMeta, BestBlockHash:types.MustParseBlockID(dummyBlockHash), BestBlockNo:dummyBlockHeight}
-	diffGenesisStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr, Genesis: diffGenHash, Version:dummyAddr.Version}
-	nilGenesisStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr, Genesis: nil, Version:dummyAddr.Version}
-	nilSenderStatusMsg := &types.Status{ChainID: myChainBytes, Sender: nil, Genesis: dummyGenHash, Version:dummyAddr.Version}
-	diffStatusMsg := &types.Status{ChainID: theirChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash, Version:dummyAddr.Version}
-	diffVersionStatusMsg := &types.Status{ChainID: newVerChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash, Version:dummyAddr.Version}
+	dummyStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash, Version: dummyAddr.Version}
+	succResult := &p2pcommon.HandshakeResult{Meta: dummyMeta, BestBlockHash: types.MustParseBlockID(dummyBlockHash), BestBlockNo: dummyBlockHeight}
+	diffGenesisStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr, Genesis: diffGenHash, Version: dummyAddr.Version}
+	nilGenesisStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr, Genesis: nil, Version: dummyAddr.Version}
+	nilSenderStatusMsg := &types.Status{ChainID: myChainBytes, Sender: nil, Genesis: dummyGenHash, Version: dummyAddr.Version}
+	diffStatusMsg := &types.Status{ChainID: theirChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash, Version: dummyAddr.Version}
+	diffVersionStatusMsg := &types.Status{ChainID: newVerChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash, Version: dummyAddr.Version}
 	tests := []struct {
 		name       string
 		readReturn *types.Status

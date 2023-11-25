@@ -8,20 +8,22 @@ package raftsupport
 import (
 	"context"
 	"encoding/binary"
+	"io"
+
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/internal/enc/proto"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+	"github.com/aergoio/aergo/v2/types"
 	rtypes "github.com/aergoio/etcd/pkg/types"
 	"github.com/aergoio/etcd/raft/raftpb"
-	"github.com/golang/protobuf/proto"
-	"io"
 )
 
 const (
 	SnapRespHeaderLength = 4
 )
+
 // TODO consider the scope of type
 type snapshotReceiver struct {
 	logger *log.Logger
@@ -35,9 +37,8 @@ func newSnapshotReceiver(logger *log.Logger, pm p2pcommon.PeerManager, rAcc cons
 	return &snapshotReceiver{logger: logger, pm: pm, rAcc: rAcc, peer: peer, rwc: sender}
 }
 
-
 func (s *snapshotReceiver) Receive() {
-	resp := &types.SnapshotResponse{Status:types.ResultStatus_OK}
+	resp := &types.SnapshotResponse{Status: types.ResultStatus_OK}
 	defer s.sendResp(s.rwc, resp)
 
 	dec := &RaftMsgDecoder{r: s.rwc}
@@ -80,13 +81,13 @@ func (s *snapshotReceiver) Receive() {
 	//receivedBytes.WithLabelValues(from).Add(float64(n))
 	s.logger.Info().Str(p2putil.LogPeerName, s.peer.Name()).Uint64("index", m.Snapshot.Metadata.Index).Str("from", from).Msg("received and saved database snapshot successfully")
 
-	if err := s.rAcc.Process(context.TODO(),s.peer.ID(), m); err != nil {
+	if err := s.rAcc.Process(context.TODO(), s.peer.ID(), m); err != nil {
 		switch v := err.(type) {
 		// Process may return codeError error when doing some
 		// additional checks before calling raft.Node.Step.
 		case codeError:
 			// TODO get resp
-			resp.Status =v.Status()
+			resp.Status = v.Status()
 			resp.Message = v.Message()
 		default:
 			s.logger.Warn().Err(err).Msg("failed to process raft message")
@@ -105,7 +106,7 @@ func (s *snapshotReceiver) Receive() {
 }
 
 func (s *snapshotReceiver) sendResp(w io.Writer, resp *types.SnapshotResponse) {
-	b, err := proto.Marshal(resp)
+	b, err := proto.Encode(resp)
 	if err == nil {
 		bytebuf := make([]byte, SnapRespHeaderLength)
 		binary.BigEndian.PutUint32(bytebuf, uint32(len(b)))

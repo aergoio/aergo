@@ -6,7 +6,7 @@
 package p2pcommon
 
 import (
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/etcd/raft/raftpb"
 )
 
@@ -37,4 +37,3 @@ type MoFactory interface {
 	NewRaftMsgOrder(msgType raftpb.MessageType, raftMsg *raftpb.Message) MsgOrder
 	NewTossMsgOrder(orgMsg Message) MsgOrder
 }
-

@@ -6,16 +6,17 @@
 package types
 
 import (
-	"github.com/aergoio/aergo/internal/network"
+	"net"
+	"strconv"
+	"strings"
+
+	"github.com/aergoio/aergo/v2/internal/network"
 	core "github.com/libp2p/go-libp2p-core"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/test"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/pkg/errors"
-	"net"
-	"strconv"
-	"strings"
 )
 
 // ProducerID is identifier of block producer. It is same format with the PeerID at version 1.x, but might be changed to other format later.
@@ -46,7 +47,7 @@ func IDFromPublicKey(pubKey crypto.PubKey) (PeerID, error) {
 func IDFromPrivateKey(sk crypto.PrivKey) (PeerID, error) {
 	return peer.IDFromPrivateKey(sk)
 }
-func IsSamePeerID(pid1,pid2 PeerID) bool {
+func IsSamePeerID(pid1, pid2 PeerID) bool {
 	return string(pid1) == string(pid2)
 }
 
@@ -120,6 +121,7 @@ var ErrInvalidIPAddress = errors.New("invalid ip address")
 var ErrInvalidPort = errors.New("invalid port")
 
 var addrProtos = []int{multiaddr.P_IP4, multiaddr.P_IP6, multiaddr.P_DNS4, multiaddr.P_DNS6}
+
 // AddressFromMultiAddr returns address (ip4, ip6 or full qualified domain name)
 func AddressFromMultiAddr(ma Multiaddr) string {
 	for _, p := range addrProtos {

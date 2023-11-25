@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/dbkey"
 )
-
-var confPrefix = []byte("conf\\")
 
 const (
 	RPCPermissions = "RPCPERMISSIONS"
@@ -17,7 +16,7 @@ const (
 	AccountWhite   = "ACCOUNTWHITE"
 )
 
-//EnterpriseKeyDict is represent allowed key list and used when validate tx, int values are meaningless.
+// EnterpriseKeyDict is represent allowed key list and used when validate tx, int values are meaningless.
 var enterpriseKeyDict = map[string]int{
 	RPCPermissions: 1,
 	P2PWhite:       2,
@@ -49,7 +48,7 @@ func (c *Conf) Validate(key []byte, context *EnterpriseContext) error {
 	if !c.On {
 		return nil
 	}
-	strKey := string(key)
+	strKey := strings.ToUpper(string(key))
 	switch strKey {
 	case RPCPermissions:
 		for _, v := range c.Values {
@@ -69,7 +68,6 @@ func (c *Conf) Validate(key []byte, context *EnterpriseContext) error {
 	default:
 		return nil
 	}
-	return nil
 }
 
 // AccountStateReader is an interface for getting a enterprise account state.
@@ -84,7 +82,7 @@ func GetConf(r AccountStateReader, key string) (*types.EnterpriseConfig, error) 
 	}
 	ret := &types.EnterpriseConfig{Key: key}
 	if strings.ToUpper(key) == "PERMISSIONS" {
-		for k, _ := range enterpriseKeyDict {
+		for k := range enterpriseKeyDict {
 			ret.Values = append(ret.Values, k)
 		}
 	} else {
@@ -114,7 +112,7 @@ func enableConf(scs *state.ContractState, key []byte, value bool) (*Conf, error)
 }
 
 func getConf(scs *state.ContractState, key []byte) (*Conf, error) {
-	data, err := scs.GetData(append(confPrefix, genKey(key)...))
+	data, err := scs.GetData(dbkey.EnterpriseConf(key))
 	if err != nil || data == nil {
 		return nil, err
 	}
@@ -135,7 +133,7 @@ func setConfValues(scs *state.ContractState, key []byte, values []string) (*Conf
 }
 
 func setConf(scs *state.ContractState, key []byte, conf *Conf) error {
-	return scs.SetData(append(confPrefix, genKey(key)...), serializeConf(conf))
+	return scs.SetData(dbkey.EnterpriseConf(key), serializeConf(conf))
 }
 
 func serializeConf(c *Conf) []byte {
@@ -161,8 +159,4 @@ func deserializeConf(data []byte) *Conf {
 		ret.On = true
 	}
 	return ret
-}
-
-func genKey(key []byte) []byte {
-	return []byte(strings.ToUpper(string(key)))
 }

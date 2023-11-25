@@ -1,12 +1,13 @@
 package state
 
 import (
+	"bytes"
 	"math/big"
 
 	"github.com/aergoio/aergo-lib/db"
-	"github.com/aergoio/aergo/internal/common"
-	"github.com/aergoio/aergo/types"
-	"github.com/golang/protobuf/proto"
+	"github.com/aergoio/aergo/v2/internal/common"
+	"github.com/aergoio/aergo/v2/internal/enc/proto"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 func (states *StateDB) GetMultiCallState(aid types.AccountID, st *types.State) (*ContractState) {
@@ -24,6 +25,7 @@ func (states *StateDB) OpenContractStateAccount(aid types.AccountID) (*ContractS
 	}
 	return states.OpenContractState(aid, st)
 }
+
 func (states *StateDB) OpenContractState(aid types.AccountID, st *types.State) (*ContractState, error) {
 	storage := states.cache.get(aid)
 	if storage == nil {
@@ -84,7 +86,10 @@ func (st *ContractState) GetBalance() *big.Int {
 
 func (st *ContractState) SetCode(code []byte) error {
 	codeHash := common.Hasher(code)
-	err := st.SetRawKV(codeHash[:], code)
+	storedCode, err := st.GetRawKV(codeHash[:])
+	if err == nil && !bytes.Equal(code, storedCode) {
+		err = st.SetRawKV(codeHash[:], code)
+	}
 	if err != nil {
 		return err
 	}
@@ -200,7 +205,7 @@ func (st *ContractState) Hash() []byte {
 
 // Marshal implements types.ImplMarshal
 func (st *ContractState) Marshal() ([]byte, error) {
-	return proto.Marshal(st.State)
+	return proto.Encode(st.State)
 }
 
 func (st *ContractState) cache() *stateBuffer {

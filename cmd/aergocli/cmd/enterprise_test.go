@@ -5,9 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/mr-tron/base58/base58"
-
-	aergorpc "github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	aergorpc "github.com/aergoio/aergo/v2/types"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )
@@ -88,7 +87,7 @@ func TestGetConfChangeWithMock(t *testing.T) {
 	).MaxTimes(2)
 
 	// case: GetConfChangeProgress from tx hash
-	output, err = executeCommand(rootCmd, "enterprise", "tx", testTxHashString, "--timeout",  "0")
+	output, err = executeCommand(rootCmd, "enterprise", "tx", testTxHashString, "--timeout", "0")
 	assert.NoError(t, err, "should be success")
 	t.Log(output)
 

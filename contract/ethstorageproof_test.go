@@ -2,10 +2,11 @@ package contract
 
 import (
 	"bytes"
-	"encoding/hex"
 	"fmt"
 	"reflect"
 	"testing"
+
+	"github.com/aergoio/aergo/v2/internal/enc/hex"
 )
 
 func TestVerify(t *testing.T) {
@@ -205,14 +206,14 @@ func removeHexPrefix(s string) string {
 }
 
 func toBytes(s string) []byte {
-	n, _ := hex.DecodeString(removeHexPrefix(s))
+	n, _ := hex.Decode(removeHexPrefix(s))
 	return n
 }
 
 func proofToBytes(proof []string) [][]byte {
 	var r [][]byte
 	for _, n := range proof {
-		d, err := hex.DecodeString(removeHexPrefix(n))
+		d, err := hex.Decode(removeHexPrefix(n))
 		if err != nil {
 			return [][]byte{}
 		}

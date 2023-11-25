@@ -6,12 +6,18 @@
 package raftsupport
 
 import (
+	"io"
+	"net/http"
+	"strconv"
+	"sync"
+	"time"
+
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/consensus/impl/raftv2"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/consensus/impl/raftv2"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/etcd/etcdserver/stats"
 	rtypes "github.com/aergoio/etcd/pkg/types"
 	"github.com/aergoio/etcd/raft"
@@ -19,11 +25,6 @@ import (
 	"github.com/aergoio/etcd/snap"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/pkg/errors"
-	"io"
-	"net/http"
-	"strconv"
-	"sync"
-	"time"
 )
 
 // errors
@@ -33,6 +34,7 @@ var (
 	errRemovedMember     = errors.New("member was removed")
 	errUnreachableMember = errors.New("member is unreachable")
 )
+
 // AergoRaftTransport is wrapper of p2p module
 type AergoRaftTransport struct {
 	logger *log.Logger
@@ -103,12 +105,11 @@ func (t *AergoRaftTransport) Send(msgs []raftpb.Message) {
 			peer.SendMessage(t.mf.NewRaftMsgOrder(m.Type, &m))
 			continue
 		} else {
-			t.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(member.GetPeerID())).Msg("peer is unreachable")
+			t.logger.Debug().Stringer(p2putil.LogPeerID, types.LogPeerShort(member.GetPeerID())).Msg("peer is unreachable")
 			t.raftAcc.ReportUnreachable(member.GetPeerID())
 			continue
 		}
 
-		t.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(member.GetPeerID())).Object("raftMsg", &RaftMsgMarshaller{&m}).Msg("can't send message to unconnected peer")
 	}
 }
 
@@ -147,17 +148,17 @@ func (t *AergoRaftTransport) AddRemote(id rtypes.ID, urls []string) {
 func (t *AergoRaftTransport) AddPeer(id rtypes.ID, peerID types.PeerID, urls []string) {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
-	t.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Str("id", id.String()).Msg("Adding member peer")
+	t.logger.Debug().Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Str("id", id.String()).Msg("Adding member peer")
 
 	member := t.raftAcc.GetMemberByID(uint64(id))
 	if member == nil {
-		t.logger.Info().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Str("id", id.String()).Msg("can't find member")
+		t.logger.Info().Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Str("id", id.String()).Msg("can't find member")
 		return
 	}
 	st, exist := t.statuses[id]
 	if exist {
 		if _, exist := t.pm.GetPeer(member.GetPeerID()); exist {
-			t.logger.Info().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Str("id", id.String()).Msg("peer already exists")
+			t.logger.Info().Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Str("id", id.String()).Msg("peer already exists")
 			st.activate()
 			return
 		} else {
@@ -199,7 +200,7 @@ func (t *AergoRaftTransport) RemovePeer(id rtypes.ID) {
 	if peer, exist := t.pm.GetPeer(st.pid); exist {
 		peer.Stop()
 	}
-	t.logger.Info().Str(p2putil.LogPeerID, p2putil.ShortForm(st.pid)).Uint64("raftID", uint64(id)).Msg("removed raft peer")
+	t.logger.Info().Stringer(p2putil.LogPeerID, types.LogPeerShort(st.pid)).Uint64("raftID", uint64(id)).Msg("removed raft peer")
 }
 
 func (t *AergoRaftTransport) RemoveAllPeers() {
@@ -246,7 +247,7 @@ func (t *AergoRaftTransport) OnRaftSnapshot(s network.Stream) {
 	peer, found := t.pm.GetPeer(peerID)
 	if !found {
 		addr := s.Conn().RemoteMultiaddr()
-		t.logger.Info().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Str("multiaddr", addr.String()).Msg("snapshot stream from leader node")
+		t.logger.Info().Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Str("multiaddr", addr.String()).Msg("snapshot stream from leader node")
 		hsresp.RespCode = p2pcommon.HSCodeAuthFail
 		s.Write(hsresp.Marshal())
 		s.Close()

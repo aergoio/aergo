@@ -8,9 +8,9 @@ package p2p
 import (
 	"time"
 
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 // BlockHashesReceiver is send p2p GetHashesRequest to target peer and receive p2p responses till all requested hashes are received
@@ -26,16 +26,16 @@ type BlockHashesReceiver struct {
 	count     int
 	timeout   time.Time
 	finished  bool
-	status      receiverStatus
+	status    receiverStatus
 
-	reqCnt int
-	got    []message.BlockHash
+	reqCnt         int
+	got            []message.BlockHash
 	senderFinished chan interface{}
 }
 
 func NewBlockHashesReceiver(actor p2pcommon.ActorService, peer p2pcommon.RemotePeer, seq uint64, req *message.GetHashes, ttl time.Duration) *BlockHashesReceiver {
 	timeout := time.Now().Add(ttl)
-	return &BlockHashesReceiver{syncerSeq:seq, actor: actor, peer: peer, prevBlock: req.PrevInfo, count: int(req.Count), timeout: timeout, reqCnt:int(req.Count), got: make([]message.BlockHash, 0, int(req.Count))}
+	return &BlockHashesReceiver{syncerSeq: seq, actor: actor, peer: peer, prevBlock: req.PrevInfo, count: int(req.Count), timeout: timeout, reqCnt: int(req.Count), got: make([]message.BlockHash, 0, int(req.Count))}
 }
 
 func (br *BlockHashesReceiver) StartGet() {
@@ -101,7 +101,7 @@ func (br *BlockHashesReceiver) handleInWaiting(msg p2pcommon.Message, msgBody p2
 	}
 	// remote peer hopefully sent last part
 	if !body.HasNext {
-		br.actor.TellRequest(message.SyncerSvc, &message.GetHashesRsp{Seq:br.syncerSeq, Hashes: br.got, PrevInfo: br.prevBlock, Count: uint64(len(br.got))})
+		br.actor.TellRequest(message.SyncerSvc, &message.GetHashesRsp{Seq: br.syncerSeq, Hashes: br.got, PrevInfo: br.prevBlock, Count: uint64(len(br.got))})
 		br.finishReceiver()
 	}
 	return
@@ -112,7 +112,7 @@ func (br *BlockHashesReceiver) handleInWaiting(msg p2pcommon.Message, msgBody p2
 func (br *BlockHashesReceiver) cancelReceiving(err error, hasNext bool) {
 	br.status = receiverStatusCanceled
 	br.actor.TellRequest(message.SyncerSvc,
-		&message.GetHashesRsp{Seq: br.syncerSeq, PrevInfo:br.prevBlock, Err: err})
+		&message.GetHashesRsp{Seq: br.syncerSeq, PrevInfo: br.prevBlock, Err: err})
 
 	// check time again. since negative duration of timer will not fire channel.
 	interval := br.timeout.Sub(time.Now())

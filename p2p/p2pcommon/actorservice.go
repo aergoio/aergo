@@ -6,9 +6,10 @@
 package p2pcommon
 
 import (
-	"github.com/aergoio/aergo-actor/actor"
-	"github.com/aergoio/aergo/types"
 	"time"
+
+	"github.com/aergoio/aergo-actor/actor"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 // ActorService is collection of helper methods to use actor
@@ -31,4 +32,5 @@ type ActorService interface {
 
 	GetChainAccessor() types.ChainAccessor
 }
+
 //go:generate mockgen -source=actorservice.go -package=p2pmock -destination=../p2pmock/mock_actorservice.go

@@ -1,14 +1,15 @@
 package subproto
 
 import (
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/types"
-	"github.com/libp2p/go-libp2p-core/network"
 	"testing"
 
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/types"
+	"github.com/libp2p/go-libp2p-core/network"
+
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2pmock"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2pmock"
 	"github.com/golang/mock/gomock"
 )
 
@@ -77,7 +78,7 @@ func Test_pingRequestHandler_handle(t *testing.T) {
 	defer ctrl.Finish()
 
 	logger := log.NewLogger("test.subproto")
-	dummyBlockHash, _ := enc.ToBytes("v6zbuQ4aVSdbTwQhaiZGp5pcL5uL55X3kt2wfxor5W6")
+	dummyBlockHash, _ := base58.Decode("v6zbuQ4aVSdbTwQhaiZGp5pcL5uL55X3kt2wfxor5W6")
 	var dummyPeerID, _ = types.IDB58Decode("16Uiu2HAmN5YU8V2LnTy9neuuJCLNsxLnd5xVSRZqkjvZUHS3mLoD")
 
 	type args struct {
@@ -123,4 +124,3 @@ func Test_pingRequestHandler_handle(t *testing.T) {
 		})
 	}
 }
-

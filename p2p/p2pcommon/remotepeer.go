@@ -7,8 +7,9 @@
 package p2pcommon
 
 import (
-	"github.com/aergoio/aergo/types"
 	"time"
+
+	"github.com/aergoio/aergo/v2/types"
 )
 
 type PeerFactory interface {
@@ -63,5 +64,4 @@ type RemotePeer interface {
 
 	// DoTask execute task in remote peer's own goroutine, it should not consume lots of time to process.
 	DoTask(task PeerTask) bool
-
 }

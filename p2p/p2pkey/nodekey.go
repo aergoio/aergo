@@ -6,16 +6,17 @@
 package p2pkey
 
 import (
-	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/types"
-	"github.com/libp2p/go-libp2p-core/crypto"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+	"github.com/aergoio/aergo/v2/types"
+	"github.com/libp2p/go-libp2p-core/crypto"
 )
 
 type nodeInfo struct {
@@ -26,7 +27,6 @@ type nodeInfo struct {
 
 	version   string
 	startTime time.Time
-
 }
 
 var ni *nodeInfo
@@ -42,7 +42,7 @@ func InitNodeInfo(baseCfg *config.BaseConfig, p2pCfg *config.P2PConfig, version 
 	)
 
 	if !p2pcommon.CheckVersion(version) {
-		logger.Warn().Str("minVersion",p2pcommon.MinimumAergoVersion).Str("maxVersion",p2pcommon.MaximumAergoVersion).Str("version",version).Msg("min/max version range is not set properly. change constant in source and then rebuild it")
+		logger.Warn().Str("minVersion", p2pcommon.MinimumAergoVersion).Str("maxVersion", p2pcommon.MaximumAergoVersion).Str("version", version).Msg("min/max version range is not set properly. change constant in source and then rebuild it")
 	}
 
 	if p2pCfg.NPKey != "" {
@@ -72,7 +72,7 @@ func InitNodeInfo(baseCfg *config.BaseConfig, p2pCfg *config.P2PConfig, version 
 
 	ni = &nodeInfo{
 		id:        id,
-		sid:       enc.ToString([]byte(id)),
+		sid:       base58.Encode([]byte(id)),
 		pubKey:    pub,
 		privKey:   priv,
 		version:   version,
@@ -118,7 +118,7 @@ func GetHostAccessor() types.HostAccessor {
 	return simpleHostAccessor{}
 }
 
-type simpleHostAccessor struct {}
+type simpleHostAccessor struct{}
 
 func (simpleHostAccessor) Version() string {
 	return ni.version
@@ -127,4 +127,3 @@ func (simpleHostAccessor) Version() string {
 func (simpleHostAccessor) StartTime() time.Time {
 	return ni.startTime
 }
-

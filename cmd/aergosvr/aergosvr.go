@@ -6,29 +6,22 @@ package main
 
 import (
 	"fmt"
-	"net/http"
-	_ "net/http/pprof"
 	"os"
-	"strconv"
-	"strings"
-
-	"github.com/aergoio/aergo/p2p/p2pkey"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/account"
-	"github.com/aergoio/aergo/chain"
-	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/consensus/impl"
-	"github.com/aergoio/aergo/internal/common"
-	"github.com/aergoio/aergo/mempool"
-	"github.com/aergoio/aergo/p2p"
-	"github.com/aergoio/aergo/pkg/component"
-	polarisclient "github.com/aergoio/aergo/polaris/client"
-	"github.com/aergoio/aergo/rpc"
-	"github.com/aergoio/aergo/syncer"
-	"github.com/opentracing/opentracing-go"
-	zipkin "github.com/openzipkin-contrib/zipkin-go-opentracing"
+	"github.com/aergoio/aergo/v2/account"
+	"github.com/aergoio/aergo/v2/chain"
+	"github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/consensus/impl"
+	"github.com/aergoio/aergo/v2/internal/common"
+	"github.com/aergoio/aergo/v2/mempool"
+	"github.com/aergoio/aergo/v2/p2p"
+	"github.com/aergoio/aergo/v2/p2p/p2pkey"
+	"github.com/aergoio/aergo/v2/pkg/component"
+	polarisclient "github.com/aergoio/aergo/v2/polaris/client"
+	"github.com/aergoio/aergo/v2/rpc"
+	"github.com/aergoio/aergo/v2/syncer"
 	"github.com/spf13/cobra"
 )
 
@@ -78,7 +71,6 @@ func init() {
 	fs.StringVar(&homePath, "home", "", "path of aergo home")
 	fs.StringVar(&configFilePath, "config", "", "path of configuration file")
 	fs.BoolVarP(&verbose, "verbose", "v", false, "verbose mode")
-
 }
 
 func initConfig() {
@@ -101,49 +93,9 @@ func initConfig() {
 	}
 }
 
-func configureZipkin() {
-	protocol := cfg.Monitor.ServerProtocol
-	endpoint := cfg.Monitor.ServerEndpoint
-	var collector zipkin.Collector
-	var err error
-	if "http" == protocol || "https" == protocol {
-		zipkinURL := fmt.Sprintf("%s://%s/api/v1/spans", protocol, endpoint)
-		collector, err = zipkin.NewHTTPCollector(zipkinURL)
-		if err != nil {
-			panic("Error connecting to zipkin server at " + zipkinURL + ". Error: " + err.Error())
-		}
-	} else if "kafka" == protocol {
-		endpoints := strings.Split(endpoint, ",")
-		collector, err = zipkin.NewKafkaCollector(endpoints)
-		if err != nil {
-			panic("Error connecting to kafka endpoints at " + endpoint + ". Error: " + err.Error())
-		}
-	}
-
-	if nil != collector {
-		myEndpoint := cfg.RPC.NetServiceAddr + ":" + strconv.Itoa(cfg.RPC.NetServicePort)
-		tracer, err := zipkin.NewTracer(zipkin.NewRecorder(collector, false, myEndpoint, "aergosvr"))
-		if err != nil {
-			panic("Error starting new zipkin tracer. Error: " + err.Error())
-		}
-		opentracing.InitGlobalTracer(tracer)
-	}
-}
-
 func rootRun(cmd *cobra.Command, args []string) {
-
 	svrlog = log.NewLogger("asvr")
 	svrlog.Info().Str("revision", gitRevision).Str("branch", gitBranch).Msg("AERGO SVR STARTED")
-
-	configureZipkin()
-
-	if cfg.EnableProfile {
-		svrlog.Info().Msgf("Enable Profiling on localhost: %d", cfg.ProfilePort)
-		go func() {
-			err := http.ListenAndServe(fmt.Sprintf("0.0.0.0:%d", cfg.ProfilePort), nil)
-			svrlog.Info().Err(err).Msg("Run Profile Server")
-		}()
-	}
 
 	if cfg.EnableTestmode {
 		svrlog.Warn().Msgf("Running with unsafe test mode. Turn off test mode for production use!")

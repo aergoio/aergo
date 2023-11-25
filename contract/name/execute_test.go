@@ -1,11 +1,10 @@
 package name
 
 import (
-	"math/big"
 	"testing"
 
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -15,7 +14,7 @@ func TestExcuteNameTx(t *testing.T) {
 	txBody := &types.TxBody{}
 	txBody.Account = types.ToAddress("AmMXVdJ8DnEFysN58cox9RADC74dF1CLrQimKCMdB4XXMkJeuQgL")
 	txBody.Recipient = []byte(types.AergoName)
-	txBody.Amount = big.NewInt(1000000000000000000).Bytes() //default value of name price
+	txBody.Amount = types.NewAmount(1, types.Aergo).Bytes() //default value of name price, 1 Aergo
 
 	name := "AB1234567890"
 	txBody.Payload = buildNamePayload(name, types.NameCreate, "")
@@ -26,7 +25,7 @@ func TestExcuteNameTx(t *testing.T) {
 	bs := sdb.NewBlockState(sdb.GetRoot())
 	scs := openContractState(t, bs)
 
-	blockInfo := &types.BlockHeaderInfo{No: uint64(0), Version: 0}
+	blockInfo := &types.BlockHeaderInfo{No: uint64(0), ForkVersion: 0}
 	event, err := ExecuteNameTx(bs, scs, txBody, sender, receiver, blockInfo)
 	assert.NoError(t, err, "execute name tx")
 	assert.Equal(t, "create name", event[0].EventName, "event name")
@@ -75,7 +74,7 @@ func TestExcuteNameTx(t *testing.T) {
 	assert.Error(t, err, "execute invalid payload")
 
 	blockInfo.No++
-	blockInfo.Version = 2
+	blockInfo.ForkVersion = 2
 	name2 := "1234567890V2"
 	txBody.Payload = buildNamePayload(name2, types.NameCreate, "")
 	event, err = ExecuteNameTx(bs, scs, txBody, sender, receiver, blockInfo)
@@ -108,25 +107,19 @@ func TestExcuteFailNameTx(t *testing.T) {
 	receiver, _ := sdb.GetStateDB().GetAccountStateV(txBody.Recipient)
 	bs := sdb.NewBlockState(sdb.GetRoot())
 	scs := openContractState(t, bs)
-	blockInfo := &types.BlockHeaderInfo{No: uint64(0), Version: 0}
+	blockInfo := &types.BlockHeaderInfo{No: uint64(0), ForkVersion: 0}
 	_, err := ExecuteNameTx(bs, scs, txBody, sender, receiver, blockInfo)
 	assert.Error(t, err, "execute name tx")
 }
 
 func openContractState(t *testing.T, bs *state.BlockState) *state.ContractState {
-	nameContractID := types.ToAccountID([]byte(types.AergoName))
-	nameContract, err := bs.GetAccountState(nameContractID)
-	assert.NoError(t, err, "could not get account state")
-	scs, err := bs.OpenContractState(nameContractID, nameContract)
+	scs, err := bs.GetNameAccountState()
 	assert.NoError(t, err, "could not open contract state")
 	return scs
 }
 
 func openSystemContractState(t *testing.T, bs *state.BlockState) *state.ContractState {
-	systemContractID := types.ToAccountID([]byte(types.AergoSystem))
-	systemContract, err := bs.GetAccountState(systemContractID)
-	assert.NoError(t, err, "could not get account state")
-	scs, err := bs.OpenContractState(systemContractID, systemContract)
+	scs, err := bs.GetSystemAccountState()
 	assert.NoError(t, err, "could not open contract state")
 	return scs
 }

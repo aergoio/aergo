@@ -1,12 +1,12 @@
 package message
 
 import (
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 const SyncerSvc = "SyncerSvc"
 
-//Syncer
+// Syncer
 type SyncStart struct {
 	PeerID   types.PeerID
 	TargetNo types.BlockNo
@@ -19,7 +19,7 @@ type FinderResult struct {
 	Err      error
 }
 
-//HashDownloader
+// HashDownloader
 type SyncStop struct {
 	Seq     uint64
 	FromWho string

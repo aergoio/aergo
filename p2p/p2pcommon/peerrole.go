@@ -6,7 +6,7 @@
 package p2pcommon
 
 import (
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 type PeerRoleManager interface {
@@ -40,4 +40,3 @@ type RoleModifier struct {
 	ID   types.PeerID
 	Role types.PeerRole
 }
-

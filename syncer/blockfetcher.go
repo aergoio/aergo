@@ -5,16 +5,15 @@ import (
 	"container/list"
 	"errors"
 	"fmt"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/rs/zerolog"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/pkg/component"
+	"github.com/aergoio/aergo/v2/types"
+	"github.com/rs/zerolog"
 )
 
 type BlockFetcher struct {
@@ -343,7 +342,7 @@ func (bf *BlockFetcher) checkTaskTimeout() error {
 			return err
 		}
 
-		logger.Error().Uint64("StartNo", task.startNo).Str("start", enc.ToString(task.hashes[0])).Int("cout", task.count).Int("runqueue", bf.runningQueue.Len()).Int("pendingqueue", bf.pendingQueue.Len()).
+		logger.Error().Uint64("StartNo", task.startNo).Str("start", base58.Encode(task.hashes[0])).Int("cout", task.count).Int("runqueue", bf.runningQueue.Len()).Int("pendingqueue", bf.pendingQueue.Len()).
 			Msg("timeouted task pushed to pending queue")
 
 		//time.Sleep(10000*time.Second)
@@ -359,7 +358,7 @@ func (bf *BlockFetcher) processFailedTask(task *FetchTask, isErr bool) error {
 		}
 	}
 
-	logger.Error().Int("peerno", task.syncPeer.No).Uint64("StartNo", task.startNo).Str("start", enc.ToString(task.hashes[0])).Msg("task fail, move to retry queue")
+	logger.Error().Int("peerno", task.syncPeer.No).Uint64("StartNo", task.startNo).Str("start", base58.Encode(task.hashes[0])).Msg("task fail, move to retry queue")
 
 	failPeer := task.syncPeer
 
@@ -381,7 +380,7 @@ func (bf *BlockFetcher) processFailedTask(task *FetchTask, isErr bool) error {
 }
 
 func (bf *BlockFetcher) popNextTask(task *FetchTask) {
-	logger.Debug().Int("retry", task.retry).Uint64("StartNo", task.startNo).Str("start", enc.ToString(task.hashes[0])).Str("end", enc.ToString(task.hashes[task.count-1])).
+	logger.Debug().Int("retry", task.retry).Uint64("StartNo", task.startNo).Str("start", base58.Encode(task.hashes[0])).Str("end", base58.Encode(task.hashes[task.count-1])).
 		Int("tasks retry", bf.retryQueue.Len()).Int("tasks pending", bf.pendingQueue.Len()).Msg("next fetchtask")
 
 	var poppedTask *FetchTask
@@ -428,7 +427,7 @@ func (bf *BlockFetcher) searchCandidateTask() (*FetchTask, error) {
 		start, end := 0, 0
 		count := hashSet.Count
 
-		logger.Debug().Uint64("startno", hashSet.StartNo).Str("start", enc.ToString(hashSet.Hashes[0])).Int("count", hashSet.Count).Msg("add new fetchtasks from HashSet")
+		logger.Debug().Uint64("startno", hashSet.StartNo).Str("start", base58.Encode(hashSet.Hashes[0])).Int("count", hashSet.Count).Msg("add new fetchtasks from HashSet")
 
 		for start < count {
 			end = start + bf.maxFetchSize
@@ -465,7 +464,7 @@ func (bf *BlockFetcher) searchCandidateTask() (*FetchTask, error) {
 				return nil, nil
 			}
 
-			logger.Debug().Uint64("startno", hashSet.StartNo).Array("hashes", &LogBlockHashesMarshaller{hashSet.Hashes, 10}).Str("start", enc.ToString(hashSet.Hashes[0])).Int("count", hashSet.Count).Msg("BlockFetcher got hashset")
+			logger.Debug().Uint64("startno", hashSet.StartNo).Array("hashes", &LogBlockHashesMarshaller{hashSet.Hashes, 10}).Str("start", base58.Encode(hashSet.Hashes[0])).Int("count", hashSet.Count).Msg("BlockFetcher got hashset")
 
 			bf.curHashSet = hashSet
 			addNewFetchTasks(hashSet)
@@ -480,7 +479,6 @@ func (bf *BlockFetcher) searchCandidateTask() (*FetchTask, error) {
 	return newTask, nil
 }
 
-
 type LogBlockHashesMarshaller struct {
 	arr   []message.BlockHash
 	limit int
@@ -490,12 +488,12 @@ func (m LogBlockHashesMarshaller) MarshalZerologArray(a *zerolog.Array) {
 	size := len(m.arr)
 	if size > m.limit {
 		for i := 0; i < m.limit-1; i++ {
-			a.Str(enc.ToString(m.arr[i]))
+			a.Str(base58.Encode(m.arr[i]))
 		}
 		a.Str(fmt.Sprintf("(and %d more)", size-m.limit+1))
 	} else {
 		for _, element := range m.arr {
-			a.Str(enc.ToString(element))
+			a.Str(base58.Encode(element))
 		}
 	}
 }
@@ -535,12 +533,12 @@ func (bf *BlockFetcher) runTask(task *FetchTask, peer *SyncPeer) {
 	task.syncPeer = peer
 	bf.runningQueue.PushBack(task)
 
-	logger.Debug().Int("peerno", task.syncPeer.No).Int("count", task.count).Uint64("StartNo", task.startNo).Str("start", enc.ToString(task.hashes[0])).Int("runqueue", bf.runningQueue.Len()).Msg("send block fetch request")
+	logger.Debug().Int("peerno", task.syncPeer.No).Int("count", task.count).Uint64("StartNo", task.startNo).Str("start", base58.Encode(task.hashes[0])).Int("runqueue", bf.runningQueue.Len()).Msg("send block fetch request")
 
 	bf.compRequester.TellTo(message.P2PSvc, &message.GetBlockChunks{Seq: bf.GetSeq(), GetBlockInfos: message.GetBlockInfos{ToWhom: peer.ID, Hashes: task.hashes}, TTL: DfltFetchTimeOut})
 }
 
-//TODO refactoring matchFunc
+// TODO refactoring matchFunc
 func (bf *BlockFetcher) findFinished(msg *message.GetBlockChunksRsp, peerMatch bool) (*FetchTask, error) {
 	count := len(msg.Blocks)
 
@@ -555,7 +553,7 @@ func (bf *BlockFetcher) findFinished(msg *message.GetBlockChunksRsp, peerMatch b
 			if task.isPeerMatched(msg.ToWhom) {
 				bf.runningQueue.Remove(e)
 
-				logger.Debug().Str("peer", p2putil.ShortForm(msg.ToWhom)).Err(msg.Err).Str("start", enc.ToString(task.hashes[0])).Int("count", task.count).Int("runqueue", bf.runningQueue.Len()).Msg("task finished with error")
+				logger.Debug().Stringer("peer", types.LogPeerShort(msg.ToWhom)).Err(msg.Err).Str("start", base58.Encode(task.hashes[0])).Int("count", task.count).Int("runqueue", bf.runningQueue.Len()).Msg("task finished with error")
 				return task, nil
 			}
 		} else {
@@ -563,7 +561,7 @@ func (bf *BlockFetcher) findFinished(msg *message.GetBlockChunksRsp, peerMatch b
 			if task.isMatched(msg.ToWhom, msg.Blocks, count) {
 				bf.runningQueue.Remove(e)
 
-				logger.Debug().Uint64("StartNo", task.startNo).Str("start", enc.ToString(task.hashes[0])).Int("count", task.count).Int("runqueue", bf.runningQueue.Len()).
+				logger.Debug().Uint64("StartNo", task.startNo).Str("start", base58.Encode(task.hashes[0])).Int("count", task.count).Int("runqueue", bf.runningQueue.Len()).
 					Msg("task finished")
 
 				return task, nil
@@ -656,13 +654,14 @@ func (ps *PeerSet) addNew(peerID types.PeerID) {
 	ps.pushFree(&SyncPeer{No: peerno, ID: peerID})
 	ps.total++
 
-	logger.Info().Str("peer", p2putil.ShortForm(peerID)).Int("peerno", peerno).Int("no", ps.total).Msg("new peer added")
+	logger.Info().Stringer("peer", types.LogPeerShort(peerID)).Int("peerno", peerno).Int("no", ps.total).Msg("new peer added")
 }
 
 /*
 func (ps *PeerSet) print() {
 
-}*/
+}
+*/
 func (ps *PeerSet) pushFree(freePeer *SyncPeer) {
 	ps.freePeers.PushBack(freePeer)
 	ps.free++
@@ -738,7 +737,7 @@ func (tq *TaskQueue) Peek() *FetchTask {
 
 func (task *FetchTask) isTimeOut(now time.Time, timeout time.Duration) bool {
 	if now.Sub(task.started) > timeout {
-		logger.Info().Int("peerno", task.syncPeer.No).Uint64("startno", task.startNo).Str("start", enc.ToString(task.hashes[0])).Int("cout", task.count).Msg("FetchTask peer timeouted")
+		logger.Info().Int("peerno", task.syncPeer.No).Uint64("startno", task.startNo).Str("start", base58.Encode(task.hashes[0])).Int("cout", task.count).Msg("FetchTask peer timeouted")
 		return true
 	}
 
@@ -757,7 +756,7 @@ func (task *FetchTask) isMatched(peerID types.PeerID, blocks []*types.Block, cou
 
 	for i, block := range blocks {
 		if bytes.Compare(task.hashes[i], block.GetHash()) != 0 {
-			logger.Info().Int("peerno", task.syncPeer.No).Str("hash", enc.ToString(task.hashes[0])).Int("idx", i).Msg("task hash mismatch")
+			logger.Info().Int("peerno", task.syncPeer.No).Str("hash", base58.Encode(task.hashes[0])).Int("idx", i).Msg("task hash mismatch")
 			return false
 		}
 	}

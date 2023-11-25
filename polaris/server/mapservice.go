@@ -8,7 +8,6 @@ package server
 import (
 	"bufio"
 	"fmt"
-	"github.com/aergoio/aergo/p2p/v030"
 	"math"
 	"net"
 	"sync"
@@ -16,19 +15,20 @@ import (
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/internal/network"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo/polaris/common"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/internal/network"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+	v030 "github.com/aergoio/aergo/v2/p2p/v030"
+	"github.com/aergoio/aergo/v2/pkg/component"
+	"github.com/aergoio/aergo/v2/polaris/common"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/gofrs/uuid"
 )
 
 // internal
 const (
-	PolarisPingTTL       = common.PolarisConnectionTTL >> 1
+	PolarisPingTTL = common.PolarisConnectionTTL >> 1
 
 	// polaris will return peers list at most this number
 	ResponseMaxPeerLimit = 500
@@ -124,40 +124,40 @@ func (pms *PeerMapService) onConnect(s types.Stream) {
 	peerID := s.Conn().RemotePeer()
 	remoteIP, port, err := types.GetIPPortFromMultiaddr(s.Conn().RemoteMultiaddr())
 	if err != nil {
-		pms.Logger.Info().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("Invalid address information")
+		pms.Logger.Info().Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Msg("Invalid address information")
 		return
 	}
-	pms.Logger.Info().Str("addr", s.Conn().RemoteMultiaddr().String()).Str(p2putil.LogFullID, peerID.Pretty()).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("remote peer connected")
+	pms.Logger.Info().Str("addr", s.Conn().RemoteMultiaddr().String()).Str(p2putil.LogFullID, peerID.Pretty()).Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Msg("remote peer connected")
 
-	conn := p2pcommon.RemoteConn{IP:remoteIP, Port:port,Outbound:false}
-	tempMeta := p2pcommon.PeerMeta{ID: peerID, Addresses:[]types.Multiaddr{s.Conn().RemoteMultiaddr()}}
-	remotePeerInfo :=  p2pcommon.RemoteInfo{Meta: tempMeta, Connection:conn}
+	conn := p2pcommon.RemoteConn{IP: remoteIP, Port: port, Outbound: false}
+	tempMeta := p2pcommon.PeerMeta{ID: peerID, Addresses: []types.Multiaddr{s.Conn().RemoteMultiaddr()}}
+	remotePeerInfo := p2pcommon.RemoteInfo{Meta: tempMeta, Connection: conn}
 	rw := v030.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s), nil)
 
 	// receive input
 	container, query, err := pms.readRequest(remotePeerInfo, rw)
 	if err != nil {
-		pms.Logger.Info().Err(err).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("failed to read query")
+		pms.Logger.Info().Err(err).Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Msg("failed to read query")
 		return
 	}
 
 	// check blacklist
-	if banned,_ := pms.lm.IsBanned(remoteIP.String(), peerID); banned {
-		pms.Logger.Info().Str("address", remoteIP.String()).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("close soon banned peer")
+	if banned, _ := pms.lm.IsBanned(remoteIP.String(), peerID); banned {
+		pms.Logger.Info().Str("address", remoteIP.String()).Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Msg("close soon banned peer")
 		return
 	}
 	resp, err := pms.handleQuery(conn, container, query)
 	if err != nil {
-		pms.Logger.Info().Err(err).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("failed to handle query")
+		pms.Logger.Info().Err(err).Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Msg("failed to handle query")
 		return
 	}
 
 	// response to peer
 	if err = pms.writeResponse(container, remotePeerInfo, resp, rw); err != nil {
-		pms.Logger.Info().Err(err).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("failed to write query")
+		pms.Logger.Info().Err(err).Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Msg("failed to write query")
 		return
 	}
-	pms.Logger.Debug().Str("status", resp.Status.String()).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Int("peer_cnt", len(resp.Addresses)).Msg("Sent map response")
+	pms.Logger.Debug().Str("status", resp.Status.String()).Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Int("peer_cnt", len(resp.Addresses)).Msg("Sent map response")
 
 	// TODO send goodbye message.
 	time.Sleep(time.Second * 3)
@@ -279,11 +279,11 @@ func (pms *PeerMapService) registerPeer(receivedMeta p2pcommon.PeerMeta, conn p2
 	now := time.Now()
 	prev, ok := pms.peerRegistry[peerID]
 	if !ok {
-		newState := &peerState{conn:conn, connected: now, PeerMapService: pms, meta: receivedMeta, addr: receivedMeta.ToPeerAddress(), lCheckTime: now}
-		pms.Logger.Info().Str("meta", p2putil.ShortMetaForm(receivedMeta)).Str("version",receivedMeta.GetVersion()).Msg("Registering new peer info")
+		newState := &peerState{conn: conn, connected: now, PeerMapService: pms, meta: receivedMeta, addr: receivedMeta.ToPeerAddress(), lCheckTime: now}
+		pms.Logger.Info().Str("meta", p2putil.ShortMetaForm(receivedMeta)).Str("version", receivedMeta.GetVersion()).Msg("Registering new peer info")
 		pms.peerRegistry[peerID] = newState
 	} else {
-		if !isEqualMeta(prev.meta,receivedMeta) {
+		if !isEqualMeta(prev.meta, receivedMeta) {
 			pms.Logger.Info().Str("meta", p2putil.ShortMetaForm(prev.meta)).Msg("Replacing previous peer info")
 			prev.conn = conn
 			prev.meta = receivedMeta
@@ -296,7 +296,7 @@ func (pms *PeerMapService) registerPeer(receivedMeta p2pcommon.PeerMeta, conn p2
 
 func isEqualMeta(m1, m2 p2pcommon.PeerMeta) (eq bool) {
 	eq = false
-	if m1.ID != m2.ID || m1.Role != m2.Role || m1.Version != m2.Version{
+	if m1.ID != m2.ID || m1.Role != m2.Role || m1.Version != m2.Version {
 		return
 	}
 	if len(m1.Addresses) != len(m2.Addresses) {
@@ -321,7 +321,7 @@ func isEqualMeta(m1, m2 p2pcommon.PeerMeta) (eq bool) {
 func (pms *PeerMapService) unregisterPeer(peerID types.PeerID) {
 	pms.rwmutex.Lock()
 	defer pms.rwmutex.Unlock()
-	pms.Logger.Info().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("Unregistering bad peer")
+	pms.Logger.Info().Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Msg("Unregistering bad peer")
 	delete(pms.peerRegistry, peerID)
 }
 
@@ -353,21 +353,20 @@ func (pms *PeerMapService) applyNewBLEntry(entry types.WhiteListEntry) {
 	}
 }
 
-
 func findValidIPs(state *peerState) []net.IP {
-	ips := make([]net.IP,0,1)
-	ips = append(ips,state.conn.IP)
+	ips := make([]net.IP, 0, 1)
+	ips = append(ips, state.conn.IP)
 	// only check primary address in v2.0.0
 	addr := state.meta.PrimaryAddress()
 	ip := net.ParseIP(addr)
 	if ip != nil {
-		ips = append(ips,ip)
+		ips = append(ips, ip)
 	} else {
 		// is domain name
 		candidates, err := network.ResolveHostDomain(addr)
 		if err == nil && len(candidates) > 0 {
 			for _, ip := range candidates {
-				ips = append(ips,ip)
+				ips = append(ips, ip)
 			}
 		}
 	}
@@ -408,15 +407,15 @@ func (pms *PeerMapService) Receive(context actor.Context) {
 		pms.Logger.Debug().Msg("Got blacklist message")
 		context.Respond(pms.getBlackList(msg))
 	case ListEntriesMsg:
-		ret := &types.BLConfEntries{Enabled:pms.lm.enabled}
+		ret := &types.BLConfEntries{Enabled: pms.lm.enabled}
 		entries := pms.lm.ListEntries()
-		ret.Entries = make([]string,len(entries))
+		ret.Entries = make([]string, len(entries))
 		for i, e := range entries {
 			ret.Entries[i] = e.String()
 		}
 		context.Respond(ret)
 	case *types.AddEntryParams:
-		rawEntry := types.RawEntry{PeerId: msg.PeerID, Address:msg.Address, Cidr:msg.Cidr}
+		rawEntry := types.RawEntry{PeerId: msg.PeerID, Address: msg.Address, Cidr: msg.Cidr}
 		entry, err := types.NewListEntry(rawEntry)
 		if err != nil {
 			context.Respond(types.RPCErrInvalidArgument)
@@ -471,7 +470,7 @@ func (pms *PeerMapService) getCurrentPeers(param *CurrentListMsg) *types.Polaris
 	pms.rwmutex.Lock()
 	pms.rwmutex.Unlock()
 	for _, rPeer := range pms.peerRegistry {
-		pList[addSize] = &types.PolarisPeer{Address: &rPeer.addr, Connected: rPeer.connected.UnixNano(), LastCheck: rPeer.lastCheck().UnixNano(), Verion:rPeer.meta.Version}
+		pList[addSize] = &types.PolarisPeer{Address: &rPeer.addr, Connected: rPeer.connected.UnixNano(), LastCheck: rPeer.lastCheck().UnixNano(), Verion: rPeer.meta.Version}
 		addSize++
 		if addSize >= listSize {
 			break
@@ -530,7 +529,6 @@ func (pms *PeerMapService) SendGoAwayMsg(message string, wt p2pcommon.MsgReadWri
 	return nil
 }
 
-//
 func (pms *PeerMapService) checkChain(chainIDBytes []byte) (bool, error) {
 	remoteChainID := types.NewChainID()
 	if err := remoteChainID.Read(chainIDBytes); err != nil {
@@ -553,10 +551,10 @@ func (pms *PeerMapService) checkConnectness(meta p2pcommon.PeerMeta) bool {
 	tempState := &peerState{PeerMapService: pms, meta: meta, addr: meta.ToPeerAddress(), lCheckTime: time.Now(), temporary: true}
 	_, err := tempState.checkConnect(PolarisPingTTL)
 	if err != nil {
-		pms.Logger.Debug().Err(err).Str(p2putil.LogPeerID, p2putil.ShortForm(meta.ID)).Msg("Ping check was failed.")
+		pms.Logger.Debug().Err(err).Stringer(p2putil.LogPeerID, types.LogPeerShort(meta.ID)).Msg("Ping check was failed.")
 		return false
 	} else {
-		pms.Logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(meta.ID)).Msg("Ping check is succeeded.")
+		pms.Logger.Debug().Stringer(p2putil.LogPeerID, types.LogPeerShort(meta.ID)).Msg("Ping check is succeeded.")
 		return true
 	}
 }

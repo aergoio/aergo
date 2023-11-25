@@ -8,31 +8,32 @@ package chain
 import (
 	"bytes"
 	"container/list"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
 
-	"github.com/aergoio/aergo/contract/system"
-
-	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/contract"
-	"github.com/aergoio/aergo/contract/name"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
-	"github.com/golang/protobuf/proto"
+	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/contract"
+	"github.com/aergoio/aergo/v2/contract/name"
+	"github.com/aergoio/aergo/v2/contract/system"
+	"github.com/aergoio/aergo/v2/fee"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/internal/enc/proto"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 var (
 	ErrorNoAncestor      = errors.New("not found ancestor")
-	ErrBlockOrphan       = errors.New("block is ohphan, so not connected in chain")
+	ErrBlockOrphan       = errors.New("block is orphan, so not connected in chain")
 	ErrBlockCachedErrLRU = errors.New("block is in errored blocks cache")
 	ErrStateNoMarker     = errors.New("statedb marker of block is not exists")
 
 	errBlockStale       = errors.New("produced block becomes stale")
-	errBlockInvalidFork = errors.New("invalid fork occured")
+	errBlockInvalidFork = errors.New("invalid fork occurred")
 	errBlockTimestamp   = errors.New("invalid timestamp")
 
 	InAddBlock      = make(chan struct{}, 1)
@@ -55,7 +56,7 @@ type ErrBlock struct {
 }
 
 func (ec *ErrBlock) Error() string {
-	return fmt.Sprintf("Error: %s. block(%s, %d)", ec.err.Error(), enc.ToString(ec.block.Hash), ec.block.No)
+	return fmt.Sprintf("Error: %s. block(%s, %d)", ec.err.Error(), base58.Encode(ec.block.Hash), ec.block.No)
 }
 
 type ErrTx struct {
@@ -64,7 +65,7 @@ type ErrTx struct {
 }
 
 func (ec *ErrTx) Error() string {
-	return fmt.Sprintf("error executing tx:%s, tx=%s", ec.err.Error(), enc.ToString(ec.tx.GetHash()))
+	return fmt.Sprintf("error executing tx:%s, tx=%s", ec.err.Error(), base58.Encode(ec.tx.GetHash()))
 }
 
 func (cs *ChainService) getBestBlockNo() types.BlockNo {
@@ -261,7 +262,7 @@ func newChainProcessor(block *types.Block, state *state.BlockState, cs *ChainSer
 					return err
 				}
 
-				// Remove a block depnding on blk from the orphan cache.
+				// Remove a block depending on blk from the orphan cache.
 				if blk, err = cp.resolveOrphan(blk); err != nil {
 					return err
 				}
@@ -288,7 +289,7 @@ func (cp *chainProcessor) addBlock(blk *types.Block) error {
 			Uint64("latest", cp.cdb.getBestBlockNo()).
 			Uint64("blockNo", blk.BlockNo()).
 			Str("hash", blk.ID()).
-			Str("prev_hash", enc.ToString(blk.GetHeader().GetPrevBlockHash())).
+			Str("prev_hash", base58.Encode(blk.GetHeader().GetPrevBlockHash())).
 			Msg("block added to the block indices")
 	}
 	cp.lastBlock = blk
@@ -385,7 +386,7 @@ func (cp *chainProcessor) reorganize() error {
 	return nil
 }
 
-func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *state.BlockState, peerID types.PeerID) (err error, cache bool) {
+func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBState *state.BlockState, peerID types.PeerID) (err error, cache bool) {
 	if !cs.VerifyTimestamp(newBlock) {
 		return &ErrBlock{
 			err: errBlockTimestamp,
@@ -408,10 +409,10 @@ func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *stat
 	// The newly produced block becomes stale because the more block(s) are
 	// connected to the blockchain so that the best block is changed. In this
 	// case, newBlock is rejected because it is unlikely that newBlock belongs
-	// to the main branch. Warning: the condition 'usedBstate != nil' is used
+	// to the main branch. Warning: the condition 'usedBState != nil' is used
 	// to check whether newBlock is produced by the current node itself. Later,
 	// more explicit condition may be needed instead of this.
-	if usedBstate != nil && newBlock.PrevID() != bestBlock.ID() {
+	if usedBState != nil && newBlock.PrevID() != bestBlock.ID() {
 		return &ErrBlock{
 			err: errBlockStale,
 			block: &types.BlockInfo{
@@ -426,7 +427,7 @@ func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *stat
 		if cs.IsForkEnable() {
 			return nil
 		}
-		if usedBstate != nil {
+		if usedBState != nil {
 			return nil
 		}
 
@@ -458,7 +459,7 @@ func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *stat
 
 	// handle orphan
 	if cs.isOrphan(newBlock) {
-		if usedBstate != nil {
+		if usedBState != nil {
 			return fmt.Errorf("block received from BP can not be orphan"), false
 		}
 		err := cs.handleOrphan(newBlock, bestBlock, peerID)
@@ -469,6 +470,7 @@ func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *stat
 		return err, false
 	}
 
+	// try to acquire lock
 	select {
 	case InAddBlock <- struct{}{}:
 	}
@@ -476,7 +478,7 @@ func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *stat
 		<-InAddBlock
 	}()
 
-	cp, err := newChainProcessor(newBlock, usedBstate, cs)
+	cp, err := newChainProcessor(newBlock, usedBState, cs)
 	if err != nil {
 		return err, true
 	}
@@ -496,7 +498,7 @@ func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *stat
 	return nil, true
 }
 
-func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *state.BlockState, peerID types.PeerID) error {
+func (cs *ChainService) addBlock(newBlock *types.Block, usedBState *state.BlockState, peerID types.PeerID) error {
 	hashID := types.ToHashID(newBlock.BlockHash())
 
 	if cs.errBlocks.Contains(hashID) {
@@ -511,7 +513,7 @@ func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *state.BlockS
 	}
 
 	var needCache bool
-	err, needCache = cs.addBlockInternal(newBlock, usedBstate, peerID)
+	err, needCache = cs.addBlockInternal(newBlock, usedBState, peerID)
 	if err != nil {
 		if needCache {
 			evicted := cs.errBlocks.Add(hashID, newBlock)
@@ -562,7 +564,7 @@ type blockExecutor struct {
 	execTx           TxExecFn
 	txs              []*types.Tx
 	validatePost     ValidatePostFn
-	coinbaseAcccount []byte
+	coinbaseAccount  []byte
 	commitOnly       bool
 	verifyOnly       bool
 	validateSignWait ValidateSignWaitFn
@@ -577,9 +579,9 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 	commitOnly := false
 
 	// The DPoS block factory executes transactions during block generation. In
-	// such a case it send block with block state so that bState != nil. On the
+	// such a case it sends block with block state so that bState != nil. On the
 	// contrary, the block propagated from the network is not half-executed.
-	// Hence we need a new block state and tx executor (execTx).
+	// Hence, we need a new block state and tx executor (execTx).
 	if bState == nil {
 		if err := cs.validator.ValidateBlock(block); err != nil {
 			return nil, err
@@ -590,7 +592,8 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 			state.SetPrevBlockHash(block.GetHeader().GetPrevBlockHash()),
 		)
 		bi = types.NewBlockHeaderInfo(block)
-		exec = NewTxExecutor(cs.ChainConsensus, cs.cdb, bi, contract.ChainService)
+		// FIXME currently the verify only function is allowed long execution time,
+		exec = NewTxExecutor(context.Background(), cs.ChainConsensus, cs.cdb, bi, contract.ChainService)
 
 		validateSignWait = func() error {
 			return cs.validator.WaitVerifyDone()
@@ -601,15 +604,15 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 		// executed by the block factory.
 		commitOnly = true
 	}
-	bState.SetGasPrice(system.GetGasPriceFromState(bState))
+	bState.SetGasPrice(system.GetGasPrice())
 	bState.Receipts().SetHardFork(cs.cfg.Hardfork, block.BlockNo())
 
 	return &blockExecutor{
-		BlockState:       bState,
-		sdb:              cs.sdb,
-		execTx:           exec,
-		txs:              block.GetBody().GetTxs(),
-		coinbaseAcccount: block.GetHeader().GetCoinbaseAccount(),
+		BlockState:      bState,
+		sdb:             cs.sdb,
+		execTx:          exec,
+		txs:             block.GetBody().GetTxs(),
+		coinbaseAccount: block.GetHeader().GetCoinbaseAccount(),
 		validatePost: func() error {
 			return cs.validator.ValidatePost(bState.GetRoot(), bState.Receipts(), block)
 		},
@@ -621,22 +624,22 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 }
 
 // NewTxExecutor returns a new TxExecFn.
-func NewTxExecutor(ccc consensus.ChainConsensusCluster, cdb contract.ChainAccessor, bi *types.BlockHeaderInfo, preLoadService int) TxExecFn {
+func NewTxExecutor(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb contract.ChainAccessor, bi *types.BlockHeaderInfo, preloadService int) TxExecFn {
 	return func(bState *state.BlockState, tx types.Transaction) error {
 		if bState == nil {
-			logger.Error().Msg("bstate is nil in txexec")
+			logger.Error().Msg("bstate is nil in txExec")
 			return ErrGatherChain
 		}
-		if bi.Version < 0 {
-			logger.Error().Err(ErrInvalidBlockHeader).Msgf("ChainID.Version = %d", bi.Version)
+		if bi.ForkVersion < 0 {
+			logger.Error().Err(ErrInvalidBlockHeader).Msgf("ChainID.ForkVersion = %d", bi.ForkVersion)
 			return ErrInvalidBlockHeader
 		}
-		snapshot := bState.Snapshot()
+		blockSnap := bState.Snapshot()
 
-		err := executeTx(ccc, cdb, bState, tx, bi, preLoadService)
+		err := executeTx(execCtx, ccc, cdb, bState, tx, bi, preloadService)
 		if err != nil {
-			logger.Error().Err(err).Str("hash", enc.ToString(tx.GetHash())).Msg("tx failed")
-			if err2 := bState.Rollback(snapshot); err2 != nil {
+			logger.Error().Err(err).Str("hash", base58.Encode(tx.GetHash())).Msg("tx failed")
+			if err2 := bState.Rollback(blockSnap); err2 != nil {
 				logger.Panic().Err(err).Msg("failed to rollback block state")
 			}
 
@@ -650,19 +653,22 @@ func (e *blockExecutor) execute() error {
 	// Receipt must be committed unconditionally.
 	if !e.commitOnly {
 		defer contract.CloseDatabase()
-		var preLoadTx *types.Tx
-		nCand := len(e.txs)
+		var preloadTx *types.Tx
+		numTxs := len(e.txs)
 		for i, tx := range e.txs {
-			if i != nCand-1 {
-				preLoadTx = e.txs[i+1]
-				contract.PreLoadRequest(e.BlockState, e.bi, preLoadTx, tx, contract.ChainService)
+			// if tx is not the last one, preload the next tx
+			if i != numTxs-1 {
+				preloadTx = e.txs[i+1]
+				contract.RequestPreload(e.BlockState, e.bi, preloadTx, tx, contract.ChainService)
 			}
+			// execute the transaction
 			if err := e.execTx(e.BlockState, types.NewTransaction(tx)); err != nil {
 				//FIXME maybe system error. restart or panic
 				// all txs have executed successfully in BP node
 				return err
 			}
-			contract.SetPreloadTx(preLoadTx, contract.ChainService)
+			// mark the next preload tx to be executed
+			contract.SetPreloadTx(preloadTx, contract.ChainService)
 		}
 
 		if e.validateSignWait != nil {
@@ -671,8 +677,8 @@ func (e *blockExecutor) execute() error {
 			}
 		}
 
-		//TODO check result of verifing txs
-		if err := SendBlockReward(e.BlockState, e.coinbaseAcccount); err != nil {
+		//TODO check result of verifying txs
+		if err := SendBlockReward(e.BlockState, e.coinbaseAccount); err != nil {
 			return err
 		}
 
@@ -686,6 +692,7 @@ func (e *blockExecutor) execute() error {
 	}
 
 	if err := e.validatePost(); err != nil {
+		// TODO write verbose tx result if debug log is enabled
 		return err
 	}
 
@@ -741,6 +748,7 @@ func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Bloc
 
 	// contract & state DB update is done during execution.
 	if err := ex.execute(); err != nil {
+		cs.Update(bestBlock)
 		return err
 	}
 
@@ -876,14 +884,7 @@ func resetAccount(account *state.V, fee *big.Int, nonce *uint64) error {
 	return account.PutState()
 }
 
-func executeTx(
-	ccc consensus.ChainConsensusCluster,
-	cdb contract.ChainAccessor,
-	bs *state.BlockState,
-	tx types.Transaction,
-	bi *types.BlockHeaderInfo,
-	preLoadService int,
-) error {
+func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb contract.ChainAccessor, bs *state.BlockState, tx types.Transaction, bi *types.BlockHeaderInfo, preloadService int) error {
 	var (
 		txBody    = tx.GetBody()
 		isQuirkTx = types.IsQuirkTx(tx.GetHash())
@@ -914,7 +915,7 @@ func executeTx(
 		return err
 	}
 
-	err = tx.ValidateWithSenderState(sender.State(), bs.GasPrice, bi.Version)
+	err = tx.ValidateWithSenderState(sender.State(), bs.GasPrice, bi.ForkVersion)
 	if err != nil {
 		return err
 	}
@@ -951,24 +952,20 @@ func executeTx(
 
 	switch txBody.Type {
 	case types.TxType_NORMAL, types.TxType_TRANSFER, types.TxType_CALL, types.TxType_MULTICALL, types.TxType_DEPLOY, types.TxType_REDEPLOY:
-		rv, events, txFee, err = contract.Execute(bs, cdb, tx.GetTx(), sender, receiver, bi, preLoadService, false)
+		rv, events, txFee, err = contract.Execute(execCtx, bs, cdb, tx.GetTx(), sender, receiver, bi, preloadService, false)
 		sender.SubBalance(txFee)
 	case types.TxType_GOVERNANCE:
 		txFee = new(big.Int).SetUint64(0)
 		events, err = executeGovernanceTx(ccc, bs, txBody, sender, receiver, bi)
 		if err != nil {
-			logger.Warn().Err(err).Str("txhash", enc.ToString(tx.GetHash())).Msg("governance tx Error")
+			logger.Warn().Err(err).Str("txhash", base58.Encode(tx.GetHash())).Msg("governance tx Error")
 		}
 	case types.TxType_FEEDELEGATION:
-		balance := receiver.Balance()
-		var fee *big.Int
-		fee, err = tx.GetMaxFee(balance, bs.GasPrice, bi.Version)
+		err = tx.ValidateMaxFee(receiver.Balance(), bs.GasPrice, bi.ForkVersion)
 		if err != nil {
 			return err
 		}
-		if fee.Cmp(balance) > 0 {
-			return types.ErrInsufficientBalance
-		}
+
 		var contractState *state.ContractState
 		contractState, err = bs.OpenContractState(receiver.AccountID(), receiver.State())
 		if err != nil {
@@ -978,18 +975,18 @@ func executeTx(
 			tx.GetHash(), txBody.GetAccount(), txBody.GetAmount())
 		if err != nil {
 			if err != types.ErrNotAllowedFeeDelegation {
-				logger.Warn().Err(err).Str("txhash", enc.ToString(tx.GetHash())).Msg("checkFeeDelegation Error")
+				logger.Warn().Err(err).Str("txhash", base58.Encode(tx.GetHash())).Msg("checkFeeDelegation Error")
 				return err
 			}
 			return types.ErrNotAllowedFeeDelegation
 		}
-		rv, events, txFee, err = contract.Execute(bs, cdb, tx.GetTx(), sender, receiver, bi, preLoadService, true)
+		rv, events, txFee, err = contract.Execute(execCtx, bs, cdb, tx.GetTx(), sender, receiver, bi, preloadService, true)
 		receiver.SubBalance(txFee)
 	}
 
 	if err != nil {
 		// Reset events on error
-		if contract.HardforkConfig.IsV3Fork(bi.No) {
+		if bi.ForkVersion >= 3 {
 			events = nil
 		}
 
@@ -1043,7 +1040,8 @@ func executeTx(
 	receipt.TxHash = tx.GetHash()
 	receipt.Events = events
 	receipt.FeeDelegation = txBody.Type == types.TxType_FEEDELEGATION
-	receipt.GasUsed = contract.GasUsed(txFee, bs.GasPrice, txBody.Type, bi.Version)
+	isGovernance := txBody.Type == types.TxType_GOVERNANCE
+	receipt.GasUsed = fee.ReceiptGasUsed(bi.ForkVersion, isGovernance, txFee, bs.GasPrice)
 
 	return bs.AddReceipt(receipt)
 }

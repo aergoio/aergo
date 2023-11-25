@@ -8,7 +8,7 @@ package server
 import (
 	"testing"
 
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 func Test_readGenesis(t *testing.T) {
@@ -23,7 +23,7 @@ func Test_readGenesis(t *testing.T) {
 		wantRet *types.Genesis
 		wantErr bool
 	}{
-		{"Tsucc", args{"../../examples/genesis.json"}, sampleGenesis, false },
+		{"Tsucc", args{"../../examples/genesis.json"}, sampleGenesis, false},
 		{"TNotExist", args{"../../examples/genesis.notjson"}, nil, true},
 		{"TNotGenesis", args{"../../examples/component/main.go"}, nil, true},
 	}

@@ -7,14 +7,15 @@ package p2p
 
 import (
 	"fmt"
-	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/types"
 	"reflect"
 	"sync"
 	"time"
+
+	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 type RaftRoleManager struct {
@@ -42,13 +43,13 @@ func (rm *RaftRoleManager) UpdateBP(toAdd []types.PeerID, toRemove []types.PeerI
 	changes := make([]p2pcommon.RoleModifier, 0, len(toAdd)+len(toRemove))
 	for _, pid := range toRemove {
 		delete(rm.raftBP, pid)
-		changes = append(changes, p2pcommon.RoleModifier{pid, types.PeerRole_Watcher})
-		rm.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(pid)).Msg("raftBP removed")
+		changes = append(changes, p2pcommon.RoleModifier{ID: pid, Role: types.PeerRole_Watcher})
+		rm.logger.Debug().Stringer(p2putil.LogPeerID, types.LogPeerShort(pid)).Msg("raftBP removed")
 	}
 	for _, pid := range toAdd {
 		rm.raftBP[pid] = true
-		changes = append(changes, p2pcommon.RoleModifier{pid, types.PeerRole_Producer})
-		rm.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(pid)).Msg("raftBP added")
+		changes = append(changes, p2pcommon.RoleModifier{ID: pid, Role: types.PeerRole_Producer})
+		rm.logger.Debug().Stringer(p2putil.LogPeerID, types.LogPeerShort(pid)).Msg("raftBP added")
 	}
 	rm.is.PeerManager().UpdatePeerRole(changes)
 }
@@ -152,10 +153,10 @@ func (rm *DPOSRoleManager) Stop() {
 func (rm *DPOSRoleManager) UpdateBP(toAdd []types.PeerID, toRemove []types.PeerID) {
 	changes := make([]p2pcommon.RoleModifier, 0, len(toAdd)+len(toRemove))
 	for _, pid := range toRemove {
-		changes = append(changes, p2pcommon.RoleModifier{pid, types.PeerRole_Watcher})
+		changes = append(changes, p2pcommon.RoleModifier{ID: pid, Role: types.PeerRole_Watcher})
 	}
 	for _, pid := range toAdd {
-		changes = append(changes, p2pcommon.RoleModifier{pid, types.PeerRole_Producer})
+		changes = append(changes, p2pcommon.RoleModifier{ID: pid, Role: types.PeerRole_Producer})
 	}
 	rm.is.PeerManager().UpdatePeerRole(changes)
 }
@@ -229,13 +230,13 @@ func (rm *DPOSRoleManager) loadBPVotes() (map[types.PeerID]voteRank, []types.Pee
 }
 
 func (rm *DPOSRoleManager) collectAddDel(newRanks map[types.PeerID]voteRank) (add, del []types.PeerID) {
-	for id, _ := range newRanks {
+	for id := range newRanks {
 		_, found := rm.unionSet[id]
 		if !found {
 			add = append(add, id)
 		}
 	}
-	for id, _ := range rm.unionSet {
+	for id := range rm.unionSet {
 		_, found := newRanks[id]
 		if !found {
 			del = append(del, id)

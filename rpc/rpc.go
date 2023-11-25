@@ -20,16 +20,16 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-actor/actor"
-	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/contract/enterprise"
-	"github.com/aergoio/aergo/internal/network"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2pkey"
-	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo/types"
-	aergorpc "github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/contract/enterprise"
+	"github.com/aergoio/aergo/v2/internal/network"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2pkey"
+	"github.com/aergoio/aergo/v2/pkg/component"
+	"github.com/aergoio/aergo/v2/types"
+	aergorpc "github.com/aergoio/aergo/v2/types"
 	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"github.com/opentracing/opentracing-go"
@@ -60,8 +60,8 @@ type RPC struct {
 func NewRPC(cfg *config.Config, chainAccessor types.ChainAccessor, version string) *RPC {
 	actualServer := &AergoRPCService{
 		msgHelper:           message.GetHelper(),
-		blockStream:         map[uint32]types.AergoRPCService_ListBlockStreamServer{},
-		blockMetadataStream: map[uint32]types.AergoRPCService_ListBlockMetadataStreamServer{},
+		blockStream:         make(map[uint32]*ListBlockStream),
+		blockMetadataStream: make(map[uint32]*ListBlockMetaStream),
 		eventStream:         make(map[*EventStream]*EventStream),
 	}
 
@@ -174,6 +174,7 @@ func (ns *RPC) Statistics() *map[string]interface{} {
 	return &map[string]interface{}{
 		"config":  ns.conf.RPC,
 		"version": ns.version,
+		"streams": ns.actualServer.Statistics(),
 	}
 }
 
@@ -240,7 +241,7 @@ func (ns *RPC) Receive(context actor.Context) {
 						ns.TellTo(message.P2PSvc, msg)
 					}
 				default:
-					logger.Warn().Str("Enterprise event", eventName[0]).Msg("unknown message in RPCPERMISSION")
+					logger.Warn().Str("Enterprise event", eventName[0]).Str("conf", conf).Msg("unknown message in RPCPERMISSION")
 				}
 			}
 		}

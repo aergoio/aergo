@@ -2,7 +2,7 @@ package contract
 
 /*
 #include <lualib.h>
-#include "lgmp.h"
+#include "bignum_module.h"
 #include "vm.h"
 */
 import "C"
@@ -10,19 +10,21 @@ import (
 	"sync"
 )
 
+var maxLStates int
 var getCh chan *LState
 var freeCh chan *LState
 var once sync.Once
 
-func StartLStateFactory(num, numClosers, numCloseLimit int) {
-
+func StartLStateFactory(numLStates, numClosers, numCloseLimit int) {
 	once.Do(func() {
 		C.init_bignum()
 		C.initViewFunction()
-		getCh = make(chan *LState, num)
-		freeCh = make(chan *LState, num)
 
-		for i := 0; i < num; i++ {
+		maxLStates = numLStates
+		getCh = make(chan *LState, numLStates)
+		freeCh = make(chan *LState, numLStates)
+
+		for i := 0; i < numLStates; i++ {
 			getCh <- newLState()
 		}
 
@@ -36,17 +38,30 @@ func statePool(numCloseLimit int) {
 	s := newLStatesBuffer(numCloseLimit)
 
 	for {
-		state := <-freeCh
-		s.append(state)
-		getCh <- newLState()
+		select {
+		case state := <-freeCh:
+			s.append(state)
+			getCh <- newLState()
+		}
 	}
 }
 
-func getLState() *LState {
+func GetLState() *LState {
 	state := <-getCh
+	ctrLgr.Debug().Msg("LState acquired")
 	return state
 }
 
-func freeLState(state *LState) {
-	freeCh <- state
+func FreeLState(state *LState) {
+	if state != nil {
+		freeCh <- state
+		ctrLgr.Debug().Msg("LState released")
+	}
+}
+
+func FlushLStates() {
+	for i := 0; i < maxLStates; i++ {
+		s := GetLState()
+		FreeLState(s)
+	}
 }

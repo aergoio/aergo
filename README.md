@@ -1,9 +1,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/aergoio/aergo)](https://goreportcard.com/report/github.com/aergoio/aergo)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Travis_ci](https://travis-ci.com/aergoio/aergo.svg?branch=master)](https://travis-ci.com/aergoio/aergo)
 [![Maintainability](https://api.codeclimate.com/v1/badges/8ae0a363155bd9e8bccb/maintainability)](https://codeclimate.com/github/aergoio/aergo/maintainability)
 [![Test Coverage](https://api.codeclimate.com/v1/badges/8ae0a363155bd9e8bccb/test_coverage)](https://codeclimate.com/github/aergoio/aergo/test_coverage)
-[![LoC](https://tokei.rs/b1/github/aergoio/aergo)](https://github.com/aergoio/aergo)
 [![API Reference](https://godoc.org/github.com/aergoio/aergo?status.svg)](https://godoc.org/github.com/aergoio/aergo)
 
 # Aergo - Distributed Trust at Scale
@@ -116,7 +114,7 @@ MVP based, Forward compatibility, Iteration
 
 ### Prerequisites
 
-* Go1.12.5+ - https://golang.org/dl
+* Go1.19.1+ - https://golang.org/dl
 * Proto Buffers - https://github.com/google/protobuf
 * CMake 3.0.0 or higher - https://cmake.org
 

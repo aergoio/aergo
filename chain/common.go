@@ -7,11 +7,10 @@ package chain
 
 import (
 	"errors"
-	"fmt"
 
-	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 const pubNetMaxBlockBodySize = 4000000
@@ -49,7 +48,7 @@ func Init(maxBlkBodySize uint32, coinbaseAccountStr string, isBp bool, maxAnchor
 			if err != nil {
 				return ErrInvalidCoinbaseAccount
 			}
-			logger.Info().Str("account", enc.ToString(CoinbaseAccount)).Str("str", coinbaseAccountStr).
+			logger.Info().Str("account", base58.Encode(CoinbaseAccount)).Str("str", coinbaseAccountStr).
 				Msg("set coinbase account")
 
 		} else {
@@ -63,7 +62,7 @@ func Init(maxBlkBodySize uint32, coinbaseAccountStr string, isBp bool, maxAnchor
 	return nil
 }
 
-// IsPublic reports whether the block chain is public or not.
+// IsPublic reports whether the blockchain is public or not.
 func IsPublic() bool {
 	return pubNet
 }
@@ -96,7 +95,7 @@ func MaxBlockSize() uint32 {
 
 func setMaxBlockBodySize(size uint32) {
 	if size > types.BlockSizeHardLimit() {
-		panic(fmt.Errorf("too large block size (%v), hard limit = 8MiB", size))
+		logger.Panic().Uint32("block size", size).Msg("too large block size, hard limit = 8MiB")
 	}
 	maxBlockBodySize = size
 }

@@ -1,3 +1,4 @@
+//go:build Debug
 // +build Debug
 
 package contract
@@ -9,12 +10,12 @@ package contract
 import "C"
 import (
 	"container/list"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"path/filepath"
 
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/internal/enc/hex"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 type contract_info struct {
@@ -42,7 +43,7 @@ func (ce *executor) setCountHook(limit C.int) {
 }
 
 func HexAddrToBase58Addr(contract_id_hex string) (string, error) {
-	byteContractID, err := hex.DecodeString(contract_id_hex)
+	byteContractID, err := hex.Decode(contract_id_hex)
 	if err != nil {
 		return "", err
 	}
@@ -65,8 +66,7 @@ func HexAddrOrPlainStrToHexAddr(d string) string {
 }
 
 func PlainStrToHexAddr(d string) string {
-
-	return hex.EncodeToString(strHash(d))
+	return hex.Encode(StrHash(d))
 }
 
 func SetBreakPoint(contract_id_hex string, line uint64) error {

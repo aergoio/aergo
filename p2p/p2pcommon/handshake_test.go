@@ -7,9 +7,10 @@ package p2pcommon
 
 import (
 	"bytes"
-	"github.com/stretchr/testify/assert"
 	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestHSHeader_Marshal(t *testing.T) {
@@ -18,8 +19,8 @@ func TestHSHeader_Marshal(t *testing.T) {
 		Version P2PVersion
 	}
 	tests := []struct {
-		name   string
-		fields fields
+		name    string
+		fields  fields
 		wantLen int
 	}{
 		{"T1", fields{MAGICTest, P2PVersion031}, 8},
@@ -75,13 +76,13 @@ func TestOutHSHeader_Marshal(t *testing.T) {
 		Versions []P2PVersion
 	}
 	tests := []struct {
-		name   string
-		fields fields
+		name    string
+		fields  fields
 		wantLen int
 	}{
 		{"TEmpty", fields{MAGICMain, nil}, 8},
 		{"TSingle", fields{MAGICMain, []P2PVersion{P2PVersion030}}, 12},
-		{"TSingle", fields{MAGICMain, []P2PVersion{0x033333, 0x092fa10, P2PVersion031,P2PVersion030}}, 24},
+		{"TSingle", fields{MAGICMain, []P2PVersion{0x033333, 0x092fa10, P2PVersion031, P2PVersion030}}, 24},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

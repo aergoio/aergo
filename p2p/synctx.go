@@ -3,21 +3,23 @@ package p2p
 import (
 	"container/list"
 	"fmt"
-	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/p2p/subproto"
-	"github.com/aergoio/aergo/types"
-	"github.com/golang/protobuf/proto"
-	lru "github.com/hashicorp/golang-lru"
 	"runtime/debug"
 	"sort"
 	"time"
+
+	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/v2/internal/enc/proto"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+	"github.com/aergoio/aergo/v2/p2p/subproto"
+	"github.com/aergoio/aergo/v2/types"
+	lru "github.com/hashicorp/golang-lru"
 )
 
 const minimumTxQueryInterval = time.Second >> 1
 const txQueryTimeout = time.Second << 2
+
 var unsent = time.Time{}
 
 // syncTxManager handle operations about tx sync
@@ -29,10 +31,10 @@ type syncTxManager struct {
 	pm        p2pcommon.PeerManager
 	msgHelper message.Helper
 
-	txCache       *lru.Cache
+	txCache *lru.Cache
 	// received notice but not in my mempool
-	frontCache       map[types.TxID]*incomingTxNotice
-	toNoticeIdQueue  *list.List
+	frontCache      map[types.TxID]*incomingTxNotice
+	toNoticeIdQueue *list.List
 
 	taskChannel      chan smTask
 	taskQueryChannel chan smTask
@@ -43,13 +45,13 @@ type syncTxManager struct {
 
 type queryQueue struct {
 	peerID types.PeerID
-	txIDs []types.TxID
+	txIDs  []types.TxID
 }
 
 type smTask func()
 
 func newTxSyncManager(sm p2pcommon.SyncManager, actor p2pcommon.ActorService, pm p2pcommon.PeerManager, logger *log.Logger) *syncTxManager {
-	tm := &syncTxManager{sm:sm, actor: actor, pm: pm, logger: logger,
+	tm := &syncTxManager{sm: sm, actor: actor, pm: pm, logger: logger,
 		frontCache:       make(map[types.TxID]*incomingTxNotice),
 		toNoticeIdQueue:  list.New(),
 		taskChannel:      make(chan smTask, 20),
@@ -79,7 +81,7 @@ func (tm *syncTxManager) Stop() {
 func (tm *syncTxManager) runManager() {
 	defer func() {
 		if panicMsg := recover(); panicMsg != nil {
-			tm.logger.Warn().Str("callStack", string(debug.Stack())).Str("errMsg",fmt.Sprintf("%v",panicMsg)).Msg("panic ocurred tx sync task")
+			tm.logger.Warn().Str("callStack", string(debug.Stack())).Str("errMsg", fmt.Sprintf("%v", panicMsg)).Msg("panic ocurred tx sync task")
 		}
 	}()
 	tm.logger.Debug().Msg("syncTXManager started")
@@ -102,7 +104,7 @@ MANLOOP:
 func (tm *syncTxManager) runQueryLog() {
 	defer func() {
 		if panicMsg := recover(); panicMsg != nil {
-			tm.logger.Warn().Str("callStack", string(debug.Stack())).Str("errMsg",fmt.Sprintf("%v",panicMsg)).Msg("panic occurred handle get tx queries")
+			tm.logger.Warn().Str("callStack", string(debug.Stack())).Str("errMsg", fmt.Sprintf("%v", panicMsg)).Msg("panic occurred handle get tx queries")
 		}
 	}()
 	// set interval of trying to resend getTransaction
@@ -131,19 +133,19 @@ func (tm *syncTxManager) registerTxNotice(txs []*types.Tx) {
 // pre-allocated slices to reduce memory allocation. this buffers must used inside syncTXManager goroutine.
 var (
 	// for general usage
-	addBuf = make([]types.TxID,0,DefaultPeerTxQueueSize)
-	dupBuf = make([]types.TxID,0,DefaultPeerTxQueueSize)
-	queuedBuf = make([]types.TxID,0,DefaultPeerTxQueueSize)
+	addBuf         = make([]types.TxID, 0, DefaultPeerTxQueueSize)
+	dupBuf         = make([]types.TxID, 0, DefaultPeerTxQueueSize)
+	queuedBuf      = make([]types.TxID, 0, DefaultPeerTxQueueSize)
 	cleanupCounter = 0
 	// idsBuf is used for indivisual peer
-	idsBuf = make([][]types.TxID,0,10)
- 	bufOffset = 0
+	idsBuf    = make([][]types.TxID, 0, 10)
+	bufOffset = 0
 )
 
 // getIDsBuf return empty slice with capacity DefaultPeerTxQueueSize
 func getIDsBuf(idx int) []types.TxID {
 	for idx >= len(idsBuf) {
-		idsBuf = append(idsBuf,make([]types.TxID,0,DefaultPeerTxQueueSize))
+		idsBuf = append(idsBuf, make([]types.TxID, 0, DefaultPeerTxQueueSize))
 	}
 	return idsBuf[idx][:0]
 }
@@ -167,29 +169,29 @@ func (tm *syncTxManager) HandleNewTxNotice(peer p2pcommon.RemotePeer, txIDs []ty
 			if info, ok := tm.frontCache[txID]; ok {
 				// other peer sent notice already. so add peerid to next waiting list
 				appendPeerID(info, peerID)
-				queued = append(queued,txID)
+				queued = append(queued, txID)
 				continue
 			}
 
 			info := &incomingTxNotice{hash: txID, created: now, lastSent: now}
 			tm.frontCache[txID] = info
-			newComer = append(newComer,txID)
+			newComer = append(newComer, txID)
 		}
 
 		if len(newComer) > 0 {
 			if len(newComer) <= len(txIDs) {
 				copy(txIDs, newComer)
-				txIDs=txIDs[:len(newComer)]
+				txIDs = txIDs[:len(newComer)]
 			}
 			tm.sendGetTx(peer, txIDs)
 		}
 		if len(queued) > 0 {
-			toQueue := make([]types.TxID,len(queued))
+			toQueue := make([]types.TxID, len(queued))
 			copy(toQueue, queued)
-			tm.toNoticeIdQueue.PushBack(&queryQueue{peerID:peerID,txIDs:toQueue})
+			tm.toNoticeIdQueue.PushBack(&queryQueue{peerID: peerID, txIDs: toQueue})
 		}
 
-		tm.logger.Trace().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Int("newCnt",len(newComer)).Int("queCnt",len(queued)).Int("dupCnt",len(duplicated)).Array("newComer", types.NewLogTxIDsMarshaller(newComer, 10)).Array("duplicated", types.NewLogTxIDsMarshaller(duplicated, 10)).Array("queued", types.NewLogTxIDsMarshaller(queued, 10)).Int("frontCacheSize",len(tm.frontCache)).Msg("push txs, to query next time")
+		tm.logger.Trace().Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Int("newCnt", len(newComer)).Int("queCnt", len(queued)).Int("dupCnt", len(duplicated)).Array("newComer", types.NewLogTxIDsMarshaller(newComer, 10)).Array("duplicated", types.NewLogTxIDsMarshaller(duplicated, 10)).Array("queued", types.NewLogTxIDsMarshaller(queued, 10)).Int("frontCacheSize", len(tm.frontCache)).Msg("push txs, to query next time")
 	}
 }
 
@@ -214,11 +216,11 @@ func (tm *syncTxManager) HandleGetTxReq(peer p2pcommon.RemotePeer, msgID p2pcomm
 
 func (tm *syncTxManager) retryGetTx(peerID types.PeerID, hashes [][]byte) {
 	tm.taskChannel <- func() {
-		txIDs := make([]types.TxID,len(hashes))
+		txIDs := make([]types.TxID, len(hashes))
 		for i, hash := range hashes {
 			txIDs[i] = types.ToTxID(hash)
 		}
-		tm.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Array("txIDs", types.NewLogTxIDsMarshaller(txIDs, 10)).Msg("push txs that are failed to get by server busy")
+		tm.logger.Debug().Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Array("txIDs", types.NewLogTxIDsMarshaller(txIDs, 10)).Msg("push txs that are failed to get by server busy")
 		tm.pushBackToFrontCache(peerID, txIDs)
 	}
 }
@@ -238,7 +240,7 @@ func (tm *syncTxManager) pushBackToFrontCache(peerID types.PeerID, txIDs []types
 		}
 	}
 	if pushedCount > 0 {
-		tm.toNoticeIdQueue.PushFront(&queryQueue{peerID:peerID,txIDs:txIDs})
+		tm.toNoticeIdQueue.PushFront(&queryQueue{peerID: peerID, txIDs: txIDs})
 	}
 }
 
@@ -250,12 +252,11 @@ func (tm *syncTxManager) burnFailedTxFrontCache(peerID types.PeerID, txIDs []typ
 				// make send gettx to other peer
 				info.lastSent = unsent
 			} else {
-				delete(tm.frontCache,txID)
+				delete(tm.frontCache, txID)
 			}
 		}
 	}
 }
-
 
 // this function must called only if ticket can be retrieved.
 func (tm *syncTxManager) handleTxReq(remotePeer p2pcommon.RemotePeer, mID p2pcommon.MsgID, reqHashes [][]byte) {
@@ -273,7 +274,7 @@ func (tm *syncTxManager) handleTxReq(remotePeer p2pcommon.RemotePeer, mID p2pcom
 	bucket := message.MaxReqestHashes
 	var futures []interface{}
 
-	var inCache,inMempool = 0,0
+	var inCache, inMempool = 0, 0
 	// 1. first check in cache
 	for i, h := range reqHashes {
 		reqIDs[i] = types.ToTxID(h)
@@ -282,7 +283,7 @@ func (tm *syncTxManager) handleTxReq(remotePeer p2pcommon.RemotePeer, mID p2pcom
 			txs[reqIDs[i]] = tx.(*types.Tx)
 			inCache++
 		} else {
-			mpReqs = append(mpReqs,h)
+			mpReqs = append(mpReqs, h)
 		}
 	}
 
@@ -317,7 +318,7 @@ func (tm *syncTxManager) handleTxReq(remotePeer p2pcommon.RemotePeer, mID p2pcom
 			tm.logger.Debug().Err(err).Msg("ErrExtract tx in future")
 		}
 	}
-	msgCnt :=0
+	msgCnt := 0
 	for _, tid := range reqIDs {
 		tx, ok := txs[tid]
 		if !ok {
@@ -329,7 +330,7 @@ func (tm *syncTxManager) handleTxReq(remotePeer p2pcommon.RemotePeer, mID p2pcom
 		fieldSize = txSize + p2putil.CalculateFieldDescSize(txSize)
 		fieldSize += len(hash) + p2putil.CalculateFieldDescSize(len(hash))
 
-		if uint32(payloadSize + fieldSize) > p2pcommon.MaxPayloadLength {
+		if uint32(payloadSize+fieldSize) > p2pcommon.MaxPayloadLength {
 			// send partial list
 			resp := &types.GetTransactionsResponse{
 				Status: status,
@@ -363,26 +364,25 @@ func (tm *syncTxManager) handleTxReq(remotePeer p2pcommon.RemotePeer, mID p2pcom
 	remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(mID, p2pcommon.GetTXsResponse, resp))
 	msgCnt++
 	tm.logger.Debug().Int("respMsgCnt", msgCnt).
-		Int("inCache",inCache).Int("inMempool",inMempool).
+		Int("inCache", inCache).Int("inMempool", inMempool).
 		Str(p2putil.LogOrgReqID, mID.String()).Str(p2putil.LogRespStatus, status.String()).
 		Msg("handled getTx query")
 }
 
-//
 func (tm *syncTxManager) refineFrontCache() {
 	now := time.Now()
 	expireTime := now.Add(-txQueryTimeout)
 	if tm.toNoticeIdQueue.Len() == 0 { // nothing to resend
 		cleanupCounter++
 		if cleanupCounter%20 == 0 {
-			cleanupCounter=0
+			cleanupCounter = 0
 			if len(tm.frontCache) > 0 {
 				tm.cleanupFrontCache(expireTime)
 			}
 		}
 		return
 	}
-	tm.logger.Trace().Int("noticeQueues", tm.toNoticeIdQueue.Len()).Int("frontCache",len(tm.frontCache)).Msg("refining front cache")
+	tm.logger.Trace().Int("noticeQueues", tm.toNoticeIdQueue.Len()).Int("frontCache", len(tm.frontCache)).Msg("refining front cache")
 
 	// init
 	expired := dupBuf[:0]
@@ -395,7 +395,7 @@ func (tm *syncTxManager) refineFrontCache() {
 	// tx in front cache has tri-state: unsent, waitingResp, expiredWaiting
 
 	var next *list.Element
-	for e := tm.toNoticeIdQueue.Front(); e!=nil; e = next {
+	for e := tm.toNoticeIdQueue.Front(); e != nil; e = next {
 		next = e.Next()
 		queAgain := queuedBuf[:0]
 		queuedIDs := e.Value.(*queryQueue)
@@ -407,7 +407,7 @@ func (tm *syncTxManager) refineFrontCache() {
 
 		idSize := len(queuedIDs.txIDs)
 		toSendCnt := 0
-		for j:=0; j< idSize; j++ {
+		for j := 0; j < idSize; j++ {
 			txID := queuedIDs.txIDs[j]
 			info := tm.frontCache[txID]
 			if info == nil { // tx is done to mempool or block. this txid is safe to delete
@@ -416,7 +416,7 @@ func (tm *syncTxManager) refineFrontCache() {
 			}
 			if info.lastSent.After(expireTime) {
 				// txs that wait for getTXResp and not expired will wait more time.
-				queAgain=append(queAgain,txID)
+				queAgain = append(queAgain, txID)
 				continue
 			}
 			if len(info.peers) == 0 {
@@ -429,11 +429,11 @@ func (tm *syncTxManager) refineFrontCache() {
 				info.lastSent = now
 				toSendCnt++
 				if len(*toSend) >= DefaultPeerTxQueueSize {
-					queAgain=append(queAgain, queuedIDs.txIDs[j+1:]...)
+					queAgain = append(queAgain, queuedIDs.txIDs[j+1:]...)
 					break
 				}
 			} else {
-				queAgain=append(queAgain,txID)
+				queAgain = append(queAgain, txID)
 			}
 		}
 
@@ -444,7 +444,7 @@ func (tm *syncTxManager) refineFrontCache() {
 			copy(toQueue, queAgain)
 			tm.logger.Trace().Array("queAgain", types.NewLogTxIDsMarshaller(toQueue, 10)).Msg("syncManager enqueue txIDs again that waiting for response")
 
-			e.Value = &queryQueue{peerID:queuedIDs.peerID,txIDs:toQueue}
+			e.Value = &queryQueue{peerID: queuedIDs.peerID, txIDs: toQueue}
 		} else {
 			tm.toNoticeIdQueue.Remove(e)
 		}
@@ -464,7 +464,7 @@ func (tm *syncTxManager) refineFrontCache() {
 			tm.sendGetTx(peer, ids)
 		} else {
 			// peer probably disconnected.
-			tm.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Array("hashes", types.NewLogTxIDsMarshaller(ids, 10)).Msg("syncManager failed to send get tx, since peer is disconnected just before")
+			tm.logger.Debug().Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Array("hashes", types.NewLogTxIDsMarshaller(ids, 10)).Msg("syncManager failed to send get tx, since peer is disconnected just before")
 			toRetry := make([]types.TxID, len(ids))
 			copy(toRetry, ids)
 			tm.burnFailedTxFrontCache(peerID, toRetry)
@@ -473,10 +473,10 @@ func (tm *syncTxManager) refineFrontCache() {
 }
 
 func (tm *syncTxManager) sendGetTx(peer p2pcommon.RemotePeer, ids []types.TxID) {
-		tm.logger.Trace().Str(p2putil.LogPeerName,peer.Name()).Array("hashes", types.NewLogTxIDsMarshaller(ids, 10)).Msg("syncManager try to get tx to remote peer")
-		// create message data
-		receiver := NewGetTxsReceiver(tm.actor, peer, tm.sm, tm.logger, ids, p2pcommon.DefaultActorMsgTTL)
-		receiver.StartGet()
+	tm.logger.Trace().Str(p2putil.LogPeerName, peer.Name()).Array("hashes", types.NewLogTxIDsMarshaller(ids, 10)).Msg("syncManager try to get tx to remote peer")
+	// create message data
+	receiver := NewGetTxsReceiver(tm.actor, peer, tm.sm, tm.logger, ids, p2pcommon.DefaultActorMsgTTL)
+	receiver.StartGet()
 }
 
 // assignTxToPeer set tx how to select peer for querying
@@ -503,6 +503,7 @@ func (tm *syncTxManager) addToList(info *incomingTxNotice, target types.PeerID, 
 	}
 	return false
 }
+
 // assignTxToPeer set tx how to select peer for querying
 func (tm *syncTxManager) assignTxToPeer(info *incomingTxNotice, sendMap map[types.PeerID][]types.TxID) bool {
 	for i, peerID := range info.peers {
@@ -532,7 +533,7 @@ func (tm *syncTxManager) moveToMPCache(tx *types.Tx) {
 
 // cleanupFrontCache clean unnecessary frontCache items. These are txs that sent request
 func (tm *syncTxManager) cleanupFrontCache(expireTime time.Time) {
-	testCnt, expired := 0,0
+	testCnt, expired := 0, 0
 	for txID, info := range tm.frontCache {
 		if (!info.lastSent.After(expireTime)) && len(info.peers) == 0 {
 			// remove old or unsent tx that has no peer to query.
@@ -540,14 +541,13 @@ func (tm *syncTxManager) cleanupFrontCache(expireTime time.Time) {
 			delete(tm.frontCache, txID)
 		}
 		testCnt++
-		if testCnt>=10000 {
+		if testCnt >= 10000 {
 			break
 		}
 	}
-	tm.logger.Debug().Int("testCnt",testCnt).Int("expireCnt", expired).Msg("syncManager clean up some of expired items in frontCache")
+	tm.logger.Debug().Int("testCnt", testCnt).Int("expireCnt", expired).Msg("syncManager clean up some of expired items in frontCache")
 
 }
-
 
 func appendPeerID(info *incomingTxNotice, peerID types.PeerID) {
 	info.peers = append(info.peers, peerID)

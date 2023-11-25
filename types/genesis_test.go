@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aergoio/aergo/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/assert"
 )
@@ -36,7 +36,7 @@ func TestGenesisChainID(t *testing.T) {
 	a.Nil(err)
 	a.True(g.ID.Equals(&defaultChainID))
 	fmt.Println("len:", len(chainID))
-	fmt.Println("chain_id: ", enc.ToString(chainID))
+	fmt.Println("chain_id: ", base58.Encode(chainID))
 }
 
 func TestGenesisBytes(t *testing.T) {

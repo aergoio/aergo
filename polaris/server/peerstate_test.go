@@ -11,11 +11,11 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2pmock"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2pmock"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+	"github.com/aergoio/aergo/v2/pkg/component"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )
@@ -50,7 +50,6 @@ func Test_pingChecker_DoCall(t *testing.T) {
 		{"TTimeoutWrite", args{writeRet: nil, writeWait: 3, readRet2: nil, respSub: p2pcommon.PingResponse}, true},
 		// 6. cancel signal while reading
 		{"TTimeoutRead", args{writeRet: nil, readWait: 3, readRet2: nil, respSub: p2pcommon.PingResponse}, true},
-
 	}
 	for _, tt := range tests {
 
@@ -121,7 +120,6 @@ func Test_pingChecker_DoCallWithTimer(t *testing.T) {
 		{"TTimeoutWrite", args{writeRet: nil, writeWait: 3, readRet2: nil, respSub: p2pcommon.PingResponse}, true},
 		// 6. cancel signal while reading
 		{"TTimeoutRead", args{writeRet: nil, readWait: 3, readRet2: nil, respSub: p2pcommon.PingResponse}, true},
-
 	}
 	for _, tt := range tests {
 

@@ -6,22 +6,16 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aergoio/aergo/contract/system"
-
-	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/contract/system"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 const (
 	initBlkCount = 20
-)
-
-var (
-	reorgKeyStr = "_reorg_marker_"
-	reorgKey    = []byte(reorgKeyStr)
 )
 
 var (
@@ -58,7 +52,7 @@ type ErrReorgBlock struct {
 
 func (ec *ErrReorgBlock) Error() string {
 	if ec.blockHash != nil {
-		return fmt.Sprintf("%s, block:%d,%s", ec.msg, ec.blockNo, enc.ToString(ec.blockHash))
+		return fmt.Sprintf("%s, block:%d,%s", ec.msg, ec.blockNo, base58.Encode(ec.blockHash))
 	} else if ec.blockNo != 0 {
 		return fmt.Sprintf("%s, block:%d", ec.msg, ec.blockNo)
 	} else {
@@ -128,7 +122,7 @@ func newReorganizer(cs *ChainService, topBlock *types.Block, marker *ReorgMarker
 	return reorg, nil
 }
 
-//TODO: gather delete request of played tx (1 msg)
+// TODO: gather delete request of played tx (1 msg)
 func (cs *ChainService) reorg(topBlock *types.Block, marker *ReorgMarker) error {
 	logger.Info().Uint64("blockNo", topBlock.GetHeader().GetBlockNo()).Str("hash", topBlock.ID()).
 		Bool("recovery", (marker != nil)).Msg("reorg started")
@@ -137,7 +131,7 @@ func (cs *ChainService) reorg(topBlock *types.Block, marker *ReorgMarker) error 
 
 	reorg, err := newReorganizer(cs, topBlock, marker)
 	if err != nil {
-		logger.Error().Err(err).Msg("new reorganazier failed")
+		logger.Error().Err(err).Msg("new reorganizer failed")
 		return err
 	}
 
@@ -224,9 +218,9 @@ func (reorg *reorganizer) newMarker() {
 }
 
 // swap oldchain to newchain oneshot (best effort)
-//  - chain height mapping
-//  - tx mapping
-//  - best block
+//   - chain height mapping
+//   - tx mapping
+//   - best block
 func (reorg *reorganizer) swapChain() error {
 	logger.Info().Msg("swap chain to new branch")
 
@@ -362,7 +356,7 @@ func (reorg *reorganizer) dumpOldBlocks() {
 	}
 }
 
-// Find branch root and gather rollforard/rollback target blocks
+// Find branch root and gather rollforward/rollback target blocks
 func (reorg *reorganizer) gather() error {
 	//find branch root block , gather rollforward Target block
 	var err error
@@ -502,9 +496,10 @@ func (reorg *reorganizer) deleteOldReceipts() {
 }
 
 /*
-	rollforward
-		rollforwardBlock
-		add oldTxs to mempool
+rollforward
+
+	rollforwardBlock
+	add oldTxs to mempool
 */
 func (reorg *reorganizer) rollforward() error {
 	//cs := reorg.cs

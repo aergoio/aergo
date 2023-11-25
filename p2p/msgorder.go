@@ -6,16 +6,15 @@
 package p2p
 
 import (
-	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/p2p/raftsupport"
-	"github.com/aergoio/etcd/raft/raftpb"
 	"time"
 
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2putil"
-
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+	"github.com/aergoio/aergo/v2/p2p/raftsupport"
+	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/etcd/raft/raftpb"
 )
 
 // ClientVersion is the version of p2p protocol to which this codes are built
@@ -71,7 +70,7 @@ func (pr *pbRequestOrder) SendTo(pi p2pcommon.RemotePeer) error {
 	p.reqMutex.Unlock()
 	err := p.rw.WriteMsg(pr.message)
 	if err != nil {
-		p.logger.Warn().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, pr.GetProtocolID().String()).Str(p2putil.LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to SendTo")
+		p.logger.Warn().Str(p2putil.LogPeerName, p.Name()).Stringer(p2putil.LogProtoID, pr.GetProtocolID()).Str(p2putil.LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to SendTo")
 		p.reqMutex.Lock()
 		delete(p.requests, pr.message.ID())
 		p.reqMutex.Unlock()
@@ -79,7 +78,7 @@ func (pr *pbRequestOrder) SendTo(pi p2pcommon.RemotePeer) error {
 	}
 
 	if pr.trace {
-		p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, pr.GetProtocolID().String()).
+		p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Stringer(p2putil.LogProtoID, pr.GetProtocolID()).
 			Str(p2putil.LogMsgID, pr.GetMsgID().String()).Msg("Send request message")
 	}
 	return nil
@@ -93,11 +92,11 @@ func (pr *pbResponseOrder) SendTo(pi p2pcommon.RemotePeer) error {
 	p := pi.(*remotePeerImpl)
 	err := p.rw.WriteMsg(pr.message)
 	if err != nil {
-		p.logger.Warn().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, pr.GetProtocolID().String()).Str(p2putil.LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to SendTo")
+		p.logger.Warn().Str(p2putil.LogPeerName, p.Name()).Stringer(p2putil.LogProtoID, pr.GetProtocolID()).Str(p2putil.LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to SendTo")
 		return err
 	}
 	if pr.trace {
-		p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, pr.GetProtocolID().String()).
+		p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Stringer(p2putil.LogProtoID, pr.GetProtocolID()).
 			Str(p2putil.LogMsgID, pr.GetMsgID().String()).Str(p2putil.LogOrgReqID, pr.message.OriginalID().String()).Msg("Send response message")
 	}
 
@@ -129,7 +128,7 @@ func (pr *pbBlkNoticeOrder) SendTo(pi p2pcommon.RemotePeer) error {
 	if skipNotice || passedTime < MinNewBlkNoticeInterval {
 		p.skipCnt++
 		if p.skipCnt&0x03ff == 0 && pr.trace {
-			p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, pr.GetProtocolID().String()).Int32("skip_cnt", p.skipCnt).Msg("Skipped NewBlockNotice ")
+			p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Stringer(p2putil.LogProtoID, pr.GetProtocolID()).Int32("skip_cnt", p.skipCnt).Msg("Skipped NewBlockNotice ")
 
 		}
 		return nil
@@ -143,12 +142,12 @@ func (pr *pbBlkNoticeOrder) SendTo(pi p2pcommon.RemotePeer) error {
 	}
 	err := p.rw.WriteMsg(pr.message)
 	if err != nil {
-		p.logger.Warn().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, pr.GetProtocolID().String()).Str(p2putil.LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to SendTo")
+		p.logger.Warn().Str(p2putil.LogPeerName, p.Name()).Stringer(p2putil.LogProtoID, pr.GetProtocolID()).Str(p2putil.LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to SendTo")
 		return err
 	}
 	p.lastBlkNoticeTime = time.Now()
 	if p.skipCnt > 100 && pr.trace {
-		p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, pr.GetProtocolID().String()).Int32("skip_cnt", p.skipCnt).Msg("Send NewBlockNotice after long skip")
+		p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Stringer(p2putil.LogProtoID, pr.GetProtocolID()).Int32("skip_cnt", p.skipCnt).Msg("Send NewBlockNotice after long skip")
 	}
 	p.skipCnt = 0
 	return nil
@@ -165,12 +164,12 @@ func (pr *pbBpNoticeOrder) SendTo(pi p2pcommon.RemotePeer) error {
 	p.blkHashCache.ContainsOrAdd(blkHash, cachePlaceHolder)
 	err := p.rw.WriteMsg(pr.message)
 	if err != nil {
-		p.logger.Warn().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, pr.GetProtocolID().String()).Str(p2putil.LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to SendTo")
+		p.logger.Warn().Str(p2putil.LogPeerName, p.Name()).Stringer(p2putil.LogProtoID, pr.GetProtocolID()).Str(p2putil.LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to SendTo")
 		return err
 	}
 	if pr.trace {
-		p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, pr.GetProtocolID().String()).
-			Str(p2putil.LogMsgID, pr.GetMsgID().String()).Str(p2putil.LogBlkHash, enc.ToString(pr.block.Hash)).Msg("Notify block produced")
+		p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Stringer(p2putil.LogProtoID, pr.GetProtocolID()).
+			Str(p2putil.LogMsgID, pr.GetMsgID().String()).Str(p2putil.LogBlkHash, base58.Encode(pr.block.Hash)).Msg("Notify block produced")
 	}
 	return nil
 }
@@ -185,11 +184,11 @@ func (pr *pbTxNoticeOrder) SendTo(pi p2pcommon.RemotePeer) error {
 
 	err := p.rw.WriteMsg(pr.message)
 	if err != nil {
-		p.logger.Warn().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, pr.GetProtocolID().String()).Str(p2putil.LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to SendTo")
+		p.logger.Warn().Str(p2putil.LogPeerName, p.Name()).Stringer(p2putil.LogProtoID, pr.GetProtocolID()).Str(p2putil.LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to SendTo")
 		return err
 	}
 	if p.logger.IsDebugEnabled() && pr.trace {
-		p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, pr.GetProtocolID().String()).
+		p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Stringer(p2putil.LogProtoID, pr.GetProtocolID()).
 			Str(p2putil.LogMsgID, pr.GetMsgID().String()).Int("hash_cnt", len(pr.txHashes)).Array("hashes", types.NewLogTxIDsMarshaller(pr.txHashes, 10)).Msg("Sent tx notice")
 	}
 	return nil
@@ -209,12 +208,12 @@ func (pr *pbRaftMsgOrder) SendTo(pi p2pcommon.RemotePeer) error {
 
 	err := p.rw.WriteMsg(pr.message)
 	if err != nil {
-		p.logger.Warn().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogMsgID, pr.GetMsgID().String()).Err(err).Object("raftMsg", raftsupport.RaftMsgMarshaller{pr.msg}).Msg("fail to Send raft message")
+		p.logger.Warn().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogMsgID, pr.GetMsgID().String()).Err(err).Object("raftMsg", raftsupport.RaftMsgMarshaller{Message: pr.msg}).Msg("fail to Send raft message")
 		pr.raftAcc.ReportUnreachable(pi.ID())
 		return err
 	}
 	if pr.trace && p.logger.IsDebugEnabled() {
-		p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogMsgID, pr.GetMsgID().String()).Object("raftMsg", raftsupport.RaftMsgMarshaller{pr.msg}).Msg("Sent raft message")
+		p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogMsgID, pr.GetMsgID().String()).Object("raftMsg", raftsupport.RaftMsgMarshaller{Message: pr.msg}).Msg("Sent raft message")
 	}
 	return nil
 }
@@ -224,7 +223,6 @@ func (pr *pbRaftMsgOrder) CancelSend(pi p2pcommon.RemotePeer) {
 	//pr.raftAcc.ReportUnreachable(pi.ID())
 }
 
-
 type pbTossOrder struct {
 	pbMessageOrder
 }
@@ -233,12 +231,12 @@ func (pr *pbTossOrder) SendTo(pi p2pcommon.RemotePeer) error {
 	p := pi.(*remotePeerImpl)
 	err := p.rw.WriteMsg(pr.message)
 	if err != nil {
-		p.logger.Warn().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, pr.GetProtocolID().String()).Str(p2putil.LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to toss")
+		p.logger.Warn().Str(p2putil.LogPeerName, p.Name()).Stringer(p2putil.LogProtoID, pr.GetProtocolID()).Str(p2putil.LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to toss")
 		return err
 	}
 
 	if pr.trace {
-		p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, pr.GetProtocolID().String()).
+		p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Stringer(p2putil.LogProtoID, pr.GetProtocolID()).
 			Str(p2putil.LogMsgID, pr.GetMsgID().String()).Msg("toss message")
 	}
 	return nil

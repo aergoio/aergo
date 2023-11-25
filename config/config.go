@@ -9,7 +9,7 @@ import (
 	"runtime"
 
 	"github.com/aergoio/aergo-lib/config"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 const defaultDumpPort = 7070
@@ -59,8 +59,6 @@ func (ctx *ServerContext) GetDefaultBaseConfig() BaseConfig {
 	return BaseConfig{
 		DataDir:        ctx.ExpandPathEnv("$HOME/data"),
 		DbType:         "badgerdb",
-		EnableProfile:  false,
-		ProfilePort:    6060,
 		EnableDump:     false,
 		DumpPort:       GetDefaultDumpPort(),
 		EnableTestmode: false,

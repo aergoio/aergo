@@ -9,11 +9,11 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/types"
-	"github.com/golang/protobuf/proto"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/internal/enc/proto"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 type blockRequestHandler struct {
@@ -51,7 +51,7 @@ func (bh *blockRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.M
 	if bh.issue() {
 		go bh.handleBlkReq(msg, data)
 	} else {
-		bh.logger.Info().Str(p2putil.LogProtoID,bh.protocol.String()).Str(p2putil.LogMsgID,msg.ID().String()).Str(p2putil.LogPeerName, remotePeer.Name()).Msg("return error for busy")
+		bh.logger.Info().Stringer(p2putil.LogProtoID, bh.protocol).Stringer(p2putil.LogMsgID, msg.ID()).Str(p2putil.LogPeerName, remotePeer.Name()).Msg("return error for busy")
 		resp := &types.GetBlockResponse{
 			Status: types.ResultStatus_RESOURCE_EXHAUSTED,
 			Blocks: nil, HasNext: false}
@@ -82,13 +82,13 @@ func (bh *blockRequestHandler) handleBlkReq(msg p2pcommon.Message, data *types.G
 		foundBlock, err := bh.actor.GetChainAccessor().GetBlock(hash)
 		if err != nil {
 			// the block hash from request must exists. this error is fatal.
-			bh.logger.Warn().Err(err).Str(p2putil.LogBlkHash, enc.ToString(hash)).Str(p2putil.LogOrgReqID, requestID.String()).Msg("failed to get block while processing getBlock")
+			bh.logger.Warn().Err(err).Str(p2putil.LogBlkHash, base58.Encode(hash)).Str(p2putil.LogOrgReqID, requestID.String()).Msg("failed to get block while processing getBlock")
 			status = types.ResultStatus_INTERNAL
 			break
 		}
 		if foundBlock == nil {
 			// the remote peer request not existing block
-			bh.logger.Debug().Str(p2putil.LogBlkHash, enc.ToString(hash)).Str(p2putil.LogOrgReqID, requestID.String()).Msg("requested block hash is missing")
+			bh.logger.Debug().Str(p2putil.LogBlkHash, base58.Encode(hash)).Str(p2putil.LogOrgReqID, requestID.String()).Msg("requested block hash is missing")
 			status = types.ResultStatus_NOT_FOUND
 			break
 
@@ -139,7 +139,7 @@ func (bh *blockRequestHandler) handleBlkReq(msg p2pcommon.Message, data *types.G
 	}
 }
 
-// newBlockRespHandler creates handler for GetBlockResponse
+// NewBlockRespHandler creates handler for GetBlockResponse
 func NewBlockRespHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService, sm p2pcommon.SyncManager) *blockResponseHandler {
 	bh := &blockResponseHandler{BaseMsgHandler{protocol: p2pcommon.GetBlocksResponse, pm: pm, sm: sm, peer: peer, actor: actor, logger: logger}}
 	return bh

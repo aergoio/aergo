@@ -6,18 +6,17 @@ package main
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/internal/common"
-	"github.com/aergoio/aergo/p2p/p2pkey"
-	"github.com/aergoio/aergo/pkg/component"
-	common2 "github.com/aergoio/aergo/polaris/common"
-	"github.com/aergoio/aergo/polaris/server"
+	"github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/internal/common"
+	"github.com/aergoio/aergo/v2/p2p/p2pkey"
+	"github.com/aergoio/aergo/v2/pkg/component"
+	common2 "github.com/aergoio/aergo/v2/polaris/common"
+	"github.com/aergoio/aergo/v2/polaris/server"
 	"github.com/spf13/cobra"
-	"net/http"
-	_ "net/http/pprof"
-	"os"
 )
 
 func main() {
@@ -76,14 +75,6 @@ func rootRun(cmd *cobra.Command, args []string) {
 	svrlog.Info().Msg("POLARIS STARTED")
 
 	p2pkey.InitNodeInfo(&cfg.BaseConfig, cfg.P2P, githash, svrlog)
-
-	if cfg.EnableProfile {
-		svrlog.Info().Msgf("Enable Profiling on localhost: %d", cfg.ProfilePort)
-		go func() {
-			err := http.ListenAndServe(fmt.Sprintf("0.0.0.0:%d", cfg.ProfilePort), nil)
-			svrlog.Info().Err(err).Msg("Run Profile Server")
-		}()
-	}
 
 	if cfg.EnableTestmode {
 		svrlog.Warn().Msgf("Running with unsafe test mode. Turn off test mode for production use!")

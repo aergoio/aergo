@@ -14,10 +14,10 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo-lib/db"
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/mr-tron/base58"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -35,10 +35,9 @@ func initTest(t *testing.T) (*state.ContractState, *state.V, *state.V) {
 		t.Fatalf("failed init : %s", err.Error())
 	}
 	// Need to pass the
-	InitGovernance("dpos")
 	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
 
-	scs, err := bs.OpenContractStateAccount(types.ToAccountID([]byte("aergo.system")))
+	scs, err := bs.GetSystemAccountState()
 	assert.NoError(t, err, "could not open contract state")
 	InitSystemParams(scs, 3)
 
@@ -64,10 +63,7 @@ func commitNextBlock(t *testing.T, scs *state.ContractState) *state.ContractStat
 	bs.Update()
 	bs.Commit()
 	cdb.UpdateRoot(bs)
-	systemContractID := types.ToAccountID([]byte(types.AergoSystem))
-	systemContract, err := bs.GetAccountState(systemContractID)
-	assert.NoError(t, err, "could not get account state")
-	ret, err := bs.OpenContractState(systemContractID, systemContract)
+	ret, err := bs.GetSystemAccountState()
 	assert.NoError(t, err, "could not open contract state")
 	return ret
 }
@@ -192,7 +188,7 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 	assert.Equal(t, []byte{}, result2.GetVotes()[0].Amount, "invalid candidate in voting result")
 
 	blockInfo.No += StakingDelay
-	blockInfo.Version = 2
+	blockInfo.ForkVersion = 2
 	tx.Body.Payload = buildStakingPayload(true)
 	stake, err = newSysCmd(tx.Body.Account, tx.Body, sender, receiver, scs, blockInfo)
 	assert.NoError(t, err, "staking validation")

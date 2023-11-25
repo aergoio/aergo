@@ -6,12 +6,12 @@
 package server
 
 import (
-	"github.com/aergoio/aergo/polaris/common"
 	"sync"
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/polaris/common"
 )
 
 type HealthCheckManager interface {
@@ -57,7 +57,6 @@ func (hcm *healthCheckManager) runHCM() {
 		}
 	}
 
-	hcm.logger.Info().Msg("Healthchecker manager finished")
 }
 
 func (hcm *healthCheckManager) checkPeers() {

@@ -5,13 +5,13 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-actor/actor"
-	"github.com/aergoio/aergo/account/key"
-	"github.com/aergoio/aergo/contract/name"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/account/key"
+	"github.com/aergoio/aergo/v2/contract/name"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/pkg/component"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 type SignVerifier struct {
@@ -83,7 +83,7 @@ func (sv *SignVerifier) verifyTxLoop(workerNo int) {
 		hit, err := sv.verifyTx(sv.comm, txWork.tx, txWork.useMempool)
 
 		if err != nil {
-			logger.Error().Int("worker", workerNo).Bool("hit", hit).Str("hash", enc.ToString(txWork.tx.GetHash())).
+			logger.Error().Int("worker", workerNo).Bool("hit", hit).Str("hash", base58.Encode(txWork.tx.GetHash())).
 				Err(err).Msg("error verify tx")
 		}
 
@@ -132,9 +132,9 @@ func (sv *SignVerifier) verifyTx(comm component.IComponentRequester, tx *types.T
 	}
 
 	if tx.NeedNameVerify() {
-		cs, err := sv.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte(types.AergoName)))
+		cs, err := sv.sdb.GetStateDB().GetNameAccountState()
 		if err != nil {
-			logger.Error().Err(err).Msg("failed to get verify because of openning contract error")
+			logger.Error().Err(err).Msg("failed to get verify because of opening contract error")
 			return false, err
 		}
 		address := name.GetOwner(cs, tx.Body.Account)

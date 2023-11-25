@@ -17,18 +17,19 @@ import (
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
-	cfg "github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/contract"
-	"github.com/aergoio/aergo/contract/enterprise"
-	"github.com/aergoio/aergo/contract/name"
-	"github.com/aergoio/aergo/contract/system"
-	"github.com/aergoio/aergo/fee"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	cfg "github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/contract"
+	"github.com/aergoio/aergo/v2/contract/enterprise"
+	"github.com/aergoio/aergo/v2/contract/name"
+	"github.com/aergoio/aergo/v2/contract/system"
+	"github.com/aergoio/aergo/v2/fee"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/pkg/component"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/dbkey"
 	lru "github.com/hashicorp/golang-lru"
 )
 
@@ -144,7 +145,7 @@ func (core *Core) initGenesis(genesis *types.Genesis, mainnet bool, testmode boo
 	genesisBlock, _ := core.cdb.GetBlockByNo(0)
 
 	logger.Info().Str("chain id", gen.ID.ToJSON()).
-		Str("hash", enc.ToString(genesisBlock.GetHash())).Msg("chain initialized")
+		Str("hash", base58.Encode(genesisBlock.GetHash())).Msg("chain initialized")
 	return genesisBlock, nil
 }
 
@@ -227,8 +228,7 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 
 	var err error
 	if cs.Core, err = NewCore(cfg.DbType, cfg.DataDir, cfg.EnableTestmode, types.BlockNo(cfg.Blockchain.ForceResetHeight)); err != nil {
-		logger.Fatal().Err(err).Msg("failed to initialize DB")
-		panic(err)
+		logger.Panic().Err(err).Msg("failed to initialize DB")
 	}
 
 	if err = Init(cfg.Blockchain.MaxBlockSize,
@@ -236,8 +236,7 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 		cfg.Consensus.EnableBp,
 		cfg.Blockchain.MaxAnchorCount,
 		cfg.Blockchain.VerifierCount); err != nil {
-		logger.Error().Err(err).Msg("failed to init chainservice")
-		panic("invalid config: blockchain")
+		logger.Panic().Err(err).Msg("failed to init chainservice | invalid config: blockchain")
 	}
 
 	var verifyMode = cs.cfg.Blockchain.VerifyOnly || cs.cfg.Blockchain.VerifyBlock != 0
@@ -262,14 +261,11 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 
 	// init genesis block
 	if _, err := cs.initGenesis(nil, !cfg.UseTestnet, cfg.EnableTestmode); err != nil {
-		logger.Fatal().Err(err).Msg("failed to create a genesis block")
-		panic("failed to init genesis block")
+		logger.Panic().Err(err).Msg("failed to create a genesis block")
 	}
 
 	if err := cs.checkHardfork(); err != nil {
-		msg := "check the hardfork compatibility"
-		logger.Fatal().Err(err).Msg(msg)
-		panic(msg)
+		logger.Panic().Err(err).Msg("check the hardfork compatibility")
 	}
 
 	if ConsensusName() == consensus.ConsensusName[consensus.ConsensusDPOS] {
@@ -278,7 +274,7 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 			logger.Debug().Err(err).Msg("failed to get elected BPs")
 		} else {
 			for _, res := range top.Votes {
-				logger.Debug().Str("BP", enc.ToString(res.Candidate)).
+				logger.Debug().Str("BP", base58.Encode(res.Candidate)).
 					Str("votes", new(big.Int).SetBytes(res.Amount).String()).Msgf("BP vote stat")
 			}
 		}
@@ -291,18 +287,16 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	contract.PubNet = pubNet
 	contract.TraceBlockNo = cfg.Blockchain.StateTrace
 	contract.SetStateSQLMaxDBSize(cfg.SQL.MaxDbSize)
-	contract.HardforkConfig = cs.cfg.Hardfork
-	contract.StartLStateFactory((cfg.Blockchain.NumWorkers+2)*(int(contract.MaxCallDepth(math.MaxUint64))+2), cfg.Blockchain.NumLStateClosers, cfg.Blockchain.CloseLimit)
+	contract.StartLStateFactory((cfg.Blockchain.NumWorkers+2)*(int(contract.MaxCallDepth(cfg.Hardfork.Version(math.MaxUint64)))+2), cfg.Blockchain.NumLStateClosers, cfg.Blockchain.CloseLimit)
 	contract.InitContext(cfg.Blockchain.NumWorkers + 2)
 
 	// For a strict governance transaction validation.
 	types.InitGovernance(cs.ConsensusType(), cs.IsPublic())
-	system.InitGovernance(cs.ConsensusType())
 
 	//reset parameter of aergo.system
 	systemState, err := cs.SDB().GetSystemAccountState()
 	if err != nil {
-		panic("failed to read aergo.system state")
+		logger.Panic().Err(err).Msg("failed to read aergo.system state")
 	}
 	system.InitSystemParams(systemState, len(cs.GetGenesisInfo().BPs))
 
@@ -356,7 +350,7 @@ func (cs *ChainService) GetChainStats() string {
 	return cs.stat.JSON()
 }
 
-//GetEnterpriseConfig return EnterpiseConfig. if the given key does not exist, fill EnterpriseConfig with only the key and return
+// GetEnterpriseConfig return EnterpiseConfig. if the given key does not exist, fill EnterpriseConfig with only the key and return
 func (cs *ChainService) GetEnterpriseConfig(key string) (*types.EnterpriseConfig, error) {
 	return cs.getEnterpriseConf(key)
 }
@@ -404,12 +398,13 @@ func (cs *ChainService) setRecovered(val bool) {
 }
 
 func (cs *ChainService) isRecovered() bool {
-	var val bool
+	var val, ok bool
 	aopv := cs.recovered.Load()
-	if aopv != nil {
-		val = aopv.(bool)
-	} else {
-		panic("ChainService: recovered is nil")
+	if aopv == nil {
+		logger.Panic().Msg("ChainService: recovered is nil")
+	}
+	if val, ok = aopv.(bool); !ok {
+		logger.Panic().Msg("ChainService: recovered is not bool")
 	}
 	return val
 }
@@ -571,7 +566,7 @@ func (cs *ChainService) getNameInfo(qname string, blockNo types.BlockNo) (*types
 
 func (cs *ChainService) getEnterpriseConf(key string) (*types.EnterpriseConfig, error) {
 	sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
-	if strings.ToUpper(key) != enterprise.AdminsKey {
+	if strings.ToUpper(key) != string(dbkey.EnterpriseAdmins()) {
 		return enterprise.GetConf(sdb, key)
 	}
 	return enterprise.GetAdmin(sdb)
@@ -639,14 +634,14 @@ func (cm *ChainManager) Receive(context actor.Context) {
 
 		block := msg.Block
 		logger.Debug().Str("hash", block.ID()).Str("prev", block.PrevID()).Uint64("bestno", cm.cdb.getBestBlockNo()).
-			Uint64("no", block.GetHeader().GetBlockNo()).Bool("syncer", msg.IsSync).Msg("add block chainservice")
+			Uint64("no", block.GetHeader().GetBlockNo()).Stringer("peer", types.LogPeerShort(msg.PeerID)).Bool("syncer", msg.IsSync).Msg("add block chainservice")
 
 		var bstate *state.BlockState
 		if msg.Bstate != nil {
 			bstate = msg.Bstate.(*state.BlockState)
 			if timeoutTx := bstate.TimeoutTx(); timeoutTx != nil {
 				if logger.IsDebugEnabled() {
-					logger.Debug().Str("hash", enc.ToString(timeoutTx.GetHash())).Msg("received timeout tx")
+					logger.Debug().Str("hash", base58.Encode(timeoutTx.GetHash())).Msg("received timeout tx")
 				}
 				cm.TellTo(message.MemPoolSvc, &message.MemPoolDelTx{Tx: timeoutTx.GetTx()})
 			}
@@ -689,9 +684,9 @@ func (cm *ChainManager) Receive(context actor.Context) {
 
 func getAddressNameResolved(sdb *state.StateDB, account []byte) ([]byte, error) {
 	if len(account) == types.NameLength {
-		scs, err := sdb.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoName)))
+		scs, err := sdb.GetNameAccountState()
 		if err != nil {
-			logger.Error().Str("hash", enc.ToString(account)).Err(err).Msg("failed to get state for account")
+			logger.Error().Str("hash", base58.Encode(account)).Err(err).Msg("failed to get state for account")
 			return nil, err
 		}
 		return name.GetAddress(scs, account), nil
@@ -710,7 +705,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		id := types.ToAccountID(address)
 		proof, err := sdb.GetAccountAndProof(id[:], root, compressed)
 		if err != nil {
-			logger.Error().Str("hash", enc.ToString(address)).Err(err).Msg("failed to get state for account")
+			logger.Error().Str("hash", base58.Encode(address)).Err(err).Msg("failed to get state for account")
 			return nil, err
 		}
 		proof.Key = address
@@ -722,7 +717,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		bid := types.ToBlockID(msg.BlockHash)
 		block, err := cw.getBlock(bid[:])
 		if err != nil {
-			logger.Debug().Err(err).Str("hash", enc.ToString(msg.BlockHash)).Msg("block not found")
+			logger.Debug().Err(err).Str("hash", base58.Encode(msg.BlockHash)).Msg("block not found")
 		}
 		context.Respond(message.GetBlockRsp{
 			Block: block,
@@ -751,7 +746,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		id := types.ToAccountID(address)
 		accState, err := sdb.GetAccountState(id)
 		if err != nil {
-			logger.Error().Str("hash", enc.ToString(address)).Err(err).Msg("failed to get state for account")
+			logger.Error().Str("hash", base58.Encode(address)).Err(err).Msg("failed to get state for account")
 		}
 		context.Respond(message.GetStateRsp{
 			Account: address,
@@ -812,7 +807,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		}
 		ctrState, err := sdb.OpenContractStateAccount(types.ToAccountID(address))
 		if err != nil {
-			logger.Error().Str("hash", enc.ToString(address)).Err(err).Msg("failed to get state for contract")
+			logger.Error().Str("hash", base58.Encode(address)).Err(err).Msg("failed to get state for contract")
 			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
 		} else {
 			bs := state.NewBlockState(sdb)
@@ -838,7 +833,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 				varProof.Key = storageKey
 				varProofs = append(varProofs, varProof)
 				if err != nil {
-					logger.Error().Str("hash", enc.ToString(contractProof.Key)).Err(err).Msg("failed to get state variable in contract")
+					logger.Error().Str("hash", base58.Encode(contractProof.Key)).Err(err).Msg("failed to get state variable in contract")
 				}
 			}
 		}
@@ -900,7 +895,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetRoot())
 		ctrState, err := sdb.OpenContractStateAccount(types.ToAccountID(msg.Contract))
 		if err != nil {
-			logger.Error().Str("hash", enc.ToString(msg.Contract)).Err(err).Msg("failed to get state for contract")
+			logger.Error().Str("hash", base58.Encode(msg.Contract)).Err(err).Msg("failed to get state for contract")
 			context.Respond(message.CheckFeeDelegationRsp{Err: err})
 		} else {
 			bs := state.NewBlockState(sdb)
@@ -930,7 +925,7 @@ func (cs *ChainService) checkHardfork() error {
 	} else if Genesis.IsTestNet() {
 		*config = *cfg.TestNetHardforkConfig
 	}
-	dbConfig := cs.cdb.Hardfork()
+	dbConfig := cs.cdb.Hardfork(*config)
 	if len(dbConfig) == 0 {
 		return cs.cdb.WriteHardfork(config)
 	}

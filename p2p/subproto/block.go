@@ -7,11 +7,11 @@ package subproto
 
 import (
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 type getBlockHeadersRequestHandler struct {
@@ -162,7 +162,7 @@ func (bh *newBlockNoticeHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon
 
 	if blockID, err := types.ParseToBlockID(data.BlockHash); err != nil {
 		// TODO Add penalty score and break
-		bh.logger.Info().Str(p2putil.LogPeerName, remotePeer.Name()).Str("hash", enc.ToString(data.BlockHash)).Msg("malformed blockHash")
+		bh.logger.Info().Str(p2putil.LogPeerName, remotePeer.Name()).Str("hash", base58.Encode(data.BlockHash)).Msg("malformed blockHash")
 		return
 	} else {
 		// lru cache can't accept byte slice key
@@ -242,7 +242,7 @@ func (bh *getAncestorRequestHandler) handleGetAncestorReq(msg p2pcommon.Message,
 		AncestorNo:   ancestor.No,
 	}
 
-	bh.logger.Debug().Uint64("ancestorno", ancestor.No).Str("ancestorhash", enc.ToString(ancestor.Hash)).Msg("Sending get ancestor response")
+	bh.logger.Debug().Uint64("ancestorno", ancestor.No).Str("ancestorhash", base58.Encode(ancestor.Hash)).Msg("Sending get ancestor response")
 	remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), p2pcommon.GetAncestorResponse, resp))
 }
 
@@ -258,7 +258,7 @@ func (bh *getAncestorResponseHandler) ParsePayload(rawbytes []byte) (p2pcommon.M
 
 func (bh *getAncestorResponseHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	data := msgBody.(*types.GetAncestorResponse)
-	p2putil.DebugLogReceiveResponse(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), bh.peer,data)
+	p2putil.DebugLogReceiveResponse(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), bh.peer, data)
 
 	// locate request data and remove it if found
 	bh.peer.GetReceiver(msg.OriginalID())(msg, data)

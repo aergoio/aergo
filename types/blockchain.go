@@ -16,10 +16,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/aergoio/aergo/internal/common"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/internal/merkle"
-	"github.com/golang/protobuf/proto"
+	"github.com/aergoio/aergo/v2/internal/common"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/internal/enc/proto"
+	"github.com/aergoio/aergo/v2/internal/merkle"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/minio/sha256-simd"
 )
@@ -57,9 +57,9 @@ var (
 )
 
 func init() {
-	MaxAER, _ = new(big.Int).SetString("500000000000000000000000000", 10)
-	StakingMinimum, _ = new(big.Int).SetString("10000000000000000000000", 10)
-	ProposalPrice, _ = new(big.Int).SetString("0", 10)
+	MaxAER = NewAmount(5*1e8, Aergo)       // 500,000,000 aergo
+	StakingMinimum = NewAmount(1e4, Aergo) // 10,000 aergo
+	ProposalPrice = NewZeroAmount()        // 0 aergo
 	lastIndexOfBH = getLastIndexOfBH()
 }
 
@@ -121,9 +121,9 @@ const (
 )
 
 /*
-func (s SystemValue) String() string {
-	return [...]string{"StakingTotal", "StakingMin", "GasPrice", "NamePrice"}[s]
-}
+  func (s SystemValue) String() string {
+	  return [...]string{"StakingTotal", "StakingMin", "GasPrice", "NamePrice"}[s]
+  }
 */
 
 // ChainAccessor is an interface for a another actor module to get info of chain
@@ -225,7 +225,7 @@ func (v DummyBlockVersionner) Version(BlockNo) int32 {
 }
 
 func (v DummyBlockVersionner) IsV2Fork(BlockNo) bool {
-	return true
+	return (v >= 2)
 }
 
 // NewBlock represents to create a block to store transactions.
@@ -257,50 +257,13 @@ func (block *Block) Localtime() time.Time {
 // calculateBlockHash computes sha256 hash of block header.
 func (block *Block) calculateBlockHash() []byte {
 	digest := sha256.New()
-	serializeBH(digest, block.Header)
-
+	writeBlockHeader(digest, block.Header)
 	return digest.Sum(nil)
 }
 
-func serializeStructOmit(w io.Writer, s interface{}, stopIndex int, omit string) error {
-	v := reflect.Indirect(reflect.ValueOf(s))
-
-	var i int
-	for i = 0; i <= stopIndex; i++ {
-		if v.Type().Field(i).Name == omit {
-			continue
-		}
-		if err := binary.Write(w, binary.LittleEndian, v.Field(i).Interface()); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func serializeStruct(w io.Writer, s interface{}, stopIndex int) error {
-	v := reflect.Indirect(reflect.ValueOf(s))
-
-	var i int
-	for i = 0; i <= stopIndex; i++ {
-		if err := binary.Write(w, binary.LittleEndian, v.Field(i).Interface()); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func serializeBH(w io.Writer, bh *BlockHeader) error {
-	return serializeStruct(w, bh, lastIndexOfBH)
-}
-
-func serializeBhForDigest(w io.Writer, bh *BlockHeader) error {
-	return serializeStructOmit(w, bh, lastIndexOfBH, "Sign")
-}
-
-func writeBlockHeaderOld(w io.Writer, bh *BlockHeader) error {
+func writeBlockHeader(w io.Writer, bh *BlockHeader) error {
 	for _, f := range []interface{}{
+		bh.ChainID,
 		bh.PrevBlockHash,
 		bh.BlockNo,
 		bh.Timestamp,
@@ -309,7 +272,31 @@ func writeBlockHeaderOld(w io.Writer, bh *BlockHeader) error {
 		bh.ReceiptsRootHash,
 		bh.Confirms,
 		bh.PubKey,
+		bh.CoinbaseAccount,
 		bh.Sign,
+		bh.Consensus,
+	} {
+		if err := binary.Write(w, binary.LittleEndian, f); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func writeBlockHeaderOmitSign(w io.Writer, bh *BlockHeader) error {
+	for _, f := range []interface{}{
+		bh.ChainID,
+		bh.PrevBlockHash,
+		bh.BlockNo,
+		bh.Timestamp,
+		bh.BlocksRootHash,
+		bh.TxsRootHash,
+		bh.ReceiptsRootHash,
+		bh.Confirms,
+		bh.PubKey,
+		bh.CoinbaseAccount,
+		// bh.Sign, // omit ignore sign value
 		bh.Consensus,
 	} {
 		if err := binary.Write(w, binary.LittleEndian, f); err != nil {
@@ -418,7 +405,7 @@ func (block *Block) Sign(privKey crypto.PrivKey) error {
 func (bh *BlockHeader) bytesForDigest() ([]byte, error) {
 	var buf bytes.Buffer
 
-	if err := serializeBhForDigest(&buf, bh); err != nil {
+	if err := writeBlockHeaderOmitSign(&buf, bh); err != nil {
 		return nil, err
 	}
 
@@ -465,14 +452,14 @@ func (block *Block) BPID2Str() string {
 		return ""
 	}
 
-	return enc.ToString([]byte(id))
+	return base58.Encode([]byte(id))
 }
 
 // ID returns the base64 encoded formated ID (hash) of block.
 func (block *Block) ID() string {
 	hash := block.BlockHash()
 	if hash != nil {
-		return enc.ToString(hash)
+		return base58.Encode(hash)
 	}
 
 	return ""
@@ -483,7 +470,7 @@ func (block *Block) ID() string {
 func (block *Block) PrevID() string {
 	hash := block.GetHeader().GetPrevBlockHash()
 	if hash != nil {
-		return enc.ToString(hash)
+		return base58.Encode(hash)
 	}
 
 	return ""
@@ -648,7 +635,7 @@ type BlockHeaderInfo struct {
 	Ts            int64
 	PrevBlockHash []byte
 	ChainId       []byte
-	Version       int32
+	ForkVersion   int32
 }
 
 var EmptyBlockHeaderInfo = &BlockHeaderInfo{}

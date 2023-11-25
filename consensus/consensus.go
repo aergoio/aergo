@@ -14,11 +14,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aergoio/etcd/raft"
-
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/etcd/raft"
 	"github.com/aergoio/etcd/raft/raftpb"
 )
 
@@ -26,7 +25,7 @@ import (
 const DefaultBlockIntervalSec = int64(1)
 
 var (
-	// BlockIntervalSec is the block genration interval in seconds.
+	// BlockIntervalSec is the block generation interval in seconds.
 	BlockIntervalSec = DefaultBlockIntervalSec
 
 	// BlockInterval is the maximum block generation time limit.
@@ -36,7 +35,7 @@ var (
 )
 
 var (
-	ErrNotSupportedMethod = errors.New("not supported metehod in this consensus")
+	ErrNotSupportedMethod = errors.New("not supported method in this consensus")
 )
 
 // InitBlockInterval initializes block interval parameters.
@@ -61,7 +60,7 @@ func (e ErrorConsensus) Error() string {
 	return errMsg
 }
 
-// Constructor represents a function returning the Consensus interfactor for
+// Constructor represents a function returning the Consensus interface for
 // each implementation.
 type Constructor func() (Consensus, error)
 
@@ -70,6 +69,8 @@ type Consensus interface {
 	ChainConsensus
 	ConsensusAccessor
 	Ticker() *time.Ticker
+	// QueueJob queues block generation job.
+	// It waits until next block generation time is reached in raft consensus and sbp.
 	QueueJob(now time.Time, jq chan<- interface{})
 	BlockFactory() BlockFactory
 	QuitChan() chan interface{}
@@ -140,7 +141,7 @@ func UseDpos() bool {
 	return CurConsensusType == ConsensusDPOS
 }
 
-// ChainConsensus includes chainstatus and validation API.
+// ChainConsensus includes chain status and validation API.
 type ChainConsensus interface {
 	ChainConsensusCluster
 
@@ -178,7 +179,7 @@ func NewInfo(name string) *Info {
 	return &Info{Type: name}
 }
 
-// AsJSON() returns i as a JSON string
+// AsJSON returns i as a JSON string
 func (i *Info) AsJSON() string {
 	if m, err := json.Marshal(i); err == nil {
 		return string(m)
@@ -192,7 +193,7 @@ type BlockFactory interface {
 	JobQueue() chan<- interface{}
 }
 
-// Start run a selected consesus service.
+// Start run a selected consensus service.
 func Start(c Consensus) {
 	bf := c.BlockFactory()
 	if c == nil || bf == nil {

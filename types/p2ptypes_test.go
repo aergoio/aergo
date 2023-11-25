@@ -6,11 +6,12 @@
 package types
 
 import (
-	"github.com/aergoio/aergo/internal/network"
-	"github.com/multiformats/go-multiaddr"
 	"net"
 	"reflect"
 	"testing"
+
+	"github.com/aergoio/aergo/v2/internal/network"
+	"github.com/multiformats/go-multiaddr"
 )
 
 func TestParseMultiaddrWithResolve(t *testing.T) {
@@ -159,7 +160,7 @@ func TestToMultiAddr(t *testing.T) {
 func TestGetIPFromMultiaddr(t *testing.T) {
 	tests := []struct {
 		name      string
-		arg      string
+		arg       string
 		wantProto int
 		want      net.IP
 	}{
@@ -195,7 +196,6 @@ func TestGetIPFromMultiaddr(t *testing.T) {
 	}
 }
 
-
 func TestExtractIPAddress(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -206,7 +206,7 @@ func TestExtractIPAddress(t *testing.T) {
 		{"TIP4peerAddr", "/ip4/192.168.0.58/tcp/11002/p2p/16Uiu2HAmHuBgtnisgPLbujFvxPNZw3Qvpk3VLUwTzh5C67LAZSFh", net.ParseIP("192.168.0.58")},
 		{"TIP4AndPort", "/ip4/192.168.0.58/tcp/11002", net.ParseIP("192.168.0.58")},
 		{"TMissingAddr", "/tcp/11002", nil},
-		{"TIP4Only", "/ip4/192.168.0.58", net.ParseIP("192.168.0.58"),},
+		{"TIP4Only", "/ip4/192.168.0.58", net.ParseIP("192.168.0.58")},
 		{"TIP6peerAddr", "/ip6/FE80::0202:B3FF:FE1E:8329/tcp/11003/p2p/16Uiu2HAmHuBgtnisgPLbujFvxPNZw3Qvpk3VLUwTzh5C67LAZSFh", net.ParseIP("FE80::0202:B3FF:FE1E:8329")},
 	}
 	for _, tt := range tests {

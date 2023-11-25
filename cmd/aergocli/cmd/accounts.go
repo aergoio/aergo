@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/aergoio/aergo/account/key"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/account/key"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -213,17 +213,17 @@ func importWif(cmd *cobra.Command) ([]byte, error) {
 
 	if rootConfig.KeyStorePath == "" {
 		msg, errRemote := client.ImportAccount(context.Background(), wif)
-		if errRemote != nil {
-			return nil, fmt.Errorf("node request returned error: %s", errRemote.Error())
-		}
 		address = msg.GetAddress()
+		if errRemote != nil {
+			return address, fmt.Errorf("node request returned error: %s", errRemote.Error())
+		}
 	} else {
 		dataEnvPath := os.ExpandEnv(rootConfig.KeyStorePath)
 		ks := key.NewStore(dataEnvPath, 0)
 		defer ks.CloseStore()
 		address, err = ks.ImportKey(importBuf, wif.Oldpass, wif.Newpass)
 		if err != nil {
-			return nil, err
+			return address, err
 		}
 	}
 	return address, nil
@@ -294,9 +294,11 @@ var importCmd = &cobra.Command{
 		} else {
 			cmd.Help()
 		}
+
 		if err != nil {
 			cmd.PrintErrln(err)
-		} else {
+		}
+		if address != nil {
 			cmd.Println(types.EncodeAddress(address))
 		}
 	},

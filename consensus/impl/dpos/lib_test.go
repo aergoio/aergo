@@ -1,11 +1,10 @@
 package dpos
 
 import (
-	"fmt"
 	"testing"
 
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/stretchr/testify/assert"
 )
@@ -51,7 +50,7 @@ func newTestChain(clusterSize uint16) (*testChain, error) {
 	tc := &testChain{
 		chain:         make([]*types.Block, 0),
 		status:        NewStatus(&testCluster{size: clusterSize}, nil, nil, 0),
-		bpid:          enc.ToString(b),
+		bpid:          base58.Encode(b),
 		lpb:           make(map[string]types.BlockNo),
 		bpKey:         bpKey,
 		bpClusterSize: clusterSize,
@@ -66,7 +65,7 @@ func newTestChain(clusterSize uint16) (*testChain, error) {
 
 func (tc *testChain) setGenesis(block *types.Block) {
 	if block.BlockNo() != 0 {
-		panic("invalid genesis block: non-zero block no")
+		logger.Panic().Msg("invalid genesis block: non-zero block no")
 	}
 	tc.status.libState.genesisInfo = &blockInfo{BlockHash: block.ID(), BlockNo: 0}
 	tc.status.bestBlock = block
@@ -79,7 +78,7 @@ func (tc *testChain) addBlock(i types.BlockNo) error {
 	if err != nil {
 		return err
 	}
-	spk := enc.ToString(b)
+	spk := base58.Encode(b)
 
 	prevBlock := tc.chain[len(tc.chain)-1]
 	block := newBlockFromPrev(prevBlock, 0, types.DummyBlockVersionner(0))
@@ -124,7 +123,7 @@ func TestTestChain(t *testing.T) {
 
 	for i := types.BlockNo(1); i <= maxBlockNo; i++ {
 		a.Nil(tc.addBlock(i))
-		fmt.Println("LIB:", tc.status.libState.Lib.BlockNo)
+		logger.Info().Uint64("LIB:", tc.status.libState.Lib.BlockNo).Msg("lib")
 	}
 
 	a.Equal(tc.bestNo, maxBlockNo)

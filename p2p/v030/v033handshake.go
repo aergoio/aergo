@@ -9,13 +9,14 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/internal/network"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/types"
 	"io"
+
+	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/internal/network"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 // V033Handshaker exchange status data over protocol version .0.3.1
@@ -33,7 +34,7 @@ func (h *V033Handshaker) GetMsgRW() p2pcommon.MsgReadWriter {
 
 func NewV033VersionedHS(pm p2pcommon.PeerManager, actor p2pcommon.ActorService, log *log.Logger, vm p2pcommon.VersionedManager, peerID types.PeerID, rwc io.ReadWriteCloser, genesis []byte) *V033Handshaker {
 	v032 := NewV032VersionedHS(pm, actor, log, vm.GetChainID(0), peerID, rwc, genesis)
-	h := &V033Handshaker{V032Handshaker:*v032, vm:vm}
+	h := &V033Handshaker{V032Handshaker: *v032, vm: vm}
 
 	return h
 }
@@ -65,7 +66,7 @@ func (h *V033Handshaker) checkRemoteStatus(remotePeerStatus *types.Status) error
 
 	rMeta := p2pcommon.NewMetaFromStatus(remotePeerStatus)
 	if rMeta.ID != h.peerID {
-		h.logger.Debug().Str("received_peer_id", rMeta.ID.Pretty()).Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Msg("Inconsistent peerID")
+		h.logger.Debug().Str("received_peer_id", rMeta.ID.Pretty()).Stringer(p2putil.LogPeerID, types.LogPeerShort(h.peerID)).Msg("Inconsistent peerID")
 		h.sendGoAway("Inconsistent peerID")
 		return fmt.Errorf("inconsistent peerID")
 	}
@@ -75,14 +76,14 @@ func (h *V033Handshaker) checkRemoteStatus(remotePeerStatus *types.Status) error
 	genHash := h.localGenesisHash
 	if !bytes.Equal(genHash, remotePeerStatus.Genesis) {
 		h.sendGoAway("different genesis block")
-		return fmt.Errorf("different genesis block local: %v , remote %v", enc.ToString(genHash), enc.ToString(remotePeerStatus.Genesis))
+		return fmt.Errorf("different genesis block local: %v , remote %v", base58.Encode(genHash), base58.Encode(remotePeerStatus.Genesis))
 	}
 
 	return nil
 }
 
 func (h *V033Handshaker) DoForOutbound(ctx context.Context) (*p2pcommon.HandshakeResult, error) {
-	h.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Msg("Starting versioned handshake for outbound peer connection")
+	h.logger.Debug().Stringer(p2putil.LogPeerID, types.LogPeerShort(h.peerID)).Msg("Starting versioned handshake for outbound peer connection")
 
 	// find my best block
 	bestBlock, err := h.actor.GetChainAccessor().GetBestBlock()
@@ -111,14 +112,14 @@ func (h *V033Handshaker) DoForOutbound(ctx context.Context) (*p2pcommon.Handshak
 	if err = h.checkRemoteStatus(remotePeerStatus); err != nil {
 		return nil, err
 	} else {
-		hsResult := &p2pcommon.HandshakeResult{Meta: h.remoteMeta, BestBlockHash:h.remoteHash, BestBlockNo:h.remoteNo, MsgRW:h.msgRW, Hidden:remotePeerStatus.NoExpose}
+		hsResult := &p2pcommon.HandshakeResult{Meta: h.remoteMeta, BestBlockHash: h.remoteHash, BestBlockNo: h.remoteNo, MsgRW: h.msgRW, Hidden: remotePeerStatus.NoExpose}
 		return hsResult, nil
 	}
 
 }
 
 func (h *V033Handshaker) DoForInbound(ctx context.Context) (*p2pcommon.HandshakeResult, error) {
-	h.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Msg("Starting versioned handshake for inbound peer connection")
+	h.logger.Debug().Stringer(p2putil.LogPeerID, types.LogPeerShort(h.peerID)).Msg("Starting versioned handshake for inbound peer connection")
 
 	// inbound: receive, check and send
 	remotePeerStatus, err := h.receiveRemoteStatus(ctx)
@@ -145,6 +146,6 @@ func (h *V033Handshaker) DoForInbound(ctx context.Context) (*p2pcommon.Handshake
 	if err != nil {
 		return nil, err
 	}
-	hsResult := &p2pcommon.HandshakeResult{Meta: h.remoteMeta, BestBlockHash:h.remoteHash, BestBlockNo:h.remoteNo, MsgRW:h.msgRW, Hidden:remotePeerStatus.NoExpose}
+	hsResult := &p2pcommon.HandshakeResult{Meta: h.remoteMeta, BestBlockHash: h.remoteHash, BestBlockNo: h.remoteNo, MsgRW: h.msgRW, Hidden: remotePeerStatus.NoExpose}
 	return hsResult, nil
 }

@@ -6,23 +6,23 @@
 package transport
 
 import (
-	"encoding/hex"
 	"testing"
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/config"
-	cfg "github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2pkey"
-	"github.com/aergoio/aergo/p2p/p2pmock"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/config"
+	cfg "github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/internal/enc/hex"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2pkey"
+	"github.com/aergoio/aergo/v2/p2p/p2pmock"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/golang/mock/gomock"
 )
 
 const (
-	sampleKeyFile = "../../test/sample.key"
+	sampleKeyFile = "../test/sample/sample.key"
 )
 
 func init() {
@@ -35,7 +35,7 @@ func init() {
 // TODO split this test into two... one is to attempt make connection and the other is test peermanager if same peerid is given
 // Ignoring test for now, for lack of abstraction on AergoPeer struct
 func IgnoredTestP2PServiceRunAddPeer(t *testing.T) {
-	var sampleBlockHash, _ = hex.DecodeString("4f461d85e869ade8a0544f8313987c33a9c06534e50c4ad941498299579bd7ac")
+	var sampleBlockHash, _ = hex.Decode("4f461d85e869ade8a0544f8313987c33a9c06534e50c4ad941498299579bd7ac")
 	var sampleBlockHeight uint64 = 100215
 
 	ctrl := gomock.NewController(t)
@@ -154,14 +154,13 @@ func Test_networkTransport_initServiceBindAddress(t *testing.T) {
 		{"TLoopbackDN", dnMeta, withAddr(svrctx.GetDefaultP2PConfig(), "127.0.0.1"), "127.0.0.1", initialPort},
 		{"TCustAddr", ipMeta, withAddr(svrctx.GetDefaultP2PConfig(), "211.1.2.3"), "211.1.2.3", initialPort},
 		{"TCustAddrPort", ipMeta, withPort(withAddr(svrctx.GetDefaultP2PConfig(), "211.1.2.3"), 7777), "211.1.2.3", 7777},
-
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			sl := &networkTransport{conf: tt.conf,
 				logger:   logger,
 				bindPort: uint32(initialPort),
-				selfMeta:tt.meta,
+				selfMeta: tt.meta,
 			}
 			sl.initServiceBindAddress()
 

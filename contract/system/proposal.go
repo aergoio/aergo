@@ -6,10 +6,8 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/types"
 )
-
-const proposalPrefixKey = "proposal" //aergo proposal format
 
 func (i sysParamIndex) ID() string {
 	return strings.ToUpper(i.String())
@@ -40,7 +38,7 @@ type Proposal struct {
 }
 
 var SystemProposal = map[string]*Proposal{
-	bpCount.ID(): &Proposal{
+	bpCount.ID(): {
 		ID:             bpCount.ID(),
 		Description:    "",
 		Blockfrom:      0,
@@ -48,7 +46,7 @@ var SystemProposal = map[string]*Proposal{
 		MultipleChoice: 1,
 		Candidates:     nil,
 	},
-	stakingMin.ID(): &Proposal{
+	stakingMin.ID(): {
 		ID:             stakingMin.ID(),
 		Description:    "",
 		Blockfrom:      0,
@@ -56,7 +54,7 @@ var SystemProposal = map[string]*Proposal{
 		MultipleChoice: 1,
 		Candidates:     nil,
 	},
-	gasPrice.ID(): &Proposal{
+	gasPrice.ID(): {
 		ID:             gasPrice.ID(),
 		Description:    "",
 		Blockfrom:      0,
@@ -64,7 +62,7 @@ var SystemProposal = map[string]*Proposal{
 		MultipleChoice: 1,
 		Candidates:     nil,
 	},
-	namePrice.ID(): &Proposal{
+	namePrice.ID(): {
 		ID:             namePrice.ID(),
 		Description:    "",
 		Blockfrom:      0,
@@ -82,13 +80,7 @@ func GenProposalKey(id string) []byte {
 	return []byte(strings.ToUpper(id))
 }
 
-/*
-func ProposalIDfromKey(key []byte) string {
-	return strings.Replace(string(key), proposalPrefixKey+"\\", "", 1)
-}
-*/
-
-//getProposal find proposal using id
+// getProposal find proposal using id
 func getProposal(id string) (*Proposal, error) {
 	if val, ok := SystemProposal[id]; ok {
 		return val, nil

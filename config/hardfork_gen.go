@@ -5,18 +5,18 @@ package config
 import (
 	"fmt"
 	"reflect"
-	
-	"github.com/aergoio/aergo/types"
+
+	"github.com/aergoio/aergo/v2/types"
 )
 
 var (
 	MainNetHardforkConfig = &HardforkConfig{
 		V2: types.BlockNo(19611555),
-		V3: types.BlockNo(104805210),
+		V3: types.BlockNo(111499715),
 	}
 	TestNetHardforkConfig = &HardforkConfig{
 		V2: types.BlockNo(18714241),
-		V3: types.BlockNo(103330367),
+		V3: types.BlockNo(100360545),
 	}
 	AllEnabledHardforkConfig = &HardforkConfig{
 		V2: types.BlockNo(0),
@@ -35,6 +35,17 @@ type HardforkConfig struct {
 }
 
 type HardforkDbConfig map[string]types.BlockNo
+
+func (dc HardforkDbConfig) FixDbConfig(hConfig HardforkConfig) HardforkDbConfig {
+	v := reflect.ValueOf(hConfig)
+	for i := 0; i < v.NumField(); i++ {
+		k := v.Type().Field(i).Name
+		if _, exist := dc[k]; !exist {
+			dc[k] = hConfig.Height(k)
+		}
+	}
+	return dc
+}
 
 func (c *HardforkConfig) IsV2Fork(h types.BlockNo) bool {
 	return isFork(c.V2, h)
@@ -65,6 +76,12 @@ func (c *HardforkConfig) Version(h types.BlockNo) int32 {
 		}
 	}
 	return int32(0)
+}
+
+func (c *HardforkConfig) Height(verStr string) types.BlockNo {
+	v := reflect.ValueOf(c)
+	f := reflect.Indirect(v).FieldByName(verStr)
+	return types.BlockNo(f.Uint())
 }
 
 func (c *HardforkConfig) validate() error {

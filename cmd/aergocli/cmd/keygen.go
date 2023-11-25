@@ -1,18 +1,17 @@
 package cmd
 
 import (
-	b64 "encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/aergoio/aergo/p2p/p2putil"
-
-	"github.com/aergoio/aergo/account/key"
-	keycrypto "github.com/aergoio/aergo/account/key/crypto"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/account/key"
+	keycrypto "github.com/aergoio/aergo/v2/account/key/crypto"
+	"github.com/aergoio/aergo/v2/internal/enc/base64"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/spf13/cobra"
@@ -196,7 +195,7 @@ func generateKeyJson(priv crypto.PrivKey, pub crypto.PubKey) error {
 	addressEncoded := types.EncodeAddress(address)
 	jsonMarshalled, err := json.MarshalIndent(keyJson{
 		Address: addressEncoded,
-		PubKey:  b64.StdEncoding.EncodeToString(pubBytes),
+		PubKey:  base64.Encode(pubBytes),
 		PrivKey: types.EncodePrivKey(privKeyExport),
 		Id:      types.IDB58Encode(pid),
 	}, "", "    ")

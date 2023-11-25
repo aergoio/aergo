@@ -8,20 +8,21 @@ package p2putil
 import (
 	"bytes"
 	"fmt"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/types"
-	"github.com/libp2p/go-libp2p-core"
-	"github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/multiformats/go-multiaddr"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/types"
+	core "github.com/libp2p/go-libp2p-core"
+	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/multiformats/go-multiaddr"
 )
 
 // PeerMetaToMultiAddr make libp2p compatible Multiaddr object from peermeta
 // @Deprecated
 func PeerMetaToMultiAddr(m p2pcommon.PeerMeta) (types.Multiaddr, error) {
-	idPart,err := multiaddr.NewComponent("p2p", m.ID.Pretty())
+	idPart, err := multiaddr.NewComponent("p2p", m.ID.Pretty())
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +69,7 @@ func FromMultiAddrToPeerInfo(ma types.Multiaddr) (p2pcommon.PeerMeta, error) {
 		return meta, fmt.Errorf("invalid PeerID %s", peerIDString)
 	}
 
-	meta = p2pcommon.PeerMeta{ID:peerID, Addresses:[]types.Multiaddr{addrPortPart}}
+	meta = p2pcommon.PeerMeta{ID: peerID, Addresses: []types.Multiaddr{addrPortPart}}
 	return meta, nil
 }
 
@@ -91,11 +92,11 @@ func LoadKeyFile(keyFile string) (crypto.PrivKey, crypto.PubKey, error) {
 	if err == nil {
 		priv, err := crypto.UnmarshalPrivateKey(dat)
 		if err != nil {
-			return nil,nil, fmt.Errorf("invalid keyfile. It's not private key file")
+			return nil, nil, fmt.Errorf("invalid keyfile. It's not private key file")
 		}
 		return priv, priv.GetPublic(), nil
 	} else {
-		return nil, nil, fmt.Errorf("Invalid keyfile path '"+ keyFile +"'. Check the key file exists.")
+		return nil, nil, fmt.Errorf("Invalid keyfile path '" + keyFile + "'. Check the key file exists.")
 	}
 }
 
@@ -120,11 +121,10 @@ func GenerateKeyFile(dir, prefix string) (crypto.PrivKey, crypto.PubKey, error) 
 	return priv, priv.GetPublic(), nil
 }
 
-
 func writeToKeyFiles(priv crypto.PrivKey, pub crypto.PubKey, dir, prefix string) error {
 
 	pkFile := filepath.Join(dir, prefix+p2pcommon.DefaultPkKeyExt)
-//	pubFile := filepath.Join(dir, prefix+".pub")
+	//	pubFile := filepath.Join(dir, prefix+".pub")
 	idFile := filepath.Join(dir, prefix+p2pcommon.DefaultPeerIDExt)
 
 	// Write private key file
@@ -155,8 +155,8 @@ func ProtocolIDsToString(sli []core.ProtocolID) string {
 	sb := bytes.NewBuffer(nil)
 	sb.WriteByte('[')
 	if len(sli) > 0 {
-		stop := len(sli)-1
-		for i:=0 ; i<stop; i++ {
+		stop := len(sli) - 1
+		for i := 0; i < stop; i++ {
 			sb.WriteString(string(sli[i]))
 			sb.WriteByte(',')
 		}
@@ -165,4 +165,3 @@ func ProtocolIDsToString(sli []core.ProtocolID) string {
 	sb.WriteByte(']')
 	return sb.String()
 }
-

@@ -12,11 +12,11 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/chain"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2pmock"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/chain"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2pmock"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/etcd/raft/raftpb"
 	"github.com/gofrs/uuid"
 	"github.com/golang/mock/gomock"
@@ -46,7 +46,7 @@ func TestGetHashRequestHandler_handle(t *testing.T) {
 	sampleBlks = make([][]byte, len(sampleBlksB58))
 	sampleBlksHashes = make([]types.BlockID, len(sampleBlksB58))
 	for i, hashb58 := range sampleBlksB58 {
-		hash, _ := enc.ToBytes(hashb58)
+		hash, _ := base58.Decode(hashb58)
 		sampleBlks[i] = hash
 		copy(sampleBlksHashes[i][:], hash)
 	}
@@ -154,7 +154,7 @@ func TestGetHashByNoRequestHandler_handle(t *testing.T) {
 	sampleBlks = make([][]byte, len(sampleBlksB58))
 	sampleBlksHashes = make([]types.BlockID, len(sampleBlksB58))
 	for i, hashb58 := range sampleBlksB58 {
-		hash, _ := enc.ToBytes(hashb58)
+		hash, _ := base58.Decode(hashb58)
 		sampleBlks[i] = hash
 		copy(sampleBlksHashes[i][:], hash)
 	}

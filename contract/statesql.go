@@ -14,11 +14,10 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/aergoio/aergo/internal/enc"
-
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 var (
@@ -50,7 +49,7 @@ func init() {
 	sql.Register(statesqlDriver, &SQLiteDriver{
 		ConnectHook: func(conn *SQLiteConn) error {
 			if _, ok := database.DBs[database.OpenDbName]; !ok {
-				b, err := enc.ToBytes(database.OpenDbName)
+				b, err := base58.Decode(database.OpenDbName)
 				if err != nil {
 					sqlLgr.Error().Err(err).Msg("Open SQL Connection")
 					return nil
@@ -98,7 +97,7 @@ func LoadDatabase(dataDir string) error {
 	return err
 }
 
-func loadTestDatabase(dataDir string) error {
+func LoadTestDatabase(dataDir string) error {
 	var err error
 	path := filepath.Join(dataDir, statesqlDriver)
 	sqlLgr.Debug().Str("path", path).Msg("loading statesql")

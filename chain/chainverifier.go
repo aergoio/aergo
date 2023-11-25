@@ -2,13 +2,14 @@ package chain
 
 import (
 	"fmt"
-	"github.com/aergoio/aergo-actor/actor"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo/types"
 	"reflect"
 	"time"
+
+	"github.com/aergoio/aergo-actor/actor"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/pkg/component"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 type ChainVerifier struct {
@@ -61,7 +62,7 @@ func (cv *ChainVerifier) Receive(context actor.Context) {
 
 		logger.Info().Msg("verify chain finished")
 
-	case *actor.Stopping, *actor.Stopped, *component.CompStatReq: // donothing
+	case *actor.Stopping, *actor.Stopped, *component.CompStatReq: // do nothing
 	default:
 		debug := fmt.Sprintf("[%s] Missed message. (%v) %s", cv.name, reflect.TypeOf(msg), msg)
 		logger.Debug().Msg(debug)
@@ -111,7 +112,7 @@ const (
 var TestStageStr = []string{
 	"Test if previous block exist",
 	"Test if target block exist",
-	"Test if block exeuction succeed",
+	"Test if block execution succeed",
 	"All tests completed",
 }
 
@@ -188,14 +189,14 @@ func (cv *ChainVerifier) report(prevBlock *types.Block, targetBlock *types.Block
 	switch cv.stage {
 	case TestPrevBlock:
 		report += fmt.Sprintf("[description] prev block hash=%s, prev stage root=%s", prevBlock.ID(),
-			enc.ToString(prevBlock.GetHeader().GetBlocksRootHash()))
+			base58.Encode(prevBlock.GetHeader().GetBlocksRootHash()))
 
 	case TestCurBlock:
 		report += fmt.Sprintf("[description] target block hash=%s", targetBlock.ID())
 
 	case TestBlockExecute:
-		report += fmt.Sprintf("[description] tx Merkle = %s", enc.ToString(targetBlock.GetHeader().GetTxsRootHash()))
-		report += fmt.Sprintf(", state Root = %s", enc.ToString(targetBlock.GetHeader().GetBlocksRootHash()))
+		report += fmt.Sprintf("[description] tx Merkle = %s", base58.Encode(targetBlock.GetHeader().GetTxsRootHash()))
+		report += fmt.Sprintf(", state Root = %s", base58.Encode(targetBlock.GetHeader().GetBlocksRootHash()))
 		report += fmt.Sprintf(", all transaction passed")
 	}
 
@@ -212,7 +213,7 @@ func (cv *ChainVerifier) VerifyChain() error {
 		return cv.VerifyBlockWithReport()
 	}
 
-	logger.Info().Msg("start verifychan")
+	logger.Info().Msg("start verifyChain")
 
 	// get genesis block
 	if block, err = cv.reader.getNext(); err != nil || block == nil {

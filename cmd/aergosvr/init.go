@@ -3,12 +3,12 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/aergoio/aergo/consensus/impl"
 	"os"
 
-	"github.com/aergoio/aergo/chain"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/chain"
+	"github.com/aergoio/aergo/v2/consensus/impl"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/spf13/cobra"
 )
 
@@ -36,7 +36,7 @@ var initGenesis = &cobra.Command{
 		if core != nil {
 			exist := core.GetGenesisInfo()
 			if exist != nil {
-				fmt.Printf("genesis block(%s) is already initialized\n", enc.ToString(exist.Block().GetHash()))
+				fmt.Printf("genesis block(%s) is already initialized\n", base58.Encode(exist.Block().GetHash()))
 				core.Close()
 				return
 			}
@@ -71,7 +71,7 @@ var initGenesis = &cobra.Command{
 			}
 
 			g := core.GetGenesisInfo()
-			fmt.Printf("genesis block[%s] is created in (%s)\n", enc.ToString(g.Block().GetHash()), cfg.DataDir)
+			fmt.Printf("genesis block[%s] is created in (%s)\n", base58.Encode(g.Block().GetHash()), cfg.DataDir)
 		}
 	},
 }

@@ -2,15 +2,14 @@ package syncer
 
 import (
 	"bytes"
-	"github.com/aergoio/aergo/p2p/p2putil"
 	"sync"
 	"time"
 
-	"github.com/aergoio/aergo/chain"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/chain"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/pkg/component"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/pkg/errors"
 )
 
@@ -59,7 +58,7 @@ func newFinder(ctx *types.SyncContext, compRequester component.IComponentRequest
 	return finder
 }
 
-//TODO refactoring: move logic to SyncContext (sync Object)
+// TODO refactoring: move logic to SyncContext (sync Object)
 func (finder *Finder) start() {
 	finder.waitGroup = &sync.WaitGroup{}
 	finder.waitGroup.Add(1)
@@ -141,7 +140,7 @@ func (finder *Finder) lightscan() (*types.BlockInfo, error) {
 	if ancestor == nil {
 		logger.Debug().Msg("not found ancestor in lightscan")
 	} else {
-		logger.Info().Str("hash", enc.ToString(ancestor.Hash)).Uint64("no", ancestor.No).Msg("find ancestor in lightscan")
+		logger.Info().Str("hash", base58.Encode(ancestor.Hash)).Uint64("no", ancestor.No).Msg("find ancestor in lightscan")
 
 		if ancestor.No >= finder.ctx.TargetNo {
 			logger.Info().Msg("already synchronized")
@@ -153,7 +152,7 @@ func (finder *Finder) lightscan() (*types.BlockInfo, error) {
 }
 
 func (finder *Finder) getAnchors() ([][]byte, error) {
-	result, err := finder.compRequester.RequestToFutureResult(message.ChainSvc, &message.GetAnchors{finder.GetSeq()}, finder.dfltTimeout, "Finder/getAnchors")
+	result, err := finder.compRequester.RequestToFutureResult(message.ChainSvc, &message.GetAnchors{Seq: finder.GetSeq()}, finder.dfltTimeout, "Finder/getAnchors")
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to get anchors")
 		return nil, err
@@ -164,14 +163,14 @@ func (finder *Finder) getAnchors() ([][]byte, error) {
 		finder.ctx.LastAnchor = result.(message.GetAnchorsRsp).LastNo
 	}
 
-	logger.Info().Str("start", enc.ToString(anchors[0])).Int("count", len(anchors)).Uint64("last", finder.ctx.LastAnchor).Msg("get anchors from chain")
+	logger.Info().Str("start", base58.Encode(anchors[0])).Int("count", len(anchors)).Uint64("last", finder.ctx.LastAnchor).Msg("get anchors from chain")
 
 	return anchors, nil
 }
 
 func (finder *Finder) getAncestor(anchors [][]byte) (*types.BlockInfo, error) {
 	//	send remote Peer
-	logger.Debug().Str("peer", p2putil.ShortForm(finder.ctx.PeerID)).Msg("send GetAncestor message to peer")
+	logger.Debug().Stringer("peer", types.LogPeerShort(finder.ctx.PeerID)).Msg("send GetAncestor message to peer")
 	finder.compRequester.TellTo(message.P2PSvc, &message.GetSyncAncestor{Seq: finder.GetSeq(), ToWhom: finder.ctx.PeerID, Hashes: anchors})
 
 	timer := time.NewTimer(finder.dfltTimeout)
@@ -192,7 +191,7 @@ func (finder *Finder) getAncestor(anchors [][]byte) (*types.BlockInfo, error) {
 	}
 }
 
-//TODO binary search scan
+// TODO binary search scan
 func (finder *Finder) fullscan() (*types.BlockInfo, error) {
 	logger.Debug().Msg("finder fullscan")
 
@@ -205,7 +204,7 @@ func (finder *Finder) fullscan() (*types.BlockInfo, error) {
 	if ancestor == nil {
 		logger.Info().Msg("failed to search ancestor in fullscan")
 	} else {
-		logger.Info().Uint64("no", ancestor.No).Str("hash", enc.ToString(ancestor.Hash)).Msg("find ancestor in fullscan")
+		logger.Info().Uint64("no", ancestor.No).Str("hash", base58.Encode(ancestor.Hash)).Msg("find ancestor in fullscan")
 	}
 
 	return ancestor, err

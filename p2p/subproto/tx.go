@@ -7,11 +7,11 @@ package subproto
 
 import (
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 type txRequestHandler struct {
@@ -37,7 +37,7 @@ var _ p2pcommon.MessageHandler = (*newTxNoticeHandler)(nil)
 // newTxReqHandler creates handler for GetTransactionsRequest
 func NewTxReqHandler(pm p2pcommon.PeerManager, sm p2pcommon.SyncManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService) *txRequestHandler {
 	th := &txRequestHandler{
-		BaseMsgHandler{protocol: p2pcommon.GetTXsRequest, pm: pm, sm:sm, peer: peer, actor: actor, logger: logger},
+		BaseMsgHandler{protocol: p2pcommon.GetTXsRequest, pm: pm, sm: sm, peer: peer, actor: actor, logger: logger},
 		newAsyncHelper(), message.GetHelper()}
 	return th
 }
@@ -52,7 +52,7 @@ func (th *txRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.Mess
 	p2putil.DebugLogReceive(th.logger, th.protocol, msg.ID().String(), remotePeer, body)
 
 	if err := th.sm.HandleGetTxReq(remotePeer, msg.ID(), body); err != nil {
-		th.logger.Info().Str(p2putil.LogPeerName, remotePeer.Name()).Str(p2putil.LogMsgID, msg.ID().String()).Err(err).Msg("return err for concurrent get tx request")
+		th.logger.Info().Str(p2putil.LogPeerName, remotePeer.Name()).Stringer(p2putil.LogMsgID, msg.ID()).Err(err).Msg("return err for concurrent get tx request")
 		resp := &types.GetTransactionsResponse{
 			Status: types.ResultStatus_RESOURCE_EXHAUSTED,
 			Hashes: nil,
@@ -77,7 +77,7 @@ func (th *txResponseHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.Mes
 	p2putil.DebugLogReceiveResponse(th.logger, th.protocol, msg.ID().String(), msg.OriginalID().String(), th.peer, data)
 
 	if !remotePeer.GetReceiver(msg.OriginalID())(msg, data) {
-		th.logger.Warn().Str(p2putil.LogMsgID, msg.ID().String()).Msg("unknown getTX response")
+		th.logger.Warn().Stringer(p2putil.LogMsgID, msg.ID()).Msg("unknown getTX response")
 		remotePeer.ConsumeRequest(msg.OriginalID())
 	}
 }
@@ -107,7 +107,7 @@ func (th *newTxNoticeHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.Me
 	hashes := make([]types.TxID, len(data.TxHashes))
 	for i, hash := range data.TxHashes {
 		if tid, err := types.ParseToTxID(hash); err != nil {
-			th.logger.Info().Str(p2putil.LogPeerName, remotePeer.Name()).Str("hash", enc.ToString(hash)).Msg("malformed txhash found")
+			th.logger.Info().Str(p2putil.LogPeerName, remotePeer.Name()).Str("hash", base58.Encode(hash)).Msg("malformed txhash found")
 			// TODO Add penalty score and break
 			break
 		} else {

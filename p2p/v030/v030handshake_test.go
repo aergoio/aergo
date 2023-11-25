@@ -7,27 +7,31 @@ package v030
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"reflect"
 	"testing"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2pkey"
-	"github.com/aergoio/aergo/p2p/p2pmock"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/internal/enc/hex"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2pkey"
+	"github.com/aergoio/aergo/v2/p2p/p2pmock"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/golang/mock/gomock"
 )
 
+const (
+	sampleKeyFile = "../test/sample/sample.key"
+)
+
 var (
-	myChainID, newVerChainID, theirChainID         *types.ChainID
+	myChainID, newVerChainID, theirChainID          *types.ChainID
 	myChainBytes, newVerChainBytes, theirChainBytes []byte
-	samplePeerID, _                      = types.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
-	dummyBlockHash, _                    = hex.DecodeString("4f461d85e869ade8a0544f8313987c33a9c06534e50c4ad941498299579bd7ac")
-	dummyBlockHeight              uint64 = 100215
+	samplePeerID, _                                        = types.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
+	dummyBlockHash, _                                      = hex.Decode("4f461d85e869ade8a0544f8313987c33a9c06534e50c4ad941498299579bd7ac")
+	dummyBlockHeight                                uint64 = 100215
 )
 
 func init() {
@@ -45,7 +49,6 @@ func init() {
 	theirChainID.Magic = "itsdiff2"
 	theirChainBytes, _ = theirChainID.Bytes()
 
-	sampleKeyFile := "../../test/sample.key"
 	baseCfg := &config.BaseConfig{AuthDir: "test"}
 	p2pCfg := &config.P2PConfig{NPKey: sampleKeyFile}
 	p2pkey.InitNodeInfo(baseCfg, p2pCfg, "0.0.1-test", log.NewLogger("v030.test"))
@@ -81,7 +84,7 @@ func TestV030StatusHS_doForOutbound(t *testing.T) {
 	mockActor.EXPECT().GetChainAccessor().Return(mockCA).AnyTimes()
 	mockCA.EXPECT().GetBestBlock().Return(dummyBlock, nil).AnyTimes()
 
-	dummyStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr, Version:dummyAddr.Version}
+	dummyStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr, Version: dummyAddr.Version}
 	succResult := &p2pcommon.HandshakeResult{Meta: dummyMeta}
 	nilSenderStatusMsg := &types.Status{ChainID: myChainBytes, Sender: nil}
 	diffStatusMsg := &types.Status{ChainID: theirChainBytes, Sender: &dummyAddr}
@@ -156,7 +159,7 @@ func TestV030StatusHS_handshakeInboundPeer(t *testing.T) {
 	mockActor.EXPECT().GetChainAccessor().Return(mockCA).AnyTimes()
 	mockCA.EXPECT().GetBestBlock().Return(dummyBlock, nil).AnyTimes()
 
-	dummyStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr, Version:dummyAddr.Version}
+	dummyStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr, Version: dummyAddr.Version}
 	succResult := &p2pcommon.HandshakeResult{Meta: dummyMeta}
 	nilSenderStatusMsg := &types.Status{ChainID: myChainBytes, Sender: nil}
 	diffStatusMsg := &types.Status{ChainID: theirChainBytes, Sender: &dummyAddr}
@@ -223,7 +226,7 @@ func (m MsgMatcher) Matches(x interface{}) bool {
 }
 
 func (m MsgMatcher) String() string {
-	return "matcher "+m.sub.String()
+	return "matcher " + m.sub.String()
 }
 
 func Test_createMessage(t *testing.T) {
@@ -232,13 +235,13 @@ func Test_createMessage(t *testing.T) {
 		msgBody    p2pcommon.MessageBody
 	}
 	tests := []struct {
-		name string
-		args args
+		name    string
+		args    args
 		wantNil bool
 	}{
-		{"TStatus", args{protocolID:p2pcommon.StatusRequest,msgBody:&types.Status{Version:"11"}}, false},
-		{"TGOAway", args{protocolID:p2pcommon.GoAway,msgBody:&types.GoAwayNotice{Message:"test"}}, false},
-		{"TNil", args{protocolID:p2pcommon.StatusRequest,msgBody:nil}, true},
+		{"TStatus", args{protocolID: p2pcommon.StatusRequest, msgBody: &types.Status{Version: "11"}}, false},
+		{"TGOAway", args{protocolID: p2pcommon.GoAway, msgBody: &types.GoAwayNotice{Message: "test"}}, false},
+		{"TNil", args{protocolID: p2pcommon.StatusRequest, msgBody: nil}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -246,8 +249,8 @@ func Test_createMessage(t *testing.T) {
 			if (got == nil) != tt.wantNil {
 				t.Errorf("createMessage() = %v, want nil %v", got, tt.wantNil)
 			}
-			if got != nil &&  got.Subprotocol() != tt.args.protocolID {
-				t.Errorf("status.ProtocolID = %v, want %v", got.Subprotocol() , tt.args.protocolID)
+			if got != nil && got.Subprotocol() != tt.args.protocolID {
+				t.Errorf("status.ProtocolID = %v, want %v", got.Subprotocol(), tt.args.protocolID)
 			}
 		})
 	}

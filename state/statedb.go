@@ -14,10 +14,10 @@ import (
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/internal/common"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/pkg/trie"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/internal/common"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/pkg/trie"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 const (
@@ -224,6 +224,10 @@ func (v *V) IsNew() bool {
 	return v.newOne
 }
 
+func (v *V) IsContract() bool {
+	return len(v.State().CodeHash) > 0
+}
+
 func (v *V) IsDeploy() bool {
 	return v.deploy&deployFlag != 0
 }
@@ -270,7 +274,7 @@ func (states *StateDB) GetAccountStateV(id []byte) (*V, error) {
 				sdb:    states,
 				id:     id,
 				aid:    aid,
-				oldV:   &types.State{},
+				oldV:   &types.State{Balance: amount.Bytes()},
 				newV:   &types.State{Balance: amount.Bytes()},
 				newOne: true,
 			}, nil
@@ -397,7 +401,7 @@ func (states *StateDB) GetVarAndProof(id []byte, root []byte, compressed bool) (
 		Height:    uint32(height),
 		AuditPath: ap,
 	}
-	logger.Debug().Str("contract root : ", enc.ToString(root)).Msg("Get contract variable and Proof")
+	logger.Debug().Str("contract root : ", base58.Encode(root)).Msg("Get contract variable and Proof")
 	return contractVarProof, nil
 
 }
@@ -427,7 +431,7 @@ func (states *StateDB) GetAccountAndProof(id []byte, root []byte, compressed boo
 		Height:    uint32(height),
 		AuditPath: ap,
 	}
-	logger.Debug().Str("state root : ", enc.ToString(root)).Msg("Get Account and Proof")
+	logger.Debug().Str("state root : ", base58.Encode(root)).Msg("Get Account and Proof")
 	return accountProof, nil
 }
 
@@ -549,7 +553,7 @@ func (states *StateDB) HasMarker(root []byte) bool {
 	}
 	marker := states.store.Get(common.Hasher(root))
 	if marker != nil && bytes.Equal(marker, stateMarker) {
-		// logger.Debug().Str("stateRoot", enc.ToString(root)).Str("marker", hex.EncodeToString(marker)).Msg("IsMarked")
+		// logger.Debug().Str("stateRoot", enc.ToString(root)).Str("marker", hex.HexEncode(marker)).Msg("IsMarked")
 		return true
 	}
 	return false

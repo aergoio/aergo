@@ -9,7 +9,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -72,7 +72,7 @@ func TestBasicStakingUnstakingV2(t *testing.T) {
 	minplusmin := new(big.Int).Add(types.StakingMinimum, types.StakingMinimum)
 	sender.AddBalance(minplusmin)
 
-	blockInfo := &types.BlockHeaderInfo{No: uint64(0), Version: 2}
+	blockInfo := &types.BlockHeaderInfo{No: uint64(0), ForkVersion: 2}
 	staking, err := newSysCmd(sender.ID(), tx.GetBody(), sender, receiver, scs, blockInfo)
 	event, err := staking.run()
 	assert.NoError(t, err, "staking failed")
@@ -138,7 +138,7 @@ func TestUnstakingError(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
 	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
-	scs, err := cdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("aergo.system")))
+	scs, err := cdb.GetStateDB().GetSystemAccountState()
 	assert.Equal(t, err, nil, "could not open contract state")
 
 	account, err := types.DecodeAddress(testSender)

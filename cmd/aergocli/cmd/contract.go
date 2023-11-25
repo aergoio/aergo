@@ -7,16 +7,16 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"math/big"
 	"strconv"
 
-	"github.com/aergoio/aergo/cmd/aergocli/util"
-	luacEncoding "github.com/aergoio/aergo/cmd/aergoluac/encoding"
-	luac "github.com/aergoio/aergo/cmd/aergoluac/util"
-	"github.com/aergoio/aergo/internal/common"
-	"github.com/aergoio/aergo/types"
-	aergorpc "github.com/aergoio/aergo/types"
-	"github.com/mr-tron/base58/base58"
+	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
+	luacEncoding "github.com/aergoio/aergo/v2/cmd/aergoluac/encoding"
+	luac "github.com/aergoio/aergo/v2/cmd/aergoluac/util"
+	"github.com/aergoio/aergo/v2/internal/common"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/internal/enc/hex"
+	"github.com/aergoio/aergo/v2/types"
+	aergorpc "github.com/aergoio/aergo/v2/types"
 	"github.com/spf13/cobra"
 )
 
@@ -79,6 +79,7 @@ func init() {
 		RunE:                  runDeployCmd,
 		DisableFlagsInUseLine: true,
 	}
+	deployCmd.PersistentFlags().Uint64Var(&nonce, "nonce", 0, "manually set a nonce (default: set nonce automatically)")
 	deployCmd.PersistentFlags().StringVar(&data, "payload", "", "result of compiling a contract")
 	deployCmd.PersistentFlags().StringVar(&amount, "amount", "0", "amount of token to send with deployment, in aer")
 	deployCmd.PersistentFlags().StringVarP(&contractID, "redeploy", "r", "", "redeploy the contract")
@@ -129,6 +130,20 @@ func init() {
 	rootCmd.AddCommand(contractCmd)
 }
 
+func isHexString(s string) bool {
+	// check is the input has even number of characters
+	if len(s)%2 != 0 {
+		return false
+	}
+	// check if the input contains only hex characters
+	for _, c := range s {
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+			return false
+		}
+	}
+	return true
+}
+
 func runDeployCmd(cmd *cobra.Command, args []string) error {
 	var err error
 	var code []byte
@@ -140,9 +155,13 @@ func runDeployCmd(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("could not decode address: %v", err.Error())
 	}
-	state, err := client.GetState(context.Background(), &types.SingleBytes{Value: creator})
-	if err != nil {
-		return fmt.Errorf("failed to get creator account's state: %v", err.Error())
+
+	if nonce == 0 {
+		state, err := client.GetState(context.Background(), &types.SingleBytes{Value: creator})
+		if err != nil {
+			return fmt.Errorf("failed to get creator account's state: %v", err.Error())
+		}
+		nonce = state.GetNonce() + 1
 	}
 
 	var payload []byte
@@ -178,15 +197,23 @@ func runDeployCmd(cmd *cobra.Command, args []string) error {
 			}
 			deployArgs = []byte(args[1])
 		}
-		code, err = luacEncoding.DecodeCode(data)
-		if err != nil {
-			return fmt.Errorf("failed to decode code: %v", err.Error())
+		// check if the data is in hex format
+		if isHexString(data) {
+			// the data is expected to be copied from aergoscan view of
+			// the transaction that deployed the contract
+			payload, err = hex.Decode(data)
+		} else {
+			// the data is the output of aergoluac
+			code, err = luacEncoding.DecodeCode(data)
+			if err != nil {
+				return fmt.Errorf("failed to decode code: %v", err.Error())
+			}
+			payload = luac.NewLuaCodePayload(luac.LuaCode(code), deployArgs)
 		}
-		payload = luac.NewLuaCodePayload(luac.LuaCode(code), deployArgs)
 	}
 
-	amountBigInt, ok := new(big.Int).SetString(amount, 10)
-	if !ok {
+	amountBigInt, err := util.ParseUnit(amount)
+	if err != nil {
 		return fmt.Errorf("failed to parse amount: %v", err.Error())
 	}
 
@@ -202,7 +229,7 @@ func runDeployCmd(cmd *cobra.Command, args []string) error {
 
 	tx := &types.Tx{
 		Body: &types.TxBody{
-			Nonce:     state.GetNonce() + 1,
+			Nonce:     nonce,
 			Account:   creator,
 			Payload:   payload,
 			Amount:    amountBigInt.Bytes(),
@@ -257,9 +284,9 @@ func runCallCmd(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	amountBigInt, ok := new(big.Int).SetString(amount, 10)
-	if !ok {
-		return fmt.Errorf("failed to parse amount: %v", err.Error())
+	amountBigInt, err := util.ParseUnit(amount)
+	if err != nil {
+		return fmt.Errorf("failed to parse amount: %v", err)
 	}
 
 	var txType types.TxType

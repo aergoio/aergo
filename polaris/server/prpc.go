@@ -16,11 +16,11 @@ import (
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/pkg/component"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
 	"github.com/opentracing/opentracing-go"
 	"github.com/soheilhy/cmux"
@@ -97,7 +97,7 @@ func (rpc *PolarisRPC) Receive(context actor.Context) {
 	switch msg := context.Message().(type) {
 	default:
 		// maybe BaseComponent have processed this message.
-		rpc.Debug().Str("msgType",reflect.TypeOf(msg).String()).Msg("msg not directly handled by rpc received")
+		rpc.Debug().Str("msgType", reflect.TypeOf(msg).String()).Msg("msg not directly handled by rpc received")
 	}
 }
 
@@ -180,6 +180,8 @@ type PRPCServer struct {
 
 	hub         *component.ComponentHub
 	actorHelper p2pcommon.ActorService
+
+	types.UnimplementedPolarisRPCServiceServer
 }
 
 func (rs *PRPCServer) NodeState(ctx context.Context, in *types.NodeReq) (*types.SingleBytes, error) {
@@ -243,7 +245,7 @@ func (rs *PRPCServer) BlackList(ctx context.Context, p1 *types.Paginations) (*ty
 }
 
 func (rs *PRPCServer) ListBLEntries(ctx context.Context, entInfo *types.Empty) (*types.BLConfEntries, error) {
-	result, err := rs.actorHelper.CallRequestDefaultTimeout(PolarisSvc,	ListEntriesMsg{})
+	result, err := rs.actorHelper.CallRequestDefaultTimeout(PolarisSvc, ListEntriesMsg{})
 	if err != nil {
 		return nil, err
 	}
@@ -254,7 +256,7 @@ func (rs *PRPCServer) ListBLEntries(ctx context.Context, entInfo *types.Empty) (
 	return list, nil
 }
 
-func (rs *PRPCServer) AddBLEntry(ctx context.Context,entInfo *types.AddEntryParams) (*types.SingleString, error) {
+func (rs *PRPCServer) AddBLEntry(ctx context.Context, entInfo *types.AddEntryParams) (*types.SingleString, error) {
 	ret := &types.SingleString{}
 
 	if len(entInfo.PeerID) == 0 && len(entInfo.Cidr) == 0 && len(entInfo.Address) == 0 {
@@ -292,4 +294,3 @@ func (rs *PRPCServer) RemoveBLEntry(ctx context.Context, msg *types.RmEntryParam
 	return ret, nil
 
 }
-

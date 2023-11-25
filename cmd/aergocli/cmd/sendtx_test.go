@@ -3,10 +3,10 @@ package cmd
 import (
 	"testing"
 
-	"github.com/aergoio/aergo/cmd/aergocli/util/encoding/json"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/cmd/aergocli/util/encoding/json"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/golang/mock/gomock"
-	"github.com/mr-tron/base58/base58"
 	"github.com/stretchr/testify/assert"
 )
 

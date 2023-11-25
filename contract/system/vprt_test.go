@@ -1,6 +1,7 @@
 package system
 
 import (
+	"bytes"
 	"container/list"
 	"fmt"
 	"math/big"
@@ -9,9 +10,10 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo-lib/db"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -23,6 +25,8 @@ const (
 )
 
 var (
+	logger = log.NewLogger("system.test")
+
 	valHundred = new(big.Int).SetUint64(100)
 	valTen     = new(big.Int).SetUint64(10)
 
@@ -121,7 +125,7 @@ func initVprtTest(t *testing.T, initTable func()) {
 func initVprtTestWithSc(t *testing.T, initTable func(*state.ContractState)) {
 	initDB(t)
 
-	s, err := vprStateDB.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
+	s, err := vprStateDB.GetSystemAccountState()
 	assert.NoError(t, err, "fail to open the system contract state")
 
 	initTable(s)
@@ -144,7 +148,7 @@ func getStateRoot() []byte {
 }
 
 func openSystemAccountWith(root []byte) *state.ContractState {
-	s, err := vprChainStateDB.OpenNewStateDB(root).OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
+	s, err := vprChainStateDB.OpenNewStateDB(root).GetSystemAccountState()
 	if err != nil {
 		return nil
 	}
@@ -168,12 +172,12 @@ func initRankTableRand(rankMax uint32) {
 }
 
 func openSystemAccount(t *testing.T) *state.ContractState {
-	s, err := vprStateDB.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
+	s, err := vprStateDB.GetSystemAccountState()
 	assert.NoError(t, err, "fail to open the system contract state")
-	fmt.Printf(
+	logger.Debug().Msgf(
 		"(after) state, contract: %s, %s\n",
-		enc.ToString(vprStateDB.GetRoot()),
-		enc.ToString(s.GetStorageRoot()))
+		base58.Encode(vprStateDB.GetRoot()),
+		base58.Encode(s.GetStorageRoot()))
 
 	return s
 }
@@ -204,6 +208,14 @@ func genAddr(i uint32) (types.AccountID, types.Address) {
 
 func commit() error {
 	return vprStateDB.Commit()
+}
+
+func TestValidateInitVprt(t *testing.T) {
+	assert.Equal(t, "1000000", million.String(), "million is not valid. check contract/system/vprt.go")
+	assert.Equal(t, "5045760000000000000", annualRewardM.String(), "annualRewardM is not valid. check contract/system/vprt.go")
+	assert.Equal(t, "5045760000000000000000000", annualReward.String(), "annualReward is not valid. check contract/system/vprt.go")
+	assert.Equal(t, "160000000000000000", defaultReward.String(), "defaultReward is not valid. check contract/system/vprt.go")
+	assert.Equal(t, "10000000000000000000000", binSize.String(), "binSize is not valid. check contract/system/vprt.go")
 }
 
 func TestVprOp(t *testing.T) {
@@ -387,8 +399,12 @@ func TestVprTotalPower(t *testing.T) {
 	assert.NoError(t, err, "fail to update the voting power ranking")
 
 	votingPowerRank.checkValidity(t)
-	votingPowerRank.voters.dump(os.Stdout, 10)
-	votingPowerRank.voters.dump(os.Stdout, 0)
+	if logger.IsDebugEnabled() {
+		buffer := &bytes.Buffer{}
+		votingPowerRank.voters.dump(buffer, 10)
+		votingPowerRank.voters.dump(buffer, 0)
+		t.Log(buffer)
+	}
 }
 
 func TestVprSingleWinner(t *testing.T) {
@@ -408,7 +424,7 @@ func TestVprSingleWinner(t *testing.T) {
 	}
 
 	for addr, count := range stat {
-		fmt.Printf("%v: pwr = %v, wins # = %v\n",
+		logger.Debug().Msgf("%v: pwr = %v, wins # = %v\n",
 			addr, votingPowerRank.votingPowerOf(addr), count)
 	}
 }
@@ -430,7 +446,7 @@ func TestVprPickWinner(t *testing.T) {
 	}
 
 	for addr, count := range stat {
-		fmt.Printf("%v: pwr = %v, wins # = %v\n",
+		logger.Debug().Msgf("%v: pwr = %v, wins # = %v\n",
 			addr, votingPowerRank.votingPowerOf(addr), count)
 	}
 }

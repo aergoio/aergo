@@ -1,11 +1,11 @@
 package syncer
 
 import (
-	"github.com/aergoio/aergo/chain"
 	"testing"
 	"time"
 
-	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/v2/chain"
+	"github.com/aergoio/aergo/v2/message"
 )
 
 func testFullscanSucceed(t *testing.T, expAncestor uint64) {
@@ -68,7 +68,7 @@ func TestFinder_fullscan_notfound(t *testing.T) {
 	syncer.waitStop()
 }
 
-//test finder stop when close finder.quitCh
+// test finder stop when close finder.quitCh
 func TestFinder_timeout(t *testing.T) {
 	logger.Debug().Int("expAncestor", -1).Msg("testfullscan")
 

@@ -6,11 +6,10 @@ import (
 	"log"
 	"strings"
 
-	"google.golang.org/grpc"
-
-	"github.com/aergoio/aergo/cmd/aergocli/util"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
 )
 
 var addresses string

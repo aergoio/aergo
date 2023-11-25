@@ -9,15 +9,15 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"github.com/aergoio/aergo/internal/enc"
 	"io/ioutil"
 	"testing"
 	"time"
 
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/internal/enc/proto"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/gofrs/uuid"
-	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -48,7 +48,7 @@ func init() {
 	sampleTxs = make([][]byte, len(sampleTxsB58))
 	sampleTxHashes = make([]types.TxID, len(sampleTxsB58))
 	for i, hashb58 := range sampleTxsB58 {
-		hash, _ := enc.ToBytes(hashb58)
+		hash, _ := base58.Decode(hashb58)
 		sampleTxs[i] = hash
 		copy(sampleTxHashes[i][:], hash)
 	}
@@ -56,7 +56,7 @@ func init() {
 	sampleBlks = make([][]byte, len(sampleBlksB58))
 	sampleBlksHashes = make([]types.BlockID, len(sampleBlksB58))
 	for i, hashb58 := range sampleTxsB58 {
-		hash, _ := enc.ToBytes(hashb58)
+		hash, _ := base58.Decode(hashb58)
 		sampleBlks[i] = hash
 		copy(sampleBlksHashes[i][:], hash)
 	}
@@ -86,7 +86,7 @@ func Test_ReadWrite(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			sizeChecker, sizeChecker2 := ioSum{}, ioSum{}
 			samplePData := &types.NewTransactionsNotice{TxHashes: test.ids}
-			payload, _ := proto.Marshal(samplePData)
+			payload, _ := proto.Encode(samplePData)
 			sample := p2pcommon.NewMessageValue(p2pcommon.NewTxNotice, sampleID, p2pcommon.EmptyID, time.Now().UnixNano(), payload)
 
 			buf := bytes.NewBuffer(nil)
@@ -121,7 +121,7 @@ func Test_ReadWrite(t *testing.T) {
 }
 
 type ioSum struct {
-	readN int
+	readN  int
 	writeN int
 }
 
@@ -138,7 +138,7 @@ func TestV030Writer_WriteError(t *testing.T) {
 	//sampleUUID, _ := uuid.NewRandom()
 	//copy(sampleID[:], sampleUUID[:])
 	//samplePData := &types.NewTransactionsNotice{TxHashes:sampleTxs}
-	//payload, _ := proto.Marshal(samplePData)
+	//payload, _ := proto.Encode(samplePData)
 	//sample := &MessageValue{subProtocol: subproto.NewTxNotice, id: sampleID, timestamp: time.Now().UnixNano(), length: uint32(len(payload)), payload: payload}
 	//mockWriter := make(MockWriter)
 	//mockWriter.On("Write", mock.Anything).Return(fmt.Errorf("writer error"))
@@ -154,14 +154,14 @@ func BenchmarkV030Writer_WriteMsg(b *testing.B) {
 	timestamp := time.Now().UnixNano()
 
 	smallPData := &types.NewTransactionsNotice{}
-	payload, _ := proto.Marshal(smallPData)
+	payload, _ := proto.Encode(smallPData)
 	smallMsg := p2pcommon.NewMessageValue(p2pcommon.NewTxNotice, sampleID, p2pcommon.EmptyID, timestamp, payload)
 	bigHashes := make([][]byte, 0, len(sampleTxs)*10000)
 	for i := 0; i < 10000; i++ {
 		bigHashes = append(bigHashes, sampleTxs...)
 	}
 	bigPData := &types.NewTransactionsNotice{TxHashes: bigHashes}
-	payload, _ = proto.Marshal(bigPData)
+	payload, _ = proto.Encode(bigPData)
 	bigMsg := p2pcommon.NewMessageValue(p2pcommon.NewTxNotice, sampleID, p2pcommon.EmptyID, timestamp, payload)
 
 	benchmarks := []struct {
@@ -171,9 +171,9 @@ func BenchmarkV030Writer_WriteMsg(b *testing.B) {
 		repeatCount int
 	}{
 		// write small
-		{"BWSmall", NewV030ReadWriter(nil,ioutil.Discard, nil), smallMsg, 100},
+		{"BWSmall", NewV030ReadWriter(nil, ioutil.Discard, nil), smallMsg, 100},
 		// write big
-		{"BWBig", NewV030ReadWriter(nil, ioutil.Discard,nil), bigMsg, 100},
+		{"BWBig", NewV030ReadWriter(nil, ioutil.Discard, nil), bigMsg, 100},
 		////write small with rw
 		//{"BWSmallRW", NewV030ReadWriter(nil, ioutil.Discard, nil), smallMsg, 100},
 		//// write big with rw
@@ -198,7 +198,7 @@ func BenchmarkV030Reader_ReadMsg(b *testing.B) {
 	timestamp := time.Now().UnixNano()
 
 	smallPData := &types.NewTransactionsNotice{}
-	payload, _ := proto.Marshal(smallPData)
+	payload, _ := proto.Encode(smallPData)
 	smallMsg := p2pcommon.NewMessageValue(p2pcommon.NewTxNotice, sampleID, p2pcommon.EmptyID, timestamp, payload)
 	smallBytes := getMarshaledV030(smallMsg, 1)
 	bigHashes := make([][]byte, 0, len(sampleTxs)*10000)
@@ -206,7 +206,7 @@ func BenchmarkV030Reader_ReadMsg(b *testing.B) {
 		bigHashes = append(bigHashes, sampleTxs...)
 	}
 	bigPData := &types.NewTransactionsNotice{TxHashes: bigHashes}
-	payload, _ = proto.Marshal(bigPData)
+	payload, _ = proto.Encode(bigPData)
 	bigMsg := p2pcommon.NewMessageValue(p2pcommon.NewTxNotice, sampleID, p2pcommon.EmptyID, timestamp, payload)
 	bigBytes := getMarshaledV030(bigMsg, 1)
 
@@ -233,7 +233,7 @@ func BenchmarkV030Reader_ReadMsg(b *testing.B) {
 				for j := 0; j < bm.repeatCount; j++ {
 					actual, err := target.ReadMsg()
 					if err != nil {
-						b.Fatal("err while reading on lap",j, err.Error())
+						b.Fatal("err while reading on lap", j, err.Error())
 					} else if actual.ID() != sampleID {
 						b.Fatal()
 					}
@@ -257,12 +257,12 @@ func getMarshaledV030(m *p2pcommon.MessageValue, repeat int) []byte {
 
 type RepeatedBuffer struct {
 	offset, size int
-	buf []byte
+	buf          []byte
 }
 
 func (r *RepeatedBuffer) Read(p []byte) (n int, err error) {
 	copied := copy(p, r.buf[r.offset:])
-	r.offset+=copied
+	r.offset += copied
 	if r.offset >= r.size {
 		r.offset = 0
 	}
@@ -270,5 +270,5 @@ func (r *RepeatedBuffer) Read(p []byte) (n int, err error) {
 }
 
 func NewRepeatedBuffer(buf []byte) *RepeatedBuffer {
-	return &RepeatedBuffer{buf: buf, size:len(buf)}
+	return &RepeatedBuffer{buf: buf, size: len(buf)}
 }

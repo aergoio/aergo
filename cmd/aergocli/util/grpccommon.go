@@ -8,9 +8,9 @@ package util
 import (
 	"fmt"
 
-	"github.com/aergoio/aergo/cmd/aergocli/util/encoding/json"
-	"github.com/aergoio/aergo/types"
-	protobuf "github.com/golang/protobuf/proto"
+	"github.com/aergoio/aergo/v2/cmd/aergocli/util/encoding/json"
+	"github.com/aergoio/aergo/v2/internal/enc/proto"
+	"github.com/aergoio/aergo/v2/types"
 	"google.golang.org/grpc"
 )
 
@@ -44,7 +44,7 @@ func (c *ConnClient) Close() {
 }
 
 // JSON converts protobuf message(struct) to json notation
-func JSON(pb protobuf.Message) string {
+func JSON(pb proto.Message) string {
 	jsonout, err := json.MarshalIndent(pb, "", " ")
 	if err != nil {
 		fmt.Printf("Failed: %s\n", err.Error())
