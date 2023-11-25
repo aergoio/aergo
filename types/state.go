@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"math/big"
-	"reflect"
 
 	"github.com/aergoio/aergo/v2/internal/common"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
@@ -156,13 +155,6 @@ func (st *State) Clone() *State {
 		StorageRoot:      st.StorageRoot,
 		SqlRecoveryPoint: st.SqlRecoveryPoint,
 	}
-}
-
-func Clone(i interface{}) interface{} {
-	if i == nil {
-		return nil
-	}
-	return reflect.Indirect(reflect.ValueOf(i)).Interface()
 }
 
 func (st *State) GetBalanceBigInt() *big.Int {
