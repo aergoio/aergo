@@ -612,13 +612,13 @@ func NewLuaTxCallFeeDelegate(sender, recipient string, amount uint64, payload st
 	}
 }
 
-func NewLuaTxMultiCall(sender, code string) *luaTxCall {
+func NewLuaTxMultiCall(sender, payload string) *luaTxCall {
 	return &luaTxCall{
 		luaTxContractCommon: luaTxContractCommon{
-			_sender:     strHash(sender),
-			_contract:   strHash(""),
+			_sender:     contract.StrHash(sender),
+			_recipient:  contract.StrHash(""),
 			_amount:     new(big.Int).SetUint64(0),
-			_code:       []byte(code),
+			_payload:    []byte(payload),
 			txId:        newTxId(),
 			multiCall:   true,
 		},
@@ -641,7 +641,7 @@ func (l *luaTxCall) run(execCtx context.Context, bs *state.BlockState, bc *Dummy
 				return "", nil, ctrFee, err
 			}
 
-			if !ctx.isMultiCall {
+			if !ctx.IsMultiCall() {
 				err = bs.StageContractState(eContractState)
 				if err != nil {
 					return "", nil, ctrFee, err

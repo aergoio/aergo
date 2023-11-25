@@ -309,7 +309,7 @@ func preloadWorker() {
 // check if the tx is valid and if the code should be executed
 func checkExecution(txType types.TxType, amount *big.Int, payloadSize int, version int32, isDeploy, isContract bool) (do_execute bool, err error) {
 
-	if txBody.Type == types.TxType_MULTICALL {
+	if txType == types.TxType_MULTICALL {
 		return true, nil
 	}
 

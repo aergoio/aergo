@@ -5,9 +5,9 @@ import (
 
 	"github.com/rs/zerolog"
 
-	"github.com/aergoio/aergo/cmd/brick/context"
-	"github.com/aergoio/aergo/contract"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/cmd/brick/context"
+	"github.com/aergoio/aergo/v2/contract/vm_dummy"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 func init() {
@@ -76,7 +76,7 @@ func (c *multicall) Run(args string) (string, uint64, []*types.Event, error) {
 
 	accountName, payload, expectedError, expectedRes, _ := c.parse(args)
 
-	multicallTx := contract.NewLuaTxMultiCall(accountName, payload)
+	multicallTx := vm_dummy.NewLuaTxMultiCall(accountName, payload)
 
 	logLevel := zerolog.GlobalLevel()
 

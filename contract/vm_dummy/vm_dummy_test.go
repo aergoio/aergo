@@ -4547,16 +4547,16 @@ abi.payable(recv_aergo)
 `
 
   err = bc.ConnectBlock(
-    NewLuaTxAccount("ac0", 10000000000000000000),
-    NewLuaTxAccount("ac1", 10000000000000000000),
-    NewLuaTxAccount("ac2", 10000000000000000000),
-    NewLuaTxAccount("ac3", 10000000000000000000),
-    NewLuaTxAccount("ac4", 10000000000000000000),
-    NewLuaTxAccount("ac5", 10000000000000000000),
-    NewLuaTxDef("ac0", "tables", 0, definition),
-    NewLuaTxDef("ac0", "c1", 0, definition),
-    NewLuaTxDef("ac0", "c2", 0, definition),
-    NewLuaTxDef("ac0", "c3", 0, definition),
+    NewLuaTxAccount("ac0", 100, types.Aergo),
+    NewLuaTxAccount("ac1", 100, types.Aergo),
+    NewLuaTxAccount("ac2", 100, types.Aergo),
+    NewLuaTxAccount("ac3", 100, types.Aergo),
+    NewLuaTxAccount("ac4", 100, types.Aergo),
+    NewLuaTxAccount("ac5", 100, types.Aergo),
+    NewLuaTxDeploy("ac0", "tables", 0, definition),
+    NewLuaTxDeploy("ac0", "c1", 0, definition),
+    NewLuaTxDeploy("ac0", "c2", 0, definition),
+    NewLuaTxDeploy("ac0", "c3", 0, definition),
   )
   if err != nil {
     t.Error(err)
