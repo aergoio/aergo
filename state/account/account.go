@@ -3,6 +3,7 @@ package account
 import (
 	"math/big"
 
+	key "github.com/aergoio/aergo/v2/account/key/crypto"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
 	ethcommon "github.com/ethereum/go-ethereum/common"
@@ -10,23 +11,28 @@ import (
 )
 
 // address : compressed public key (33 bytes)
-func NewAccount(addr []byte, luaState *state.StateDB, ethState *ethstate.StateDB) (*Account, error) {
+func NewAccount(address []byte, luaState *state.StateDB, ethState *ethstate.StateDB) (*Account, error) {
 	var err error
 
 	acc := &Account{}
-	acc.LuaAccount = types.ToAccountID(addr)
-	acc.EthAccount = ethcommon.BytesToAddress(addr) // FIXME : is compressed key can encode to common.Address? check compressed pubkey
-
-	if acc.LuaAccState, err = luaState.GetAccountState(acc.LuaAccount); err != nil {
-		return nil, err
+	acc.LuaAccount = types.EncodeAddress(address)
+	acc.LuaAid = types.ToAccountID(address)
+	if unCompressed := key.ConvAddressUncompressed(address); unCompressed != nil {
+		acc.EthAccount = ethcommon.BytesToAddress(unCompressed)
 	}
 
+	if luaState == nil || ethState == nil { // FIXME : handle exception
+		return acc, nil
+	}
+
+	if acc.LuaAccState, err = luaState.GetAccountState(acc.LuaAid); err != nil {
+		return nil, err
+	}
 	if b := acc.LuaAccState.GetBalanceBigInt(); b.Cmp(ethState.GetBalance(acc.EthAccount)) != 0 {
 		panic("impossible") // FIXME : handle exception
 	} else {
 		acc.Balance = b
 	}
-
 	if n := acc.LuaAccState.GetNonce(); n != ethState.GetNonce(acc.EthAccount) {
 		panic("impossible") // FIXME : handle exception
 	} else {
@@ -42,7 +48,8 @@ type Account struct {
 	Nonce   uint64
 
 	// lua
-	LuaAccount  types.AccountID
+	LuaAccount  string
+	LuaAid      types.AccountID
 	LuaState    *state.StateDB
 	LuaAccState *types.State
 
@@ -81,7 +88,7 @@ func (acc *Account) GetBalance() *big.Int {
 func (acc *Account) CommitLua() error {
 	acc.LuaAccState.Balance = acc.Balance.Bytes()
 	acc.LuaAccState.Nonce = acc.Nonce
-	err := acc.LuaState.PutState(acc.LuaAccount, acc.LuaAccState)
+	err := acc.LuaState.PutState(acc.LuaAid, acc.LuaAccState)
 	if err != nil {
 		return err
 	}
