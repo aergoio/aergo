@@ -6,8 +6,6 @@ package main
 
 import (
 	"fmt"
-	"net/http"
-	_ "net/http/pprof"
 	"os"
 
 	"github.com/aergoio/aergo-lib/log"
@@ -98,14 +96,6 @@ func initConfig() {
 func rootRun(cmd *cobra.Command, args []string) {
 	svrlog = log.NewLogger("asvr")
 	svrlog.Info().Str("revision", gitRevision).Str("branch", gitBranch).Msg("AERGO SVR STARTED")
-
-	if cfg.EnableProfile {
-		svrlog.Info().Msgf("Enable Profiling on localhost: %d", cfg.ProfilePort)
-		go func() {
-			err := http.ListenAndServe(fmt.Sprintf("0.0.0.0:%d", cfg.ProfilePort), nil)
-			svrlog.Info().Err(err).Msg("Run Profile Server")
-		}()
-	}
 
 	if cfg.EnableTestmode {
 		svrlog.Warn().Msgf("Running with unsafe test mode. Turn off test mode for production use!")
