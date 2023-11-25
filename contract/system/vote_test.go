@@ -24,7 +24,7 @@ import (
 var cdb *state.ChainStateDB
 var bs *state.BlockState
 
-func initTest(t *testing.T) (*state.ContractState, *state.V, *state.V) {
+func initTest(t *testing.T) (*state.ContractState, *state.AccountState, *state.AccountState) {
 	cdb = state.NewChainStateDB()
 	cdb.Init(string(db.BadgerImpl), "test", nil, false)
 	genesis := types.GetTestGenesis()
@@ -43,17 +43,17 @@ func initTest(t *testing.T) (*state.ContractState, *state.V, *state.V) {
 
 	account, err := types.DecodeAddress(testSender)
 	assert.NoError(t, err, "could not decode test address")
-	sender, err := bs.GetAccountStateV(account)
+	sender, err := state.GetAccountStateV(account, &bs.StateDB)
 	assert.NoError(t, err, "could not get test address state")
-	receiver, err := bs.GetAccountStateV([]byte(types.AergoSystem))
+	receiver, err := state.GetAccountStateV([]byte(types.AergoSystem), &bs.StateDB)
 	assert.NoError(t, err, "could not get test address state")
 	return scs, sender, receiver
 }
 
-func getSender(t *testing.T, addr string) *state.V {
+func getSender(t *testing.T, addr string) *state.AccountState {
 	account, err := types.DecodeAddress(addr)
 	assert.NoError(t, err, "could not decode test address")
-	sender, err := bs.GetAccountStateV(account)
+	sender, err := state.GetAccountStateV(account, &bs.StateDB)
 	assert.NoError(t, err, "could not get test address state")
 	return sender
 }

@@ -67,7 +67,7 @@ func SetPreloadTx(tx *types.Tx, service int) {
 }
 
 // Execute executes a normal transaction which is possibly executing smart contract.
-func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, tx *types.Tx, sender, receiver *state.V, bi *types.BlockHeaderInfo, preloadService int, isFeeDelegation bool) (rv string, events []*types.Event, usedFee *big.Int, err error) {
+func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, tx *types.Tx, sender, receiver *state.AccountState, bi *types.BlockHeaderInfo, preloadService int, isFeeDelegation bool) (rv string, events []*types.Event, usedFee *big.Int, err error) {
 
 	var (
 		txBody     = tx.GetBody()
@@ -254,7 +254,7 @@ func preloadWorker() {
 		}
 
 		// get the state of the recipient
-		receiver, err := bs.GetAccountStateV(recipient)
+		receiver, err := state.GetAccountStateV(recipient, &bs.StateDB)
 		if err != nil {
 			replyCh <- &preloadReply{tx, nil, err}
 			continue
@@ -320,7 +320,7 @@ func CreateContractID(account []byte, nonce uint64) []byte {
 	return append([]byte{0x0C}, recipientHash...) // prepend 0x0C to make it same length as account addresses
 }
 
-func checkRedeploy(sender, receiver *state.V, contractState *state.ContractState) error {
+func checkRedeploy(sender, receiver *state.AccountState, contractState *state.ContractState) error {
 	// check if the contract exists
 	if !receiver.IsContract() || receiver.IsNew() {
 		receiverAddr := types.EncodeAddress(receiver.ID())

@@ -870,7 +870,7 @@ func adjustRv(ret string) string {
 	return ret
 }
 
-func resetAccount(account *state.V, fee *big.Int, nonce *uint64) error {
+func resetAccount(account *state.AccountState, fee *big.Int, nonce *uint64) error {
 	account.Reset()
 	if fee != nil {
 		if account.Balance().Cmp(fee) < 0 {
@@ -910,7 +910,7 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 		return err
 	}
 
-	sender, err := bs.GetAccountStateV(account)
+	sender, err := state.GetAccountStateV(account, &bs.StateDB)
 	if err != nil {
 		return err
 	}
@@ -923,16 +923,16 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 	if recipient, err = name.Resolve(bs, txBody.Recipient, isQuirkTx); err != nil {
 		return err
 	}
-	var receiver *state.V
+	var receiver *state.AccountState
 	status := "SUCCESS"
 	if len(recipient) > 0 {
-		receiver, err = bs.GetAccountStateV(recipient)
+		receiver, err = state.GetAccountStateV(recipient, &bs.StateDB)
 		if receiver != nil && txBody.Type == types.TxType_REDEPLOY {
 			status = "RECREATED"
 			receiver.SetRedeploy()
 		}
 	} else {
-		receiver, err = bs.CreateAccountStateV(contract.CreateContractID(txBody.Account, txBody.Nonce))
+		receiver, err = state.CreateAccountStateV(contract.CreateContractID(txBody.Account, txBody.Nonce), &bs.StateDB)
 		status = "CREATED"
 	}
 	if err != nil {

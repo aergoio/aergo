@@ -21,7 +21,7 @@ type AccountStateReader interface {
 	GetNameAccountState() (*state.ContractState, error)
 }
 
-func CreateName(scs *state.ContractState, tx *types.TxBody, sender, receiver *state.V, name string) error {
+func CreateName(scs *state.ContractState, tx *types.TxBody, sender, receiver *state.AccountState, name string) error {
 	amount := tx.GetAmountBigInt()
 	sender.SubBalance(amount)
 	receiver.AddBalance(amount)
@@ -35,7 +35,7 @@ func createName(scs *state.ContractState, name []byte, owner []byte) error {
 
 // UpdateName is avaliable after bid implement
 func UpdateName(bs *state.BlockState, scs *state.ContractState, tx *types.TxBody,
-	sender, receiver *state.V, name, to string) error {
+	sender, receiver *state.AccountState, name, to string) error {
 	if len(getAddress(scs, []byte(name))) <= types.NameLength {
 		return fmt.Errorf("%s is not created yet", string(name))
 	}
@@ -88,7 +88,7 @@ func Resolve(bs *state.BlockState, name []byte, legacy bool) ([]byte, error) {
 }
 
 func openContract(bs *state.BlockState) (*state.ContractState, error) {
-	v, err := bs.GetAccountStateV([]byte(types.AergoName))
+	v, err := state.GetAccountStateV([]byte(types.AergoName), &bs.StateDB)
 	if err != nil {
 		return nil, err
 	}

@@ -664,7 +664,7 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 		}
 		switch string(tx.GetBody().GetRecipient()) {
 		case types.AergoSystem:
-			sender, err := mp.stateDB.GetAccountStateV(account)
+			sender, err := state.GetAccountStateV(account, mp.stateDB)
 			if err != nil {
 				return err
 			}
@@ -676,7 +676,7 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 				return err
 			}
 		case types.AergoName:
-			sender, err := mp.stateDB.GetAccountStateV(account)
+			sender, err := state.GetAccountStateV(account, mp.stateDB)
 			if err != nil {
 				return err
 			}
@@ -688,7 +688,7 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 			if err != nil {
 				return err
 			}
-			sender, err := mp.stateDB.GetAccountStateV(account)
+			sender, err := state.GetAccountStateV(account, mp.stateDB)
 			if err != nil {
 				return err
 			}

@@ -17,7 +17,7 @@ import (
 	"github.com/aergoio/aergo/v2/types"
 )
 
-func executeGovernanceTx(ccc consensus.ChainConsensusCluster, bs *state.BlockState, txBody *types.TxBody, sender, receiver *state.V,
+func executeGovernanceTx(ccc consensus.ChainConsensusCluster, bs *state.BlockState, txBody *types.TxBody, sender, receiver *state.AccountState,
 	blockInfo *types.BlockHeaderInfo) ([]*types.Event, error) {
 
 	if len(txBody.Payload) <= 0 {

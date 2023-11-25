@@ -447,16 +447,16 @@ func (l *luaTxDeploy) Constructor(args string) *luaTxDeploy {
 }
 
 func contractFrame(l luaTxContract, bs *state.BlockState, cdb contract.ChainAccessor, receiptTx db.Transaction,
-	run func(s, c *state.V, id types.AccountID, cs *state.ContractState) (string, []*types.Event, *big.Int, error)) error {
+	run func(s, c *state.AccountState, id types.AccountID, cs *state.ContractState) (string, []*types.Event, *big.Int, error)) error {
 
 	creatorId := types.ToAccountID(l.sender())
-	creatorState, err := bs.GetAccountStateV(l.sender())
+	creatorState, err := state.GetAccountStateV(l.sender(), &bs.StateDB)
 	if err != nil {
 		return err
 	}
 
 	contractId := types.ToAccountID(l.recipient())
-	contractState, err := bs.GetAccountStateV(l.recipient())
+	contractState, err := state.GetAccountStateV(l.recipient(), &bs.StateDB)
 	if err != nil {
 		return err
 	}
@@ -531,7 +531,7 @@ func (l *luaTxDeploy) run(execCtx context.Context, bs *state.BlockState, bc *Dum
 		return l.cErr
 	}
 	return contractFrame(l, bs, bc, receiptTx,
-		func(sender, contractV *state.V, contractId types.AccountID, eContractState *state.ContractState) (string, []*types.Event, *big.Int, error) {
+		func(sender, contractV *state.AccountState, contractId types.AccountID, eContractState *state.ContractState) (string, []*types.Event, *big.Int, error) {
 			contractV.State().SqlRecoveryPoint = 1
 
 			ctx := contract.NewVmContext(execCtx, bs, nil, sender, contractV, eContractState, sender.ID(), l.Hash(), bi, "", true, false, contractV.State().SqlRecoveryPoint, contract.BlockFactory, l.amount(), math.MaxUint64, false)
@@ -592,7 +592,7 @@ func (l *luaTxCall) Fail(expectedErr string) *luaTxCall {
 
 func (l *luaTxCall) run(execCtx context.Context, bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error {
 	err := contractFrame(l, bs, bc, receiptTx,
-		func(sender, contractV *state.V, contractId types.AccountID, eContractState *state.ContractState) (string, []*types.Event, *big.Int, error) {
+		func(sender, contractV *state.AccountState, contractId types.AccountID, eContractState *state.ContractState) (string, []*types.Event, *big.Int, error) {
 			ctx := contract.NewVmContext(execCtx, bs, bc, sender, contractV, eContractState, sender.ID(), l.Hash(), bi, "", true, false, contractV.State().SqlRecoveryPoint, contract.BlockFactory, l.amount(), math.MaxUint64, l.feeDelegate)
 
 			rv, events, ctrFee, err := contract.Call(eContractState, l.payload(), l.recipient(), ctx)

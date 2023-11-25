@@ -9,6 +9,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -151,9 +152,9 @@ func TestUnstakingError(t *testing.T) {
 			Payload: []byte(`{"Name":"v1unstake"}`),
 		},
 	}
-	sender, err := bs.GetAccountStateV(tx.Body.Account)
+	sender, err := state.GetAccountStateV(tx.Body.Account, &bs.StateDB)
 	assert.NoError(t, err, "could not get test address state")
-	receiver, err := bs.GetAccountStateV(tx.Body.Recipient)
+	receiver, err := state.GetAccountStateV(tx.Body.Recipient, &bs.StateDB)
 	assert.NoError(t, err, "could not get test address state")
 	sender.AddBalance(types.MaxAER)
 
