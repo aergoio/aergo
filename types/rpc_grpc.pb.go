@@ -50,8 +50,8 @@ const (
 	AergoRPCService_ExportAccountKeystore_FullMethodName   = "/types.AergoRPCService/ExportAccountKeystore"
 	AergoRPCService_QueryContract_FullMethodName           = "/types.AergoRPCService/QueryContract"
 	AergoRPCService_QueryContractState_FullMethodName      = "/types.AergoRPCService/QueryContractState"
-	AergoRPCService_GetPeers_FullMethodName                = "/types.AergoRPCService/GetPeers"
 	AergoRPCService_QueryEVMContract_FullMethodName        = "/types.AergoRPCService/QueryEVMContract"
+	AergoRPCService_GetPeers_FullMethodName                = "/types.AergoRPCService/GetPeers"
 	AergoRPCService_GetVotes_FullMethodName                = "/types.AergoRPCService/GetVotes"
 	AergoRPCService_GetAccountVotes_FullMethodName         = "/types.AergoRPCService/GetAccountVotes"
 	AergoRPCService_GetStaking_FullMethodName              = "/types.AergoRPCService/GetStaking"
@@ -130,10 +130,10 @@ type AergoRPCServiceClient interface {
 	QueryContract(ctx context.Context, in *Query, opts ...grpc.CallOption) (*SingleBytes, error)
 	// Query contract state
 	QueryContractState(ctx context.Context, in *StateQuery, opts ...grpc.CallOption) (*StateQueryProof, error)
-	// Return list of peers of this node and their state
-	GetPeers(ctx context.Context, in *PeersParams, opts ...grpc.CallOption) (*PeerList, error)
 	// Query EVM contract method
 	QueryEVMContract(ctx context.Context, in *Query, opts ...grpc.CallOption) (*SingleBytes, error)
+	// Return list of peers of this node and their state
+	GetPeers(ctx context.Context, in *PeersParams, opts ...grpc.CallOption) (*PeerList, error)
 	// Return result of vote
 	GetVotes(ctx context.Context, in *VoteParams, opts ...grpc.CallOption) (*VoteList, error)
 	// Return staking, voting info for account
@@ -489,18 +489,18 @@ func (c *aergoRPCServiceClient) QueryContractState(ctx context.Context, in *Stat
 	return out, nil
 }
 
-func (c *aergoRPCServiceClient) GetPeers(ctx context.Context, in *PeersParams, opts ...grpc.CallOption) (*PeerList, error) {
-	out := new(PeerList)
-	err := c.cc.Invoke(ctx, AergoRPCService_GetPeers_FullMethodName, in, out, opts...)
+func (c *aergoRPCServiceClient) QueryEVMContract(ctx context.Context, in *Query, opts ...grpc.CallOption) (*SingleBytes, error) {
+	out := new(SingleBytes)
+	err := c.cc.Invoke(ctx, AergoRPCService_QueryEVMContract_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *aergoRPCServiceClient) QueryEVMContract(ctx context.Context, in *Query, opts ...grpc.CallOption) (*SingleBytes, error) {
-	out := new(SingleBytes)
-	err := c.cc.Invoke(ctx, AergoRPCService_QueryEVMContract_FullMethodName, in, out, opts...)
+func (c *aergoRPCServiceClient) GetPeers(ctx context.Context, in *PeersParams, opts ...grpc.CallOption) (*PeerList, error) {
+	out := new(PeerList)
+	err := c.cc.Invoke(ctx, AergoRPCService_GetPeers_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -686,10 +686,10 @@ type AergoRPCServiceServer interface {
 	QueryContract(context.Context, *Query) (*SingleBytes, error)
 	// Query contract state
 	QueryContractState(context.Context, *StateQuery) (*StateQueryProof, error)
-	// Return list of peers of this node and their state
-	GetPeers(context.Context, *PeersParams) (*PeerList, error)
 	// Query EVM contract method
 	QueryEVMContract(context.Context, *Query) (*SingleBytes, error)
+	// Return list of peers of this node and their state
+	GetPeers(context.Context, *PeersParams) (*PeerList, error)
 	// Return result of vote
 	GetVotes(context.Context, *VoteParams) (*VoteList, error)
 	// Return staking, voting info for account
@@ -810,11 +810,11 @@ func (UnimplementedAergoRPCServiceServer) QueryContract(context.Context, *Query)
 func (UnimplementedAergoRPCServiceServer) QueryContractState(context.Context, *StateQuery) (*StateQueryProof, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method QueryContractState not implemented")
 }
-func (UnimplementedAergoRPCServiceServer) GetPeers(context.Context, *PeersParams) (*PeerList, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetPeers not implemented")
-}
 func (UnimplementedAergoRPCServiceServer) QueryEVMContract(context.Context, *Query) (*SingleBytes, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method QueryEVMContract not implemented")
+}
+func (UnimplementedAergoRPCServiceServer) GetPeers(context.Context, *PeersParams) (*PeerList, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetPeers not implemented")
 }
 func (UnimplementedAergoRPCServiceServer) GetVotes(context.Context, *VoteParams) (*VoteList, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetVotes not implemented")
@@ -1423,24 +1423,6 @@ func _AergoRPCService_QueryContractState_Handler(srv interface{}, ctx context.Co
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AergoRPCService_GetPeers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(PeersParams)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(AergoRPCServiceServer).GetPeers(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: AergoRPCService_GetPeers_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AergoRPCServiceServer).GetPeers(ctx, req.(*PeersParams))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _AergoRPCService_QueryEVMContract_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Query)
 	if err := dec(in); err != nil {
@@ -1455,6 +1437,24 @@ func _AergoRPCService_QueryEVMContract_Handler(srv interface{}, ctx context.Cont
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(AergoRPCServiceServer).QueryEVMContract(ctx, req.(*Query))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AergoRPCService_GetPeers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PeersParams)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AergoRPCServiceServer).GetPeers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AergoRPCService_GetPeers_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AergoRPCServiceServer).GetPeers(ctx, req.(*PeersParams))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1766,12 +1766,12 @@ var AergoRPCService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _AergoRPCService_QueryContractState_Handler,
 		},
 		{
-			MethodName: "GetPeers",
-			Handler:    _AergoRPCService_GetPeers_Handler,
-		},
-		{
 			MethodName: "QueryEVMContract",
 			Handler:    _AergoRPCService_QueryEVMContract_Handler,
+		},
+		{
+			MethodName: "GetPeers",
+			Handler:    _AergoRPCService_GetPeers_Handler,
 		},
 		{
 			MethodName: "GetVotes",

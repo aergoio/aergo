@@ -54,7 +54,7 @@ add_custom_target(distclean GO111MODULE=on go clean ..
 	DEPENDS libtool-clean)
 
 add_custom_target(protoc
-	COMMAND protoc -I/usr/local/include -I${PROTO_DIR} --go_out=${CMAKE_CURRENT_LIST_DIR}/types --go_opt=paths=source_relative --go-grpc_out=${CMAKE_CURRENT_LIST_DIR}/types --go-grpc_opt=paths=source_relative ${PROTO_DIR}/*.proto
+	COMMAND protoc -I/usr/local/include -I${PROTO_DIR} --go_out=${CMAKE_CURRENT_LIST_DIR}/types --go_opt=paths=source_relative --go-grpc_out=${CMAKE_CURRENT_LIST_DIR}/types --go-grpc_opt=paths=source_relative ${PROTO_DIR}/*.proto --experimental_allow_proto3_optional
 	COMMAND GO111MODULE=on go build ../types/...)
 
 add_custom_target(protoclean rm -f ../types/*.pb.go)
