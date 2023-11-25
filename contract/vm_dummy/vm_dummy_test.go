@@ -20,7 +20,7 @@ import (
 )
 
 const min_version int32 = 2
-const max_version int32 = 3
+const max_version int32 = 4
 
 func TestMaxCallDepth(t *testing.T) {
 	//code := readLuaCode(t, "maxcalldepth_1.lua")

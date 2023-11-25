@@ -93,13 +93,13 @@ func Execute(
 	// check if sender and receiver are not the same
 	if sender.AccountID() != receiver.AccountID() {
 		// check if sender has enough balance
-		if sender.Balance().Cmp(txBody.GetAmountBigInt()) < 0 {
+		if sender.Balance().Cmp(txAmount) < 0 {
 			err = types.ErrInsufficientBalance
 			return
 		}
 		// transfer the amount from the sender to the receiver
-		sender.SubBalance(txBody.GetAmountBigInt())
-		receiver.AddBalance(txBody.GetAmountBigInt())
+		sender.SubBalance(txAmount)
+		receiver.AddBalance(txAmount)
 	}
 
 	// check if the tx is valid and if the code should be executed
@@ -167,7 +167,7 @@ func Execute(
 		rv, events, ctrFee, err = PreCall(ex, bs, sender, contractState, receiver.RP(), gasLimit)
 	} else {
 		// create a new context
-		ctx := NewVmContext(execCtx, bs, cdb, sender, receiver, contractState, sender.ID(), tx.GetHash(), bi, "", true, false, receiver.RP(), preloadService, txBody.GetAmountBigInt(), gasLimit, isFeeDelegation, isMultiCall)
+		ctx := NewVmContext(execCtx, bs, cdb, sender, receiver, contractState, sender.ID(), tx.GetHash(), bi, "", true, false, receiver.RP(), preloadService, txAmount, gasLimit, isFeeDelegation, isMultiCall)
 
 		// execute the transaction
 		if receiver.IsDeploy() {
@@ -333,14 +333,6 @@ func checkExecution(txType types.TxType, amount *big.Int, payloadSize int, versi
 	return true, nil
 }
 
-func CreateContractID(account []byte, nonce uint64) []byte {
-	h := sha256.New()
-	h.Write(account)
-	h.Write([]byte(strconv.FormatUint(nonce, 10)))
-	recipientHash := h.Sum(nil)                   // byte array with length 32
-	return append([]byte{0x0C}, recipientHash...) // prepend 0x0C to make it same length as account addresses
-}
-
 func checkRedeploy(sender, receiver *state.V, contractState *state.ContractState) error {
 	// check if the contract exists
 	if !receiver.IsContract() || receiver.IsNew() {
@@ -359,6 +351,14 @@ func checkRedeploy(sender, receiver *state.V, contractState *state.ContractState
 	}
 	// no problem found
 	return nil
+}
+
+func CreateContractID(account []byte, nonce uint64) []byte {
+	h := sha256.New()
+	h.Write(account)
+	h.Write([]byte(strconv.FormatUint(nonce, 10)))
+	recipientHash := h.Sum(nil)                   // byte array with length 32
+	return append([]byte{0x0C}, recipientHash...) // prepend 0x0C to make it same length as account addresses
 }
 
 func SetStateSQLMaxDBSize(size uint64) {

@@ -143,6 +143,18 @@ check ./test-gas-verify-proof.sh
 check ./test-gas-per-function-v3.sh
 check ./test-contract-deploy.sh
 
+# change the hardfork version
+set_version 4
+
+# run the integration tests - version 4
+check ./test-max-call-depth.sh
+check ./test-gas-deploy.sh
+check ./test-gas-op.sh
+check ./test-gas-bf.sh
+check ./test-gas-verify-proof.sh
+check ./test-gas-per-function-v4.sh
+check ./test-contract-deploy.sh
+
 # terminate the server process
 echo ""
 echo "closing the aergo nodes"

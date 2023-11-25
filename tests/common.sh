@@ -66,12 +66,12 @@ wait_version() {
 get_deploy_args() {
   contract_file=$1
 
-  if [ "$fork_version" -ge "4" ]; then
-    deploy_args="$contract_file"
-  else
+  #if [ "$fork_version" -ge "4" ]; then
+  #  deploy_args="$contract_file"
+  #else
     ../bin/aergoluac --payload $contract_file > payload.out
     deploy_args="--payload `cat payload.out`"
-  fi
+  #fi
 
 }
 
@@ -97,7 +97,7 @@ get_receipt() {
     #echo "output: $output"
 
     if [[ $output == *"tx not found"* ]]; then
-      sleep 0.5
+      sleep 0.4
       counter=$((counter+1))
       if [ $counter -gt 10 ]; then
         echo "Error: tx not found: $txhash"
