@@ -4462,12 +4462,12 @@ func TestComposableTransactions(t *testing.T) {
   defer bc.Release()
 
   err = bc.ConnectBlock(
-    NewLuaTxAccount("ac0", 100, types.Aergo),
-    NewLuaTxAccount("ac1", 100, types.Aergo),
-    NewLuaTxAccount("ac2", 100, types.Aergo),
-    NewLuaTxAccount("ac3", 100, types.Aergo),
-    NewLuaTxAccount("ac4", 100, types.Aergo),
-    NewLuaTxAccount("ac5", 100, types.Aergo),
+    NewLuaTxAccount("ac0", 10, types.Aergo),
+    NewLuaTxAccount("ac1", 10, types.Aergo),
+    NewLuaTxAccount("ac2", 10, types.Aergo),
+    NewLuaTxAccount("ac3", 10, types.Aergo),
+    NewLuaTxAccount("ac4", 10, types.Aergo),
+    NewLuaTxAccount("ac5", 10, types.Aergo),
     NewLuaTxDeploy("ac0", "tables", 0, code),
     NewLuaTxDeploy("ac0", "c1", 0, code),
     NewLuaTxDeploy("ac0", "c2", 0, code),
