@@ -82,7 +82,7 @@ func (sdb *ChainStateDB) Init(dbType string, dataDir string, bestBlock *types.Bl
 	if sdb.evmStates == nil {
 		var sroot ethcommon.Hash
 		if bestBlock != nil {
-			sroot = ethcommon.BytesToHash(bestBlock.GetHeader().GetEvmReceiptsRootHash())
+			sroot = ethcommon.BytesToHash(bestBlock.GetHeader().GetEvmRootHash())
 		}
 		sdb.evmStates, err = ethstate.New(sroot, sdb.evmStore, nil)
 		if err != nil {

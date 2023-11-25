@@ -1,14 +1,12 @@
 package account
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
 func TestAccountFormat(t *testing.T) {
-	fmt.Println(len([]byte{3, 112, 238, 158, 33, 17, 101, 89, 68, 95, 155, 198, 187, 127, 233, 38, 180, 46, 175, 134, 228, 158, 146, 64, 79, 134, 218, 92, 224, 53, 224, 191, 124}))
 	for _, test := range []struct {
 		account    []byte
 		luaAccount string

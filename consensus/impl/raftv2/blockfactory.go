@@ -521,7 +521,7 @@ func (bf *BlockFactory) generateBlock(work *Work) (*types.Block, *state.BlockSta
 	txOp := chain.NewCompTxOp(bf.txOp, newTxExec(work.execCtx, bf, bf.ChainWAL, bi))
 	blockState := bf.sdb.NewBlockState(
 		bestBlock.GetHeader().GetBlocksRootHash(),
-		bestBlock.GetHeader().GetEvmReceiptsRootHash(),
+		bestBlock.GetHeader().GetEvmRootHash(),
 		state.SetPrevBlockHash(bestBlock.BlockHash()),
 	)
 	blockState.SetGasPrice(system.GetGasPrice())

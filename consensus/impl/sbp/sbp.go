@@ -188,7 +188,7 @@ func (s *SimpleBlockFactory) Start() {
 				bi := types.NewBlockHeaderInfoFromPrevBlock(prevBlock, time.Now().UnixNano(), s.bv)
 				blockState := s.sdb.NewBlockState(
 					prevBlock.GetHeader().GetBlocksRootHash(),
-					prevBlock.GetHeader().GetEvmReceiptsRootHash(),
+					prevBlock.GetHeader().GetEvmRootHash(),
 					state.SetPrevBlockHash(prevBlock.BlockHash()),
 				)
 				blockState.SetGasPrice(system.GetGasPrice())
