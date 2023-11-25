@@ -412,12 +412,6 @@ func (bh *BlockHeader) bytesForDigest() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// TODO : add root hash for evm
-func (bh *BlockHeader) GetEVMRootHash() []byte {
-
-	return nil
-}
-
 // VerifySign verifies the signature of block.
 func (block *Block) VerifySign() (valid bool, err error) {
 	var pubKey crypto.PubKey

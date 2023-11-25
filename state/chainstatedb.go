@@ -82,7 +82,7 @@ func (sdb *ChainStateDB) Init(dbType string, dataDir string, bestBlock *types.Bl
 	if sdb.evmStates == nil {
 		var sroot ethcommon.Hash
 		if bestBlock != nil {
-			sroot = ethcommon.BytesToHash(bestBlock.GetHeader().GetEVMRootHash())
+			sroot = ethcommon.BytesToHash(bestBlock.GetHeader().GetEvmReceiptsRootHash())
 		}
 		sdb.evmStates, err = ethstate.New(sroot, sdb.evmStore, nil)
 		if err != nil {
@@ -249,9 +249,8 @@ func (sdb *ChainStateDB) IsExistState(hash []byte) bool {
 	return false
 }
 
-func (sdb *ChainStateDB) NewBlockState(luaRoot []byte, evmRoot []byte, options ...BlockStateOptFn) *BlockState {
-	var ls *StateDB
-	ls = sdb.OpenLuaStateDB(luaRoot)
+func (sdb *ChainStateDB) NewBlockState(blockRoot []byte, evmRoot []byte, options ...BlockStateOptFn) *BlockState {
+	ls := sdb.OpenLuaStateDB(blockRoot)
 	var es *ethstate.StateDB
 	if evmRoot != nil {
 		es = sdb.OpenEvmStateDB(evmRoot)

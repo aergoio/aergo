@@ -237,7 +237,7 @@ func (bf *BlockFactory) generateBlock(execCtx context.Context, bpi *bpInfo, lpbN
 	bi := types.NewBlockHeaderInfoFromPrevBlock(bpi.bestBlock, bpi.slot.UnixNano(), bf.bv)
 	bs = bf.sdb.NewBlockState(
 		bpi.bestBlock.GetHeader().GetBlocksRootHash(),
-		bpi.bestBlock.GetHeader().GetEVMRootHash(), // FIXME : add evm root hash
+		bpi.bestBlock.GetHeader().GetEvmReceiptsRootHash(), // FIXME : add evm root hash
 		state.SetPrevBlockHash(bpi.bestBlock.BlockHash()),
 	)
 	bs.SetGasPrice(system.GetGasPrice())
