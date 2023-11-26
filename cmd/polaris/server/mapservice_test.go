@@ -22,7 +22,7 @@ import (
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/golang/mock/gomock"
-	"github.com/libp2p/go-libp2p-core/network"
+	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -197,7 +197,7 @@ func TestPeerMapService_handleQuery(t *testing.T) {
 			pmapDummyNTC.chainID = &common.ONEMainNet
 			pmapDummyNTC.nt = mockNT
 			mockNT.EXPECT().AddStreamHandler(gomock.Any(), gomock.Any())
-			mockNT.EXPECT().GetOrCreateStreamWithTTL(gomock.Any(), gomock.Any(), common.PolarisPingSub).Return(mockStream, nil).MinTimes(1)
+			mockNT.EXPECT().GetOrCreateStreamWithTTL(gomock.Any(), gomock.Any(), common.PolarisPingSub).Return(mockStream, nil).Times(0)
 
 			pms := NewPolarisService(pmapDummyCfg, pmapDummyNTC)
 			pms.AfterStart()

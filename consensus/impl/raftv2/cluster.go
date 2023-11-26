@@ -825,7 +825,7 @@ func (cl *Cluster) toConsensusInfo() *types.ConsensusInfo {
 		bps := make([]string, cl.Size)
 
 		for id, m := range cl.Members().MapByID {
-			bp := &PeerInfo{Name: m.Name, RaftID: EtcdIDToString(m.ID), PeerID: m.GetPeerID().Pretty(), Addr: m.Address}
+			bp := &PeerInfo{Name: m.Name, RaftID: EtcdIDToString(m.ID), PeerID: m.GetPeerID().String(), Addr: m.Address}
 			b, err = json.Marshal(bp)
 			if err != nil {
 				logger.Error().Err(err).Str("raftid", EtcdIDToString(id)).Msg("failed to marshalEntryData raft consensus bp")

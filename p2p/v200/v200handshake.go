@@ -183,7 +183,7 @@ func (h *V200Handshaker) checkRemoteStatus(remotePeerStatus *types.Status) error
 
 	rMeta := p2pcommon.NewMetaFromStatus(remotePeerStatus)
 	if rMeta.ID != h.peerID {
-		h.logger.Debug().Str("received_peer_id", rMeta.ID.Pretty()).Stringer(p2putil.LogPeerID, types.LogPeerShort(h.peerID)).Msg("Inconsistent peerID")
+		h.logger.Debug().Str("received_peer_id", rMeta.ID.String()).Stringer(p2putil.LogPeerID, types.LogPeerShort(h.peerID)).Msg("Inconsistent peerID")
 		h.sendGoAway("Inconsistent peerID")
 		return fmt.Errorf("inconsistent peerID")
 	}

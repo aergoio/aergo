@@ -18,7 +18,7 @@ var (
 
 // ShortForm returns shorthanded types.PeerID.
 func ShortForm(pid types.PeerID) string {
-	pretty := pid.Pretty()
+	pretty := pid.String()
 	if UseFullID {
 		return pretty
 	}

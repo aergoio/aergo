@@ -19,7 +19,7 @@ import (
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/gofrs/uuid"
 	"github.com/golang/mock/gomock"
-	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/assert"
 )
 
