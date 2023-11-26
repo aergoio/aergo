@@ -13,16 +13,16 @@ func saveData(store db.DB, key []byte, data interface{}) error {
 	}
 	var err error
 	var raw []byte
-	switch data.(type) {
+	switch msg := data.(type) {
 	case ([]byte):
-		raw = data.([]byte)
+		raw = msg
 	case proto.Message:
-		raw, err = proto.Encode(data.(proto.Message))
+		raw, err = proto.Encode(msg)
 		if err != nil {
 			return err
 		}
 	default:
-		raw, err = gob.Encode(data)
+		raw, err = gob.Encode(msg)
 		if err != nil {
 			return err
 		}
@@ -41,13 +41,13 @@ func loadData(store db.DB, key []byte, data interface{}) error {
 		return nil
 	}
 	var err error
-	switch data.(type) {
+	switch msg := data.(type) {
 	case *[]byte:
-		*(data).(*[]byte) = raw
+		*msg = raw
 	case proto.Message:
-		err = proto.Decode(raw, data.(proto.Message))
+		err = proto.Decode(raw, msg)
 	default:
-		err = gob.Decode(raw, data)
+		err = gob.Decode(raw, msg)
 	}
 	return err
 }

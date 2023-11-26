@@ -61,7 +61,6 @@ type StateDB struct {
 	cache    *storageCache
 	trie     *trie.Trie
 	store    db.DB
-	batchtx  db.Transaction
 	testmode bool
 }
 
@@ -195,7 +194,7 @@ func (states *StateDB) getTrieState(id types.AccountID) (*types.State, error) {
 	if err != nil {
 		return nil, err
 	}
-	if key == nil || len(key) == 0 {
+	if len(key) == 0 {
 		return nil, nil
 	}
 	return states.loadStateData(key)

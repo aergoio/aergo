@@ -15,10 +15,6 @@ type entry interface {
 	Value() interface{}
 }
 
-type cached interface {
-	cache() *stateBuffer
-}
-
 type valueEntry struct {
 	key   types.HashID
 	value interface{}
@@ -160,7 +156,7 @@ func (buffer *stateBuffer) export() ([][]byte, [][]byte) {
 		bufs = append(bufs, et)
 	}
 	sort.Slice(bufs, func(i, j int) bool {
-		return -1 == (bufs[i].KeyID().Compare(bufs[j].KeyID()))
+		return (bufs[i].KeyID().Compare(bufs[j].KeyID())) == -1
 	})
 	size := len(bufs)
 	keys := make([][]byte, size)
@@ -197,15 +193,15 @@ func (buffer *stateBuffer) stage(txn trie.DbTx) error {
 }
 
 func marshal(data interface{}) ([]byte, error) {
-	switch data.(type) {
+	switch msg := data.(type) {
 	case ([]byte):
-		return data.([]byte), nil
+		return msg, nil
 	case (*[]byte):
-		return *(data.(*[]byte)), nil
+		return *msg, nil
 	case (types.ImplMarshal):
-		return data.(types.ImplMarshal).Marshal()
+		return msg.Marshal()
 	case (proto.Message):
-		return proto.Encode(data.(proto.Message))
+		return proto.Encode(msg)
 	}
 	return nil, nil
 }
@@ -214,9 +210,9 @@ func getHashBytes(data interface{}) []byte {
 	if data == nil {
 		return nil
 	}
-	switch data.(type) {
+	switch msg := data.(type) {
 	case (types.ImplHashBytes):
-		return data.(types.ImplHashBytes).Hash()
+		return msg.Hash()
 	default:
 	}
 	buf, err := marshal(data)
