@@ -140,7 +140,10 @@ func LoadDummyChainEx(chainType ChainType) (*DummyChain, error) {
 	types.InitGovernance("dpos", true)
 
 	// To pass dao parameters test
-	scs, err := bc.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("aergo.system")))
+	scs, err := state.GetSystemAccountState(bc.sdb.GetStateDB())
+	if err != nil {
+		return nil, err
+	}
 	system.InitSystemParams(scs, 3)
 
 	return bc, nil
@@ -506,7 +509,7 @@ func executeTx(
 			return err
 		}
 		var contractState *state.ContractState
-		contractState, err = bs.OpenContractState(receiver.AccountID(), receiver.State())
+		contractState, err = state.OpenContractState(receiver.AccountID(), receiver.State(), bs.StateDB)
 		if err != nil {
 			return err
 		}
@@ -594,7 +597,7 @@ func executeGovernanceTx(ccc consensus.ChainConsensusCluster, bs *state.BlockSta
 
 	governance := string(txBody.Recipient)
 
-	scs, err := bs.StateDB.OpenContractState(receiver.AccountID(), receiver.State())
+	scs, err := state.OpenContractState(receiver.AccountID(), receiver.State(), bs.StateDB)
 	if err != nil {
 		return nil, err
 	}
@@ -612,7 +615,7 @@ func executeGovernanceTx(ccc consensus.ChainConsensusCluster, bs *state.BlockSta
 	}
 
 	if err == nil {
-		err = bs.StateDB.StageContractState(scs)
+		err = state.StageContractState(scs, bs.StateDB)
 	}
 
 	return events, err

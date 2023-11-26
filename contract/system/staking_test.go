@@ -139,7 +139,7 @@ func TestUnstakingError(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
 	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
-	scs, err := cdb.GetStateDB().GetSystemAccountState()
+	scs, err := state.GetSystemAccountState(cdb.GetStateDB())
 	assert.Equal(t, err, nil, "could not open contract state")
 
 	account, err := types.DecodeAddress(testSender)

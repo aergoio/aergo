@@ -92,7 +92,7 @@ func (as *AccountState) ClearAid() {
 }
 
 //----------------------------------------------------------------------------------------------//
-//
+// global functions
 
 func CreateAccountState(id []byte, sdb *StateDB) (*AccountState, error) {
 	v, err := GetAccountState(id, sdb)

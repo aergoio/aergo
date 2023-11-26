@@ -10,6 +10,7 @@ import (
 
 	"github.com/aergoio/aergo/v2/config"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -242,7 +243,7 @@ func TestValidateSystemTxForStaking(t *testing.T) {
 	scs, sender, receiver := initTest(t)
 	defer deinitTest()
 
-	scs, err := cdb.GetStateDB().GetSystemAccountState()
+	scs, err := state.GetSystemAccountState(cdb.GetStateDB())
 	assert.NoError(t, err, "could not open contract state")
 
 	tx := &types.Tx{
@@ -265,7 +266,7 @@ func TestValidateSystemTxForUnstaking(t *testing.T) {
 	defer deinitTest()
 	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
 
-	scs, err := cdb.GetStateDB().GetSystemAccountState()
+	scs, err := state.GetSystemAccountState(cdb.GetStateDB())
 	assert.NoError(t, err, "could not open contract state")
 
 	account, err := types.DecodeAddress(testSender)

@@ -10,53 +10,6 @@ import (
 	"github.com/aergoio/aergo/v2/types"
 )
 
-func (states *StateDB) OpenContractStateAccount(aid types.AccountID) (*ContractState, error) {
-	st, err := states.GetAccountState(aid)
-	if err != nil {
-		return nil, err
-	}
-	return states.OpenContractState(aid, st)
-}
-
-func (states *StateDB) OpenContractState(aid types.AccountID, st *types.State) (*ContractState, error) {
-	storage := states.cache.get(aid)
-	if storage == nil {
-		root := common.Compactz(st.StorageRoot)
-		storage = newBufferedStorage(root, states.store)
-	}
-	res := &ContractState{
-		State:   st,
-		account: aid,
-		storage: storage,
-		store:   states.store,
-	}
-	return res, nil
-}
-
-func (states *StateDB) StageContractState(st *ContractState) error {
-	states.cache.put(st.account, st.storage)
-	st.storage = nil
-	return nil
-}
-
-// GetSystemAccountState returns the ContractState of the AERGO system account.
-
-func (states *StateDB) GetSystemAccountState() (*ContractState, error) {
-	return states.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
-}
-
-// GetNameAccountState returns the ContractState of the AERGO name account.
-
-func (states *StateDB) GetNameAccountState() (*ContractState, error) {
-	return states.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoName)))
-}
-
-// GetEnterpriseAccountState returns the ContractState of the AERGO enterprise account.
-
-func (states *StateDB) GetEnterpriseAccountState() (*ContractState, error) {
-	return states.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoEnterprise)))
-}
-
 type ContractState struct {
 	*types.State
 	account types.AccountID
@@ -203,7 +156,7 @@ func (cs *ContractState) cache() *stateBuffer {
 }
 
 //---------------------------------------------------------------//
-// global funcs
+// global functions
 
 func OpenContractStateAccount(aid types.AccountID, states *StateDB) (*ContractState, error) {
 	st, err := states.GetAccountState(aid)
