@@ -116,7 +116,7 @@ func TestNameNil(t *testing.T) {
 	name1 := "AB1234567890"
 	name2 := "1234567890CD"
 
-	scs, err := sdb.GetStateDB().GetSystemAccountState()
+	scs, err := state.GetSystemAccountState(sdb.GetStateDB())
 	assert.NoError(t, err, "could not open contract state")
 	tx := &types.TxBody{Account: []byte(name1), Payload: buildNamePayload(name2, types.NameCreate, "")}
 	sender, _ := state.GetAccountState(tx.Account, sdb.GetStateDB())

@@ -17,7 +17,7 @@ type BlockInfo struct {
 
 // BlockState contains BlockInfo and statedb for block
 type BlockState struct {
-	StateDB
+	*StateDB
 	BpReward      big.Int // final bp reward, increment when tx executes
 	receipts      types.Receipts
 	CCProposal    *consensus.ConfChangePropose
@@ -55,7 +55,7 @@ func SetGasPrice(gasPrice *big.Int) BlockStateOptFn {
 // NewBlockState create new blockState contains blockInfo, account states and undo states
 func NewBlockState(states *StateDB, options ...BlockStateOptFn) *BlockState {
 	b := &BlockState{
-		StateDB:   *states,
+		StateDB:   states,
 		codeCache: gcache.New(100).LRU().Build(),
 		abiCache:  gcache.New(100).LRU().Build(),
 	}

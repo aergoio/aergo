@@ -32,7 +32,7 @@ func TestContractStateCode(t *testing.T) {
 	testBytes := []byte("test_bytes")
 
 	// open contract state
-	contractState, err := stateDB.OpenContractStateAccount(types.ToAccountID(testAddress))
+	contractState, err := OpenContractStateAccount(types.ToAccountID(testAddress), stateDB)
 	assert.NoError(t, err, "could not open contract state")
 
 	// set code
@@ -53,7 +53,7 @@ func TestContractStateData(t *testing.T) {
 	testKey := []byte("test_key")
 
 	// open contract state
-	contractState, err := stateDB.OpenContractStateAccount(types.ToAccountID(testAddress))
+	contractState, err := OpenContractStateAccount(types.ToAccountID(testAddress), stateDB)
 	assert.NoError(t, err, "could not open contract state")
 
 	// set data
@@ -66,7 +66,7 @@ func TestContractStateData(t *testing.T) {
 	assert.Equal(t, testBytes, res, "different data detected")
 
 	// stage contract state
-	err = stateDB.StageContractState(contractState)
+	err = StageContractState(contractState, stateDB)
 	assert.NoError(t, err, "stage contract state")
 }
 
@@ -78,7 +78,7 @@ func TestContractStateInitialData(t *testing.T) {
 	testKey := []byte("test_key")
 
 	// open contract state
-	contractState, err := stateDB.OpenContractStateAccount(types.ToAccountID(testAddress))
+	contractState, err := OpenContractStateAccount(types.ToAccountID(testAddress), stateDB)
 	assert.NoError(t, err, "could not open contract state")
 
 	// get initial data
@@ -101,7 +101,7 @@ func TestContractStateInitialData(t *testing.T) {
 	assert.Nil(t, res, "get initial data from contract state")
 
 	// stage contract state
-	err = stateDB.StageContractState(contractState)
+	err = StageContractState(contractState, stateDB)
 	assert.NoError(t, err, "stage contract state")
 
 	// update and commit statedb
@@ -111,7 +111,7 @@ func TestContractStateInitialData(t *testing.T) {
 	assert.NoError(t, err, "commit statedb")
 
 	// reopen contract state
-	contractState, err = stateDB.OpenContractStateAccount(types.ToAccountID(testAddress))
+	contractState, err = OpenContractStateAccount(types.ToAccountID(testAddress), stateDB)
 	assert.NoError(t, err, "could not open contract state")
 
 	// get initial data
@@ -128,15 +128,15 @@ func TestContractStateDataDelete(t *testing.T) {
 	testKey := []byte("test_key")
 
 	// open contract state and set test data
-	contractState, err := stateDB.OpenContractStateAccount(types.ToAccountID(testAddress))
+	contractState, err := OpenContractStateAccount(types.ToAccountID(testAddress), stateDB)
 	assert.NoError(t, err, "could not open contract state")
 	err = contractState.SetData(testKey, testBytes)
 	assert.NoError(t, err, "set data to contract state")
 
 	// stage and re-open contract state
-	err = stateDB.StageContractState(contractState)
+	err = StageContractState(contractState, stateDB)
 	assert.NoError(t, err, "stage contract state")
-	contractState, err = stateDB.OpenContractState(types.ToAccountID(testAddress), contractState.State)
+	contractState, err = OpenContractState(types.ToAccountID(testAddress), contractState.State, stateDB)
 	assert.NoError(t, err, "could not open contract state")
 
 	// get and delete test data
@@ -147,9 +147,9 @@ func TestContractStateDataDelete(t *testing.T) {
 	assert.NoError(t, err, "delete data from contract state")
 
 	// stage and re-open contract state
-	err = stateDB.StageContractState(contractState)
+	err = StageContractState(contractState, stateDB)
 	assert.NoError(t, err, "stage contract state")
-	contractState, err = stateDB.OpenContractState(types.ToAccountID(testAddress), contractState.State)
+	contractState, err = OpenContractState(types.ToAccountID(testAddress), contractState.State, stateDB)
 	assert.NoError(t, err, "could not open contract state")
 
 	// get test data
@@ -158,7 +158,7 @@ func TestContractStateDataDelete(t *testing.T) {
 	assert.Nil(t, res, "garbage data detected")
 
 	// stage contract state
-	err = stateDB.StageContractState(contractState)
+	err = StageContractState(contractState, stateDB)
 	assert.NoError(t, err, "stage contract state")
 }
 
@@ -170,7 +170,7 @@ func TestContractStateHasKey(t *testing.T) {
 	testKey := []byte("test_key")
 
 	// open contract state and set test data
-	contractState, err := stateDB.OpenContractStateAccount(types.ToAccountID(testAddress))
+	contractState, err := OpenContractStateAccount(types.ToAccountID(testAddress), stateDB)
 	assert.NoError(t, err, "could not open contract state")
 	assert.False(t, contractState.HasKey(testKey))
 
@@ -189,7 +189,7 @@ func TestContractStateHasKey(t *testing.T) {
 	assert.True(t, contractState.HasKey(testKey))
 
 	// stage contract state
-	err = stateDB.StageContractState(contractState)
+	err = StageContractState(contractState, stateDB)
 	assert.NoError(t, err, "stage contract state")
 
 	// update and commit
@@ -199,7 +199,7 @@ func TestContractStateHasKey(t *testing.T) {
 	assert.NoError(t, err, "failed to commit stateDB")
 
 	// re-open contract state
-	contractState, err = stateDB.OpenContractState(types.ToAccountID(testAddress), contractState.State)
+	contractState, err = OpenContractState(types.ToAccountID(testAddress), contractState.State, stateDB)
 	assert.NoError(t, err, "could not open contract state")
 
 	// check key existence
@@ -212,11 +212,11 @@ func TestContractStateEmpty(t *testing.T) {
 	testAddress := []byte("test_address")
 
 	// open contract state
-	contractState, err := stateDB.OpenContractStateAccount(types.ToAccountID(testAddress))
+	contractState, err := OpenContractStateAccount(types.ToAccountID(testAddress), stateDB)
 	assert.NoError(t, err, "could not open contract state")
 
 	// stage contract state
-	err = stateDB.StageContractState(contractState)
+	err = StageContractState(contractState, stateDB)
 	assert.NoError(t, err, "stage contract state")
 }
 
@@ -228,7 +228,7 @@ func TestContractStateReOpenData(t *testing.T) {
 	testKey := []byte("test_key")
 
 	// open contract state
-	contractState, err := stateDB.OpenContractStateAccount(types.ToAccountID(testAddress))
+	contractState, err := OpenContractStateAccount(types.ToAccountID(testAddress), stateDB)
 	assert.NoError(t, err, "could not open contract state")
 
 	// set data
@@ -241,12 +241,12 @@ func TestContractStateReOpenData(t *testing.T) {
 	assert.Equal(t, testBytes, res, "different data detected")
 
 	// stage contract state
-	err = stateDB.StageContractState(contractState)
+	err = StageContractState(contractState, stateDB)
 	assert.NoError(t, err, "stage contract state")
 
 	// re-open contract state
-	//contractState2, err := chainStateDB.OpenContractStateAccount(types.ToAccountID(testAddress))
-	contractState2, err := stateDB.OpenContractState(types.ToAccountID(testAddress), contractState.State)
+	//contractState2, err := chainOpenContractStateAccount(types.ToAccountID(testAddress),StateDB)
+	contractState2, err := OpenContractState(types.ToAccountID(testAddress), contractState.State, stateDB)
 	assert.NoError(t, err, "could not open contract state")
 
 	// get data
@@ -263,7 +263,7 @@ func TestContractStateRollback(t *testing.T) {
 	testKey := []byte("test_key")
 
 	// open contract state
-	contractState, err := stateDB.OpenContractStateAccount(types.ToAccountID(testAddress))
+	contractState, err := OpenContractStateAccount(types.ToAccountID(testAddress), stateDB)
 	assert.NoError(t, err, "could not open contract state")
 
 	// test data

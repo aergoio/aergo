@@ -687,7 +687,7 @@ func (ce *executor) commitCalledContract() error {
 			continue
 		}
 		if v.ctrState != nil {
-			err = bs.StageContractState(v.ctrState)
+			err = state.StageContractState(v.ctrState, bs.StateDB)
 			if err != nil {
 				return newDbSystemError(err)
 			}

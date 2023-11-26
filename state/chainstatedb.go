@@ -79,7 +79,7 @@ func (sdb *ChainStateDB) GetStateDB() *StateDB {
 
 // GetSystemAccountState returns the state of the aergo system account.
 func (sdb *ChainStateDB) GetSystemAccountState() (*ContractState, error) {
-	return sdb.GetStateDB().GetSystemAccountState()
+	return GetSystemAccountState(sdb.GetStateDB())
 }
 
 // OpenNewStateDB returns new instance of statedb given state root hash
@@ -102,7 +102,7 @@ func (sdb *ChainStateDB) SetGenesis(genesis *types.Genesis, bpInit func(*StateDB
 		}
 
 		aid := types.ToAccountID([]byte(types.AergoSystem))
-		scs, err := stateDB.GetSystemAccountState()
+		scs, err := GetSystemAccountState(stateDB)
 		if err != nil {
 			return err
 		}
@@ -114,7 +114,7 @@ func (sdb *ChainStateDB) SetGenesis(genesis *types.Genesis, bpInit func(*StateDB
 
 	for address, balance := range genesis.Balance {
 		if v, ok := new(big.Int).SetString(balance, 10); ok {
-			accountState, err := GetAccountState(types.ToAddress(address), stateDB)
+			accountState, err := GetAccountState(types.ToAddress(address), gbState.StateDB)
 			if err != nil {
 				return err
 			}

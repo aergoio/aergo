@@ -197,11 +197,3 @@ func getVoteResult(scs *state.ContractState, key []byte, n int) (*types.VoteList
 	}
 	return voteList, nil
 }
-
-func GetVoteResultEx(ar AccountStateReader, key []byte, n int) (*types.VoteList, error) {
-	scs, err := ar.GetSystemAccountState()
-	if err != nil {
-		return nil, err
-	}
-	return getVoteResult(scs, key, n)
-}

@@ -40,16 +40,19 @@ func (states *StateDB) StageContractState(st *ContractState) error {
 }
 
 // GetSystemAccountState returns the ContractState of the AERGO system account.
+
 func (states *StateDB) GetSystemAccountState() (*ContractState, error) {
 	return states.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
 }
 
 // GetNameAccountState returns the ContractState of the AERGO name account.
+
 func (states *StateDB) GetNameAccountState() (*ContractState, error) {
 	return states.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoName)))
 }
 
 // GetEnterpriseAccountState returns the ContractState of the AERGO enterprise account.
+
 func (states *StateDB) GetEnterpriseAccountState() (*ContractState, error) {
 	return states.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoEnterprise)))
 }
@@ -197,4 +200,51 @@ func (st *ContractState) Marshal() ([]byte, error) {
 
 func (st *ContractState) cache() *stateBuffer {
 	return st.storage.buffer
+}
+
+//---------------------------------------------------------------//
+// global funcs
+
+func OpenContractStateAccount(aid types.AccountID, states *StateDB) (*ContractState, error) {
+	st, err := states.GetAccountState(aid)
+	if err != nil {
+		return nil, err
+	}
+	return OpenContractState(aid, st, states)
+}
+
+func OpenContractState(aid types.AccountID, st *types.State, states *StateDB) (*ContractState, error) {
+	storage := states.cache.get(aid)
+	if storage == nil {
+		root := common.Compactz(st.StorageRoot)
+		storage = newBufferedStorage(root, states.store)
+	}
+	res := &ContractState{
+		State:   st,
+		account: aid,
+		storage: storage,
+		store:   states.store,
+	}
+	return res, nil
+}
+
+func StageContractState(st *ContractState, states *StateDB) error {
+	states.cache.put(st.account, st.storage)
+	st.storage = nil
+	return nil
+}
+
+// GetSystemAccountState returns the ContractState of the AERGO system account.
+func GetSystemAccountState(states *StateDB) (*ContractState, error) {
+	return OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)), states)
+}
+
+// GetNameAccountState returns the ContractState of the AERGO name account.
+func GetNameAccountState(states *StateDB) (*ContractState, error) {
+	return OpenContractStateAccount(types.ToAccountID([]byte(types.AergoName)), states)
+}
+
+// GetEnterpriseAccountState returns the ContractState of the AERGO enterprise account.
+func GetEnterpriseAccountState(states *StateDB) (*ContractState, error) {
+	return OpenContractStateAccount(types.ToAccountID([]byte(types.AergoEnterprise)), states)
 }

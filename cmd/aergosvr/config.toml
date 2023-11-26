@@ -1,0 +1,59 @@
+# aergo TOML Configuration File (https://github.com/toml-lang/toml)
+# base configurations
+datadir = "./data"
+dbtype = "badgerdb"
+enableprofile = true
+profileport = 16060
+enbablerest = true
+personal = false
+authdir = "./auth"
+
+[rpc]
+netserviceaddr = "0.0.0.0"
+netserviceport = 17845
+netservicetrace = false
+nstls = false
+nscert = ""
+nskey = ""
+nscacert = ""
+nsallowcors = false
+
+[p2p]
+# Set address and port to which the inbound peers connect, and don't set loopback address or private network unless used in local network 
+netprotocoladdr = ""
+netprotocolport = 17846
+npbindaddr = ""
+npbindport = -1
+# TLS and certificate is not applied in alpha release.
+nptls = false
+npcert = ""
+# Set file path of key file
+npkey = ""
+npaddpeers = [
+    "/ip4/3.37.26.177/tcp/7846/p2p/16Uiu2HAkv8uFPUK7LkT8nDCqTnLPHM6ZofbA4agK1QWtD3aoR6oQ", # mainnet peer 1
+    "/ip4/54.180.205.10/tcp/7846/p2p/16Uiu2HAmPVoAvotacpQuVAzG7ihg6sW7eyWMLohzf3eG1HyDTiCn", # mainnet peer 2
+    "/ip4/13.209.29.176/tcp/7846/p2p/16Uiu2HAkzRXKbr6NUjxGw4f73J6uJBvpNjAjmH2umPotXGfJ2CVQ" # mainnet peer 3
+    # "/ip4/15.165.32.166/tcp/7846/p2p/16Uiu2HAmRCvmFQANpSAgZGdTTXJRt3V3UX7BjxL8SYMdv9sc2W81", # testnet peer 1
+    # "/ip4/54.180.50.58/tcp/7846/p2p/16Uiu2HAmCHgRjxwAdDfGqjHGsq9CsjP3navw81h9d3d97jr4EPpo", # testnet peer 2
+    # "/ip4/13.209.189.119/tcp/7846/p2p/16Uiu2HAm2N7oquZE851WbVakUF2b6qcbkqa2cEgnGeVNEsZDY8iE" # testnet peer 3
+]
+npdiscoverpeers = false
+npexposeself = true
+npusepolaris = true
+npaddpolarises = [
+]
+peerrole = ""
+
+[polaris]
+allowprivate = false
+genesisfile = ""
+enableblacklist = "false"
+
+[mempool]
+showmetrics = false
+dumpfilepath ="./data/mempool.dump"
+fadeoutperiod = 12
+verifiers = 16
+
+[consensus]
+enablebp = false

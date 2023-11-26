@@ -442,7 +442,11 @@ func (mp *MemPool) setStateDB(block *types.Block) (bool, bool) {
 			} else {
 				mp.isPublic = cid.PublicNet
 				if !mp.isPublic {
-					conf, err := enterprise.GetConf(mp.stateDB, enterprise.AccountWhite)
+					ecs, err := state.GetEnterpriseAccountState(mp.stateDB)
+					if err != nil {
+						mp.Warn().Err(err).Msg("failed to get whitelist")
+					}
+					conf, err := enterprise.GetConf(ecs, enterprise.AccountWhite)
 					if err != nil {
 						mp.Warn().Err(err).Msg("failed to init whitelist")
 					}
@@ -586,7 +590,7 @@ func (mp *MemPool) getNameDest(account []byte, owner bool) []byte {
 		return account
 	}
 
-	scs, err := mp.stateDB.GetNameAccountState()
+	scs, err := state.GetNameAccountState(mp.stateDB)
 	if err != nil {
 		mp.Error().Str("for name", string(account)).Msgf("failed to open contract %s", types.AergoName)
 		return nil
@@ -658,7 +662,7 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 			return err
 		}
 		aid := types.ToAccountID(tx.GetBody().GetRecipient())
-		scs, err := mp.stateDB.OpenContractState(aid, aergoState)
+		scs, err := state.OpenContractState(aid, aergoState, mp.stateDB)
 		if err != nil {
 			return err
 		}
@@ -684,7 +688,7 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 				return err
 			}
 		case types.AergoEnterprise:
-			enterprisecs, err := mp.stateDB.GetEnterpriseAccountState()
+			enterprisecs, err := state.GetEnterpriseAccountState(mp.stateDB)
 			if err != nil {
 				return err
 			}

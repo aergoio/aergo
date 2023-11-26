@@ -328,17 +328,8 @@ func BuildOrderedCandidates(vote map[string]*big.Int) []string {
 	return bps
 }
 
-// AccountStateReader is an interface for getting a system account state.
-type AccountStateReader interface {
-	GetSystemAccountState() (*state.ContractState, error)
-}
-
 // GetVoteResult returns the top n voting result from the system account state.
-func GetVoteResult(ar AccountStateReader, id []byte, n int) (*types.VoteList, error) {
-	scs, err := ar.GetSystemAccountState()
-	if err != nil {
-		return nil, err
-	}
+func GetVoteResult(scs *state.ContractState, id []byte, n int) (*types.VoteList, error) {
 	if !bytes.Equal(id, defaultVoteKey) {
 		id = GenProposalKey(string(id))
 	}
@@ -346,10 +337,10 @@ func GetVoteResult(ar AccountStateReader, id []byte, n int) (*types.VoteList, er
 }
 
 // GetRankers returns the IDs of the top n rankers.
-func GetRankers(ar AccountStateReader) ([]string, error) {
+func GetRankers(scs *state.ContractState) ([]string, error) {
 	n := GetBpCount()
 
-	vl, err := GetVoteResult(ar, defaultVoteKey, n)
+	vl, err := GetVoteResult(scs, defaultVoteKey, n)
 	if err != nil {
 		return nil, err
 	}

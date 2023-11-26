@@ -450,13 +450,13 @@ func contractFrame(l luaTxContract, bs *state.BlockState, cdb contract.ChainAcce
 	run func(s, c *state.AccountState, id types.AccountID, cs *state.ContractState) (string, []*types.Event, *big.Int, error)) error {
 
 	creatorId := types.ToAccountID(l.sender())
-	creatorState, err := state.GetAccountState(l.sender(), &bs.StateDB)
+	creatorState, err := state.GetAccountState(l.sender(), bs.StateDB)
 	if err != nil {
 		return err
 	}
 
 	contractId := types.ToAccountID(l.recipient())
-	contractState, err := state.GetAccountState(l.recipient(), &bs.StateDB)
+	contractState, err := state.GetAccountState(l.recipient(), bs.StateDB)
 	if err != nil {
 		return err
 	}

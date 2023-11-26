@@ -250,7 +250,11 @@ func newBlockExecutor(bc *DummyChain, txs []*types.Tx) (*blockExecutor, error) {
 
 	exec = NewTxExecutor(context.Background(), nil, bc, bi, contract.ChainService)
 
-	blockState.SetGasPrice(system.GetGasPriceFromState(blockState))
+	scs, err := state.GetSystemAccountState(blockState.StateDB)
+	if err != nil {
+		return nil, err
+	}
+	blockState.SetGasPrice(system.GetGasPriceFromState(scs))
 
 	blockState.Receipts().SetHardFork(bc.HardforkConfig, bc.bestBlockNo+1)
 
@@ -413,7 +417,7 @@ func executeTx(
 		return err
 	}
 
-	sender, err := state.GetAccountState(account, &bs.StateDB)
+	sender, err := state.GetAccountState(account, bs.StateDB)
 	if err != nil {
 		return err
 	}
@@ -470,13 +474,13 @@ func executeTx(
 	var receiver *state.AccountState
 	status := "SUCCESS"
 	if len(recipient) > 0 {
-		receiver, err = state.GetAccountState(recipient, &bs.StateDB)
+		receiver, err = state.GetAccountState(recipient, bs.StateDB)
 		if receiver != nil && txBody.Type == types.TxType_REDEPLOY {
 			status = "RECREATED"
 			receiver.SetRedeploy()
 		}
 	} else {
-		receiver, err = state.CreateAccountState(contract.CreateContractID(txBody.Account, txBody.Nonce), &bs.StateDB)
+		receiver, err = state.CreateAccountState(contract.CreateContractID(txBody.Account, txBody.Nonce), bs.StateDB)
 		status = "CREATED"
 	}
 	if err != nil {
