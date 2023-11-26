@@ -11,7 +11,7 @@ import (
 	"github.com/aergoio/aergo/v2/internal/enc/proto"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p/core/crypto"
 )
 
 type defaultMsgSigner struct {
@@ -25,7 +25,7 @@ type defaultMsgSigner struct {
 
 func newDefaultMsgSigner(privKey crypto.PrivKey, pubKey crypto.PubKey, peerID types.PeerID) p2pcommon.MsgSigner {
 	pidBytes := []byte(peerID)
-	pubKeyBytes, _ := pubKey.Bytes()
+	pubKeyBytes, _ := crypto.MarshalPublicKey(pubKey)
 	return &defaultMsgSigner{selfPeerID: peerID, privateKey: privKey, pubKey: pubKey, pidBytes: pidBytes, pubKeyBytes: pubKeyBytes}
 }
 

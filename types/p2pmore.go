@@ -37,7 +37,7 @@ func AddressesToStringMap(addrs []*PeerAddress) []map[string]string {
 		vMap := make(map[string]string)
 		vMap["address"] = net.IP(addr.Address).String()
 		vMap["port"] = strconv.Itoa(int(addr.Port))
-		vMap["peerId"] = PeerID(addr.PeerID).Pretty()
+		vMap["peerId"] = PeerID(addr.PeerID).String()
 		arr[i] = vMap
 	}
 	return arr

@@ -8,7 +8,7 @@ import (
 	p2pcommon "github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	types "github.com/aergoio/aergo/v2/types"
 	gomock "github.com/golang/mock/gomock"
-	network "github.com/libp2p/go-libp2p-core/network"
+	network "github.com/libp2p/go-libp2p/core/network"
 	reflect "reflect"
 )
 

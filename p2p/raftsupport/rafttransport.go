@@ -23,7 +23,7 @@ import (
 	"github.com/aergoio/etcd/raft"
 	"github.com/aergoio/etcd/raft/raftpb"
 	"github.com/aergoio/etcd/snap"
-	"github.com/libp2p/go-libp2p-core/network"
+	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/pkg/errors"
 )
 
@@ -262,12 +262,12 @@ func (t *AergoRaftTransport) OnRaftSnapshot(s network.Stream) {
 	//	return
 	//}
 	//
-	t.logger.Debug().Str(p2putil.LogPeerName, peerID.Pretty()).Msg("snapshot stream from leader node")
+	t.logger.Debug().Str(p2putil.LogPeerName, peerID.String()).Msg("snapshot stream from leader node")
 
 	// read stream and send it to raft
 	sr := t.snapF.NewSnapshotReceiver(peer, s)
 	sr.Receive()
-	t.logger.Debug().Str(p2putil.LogPeerName, peerID.Pretty()).Msg("snapshot receiving finished")
+	t.logger.Debug().Str(p2putil.LogPeerName, peerID.String()).Msg("snapshot receiving finished")
 	s.Close()
 }
 

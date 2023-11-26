@@ -9,12 +9,12 @@ import (
 	p2pcommon "github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	types "github.com/aergoio/aergo/v2/types"
 	gomock "github.com/golang/mock/gomock"
-	connmgr "github.com/libp2p/go-libp2p-core/connmgr"
-	event "github.com/libp2p/go-libp2p-core/event"
-	network "github.com/libp2p/go-libp2p-core/network"
-	peer "github.com/libp2p/go-libp2p-core/peer"
-	peerstore "github.com/libp2p/go-libp2p-core/peerstore"
-	protocol "github.com/libp2p/go-libp2p-core/protocol"
+	connmgr "github.com/libp2p/go-libp2p/core/connmgr"
+	event "github.com/libp2p/go-libp2p/core/event"
+	network "github.com/libp2p/go-libp2p/core/network"
+	peer "github.com/libp2p/go-libp2p/core/peer"
+	peerstore "github.com/libp2p/go-libp2p/core/peerstore"
+	protocol "github.com/libp2p/go-libp2p/core/protocol"
 	go_multiaddr "github.com/multiformats/go-multiaddr"
 	reflect "reflect"
 	time "time"
@@ -387,7 +387,7 @@ func (mr *MockNetworkTransportMockRecorder) SetStreamHandler(arg0, arg1 interfac
 }
 
 // SetStreamHandlerMatch mocks base method
-func (m *MockNetworkTransport) SetStreamHandlerMatch(arg0 protocol.ID, arg1 func(string) bool, arg2 network.StreamHandler) {
+func (m *MockNetworkTransport) SetStreamHandlerMatch(arg0 protocol.ID, arg1 func(id protocol.ID) bool, arg2 network.StreamHandler) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "SetStreamHandlerMatch", arg0, arg1, arg2)
 }

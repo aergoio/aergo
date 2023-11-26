@@ -20,9 +20,8 @@ import (
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/gofrs/uuid"
 	lru "github.com/hashicorp/golang-lru"
-	addrutil "github.com/libp2p/go-addr-util"
 	ma "github.com/multiformats/go-multiaddr"
-	mnet "github.com/multiformats/go-multiaddr-net"
+	manet "github.com/multiformats/go-multiaddr/net"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -34,7 +33,7 @@ func TestGetIP(t *testing.T) {
 
 	addrInput, _ := ma.NewMultiaddr(SampleAddrString)
 
-	netAddr, err := mnet.ToNetAddr(addrInput)
+	netAddr, err := manet.ToNetAddr(addrInput)
 	if err != nil {
 		t.Errorf("Invalid func %s", err.Error())
 	}
@@ -43,7 +42,7 @@ func TestGetIP(t *testing.T) {
 		t.Errorf("Expected %s, but actually %s", NetAddrString, netAddr)
 	}
 	addrInput, _ = ma.NewMultiaddr(SampleAddrString + "/ipfs/16Uiu2HAkvvhjxVm2WE9yFBDdPQ9qx6pX9taF6TTwDNHs8VPi1EeR")
-	netAddr, err = mnet.ToNetAddr(addrInput)
+	netAddr, err = manet.ToNetAddr(addrInput)
 	if nil == err {
 		t.Errorf("Error expected, but not")
 	}
@@ -59,7 +58,7 @@ func TestLookupAddress(t *testing.T) {
 }
 
 func TestAddrUtil(t *testing.T) {
-	addrs, err := addrutil.InterfaceAddresses()
+	addrs, err := manet.InterfaceMultiaddrs()
 	if err != nil {
 		t.Errorf("Test Error: %s", err.Error())
 	}

@@ -17,8 +17,8 @@ import (
 	"github.com/aergoio/etcd/raft/raftpb"
 	"github.com/aergoio/etcd/snap"
 	"github.com/golang/mock/gomock"
-	"github.com/libp2p/go-libp2p-core/network"
-	"github.com/libp2p/go-libp2p-core/protocol"
+	"github.com/libp2p/go-libp2p/core/network"
+	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/pkg/errors"
 )
 
@@ -134,6 +134,31 @@ type testStream struct {
 	closed bool
 }
 
+func (s *testStream) CloseWrite() error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s *testStream) CloseRead() error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s *testStream) ID() string {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s *testStream) Scope() network.StreamScope {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s *testStream) SetProtocol(id protocol.ID) error {
+	//TODO implement me
+	panic("implement me")
+}
+
 func (s *testStream) Read(p []byte) (n int, err error) {
 	size := copy(p, s.in)
 	return size, nil
@@ -168,11 +193,7 @@ func (*testStream) Protocol() protocol.ID {
 	panic("implement me")
 }
 
-func (*testStream) SetProtocol(id protocol.ID) {
-	panic("implement me")
-}
-
-func (*testStream) Stat() network.Stat {
+func (*testStream) Stat() network.Stats {
 	panic("implement me")
 }
 

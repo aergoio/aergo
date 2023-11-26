@@ -140,7 +140,7 @@ func (c *Cluster) BPs() []string {
 			PeerID string
 		}{
 			Index:  strconv.FormatUint(uint64(i), 10),
-			PeerID: bp.id.Pretty(),
+			PeerID: bp.id.String(),
 		}
 
 		m, err := json.Marshal(p)
