@@ -9,12 +9,6 @@ import (
 	"github.com/willf/bloom"
 )
 
-// BlockInfo contains BlockHash and StateRoot
-type BlockInfo struct {
-	BlockHash types.BlockID
-	StateRoot types.HashID
-}
-
 // BlockState contains BlockInfo and statedb for block
 type BlockState struct {
 	*StateDB
@@ -28,14 +22,6 @@ type BlockState struct {
 	timeoutTx types.Transaction
 	codeCache gcache.Cache
 	abiCache  gcache.Cache
-}
-
-// GetStateRoot return bytes of bi.StateRoot
-func (bi *BlockInfo) GetStateRoot() []byte {
-	if bi == nil {
-		return nil
-	}
-	return bi.StateRoot.Bytes()
 }
 
 type BlockStateOptFn func(s *BlockState)
