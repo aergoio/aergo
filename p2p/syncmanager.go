@@ -71,7 +71,7 @@ func (sm *syncManager) HandleNewBlockNotice(peer p2pcommon.RemotePeer, data *typ
 	peerID := peer.ID()
 	//if !sm.checkWorkToken() {
 	//	// just ignore it
-	//	//sm.logger.Debug().Str(LogBlkHash, enc.ToString(data.BlockHash)).Str(LogPeerID, peerID.Pretty()).Msg("Ignoring newBlock notice sync syncManager is busy now.")
+	//	//sm.logger.Debug().Str(LogBlkHash, enc.ToString(data.BlockHash)).Str(LogPeerID, peerID.String()).Msg("Ignoring newBlock notice sync syncManager is busy now.")
 	//	return
 	//}
 
@@ -79,7 +79,7 @@ func (sm *syncManager) HandleNewBlockNotice(peer p2pcommon.RemotePeer, data *typ
 	if ok {
 		// Kick out duplicated notice log.
 		// if sm.logger.IsDebugEnabled() {
-		// 	sm.logger.Debug().Str(LogBlkHash, enc.ToString(data.BlkHash)).Str(LogPeerID, peerID.Pretty()).Msg("Got NewBlock notice, but sent already from other peer")
+		// 	sm.logger.Debug().Str(LogBlkHash, enc.ToString(data.BlkHash)).Str(LogPeerID, peerID.String()).Msg("Got NewBlock notice, but sent already from other peer")
 		// }
 		// this notice is already sent to chainservice
 		return

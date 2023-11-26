@@ -1,6 +1,18 @@
+Prerequisites
+
+Installing mockgen
+
+the package github.com/golang/mock is superseded by https://github.com/uber/mock in 2021, but we are not ready to migrate
+yet by transitive dependencies.
+
+go install github.com/golang/mock/mockgen@v1.6.0
+
+(In the future) Refering to https://github.com/uber-go/mock/  ( go install go.uber.org/mock/mockgen@latest )
+
+
 Examples to generate mock class
 
-1. with reflection (and no flag is allowed) : It can generate mock of outside of current source tree, but has drawback that cannot set output package. it must be followed by manual editing or other way to correct the package of generated mock class
+1. with reflection (and no flag is allowed) : It can generate mock of outside of current source tree, but has drawback that cannot set output package. it must be followed by manual editing or other way to rename the package of generated mock class
 mockgen github.com/aergoio/aergo/v2/p2p/p2pcommon HSHandlerFactory  > p2p/p2pmock/mock_hsfactory.go
 
 
@@ -17,7 +29,7 @@ mockgen -source=p2p/p2pcommon/pool.go -mock_names=WaitingPeerManager=MockWaiting
 
 
 # Manually generated mock classes
-The generate decriptions of these mock objects are in p2p/p2pcommon/temptypes.go . So you can use such like `go generate ./p2p/p2pcommon/temptypes.go` command.
+The generate descriptions of these mock objects are in p2p/p2pcommon/temptypes.go . So you can use such like `go generate ./p2p/p2pcommon/temptypes.go` command.
 
 # mock files which are not generated automatically by go generate ./p2p
 mockgen github.com/aergoio/aergo/v2/consensus ConsensusAccessor,AergoRaftAccessor | gsed -e 's/^package mock_[a-zA-Z0-9_]\+/package p2pmock/g' > p2p/p2pmock/mock_consensus.go
@@ -26,4 +38,4 @@ mockgen -source=types/blockchain.go -package=p2pmock -destination=p2p/p2pmock/mo
 
 mockgen io Reader,ReadCloser,Writer,WriteCloser,ReadWriteCloser > p2p/p2pmock/mock_io.go | gsed -e 's/^package mock_[a-zA-Z0-9_]\+/package p2pmock/g'  > p2p/p2pmock/mock_io.go
 
-mockgen github.com/aergoio/aergo/v2/types ChainAccessor | sed -e 's/^package mock_mock_[a-zA-Z0-9_]\+/package p2pmock/g' > ../p2pmock/mock_chainaccessor.go
+mockgen github.com/aergoio/aergo/v2/types ChainAccessor | sed -e 's/^package mock_[a-zA-Z0-9_]\+/package p2pmock/g' > p2p/p2pmock/mock_chainaccessor.go

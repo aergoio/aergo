@@ -20,7 +20,7 @@ import (
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/internal/enc/proto"
 	"github.com/aergoio/aergo/v2/internal/merkle"
-	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/minio/sha256-simd"
 )
 

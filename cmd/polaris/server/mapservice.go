@@ -127,7 +127,7 @@ func (pms *PeerMapService) onConnect(s types.Stream) {
 		pms.Logger.Info().Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Msg("Invalid address information")
 		return
 	}
-	pms.Logger.Info().Str("addr", s.Conn().RemoteMultiaddr().String()).Str(p2putil.LogFullID, peerID.Pretty()).Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Msg("remote peer connected")
+	pms.Logger.Info().Str("addr", s.Conn().RemoteMultiaddr().String()).Str(p2putil.LogFullID, peerID.String()).Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Msg("remote peer connected")
 
 	conn := p2pcommon.RemoteConn{IP: remoteIP, Port: port, Outbound: false}
 	tempMeta := p2pcommon.PeerMeta{ID: peerID, Addresses: []types.Multiaddr{s.Conn().RemoteMultiaddr()}}
