@@ -3,7 +3,7 @@
  *  @copyright defined in aergo/LICENSE.txt
  */
 
-package state
+package statedb
 
 import (
 	"bytes"
@@ -20,22 +20,22 @@ import (
 )
 
 const (
-	stateName   = "state"
-	stateLatest = stateName + ".latest"
+	StateName   = "state"
+	StateLatest = StateName + ".latest"
 )
 
 var (
-	stateMarker = []byte{0x54, 0x45} // marker: tail end
+	StateMarker = []byte{0x54, 0x45} // marker: tail end
 )
 
 var (
-	logger = log.NewLogger(stateName)
+	logger = log.NewLogger(StateName)
 )
 
 var (
-	emptyHashID    = types.HashID{}
-	emptyBlockID   = types.BlockID{}
-	emptyAccountID = types.AccountID{}
+	EmptyHashID    = types.HashID{}
+	EmptyBlockID   = types.BlockID{}
+	EmptyAccountID = types.AccountID{}
 )
 
 var (
@@ -57,21 +57,21 @@ var (
 // StateDB manages trie of states
 type StateDB struct {
 	lock     sync.RWMutex
-	buffer   *stateBuffer
-	cache    *storageCache
-	trie     *trie.Trie
-	store    db.DB
-	testmode bool
+	Buffer   *StateBuffer
+	Cache    *storageCache
+	Trie     *trie.Trie
+	Store    db.DB
+	Testmode bool
 }
 
 // NewStateDB craete StateDB instance
 func NewStateDB(dbstore db.DB, root []byte, test bool) *StateDB {
 	sdb := StateDB{
-		buffer:   newStateBuffer(),
-		cache:    newStorageCache(),
-		trie:     trie.NewTrie(root, common.Hasher, dbstore),
-		store:    dbstore,
-		testmode: test,
+		Buffer:   NewStateBuffer(),
+		Cache:    newStorageCache(),
+		Trie:     trie.NewTrie(root, common.Hasher, dbstore),
+		Store:    dbstore,
+		Testmode: test,
 	}
 	return &sdb
 }
@@ -81,14 +81,14 @@ func (states *StateDB) Clone() *StateDB {
 	states.lock.RLock()
 	defer states.lock.RUnlock()
 
-	return NewStateDB(states.store, states.GetRoot(), states.testmode)
+	return NewStateDB(states.Store, states.GetRoot(), states.Testmode)
 }
 
 // GetRoot returns root hash of trie
 func (states *StateDB) GetRoot() []byte {
 	states.lock.RLock()
 	defer states.lock.RUnlock()
-	return states.trie.Root
+	return states.Trie.Root
 }
 
 // SetRoot updates root node of trie as a given root hash
@@ -96,9 +96,9 @@ func (states *StateDB) SetRoot(root []byte) error {
 	states.lock.Lock()
 	defer states.lock.Unlock()
 	// update root node
-	states.trie.Root = root
+	states.Trie.Root = root
 	// reset buffer
-	return states.buffer.reset()
+	return states.Buffer.Reset()
 }
 
 // LoadCache reads first layer of trie given root hash
@@ -107,12 +107,12 @@ func (states *StateDB) LoadCache(root []byte) error {
 	states.lock.Lock()
 	defer states.lock.Unlock()
 	// update root node and load cache
-	err := states.trie.LoadCache(root)
+	err := states.Trie.LoadCache(root)
 	if err != nil {
 		return err
 	}
 	// reset buffer
-	return states.buffer.reset()
+	return states.Buffer.Reset()
 }
 
 // Revert rollbacks trie to previous root hash
@@ -131,20 +131,20 @@ func (states *StateDB) Revert(root types.HashID) error {
 
 	// just update root node as targetRoot.
 	// revert trie consumes unnecessarily long time.
-	states.trie.Root = root.Bytes()
+	states.Trie.Root = root.Bytes()
 
 	// reset buffer
-	return states.buffer.reset()
+	return states.Buffer.Reset()
 }
 
 // PutState puts account id and its state into state buffer.
 func (states *StateDB) PutState(id types.AccountID, state *types.State) error {
 	states.lock.Lock()
 	defer states.lock.Unlock()
-	if id == emptyAccountID {
+	if id == EmptyAccountID {
 		return errPutState
 	}
-	states.buffer.put(newValueEntry(types.HashID(id), state))
+	states.Buffer.Put(NewValueEntry(types.HashID(id), state))
 	return nil
 }
 
@@ -156,7 +156,7 @@ func (states *StateDB) GetAccountState(id types.AccountID) (*types.State, error)
 		return nil, err
 	}
 	if st == nil {
-		if states.testmode {
+		if states.Testmode {
 			amount := new(big.Int).Add(types.StakingMinimum, types.StakingMinimum)
 			return &types.State{Balance: amount.Bytes()}, nil
 		}
@@ -170,7 +170,7 @@ func (states *StateDB) GetAccountState(id types.AccountID) (*types.State, error)
 func (states *StateDB) GetState(id types.AccountID) (*types.State, error) {
 	states.lock.RLock()
 	defer states.lock.RUnlock()
-	if id == emptyAccountID {
+	if id == EmptyAccountID {
 		return nil, errGetState
 	}
 	return states.getState(id)
@@ -180,7 +180,7 @@ func (states *StateDB) GetState(id types.AccountID) (*types.State, error) {
 // nil value is returned when there is no state corresponding to account id.
 func (states *StateDB) getState(id types.AccountID) (*types.State, error) {
 	// get state from buffer
-	if entry := states.buffer.get(types.HashID(id)); entry != nil {
+	if entry := states.Buffer.Get(types.HashID(id)); entry != nil {
 		return entry.Value().(*types.State), nil
 	}
 	// get state from trie
@@ -190,7 +190,7 @@ func (states *StateDB) getState(id types.AccountID) (*types.State, error) {
 // getTrieState gets state of account id from trie.
 // nil value is returned when there is no state corresponding to account id.
 func (states *StateDB) getTrieState(id types.AccountID) (*types.State, error) {
-	key, err := states.trie.Get(id[:])
+	key, err := states.Trie.Get(id[:])
 	if err != nil {
 		return nil, err
 	}
@@ -211,19 +211,19 @@ func (states *StateDB) TrieQuery(id []byte, root []byte, compressed bool) ([]byt
 
 	if len(root) != 0 {
 		if compressed {
-			bitmap, ap, height, isIncluded, proofKey, proofVal, err = states.trie.MerkleProofCompressedR(id, root)
+			bitmap, ap, height, isIncluded, proofKey, proofVal, err = states.Trie.MerkleProofCompressedR(id, root)
 		} else {
 			// Get the state and proof of the account for a past state
-			ap, isIncluded, proofKey, proofVal, err = states.trie.MerkleProofR(id, root)
+			ap, isIncluded, proofKey, proofVal, err = states.Trie.MerkleProofR(id, root)
 		}
 	} else {
 		// Get the state and proof of the account at the latest trie
 		// The wallet should check that state hashes to proofVal and verify the audit path,
 		// The returned proofVal shouldn't be trusted by the wallet, it is used to proove non inclusion
 		if compressed {
-			bitmap, ap, height, isIncluded, proofKey, proofVal, err = states.trie.MerkleProofCompressed(id)
+			bitmap, ap, height, isIncluded, proofKey, proofVal, err = states.Trie.MerkleProofCompressed(id)
 		} else {
-			ap, isIncluded, proofKey, proofVal, err = states.trie.MerkleProof(id)
+			ap, isIncluded, proofKey, proofVal, err = states.Trie.MerkleProof(id)
 		}
 	}
 	return bitmap, ap, height, isIncluded, proofKey, proofVal, err
@@ -238,7 +238,7 @@ func (states *StateDB) GetVarAndProof(id []byte, root []byte, compressed bool) (
 	}
 	if isIncluded {
 		value = []byte{}
-		if err := loadData(states.store, dbKey, &value); err != nil {
+		if err := LoadData(states.Store, dbKey, &value); err != nil {
 			return nil, err
 		}
 		// proofKey and proofVal are only not nil for prooving exclusion with another leaf on the path
@@ -294,14 +294,14 @@ type Snapshot int
 func (states *StateDB) Snapshot() Snapshot {
 	states.lock.RLock()
 	defer states.lock.RUnlock()
-	return Snapshot(states.buffer.snapshot())
+	return Snapshot(states.Buffer.Snapshot())
 }
 
 // Rollback discards changes of state buffer to revision number
 func (states *StateDB) Rollback(revision Snapshot) error {
 	states.lock.Lock()
 	defer states.lock.Unlock()
-	return states.buffer.rollback(int(revision))
+	return states.Buffer.Rollback(int(revision))
 }
 
 // Update applies changes of state buffer to trie
@@ -321,33 +321,33 @@ func (states *StateDB) update() error {
 		return err
 	}
 	// export buffer and update to trie
-	if err := states.buffer.updateTrie(states.trie); err != nil {
+	if err := states.Buffer.UpdateTrie(states.Trie); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (states *StateDB) updateStorage() error {
-	before := states.buffer.snapshot()
-	for id, storage := range states.cache.storages {
+	before := states.Buffer.Snapshot()
+	for id, storage := range states.Cache.storages {
 		// update storage
-		if err := storage.update(); err != nil {
-			states.buffer.rollback(before)
+		if err := storage.Update(); err != nil {
+			states.Buffer.Rollback(before)
 			return err
 		}
 		// update state if storage root changed
-		if storage.isDirty() {
+		if storage.IsDirty() {
 			st, err := states.getState(id)
 			if err != nil {
-				states.buffer.rollback(before)
+				states.Buffer.Rollback(before)
 				return err
 			}
 			if st == nil {
 				st = &types.State{}
 			}
 			// put state with storage root
-			st.StorageRoot = storage.trie.Root
-			states.buffer.put(newValueEntry(types.HashID(id), st))
+			st.StorageRoot = storage.Trie.Root
+			states.Buffer.Put(NewValueEntry(types.HashID(id), st))
 		}
 	}
 	return nil
@@ -358,10 +358,10 @@ func (states *StateDB) Commit() error {
 	states.lock.Lock()
 	defer states.lock.Unlock()
 
-	bulk := states.store.NewBulk()
-	for _, storage := range states.cache.storages {
+	bulk := states.Store.NewBulk()
+	for _, storage := range states.Cache.storages {
 		// stage changes
-		if err := storage.stage(bulk); err != nil {
+		if err := storage.Stage(bulk); err != nil {
 			bulk.DiscardLast()
 			return err
 		}
@@ -376,14 +376,14 @@ func (states *StateDB) Commit() error {
 
 func (states *StateDB) stage(txn trie.DbTx) error {
 	// stage trie and buffer
-	states.trie.StageUpdates(txn)
-	if err := states.buffer.stage(txn); err != nil {
+	states.Trie.StageUpdates(txn)
+	if err := states.Buffer.Stage(txn); err != nil {
 		return err
 	}
 	// set marker
 	states.setMarker(txn)
 	// reset buffer
-	if err := states.buffer.reset(); err != nil {
+	if err := states.Buffer.Reset(); err != nil {
 		return err
 	}
 	return nil
@@ -391,11 +391,11 @@ func (states *StateDB) stage(txn trie.DbTx) error {
 
 // setMarker store the marker that represents finalization of the state root.
 func (states *StateDB) setMarker(txn trie.DbTx) {
-	if states.trie.Root == nil {
+	if states.Trie.Root == nil {
 		return
 	}
 	// logger.Debug().Str("stateRoot", enc.ToString(states.trie.Root)).Msg("setMarker")
-	txn.Set(common.Hasher(states.trie.Root), stateMarker)
+	txn.Set(common.Hasher(states.Trie.Root), StateMarker)
 }
 
 // HasMarker represents that the state root is finalized or not.
@@ -403,8 +403,8 @@ func (states *StateDB) HasMarker(root []byte) bool {
 	if root == nil {
 		return false
 	}
-	marker := states.store.Get(common.Hasher(root))
-	if marker != nil && bytes.Equal(marker, stateMarker) {
+	marker := states.Store.Get(common.Hasher(root))
+	if marker != nil && bytes.Equal(marker, StateMarker) {
 		// logger.Debug().Str("stateRoot", enc.ToString(root)).Str("marker", hex.HexEncode(marker)).Msg("IsMarked")
 		return true
 	}

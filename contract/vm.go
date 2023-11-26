@@ -41,6 +41,7 @@ import (
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/internal/enc/hex"
 	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/dbkey"
 	jsoniter "github.com/json-iterator/go"
@@ -125,7 +126,7 @@ type recoveryEntry struct {
 	onlySend      bool
 	isDeploy      bool
 	sqlSaveName   *string
-	stateRevision state.Snapshot
+	stateRevision statedb.Snapshot
 	prev          *recoveryEntry
 }
 

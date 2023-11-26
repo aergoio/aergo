@@ -6,12 +6,13 @@ import (
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/stretchr/testify/assert"
 )
 
 var cdb *state.ChainStateDB
-var sdb *state.StateDB
+var sdb *statedb.StateDB
 
 func initTest(t *testing.T) (*state.ContractState, *state.AccountState, *state.AccountState) {
 	cdb = state.NewChainStateDB()

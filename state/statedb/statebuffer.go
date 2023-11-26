@@ -1,4 +1,4 @@
-package state
+package statedb
 
 import (
 	"sort"
@@ -20,13 +20,13 @@ type valueEntry struct {
 	value interface{}
 }
 
-func newValueEntry(key types.HashID, value interface{}) entry {
+func NewValueEntry(key types.HashID, value interface{}) entry {
 	return &valueEntry{
 		key:   key,
 		value: value,
 	}
 }
-func newValueEntryDelete(key types.HashID) entry {
+func NewValueEntryDelete(key types.HashID) entry {
 	return &valueEntry{
 		key:   key,
 		value: nil,
@@ -36,7 +36,7 @@ func (et *valueEntry) KeyID() types.HashID {
 	return et.key
 }
 func (et *valueEntry) Hash() []byte {
-	if hash := getHashBytes(et.value); hash != nil {
+	if hash := GetHashBytes(et.value); hash != nil {
 		return hash
 	}
 	return []byte{0}
@@ -80,48 +80,47 @@ func (idxs *bufferIndex) rollback(snapshot int) {
 	}
 }
 
-type stateBuffer struct {
+type StateBuffer struct {
 	entries []entry
 	indexes bufferIndex
 	nextIdx int
 }
 
-func newStateBuffer() *stateBuffer {
-	buffer := stateBuffer{
+func NewStateBuffer() *StateBuffer {
+	return &StateBuffer{
 		entries: []entry{},
 		indexes: bufferIndex{},
 		nextIdx: 0,
 	}
-	return &buffer
 }
 
-func (buffer *stateBuffer) reset() error {
-	return buffer.rollback(0)
+func (buffer *StateBuffer) Reset() error {
+	return buffer.Rollback(0)
 }
 
-func (buffer *stateBuffer) get(key types.HashID) entry {
+func (buffer *StateBuffer) Get(key types.HashID) entry {
 	if index, ok := buffer.indexes[key]; ok {
 		return buffer.entries[index.peek()]
 	}
 	return nil
 }
-func (buffer *stateBuffer) has(key types.HashID) bool {
+func (buffer *StateBuffer) Has(key types.HashID) bool {
 	_, ok := buffer.indexes[key]
 	return ok
 }
 
-func (buffer *stateBuffer) put(et entry) {
-	snapshot := buffer.snapshot()
+func (buffer *StateBuffer) Put(et entry) {
+	snapshot := buffer.Snapshot()
 	buffer.entries = append(buffer.entries, et)
 	buffer.indexes[et.KeyID()] = buffer.indexes[et.KeyID()].push(snapshot)
 	buffer.nextIdx++
 }
 
-func (buffer *stateBuffer) snapshot() int {
+func (buffer *StateBuffer) Snapshot() int {
 	return buffer.nextIdx
 }
 
-func (buffer *stateBuffer) rollback(snapshot int) error {
+func (buffer *StateBuffer) Rollback(snapshot int) error {
 	for i := buffer.nextIdx - 1; i >= snapshot; i-- {
 		et := buffer.entries[i]
 		buffer.indexes.pop(et.KeyID())
@@ -137,11 +136,11 @@ func (buffer *stateBuffer) rollback(snapshot int) error {
 	return nil
 }
 
-func (buffer *stateBuffer) isEmpty() bool {
+func (buffer *StateBuffer) IsEmpty() bool {
 	return len(buffer.entries) == 0
 }
 
-func (buffer *stateBuffer) export() ([][]byte, [][]byte) {
+func (buffer *StateBuffer) Export() ([][]byte, [][]byte) {
 	bufs := make([]entry, 0, len(buffer.indexes))
 	for _, v := range buffer.indexes {
 		idx := v.peek()
@@ -168,8 +167,8 @@ func (buffer *stateBuffer) export() ([][]byte, [][]byte) {
 	return keys, vals
 }
 
-func (buffer *stateBuffer) updateTrie(tr *trie.Trie) error {
-	keys, vals := buffer.export()
+func (buffer *StateBuffer) UpdateTrie(tr *trie.Trie) error {
+	keys, vals := buffer.Export()
 	if len(keys) == 0 || len(vals) == 0 {
 		// nothing to update
 		return nil
@@ -180,10 +179,10 @@ func (buffer *stateBuffer) updateTrie(tr *trie.Trie) error {
 	return nil
 }
 
-func (buffer *stateBuffer) stage(txn trie.DbTx) error {
+func (buffer *StateBuffer) Stage(txn trie.DbTx) error {
 	for _, v := range buffer.indexes {
 		et := buffer.entries[v.peek()]
-		buf, err := marshal(et.Value())
+		buf, err := Marshal(et.Value())
 		if err != nil {
 			return err
 		}
@@ -192,7 +191,7 @@ func (buffer *stateBuffer) stage(txn trie.DbTx) error {
 	return nil
 }
 
-func marshal(data interface{}) ([]byte, error) {
+func Marshal(data interface{}) ([]byte, error) {
 	switch msg := data.(type) {
 	case ([]byte):
 		return msg, nil
@@ -206,7 +205,7 @@ func marshal(data interface{}) ([]byte, error) {
 	return nil, nil
 }
 
-func getHashBytes(data interface{}) []byte {
+func GetHashBytes(data interface{}) []byte {
 	if data == nil {
 		return nil
 	}
@@ -215,7 +214,7 @@ func getHashBytes(data interface{}) []byte {
 		return msg.Hash()
 	default:
 	}
-	buf, err := marshal(data)
+	buf, err := Marshal(data)
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to get hash bytes: marshal")
 		return nil

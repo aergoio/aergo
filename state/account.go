@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 )
 
 type AccountState struct {
-	sdb    *StateDB
+	sdb    *statedb.StateDB
 	id     []byte
 	aid    types.AccountID
 	oldV   *types.State
@@ -88,13 +89,13 @@ func (as *AccountState) PutState() error {
 }
 
 func (as *AccountState) ClearAid() {
-	as.aid = emptyAccountID
+	as.aid = statedb.EmptyAccountID
 }
 
 //----------------------------------------------------------------------------------------------//
 // global functions
 
-func CreateAccountState(id []byte, sdb *StateDB) (*AccountState, error) {
+func CreateAccountState(id []byte, sdb *statedb.StateDB) (*AccountState, error) {
 	v, err := GetAccountState(id, sdb)
 	if err != nil {
 		return nil, err
@@ -107,14 +108,14 @@ func CreateAccountState(id []byte, sdb *StateDB) (*AccountState, error) {
 	return v, nil
 }
 
-func GetAccountState(id []byte, states *StateDB) (*AccountState, error) {
+func GetAccountState(id []byte, states *statedb.StateDB) (*AccountState, error) {
 	aid := types.ToAccountID(id)
 	st, err := states.GetState(aid)
 	if err != nil {
 		return nil, err
 	}
 	if st == nil {
-		if states.testmode {
+		if states.Testmode {
 			amount := new(big.Int).Add(types.StakingMinimum, types.StakingMinimum)
 			return &AccountState{
 				sdb:    states,
@@ -143,7 +144,7 @@ func GetAccountState(id []byte, states *StateDB) (*AccountState, error) {
 	}, nil
 }
 
-func InitAccountState(id []byte, sdb *StateDB, old *types.State, new *types.State) *AccountState {
+func InitAccountState(id []byte, sdb *statedb.StateDB, old *types.State, new *types.State) *AccountState {
 	return &AccountState{
 		sdb:  sdb,
 		id:   id,

@@ -13,6 +13,7 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -40,7 +41,7 @@ var (
 	}
 
 	vprChainStateDB     *state.ChainStateDB
-	vprStateDB          *state.StateDB
+	vprStateDB          *statedb.StateDB
 	initializedVprtTest bool
 )
 

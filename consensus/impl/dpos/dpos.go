@@ -23,6 +23,7 @@ import (
 	"github.com/aergoio/aergo/v2/p2p/p2pkey"
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 )
 
@@ -98,7 +99,7 @@ func GetConstructor(cfg *config.Config, hub *component.ComponentHub, cdb consens
 	}
 }
 
-func getStateDB(cfg *config.Config, cdb consensus.ChainDB, sdb *state.ChainStateDB) (*state.StateDB, error) {
+func getStateDB(cfg *config.Config, cdb consensus.ChainDB, sdb *state.ChainStateDB) (*statedb.StateDB, error) {
 	if cfg.Blockchain.VerifyOnly {
 		vprInitBlockNo := func(blockNo types.BlockNo) types.BlockNo {
 			if blockNo == 0 {
@@ -128,7 +129,7 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
 		return nil, err
 	}
 
-	var state *state.StateDB
+	var state *statedb.StateDB
 	if state, err = getStateDB(cfg, cdb, sdb); err != nil {
 		return nil, err
 	}
@@ -205,7 +206,7 @@ func sendVotingReward(bState *state.BlockState, dummy []byte) error {
 	return nil
 }
 
-func InitVPR(sdb *state.StateDB) error {
+func InitVPR(sdb *statedb.StateDB) error {
 	s, err := state.GetSystemAccountState(sdb)
 	if err != nil {
 		return err

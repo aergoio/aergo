@@ -33,6 +33,7 @@ import (
 	"github.com/aergoio/aergo/v2/message"
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 )
 
@@ -59,7 +60,7 @@ type MemPool struct {
 	sdb           *state.ChainStateDB
 	bestBlockID   types.BlockID
 	bestBlockInfo *types.BlockHeaderInfo
-	stateDB       *state.StateDB
+	stateDB       *statedb.StateDB
 	verifier      *actor.PID
 	orphan        int
 	//cache       map[types.TxID]types.Transaction

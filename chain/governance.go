@@ -14,6 +14,7 @@ import (
 	"github.com/aergoio/aergo/v2/contract/name"
 	"github.com/aergoio/aergo/v2/contract/system"
 	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 )
 
@@ -55,7 +56,7 @@ func executeGovernanceTx(ccc consensus.ChainConsensusCluster, bs *state.BlockSta
 
 // InitGenesisBPs opens system contract and put initial voting result
 // it also set *State in Genesis to use statedb
-func InitGenesisBPs(states *state.StateDB, genesis *types.Genesis) error {
+func InitGenesisBPs(states *statedb.StateDB, genesis *types.Genesis) error {
 	scs, err := state.GetSystemAccountState(states)
 	if err != nil {
 		return err

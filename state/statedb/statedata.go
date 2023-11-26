@@ -1,4 +1,4 @@
-package state
+package statedb
 
 import (
 	"github.com/aergoio/aergo-lib/db"
@@ -7,7 +7,7 @@ import (
 	"github.com/aergoio/aergo/v2/types"
 )
 
-func saveData(store db.DB, key []byte, data interface{}) error {
+func SaveData(store db.DB, key []byte, data interface{}) error {
 	if key == nil {
 		return errSaveData
 	}
@@ -31,7 +31,7 @@ func saveData(store db.DB, key []byte, data interface{}) error {
 	return nil
 }
 
-func loadData(store db.DB, key []byte, data interface{}) error {
+func LoadData(store db.DB, key []byte, data interface{}) error {
 	if key == nil {
 		return errLoadData
 	}
@@ -57,7 +57,7 @@ func (states *StateDB) loadStateData(key []byte) (*types.State, error) {
 		return nil, errLoadStateData
 	}
 	data := &types.State{}
-	if err := loadData(states.store, key, data); err != nil {
+	if err := LoadData(states.Store, key, data); err != nil {
 		return nil, err
 	}
 	return data, nil

@@ -28,6 +28,7 @@ import (
 	"github.com/aergoio/aergo/v2/message"
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/dbkey"
 	lru "github.com/hashicorp/golang-lru"
@@ -555,7 +556,7 @@ func (cs *ChainService) getStaking(addr []byte) (*types.Staking, error) {
 }
 
 func (cs *ChainService) getNameInfo(qname string, blockNo types.BlockNo) (*types.NameInfo, error) {
-	var stateDB *state.StateDB
+	var stateDB *statedb.StateDB
 	if blockNo != 0 {
 		block, err := cs.cdb.GetBlockByNo(blockNo)
 		if err != nil {
@@ -698,7 +699,7 @@ func (cm *ChainManager) Receive(context actor.Context) {
 	}
 }
 
-func getAddressNameResolved(sdb *state.StateDB, account []byte) ([]byte, error) {
+func getAddressNameResolved(sdb *statedb.StateDB, account []byte) ([]byte, error) {
 	if len(account) == types.NameLength {
 		scs, err := state.GetNameAccountState(sdb)
 		if err != nil {
@@ -711,9 +712,9 @@ func getAddressNameResolved(sdb *state.StateDB, account []byte) ([]byte, error) 
 }
 
 func (cw *ChainWorker) Receive(context actor.Context) {
-	var sdb *state.StateDB
+	var sdb *statedb.StateDB
 
-	getAccProof := func(sdb *state.StateDB, account, root []byte, compressed bool) (*types.AccountProof, error) {
+	getAccProof := func(sdb *statedb.StateDB, account, root []byte, compressed bool) (*types.AccountProof, error) {
 		address, err := getAddressNameResolved(sdb, account)
 		if err != nil {
 			return nil, err

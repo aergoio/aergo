@@ -5,12 +5,13 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo-lib/db"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/stretchr/testify/assert"
 )
 
 var chainStateDB *ChainStateDB
-var stateDB *StateDB
+var stateDB *statedb.StateDB
 
 func initTest(t *testing.T) {
 	chainStateDB = NewChainStateDB()
@@ -290,7 +291,7 @@ func TestContractStateRollback(t *testing.T) {
 	assert.Equal(t, []byte("2"), res)
 
 	// rollback to empty: rev 0
-	contractState.Rollback(Snapshot(0))
+	contractState.Rollback(statedb.Snapshot(0))
 	res, _ = contractState.GetData(testKey)
 	assert.Nil(t, res)
 }
