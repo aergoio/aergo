@@ -68,7 +68,7 @@ func init() {
 	localFlags.BoolVar(&enableTestmode, "testmode", false, "enable unsafe test mode (skips certain validations); can NOT use with --testnet")
 
 	fs := rootCmd.PersistentFlags()
-	fs.StringVar(&homePath, "home", "./", "path of aergo home")
+	fs.StringVar(&homePath, "home", "", "path of aergo home")
 	fs.StringVar(&configFilePath, "config", "", "path of configuration file")
 	fs.BoolVarP(&verbose, "verbose", "v", false, "verbose mode")
 }
