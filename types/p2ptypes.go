@@ -12,10 +12,10 @@ import (
 	"strings"
 
 	"github.com/aergoio/aergo/v2/internal/network"
-	core "github.com/libp2p/go-libp2p-core"
-	"github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/libp2p/go-libp2p-core/test"
+	"github.com/libp2p/go-libp2p/core"
+	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/core/test"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/pkg/errors"
 )
@@ -73,7 +73,7 @@ func PeerToMultiAddr(address string, port uint32, pid PeerID) (Multiaddr, error)
 	if err != nil {
 		return nil, err
 	}
-	mid, err := multiaddr.NewComponent(protoP2P, pid.Pretty())
+	mid, err := multiaddr.NewComponent(protoP2P, pid.String())
 	if err != nil {
 		return nil, err
 	}
