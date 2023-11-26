@@ -65,94 +65,94 @@ type ContractState struct {
 	store   db.DB
 }
 
-func (st *ContractState) SetNonce(nonce uint64) {
-	st.State.Nonce = nonce
+func (cs *ContractState) SetNonce(nonce uint64) {
+	cs.State.Nonce = nonce
 }
 func (st *ContractState) GetNonce() uint64 {
 	return st.State.GetNonce()
 }
 
-func (st *ContractState) SetBalance(balance *big.Int) {
-	st.State.Balance = balance.Bytes()
+func (cs *ContractState) SetBalance(balance *big.Int) {
+	cs.State.Balance = balance.Bytes()
 }
-func (st *ContractState) GetBalance() *big.Int {
-	return new(big.Int).SetBytes(st.State.GetBalance())
+func (cs *ContractState) GetBalance() *big.Int {
+	return new(big.Int).SetBytes(cs.State.GetBalance())
 }
 
-func (st *ContractState) SetCode(code []byte) error {
+func (cs *ContractState) SetCode(code []byte) error {
 	codeHash := common.Hasher(code)
-	storedCode, err := st.GetRawKV(codeHash[:])
+	storedCode, err := cs.GetRawKV(codeHash[:])
 	if err == nil && !bytes.Equal(code, storedCode) {
-		err = st.SetRawKV(codeHash[:], code)
+		err = cs.SetRawKV(codeHash[:], code)
 	}
 	if err != nil {
 		return err
 	}
-	st.State.CodeHash = codeHash[:]
-	st.code = code
+	cs.State.CodeHash = codeHash[:]
+	cs.code = code
 	return nil
 }
 
-func (st *ContractState) GetCode() ([]byte, error) {
-	if st.code != nil {
+func (cs *ContractState) GetCode() ([]byte, error) {
+	if cs.code != nil {
 		// already loaded.
-		return st.code, nil
+		return cs.code, nil
 	}
-	codeHash := st.State.GetCodeHash()
+	codeHash := cs.State.GetCodeHash()
 	if codeHash == nil {
 		// not defined. do nothing.
 		return nil, nil
 	}
-	err := loadData(st.store, st.State.CodeHash, &st.code)
+	err := loadData(cs.store, cs.State.CodeHash, &cs.code)
 	if err != nil {
 		return nil, err
 	}
-	return st.code, nil
+	return cs.code, nil
 }
 
-func (st *ContractState) GetAccountID() types.AccountID {
-	return st.account
+func (cs *ContractState) GetAccountID() types.AccountID {
+	return cs.account
 }
 
 // SetRawKV saves (key, value) to st.store without any kind of encoding.
-func (st *ContractState) SetRawKV(key []byte, value []byte) error {
-	return saveData(st.store, key, value)
+func (cs *ContractState) SetRawKV(key []byte, value []byte) error {
+	return saveData(cs.store, key, value)
 }
 
 // GetRawKV loads (key, value) from st.store.
-func (st *ContractState) GetRawKV(key []byte) ([]byte, error) {
+func (cs *ContractState) GetRawKV(key []byte) ([]byte, error) {
 	var b []byte
-	if err := loadData(st.store, key, &b); err != nil {
+	if err := loadData(cs.store, key, &b); err != nil {
 		return nil, err
 	}
 	return b, nil
 }
 
 // HasKey returns existence of the key
-func (st *ContractState) HasKey(key []byte) bool {
-	return st.storage.has(types.GetHashID(key), true)
+func (cs *ContractState) HasKey(key []byte) bool {
+	return cs.storage.has(types.GetHashID(key), true)
 }
 
 // SetData store key and value pair to the storage.
-func (st *ContractState) SetData(key, value []byte) error {
-	st.storage.put(newValueEntry(types.GetHashID(key), value))
+func (cs *ContractState) SetData(key, value []byte) error {
+	cs.storage.put(newValueEntry(types.GetHashID(key), value))
 	return nil
 }
 
 // GetData returns the value corresponding to the key from the buffered storage.
-func (st *ContractState) GetData(key []byte) ([]byte, error) {
+func (cs *ContractState) GetData(key []byte) ([]byte, error) {
 	id := types.GetHashID(key)
-	if entry := st.storage.get(id); entry != nil {
+	if entry := cs.storage.get(id); entry != nil {
 		if value := entry.Value(); value != nil {
 			return value.([]byte), nil
 		}
 		return nil, nil
 	}
-	return st.getInitialData(id[:])
+	return cs.getInitialData(id[:])
 }
 
-func (st *ContractState) getInitialData(id []byte) ([]byte, error) {
-	dkey, err := st.storage.trie.Get(id)
+func (cs *ContractState) getInitialData(id []byte) ([]byte, error) {
+	dkey, err := cs.storage.trie.Get(id)
 	if err != nil {
 		return nil, err
 	}
@@ -160,46 +160,46 @@ func (st *ContractState) getInitialData(id []byte) ([]byte, error) {
 		return nil, nil
 	}
 	value := []byte{}
-	if err := loadData(st.store, dkey, &value); err != nil {
+	if err := loadData(cs.store, dkey, &value); err != nil {
 		return nil, err
 	}
 	return value, nil
 }
 
 // GetInitialData returns the value corresponding to the key from the contract storage.
-func (st *ContractState) GetInitialData(key []byte) ([]byte, error) {
+func (cs *ContractState) GetInitialData(key []byte) ([]byte, error) {
 	id := types.GetHashID(key)
-	return st.getInitialData(id[:])
+	return cs.getInitialData(id[:])
 }
 
 // DeleteData remove key and value pair from the storage.
-func (st *ContractState) DeleteData(key []byte) error {
-	st.storage.put(newValueEntryDelete(types.GetHashID(key)))
+func (cs *ContractState) DeleteData(key []byte) error {
+	cs.storage.put(newValueEntryDelete(types.GetHashID(key)))
 	return nil
 }
 
 // Snapshot returns revision number of storage buffer
-func (st *ContractState) Snapshot() Snapshot {
-	return Snapshot(st.storage.buffer.snapshot())
+func (cs *ContractState) Snapshot() Snapshot {
+	return Snapshot(cs.storage.buffer.snapshot())
 }
 
 // Rollback discards changes of storage buffer to revision number
-func (st *ContractState) Rollback(revision Snapshot) error {
-	return st.storage.buffer.rollback(int(revision))
+func (cs *ContractState) Rollback(revision Snapshot) error {
+	return cs.storage.buffer.rollback(int(revision))
 }
 
 // Hash implements types.ImplHashBytes
-func (st *ContractState) Hash() []byte {
-	return getHashBytes(st.State)
+func (cs *ContractState) Hash() []byte {
+	return getHashBytes(cs.State)
 }
 
 // Marshal implements types.ImplMarshal
-func (st *ContractState) Marshal() ([]byte, error) {
-	return proto.Encode(st.State)
+func (cs *ContractState) Marshal() ([]byte, error) {
+	return proto.Encode(cs.State)
 }
 
-func (st *ContractState) cache() *stateBuffer {
-	return st.storage.buffer
+func (cs *ContractState) cache() *stateBuffer {
+	return cs.storage.buffer
 }
 
 //---------------------------------------------------------------//

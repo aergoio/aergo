@@ -22,73 +22,73 @@ const (
 	redeployFlag
 )
 
-func (v *AccountState) ID() []byte {
-	if len(v.id) < types.AddressLength {
-		v.id = types.AddressPadding(v.id)
+func (as *AccountState) ID() []byte {
+	if len(as.id) < types.AddressLength {
+		as.id = types.AddressPadding(as.id)
 	}
-	return v.id
+	return as.id
 }
 
-func (v *AccountState) AccountID() types.AccountID {
-	return v.aid
+func (as *AccountState) AccountID() types.AccountID {
+	return as.aid
 }
 
-func (v *AccountState) State() *types.State {
-	return v.newV
+func (as *AccountState) State() *types.State {
+	return as.newV
 }
 
-func (v *AccountState) SetNonce(nonce uint64) {
-	v.newV.Nonce = nonce
+func (as *AccountState) SetNonce(nonce uint64) {
+	as.newV.Nonce = nonce
 }
 
-func (v *AccountState) Balance() *big.Int {
-	return new(big.Int).SetBytes(v.newV.Balance)
+func (as *AccountState) Balance() *big.Int {
+	return new(big.Int).SetBytes(as.newV.Balance)
 }
 
-func (v *AccountState) AddBalance(amount *big.Int) {
-	balance := new(big.Int).SetBytes(v.newV.Balance)
-	v.newV.Balance = new(big.Int).Add(balance, amount).Bytes()
+func (as *AccountState) AddBalance(amount *big.Int) {
+	balance := new(big.Int).SetBytes(as.newV.Balance)
+	as.newV.Balance = new(big.Int).Add(balance, amount).Bytes()
 }
 
-func (v *AccountState) SubBalance(amount *big.Int) {
-	balance := new(big.Int).SetBytes(v.newV.Balance)
-	v.newV.Balance = new(big.Int).Sub(balance, amount).Bytes()
+func (as *AccountState) SubBalance(amount *big.Int) {
+	balance := new(big.Int).SetBytes(as.newV.Balance)
+	as.newV.Balance = new(big.Int).Sub(balance, amount).Bytes()
 }
 
-func (v *AccountState) RP() uint64 {
-	return v.newV.SqlRecoveryPoint
+func (as *AccountState) RP() uint64 {
+	return as.newV.SqlRecoveryPoint
 }
 
-func (v *AccountState) IsNew() bool {
-	return v.newOne
+func (as *AccountState) IsNew() bool {
+	return as.newOne
 }
 
-func (v *AccountState) IsContract() bool {
-	return len(v.State().CodeHash) > 0
+func (as *AccountState) IsContract() bool {
+	return len(as.State().CodeHash) > 0
 }
 
-func (v *AccountState) IsDeploy() bool {
-	return v.deploy&deployFlag != 0
+func (as *AccountState) IsDeploy() bool {
+	return as.deploy&deployFlag != 0
 }
 
-func (v *AccountState) SetRedeploy() {
-	v.deploy = deployFlag | redeployFlag
+func (as *AccountState) SetRedeploy() {
+	as.deploy = deployFlag | redeployFlag
 }
 
-func (v *AccountState) IsRedeploy() bool {
-	return v.deploy&redeployFlag != 0
+func (as *AccountState) IsRedeploy() bool {
+	return as.deploy&redeployFlag != 0
 }
 
-func (v *AccountState) Reset() {
-	v.newV = v.oldV.Clone()
+func (as *AccountState) Reset() {
+	as.newV = as.oldV.Clone()
 }
 
-func (v *AccountState) PutState() error {
-	return v.sdb.PutState(v.aid, v.newV)
+func (as *AccountState) PutState() error {
+	return as.sdb.PutState(as.aid, as.newV)
 }
 
-func (v *AccountState) ClearAid() {
-	v.aid = emptyAccountID
+func (as *AccountState) ClearAid() {
+	as.aid = emptyAccountID
 }
 
 //----------------------------------------------------------------------------------------------//
