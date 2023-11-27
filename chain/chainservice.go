@@ -94,7 +94,7 @@ func (core *Core) init(dbType string, dataDir string, testModeOn bool, forceRese
 		logger.Fatal().Err(err).Msg("failed to initialize statedb")
 		return err
 	}
-
+	contract.LoadDatabase(dataDir)
 	return nil
 }
 
