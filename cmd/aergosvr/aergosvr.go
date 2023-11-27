@@ -13,6 +13,7 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/v2/account"
 	"github.com/aergoio/aergo/v2/chain"
+	polarisclient "github.com/aergoio/aergo/v2/cmd/polaris/client"
 	"github.com/aergoio/aergo/v2/config"
 	"github.com/aergoio/aergo/v2/consensus"
 	"github.com/aergoio/aergo/v2/consensus/impl"
@@ -23,7 +24,6 @@ import (
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/rpc"
 	"github.com/aergoio/aergo/v2/syncer"
-	polarisclient "github.com/aergoio/aergo/v2/tools/polaris/client"
 	"github.com/spf13/cobra"
 )
 

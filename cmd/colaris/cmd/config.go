@@ -7,7 +7,7 @@ package cmd
 
 import (
 	"github.com/aergoio/aergo-lib/config"
-	"github.com/aergoio/aergo/v2/tools/polaris/common"
+	"github.com/aergoio/aergo/v2/cmd/polaris/common"
 )
 
 const (

@@ -12,12 +12,12 @@ import (
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
+	common2 "github.com/aergoio/aergo/v2/cmd/polaris/common"
+	"github.com/aergoio/aergo/v2/cmd/polaris/server"
 	"github.com/aergoio/aergo/v2/config"
 	"github.com/aergoio/aergo/v2/internal/common"
 	"github.com/aergoio/aergo/v2/p2p/p2pkey"
 	"github.com/aergoio/aergo/v2/pkg/component"
-	common2 "github.com/aergoio/aergo/v2/tools/polaris/common"
-	"github.com/aergoio/aergo/v2/tools/polaris/server"
 	"github.com/spf13/cobra"
 )
 
