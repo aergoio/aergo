@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/v2/cmd/polaris/common"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
-	"github.com/aergoio/aergo/v2/polaris/common"
 )
 
 type HealthCheckManager interface {
