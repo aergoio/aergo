@@ -9,13 +9,13 @@ import (
 )
 
 type AccountState struct {
-	sdb    *statedb.StateDB
-	id     []byte
-	aid    types.AccountID
-	oldV   *types.State
-	newV   *types.State
-	newOne bool
-	deploy int8
+	sdb      *statedb.StateDB
+	id       []byte
+	aid      types.AccountID
+	oldState *types.State
+	newState *types.State
+	newOne   bool
+	deploy   int8
 }
 
 const (
@@ -35,29 +35,29 @@ func (as *AccountState) AccountID() types.AccountID {
 }
 
 func (as *AccountState) State() *types.State {
-	return as.newV
+	return as.newState
 }
 
 func (as *AccountState) SetNonce(nonce uint64) {
-	as.newV.Nonce = nonce
+	as.newState.Nonce = nonce
 }
 
 func (as *AccountState) Balance() *big.Int {
-	return new(big.Int).SetBytes(as.newV.Balance)
+	return new(big.Int).SetBytes(as.newState.Balance)
 }
 
 func (as *AccountState) AddBalance(amount *big.Int) {
-	balance := new(big.Int).SetBytes(as.newV.Balance)
-	as.newV.Balance = new(big.Int).Add(balance, amount).Bytes()
+	balance := new(big.Int).SetBytes(as.newState.Balance)
+	as.newState.Balance = new(big.Int).Add(balance, amount).Bytes()
 }
 
 func (as *AccountState) SubBalance(amount *big.Int) {
-	balance := new(big.Int).SetBytes(as.newV.Balance)
-	as.newV.Balance = new(big.Int).Sub(balance, amount).Bytes()
+	balance := new(big.Int).SetBytes(as.newState.Balance)
+	as.newState.Balance = new(big.Int).Sub(balance, amount).Bytes()
 }
 
 func (as *AccountState) RP() uint64 {
-	return as.newV.SqlRecoveryPoint
+	return as.newState.SqlRecoveryPoint
 }
 
 func (as *AccountState) IsNew() bool {
@@ -81,11 +81,11 @@ func (as *AccountState) IsRedeploy() bool {
 }
 
 func (as *AccountState) Reset() {
-	as.newV = as.oldV.Clone()
+	as.newState = as.oldState.Clone()
 }
 
 func (as *AccountState) PutState() error {
-	return as.sdb.PutState(as.aid, as.newV)
+	return as.sdb.PutState(as.aid, as.newState)
 }
 
 func (as *AccountState) ClearAid() {
@@ -103,7 +103,7 @@ func CreateAccountState(id []byte, sdb *statedb.StateDB) (*AccountState, error) 
 	if !v.newOne {
 		return nil, fmt.Errorf("account(%s) aleardy exists", types.EncodeAddress(v.ID()))
 	}
-	v.newV.SqlRecoveryPoint = 1
+	v.newState.SqlRecoveryPoint = 1
 	v.deploy = deployFlag
 	return v, nil
 }
@@ -118,38 +118,38 @@ func GetAccountState(id []byte, states *statedb.StateDB) (*AccountState, error) 
 		if states.Testmode {
 			amount := new(big.Int).Add(types.StakingMinimum, types.StakingMinimum)
 			return &AccountState{
-				sdb:    states,
-				id:     id,
-				aid:    aid,
-				oldV:   &types.State{Balance: amount.Bytes()},
-				newV:   &types.State{Balance: amount.Bytes()},
-				newOne: true,
+				sdb:      states,
+				id:       id,
+				aid:      aid,
+				oldState: &types.State{Balance: amount.Bytes()},
+				newState: &types.State{Balance: amount.Bytes()},
+				newOne:   true,
 			}, nil
 		}
 		return &AccountState{
-			sdb:    states,
-			id:     id,
-			aid:    aid,
-			oldV:   &types.State{},
-			newV:   &types.State{},
-			newOne: true,
+			sdb:      states,
+			id:       id,
+			aid:      aid,
+			oldState: &types.State{},
+			newState: &types.State{},
+			newOne:   true,
 		}, nil
 	}
 	return &AccountState{
-		sdb:  states,
-		id:   id,
-		aid:  aid,
-		oldV: st,
-		newV: st.Clone(),
+		sdb:      states,
+		id:       id,
+		aid:      aid,
+		oldState: st,
+		newState: st.Clone(),
 	}, nil
 }
 
 func InitAccountState(id []byte, sdb *statedb.StateDB, old *types.State, new *types.State) *AccountState {
 	return &AccountState{
-		sdb:  sdb,
-		id:   id,
-		aid:  types.ToAccountID(id),
-		oldV: old,
-		newV: new,
+		sdb:      sdb,
+		id:       id,
+		aid:      types.ToAccountID(id),
+		oldState: old,
+		newState: new,
 	}
 }
