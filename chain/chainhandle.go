@@ -638,8 +638,8 @@ func NewTxExecutor(execCtx context.Context, ccc consensus.ChainConsensusCluster,
 			return ErrInvalidBlockHeader
 		}
 		blockSnap := bState.Snapshot()
-
-		err := executeTx(execCtx, ccc, cdb, bState, tx, bi, preloadService)
+		evmService := evm.NewEVM(bState.GetEvmRoot(), bState.EvmStateDB)
+		err := executeTx(execCtx, ccc, cdb, bState, tx, bi, preloadService, evmService)
 		if err != nil {
 			logger.Error().Err(err).Str("hash", base58.Encode(tx.GetHash())).Msg("tx failed")
 			if err2 := bState.Rollback(blockSnap); err2 != nil {
@@ -656,7 +656,6 @@ func (e *blockExecutor) execute() error {
 	// Receipt must be committed unconditionally.
 	if !e.commitOnly {
 		defer contract.CloseDatabase()
-		defer evmService.CloseDatabase()
 
 		var preloadTx *types.Tx
 		nCand := len(e.txs)
@@ -720,10 +719,6 @@ func (e *blockExecutor) commit() error {
 
 	//TODO: after implementing BlockRootHash, remove statedb.lastest
 	if err := e.sdb.UpdateRoot(e.BlockState); err != nil {
-		return err
-	}
-
-	if err := evmService.Commit(); err != nil {
 		return err
 	}
 
@@ -893,7 +888,7 @@ func resetAccount(account *state.AccountState, fee *big.Int, nonce *uint64) erro
 	return account.PutState()
 }
 
-func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb contract.ChainAccessor, bs *state.BlockState, tx types.Transaction, bi *types.BlockHeaderInfo, preloadService int) error {
+func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb contract.ChainAccessor, bs *state.BlockState, tx types.Transaction, bi *types.BlockHeaderInfo, preloadService int, evmService *evm.EVM) error {
 	var (
 		txBody    = tx.GetBody()
 		isQuirkTx = types.IsQuirkTx(tx.GetHash())

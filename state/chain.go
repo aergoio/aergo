@@ -14,6 +14,7 @@ import (
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	ethstate "github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/ethdb"
 )
 
 var (
@@ -39,7 +40,6 @@ func NewChainStateDB() *ChainStateDB {
 func (sdb *ChainStateDB) Clone() *ChainStateDB {
 	sdb.Lock()
 	defer sdb.Unlock()
-
 	newSdb := &ChainStateDB{
 		luaStore: sdb.luaStore,
 		evmStore: sdb.evmStore,
@@ -78,11 +78,17 @@ func (sdb *ChainStateDB) Init(dbType string, dataDir string, bestBlock *types.Bl
 
 	if sdb.evmStore == nil {
 		dbPath := common.PathMkdirAll(dataDir, "state_evm")
-		testLevelDB, err := rawdb.NewLevelDBDatabase(dbPath, 128, 1024, "", false)
-		if err != nil {
-			return err
+
+		var testDB ethdb.Database
+		if db.ImplType(dbType) == db.MemoryImpl {
+			testDB = rawdb.NewMemoryDatabase()
+		} else {
+			testDB, err = rawdb.NewLevelDBDatabase(dbPath, 128, 1024, "", false)
+			if err != nil {
+				return err
+			}
 		}
-		sdb.evmStore = ethstate.NewDatabase(testLevelDB)
+		sdb.evmStore = ethstate.NewDatabase(testDB)
 	}
 
 	if sdb.evmStates == nil {

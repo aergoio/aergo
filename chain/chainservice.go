@@ -46,8 +46,6 @@ var (
 	ErrRecoInvalidSdbRoot    = errors.New("state root of sdb is invalid")
 
 	TestDebugger *Debugger
-
-	evmService *evm.EVM
 )
 
 // Core represents a storage layer of a blockchain (chain & state DB).
@@ -96,10 +94,6 @@ func (core *Core) init(dbType string, dataDir string, testModeOn bool, forceRese
 		logger.Fatal().Err(err).Msg("failed to initialize statedb")
 		return err
 	}
-
-	contract.LoadDatabase(dataDir)
-	evmService = evm.NewEVM()
-	evmService.LoadDatabase(dataDir)
 
 	return nil
 }
@@ -169,7 +163,6 @@ func (core *Core) Close() {
 		core.cdb.Close()
 	}
 	contract.CloseDatabase()
-	evmService.CloseDatabase()
 }
 
 // InitGenesisBlock initialize chain database and generate specified genesis block if necessary
@@ -877,6 +870,8 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
 		logger.Info().Msgf("evm query received for contract %s with payload %s", hex.EncodeToString(msg.Contract), hex.EncodeToString(msg.Queryinfo))
+
+		evmService := evm.NewEVMCall(cw.sdb.GetEvmRoot(), cw.sdb.GetEvmStateDB())
 		res, _, err := evmService.Query(nil, msg.Contract, msg.Queryinfo)
 		context.Respond(message.GetEVMQueryRsp{Result: res, Err: err})
 	case *message.GetElected:
