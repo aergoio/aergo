@@ -216,7 +216,7 @@ func (g *BlockGenerator) GatherTXs() ([]types.Transaction, error) {
 		return nil, err
 	}
 
-	if err := contract.SaveRecoveryPoint(bState); err != nil {
+	if err := contract.SaveRecoveryPoint(bState.LuaStateDB); err != nil {
 		return nil, err
 	}
 
