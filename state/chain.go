@@ -149,7 +149,7 @@ func (sdb *ChainStateDB) SetGenesis(genesis *types.Genesis, bpInit func(*statedb
 	stateDB := sdb.OpenNewStateDB(sdb.GetLuaRoot())
 
 	// create state of genesis block
-	gbState := sdb.NewBlockState(stateDB.GetRoot(), nil)
+	gbState := sdb.NewBlockState(stateDB.GetRoot(), sdb.GetEvmRoot())
 
 	if len(genesis.BPs) > 0 && bpInit != nil {
 		// To avoid cyclic dedendency, BP initilization is called via function
