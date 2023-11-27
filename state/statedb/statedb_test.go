@@ -1,4 +1,4 @@
-package state
+package statedb
 
 import (
 	"bytes"
@@ -213,7 +213,7 @@ func TestStateDBParallel(t *testing.T) {
 	assert.True(t, stateEquals(testSecondStates[2], st))
 
 	// open another statedb with root hash of previous state
-	anotherStateDB := chainStateDB.OpenLuaStateDB(testRoot)
+	anotherStateDB := NewStateDB(store, testRoot, false)
 	assert.Equal(t, testRoot, anotherStateDB.GetRoot())
 	assert.Equal(t, testSecondRoot, stateDB.GetRoot())
 

@@ -19,10 +19,10 @@ func TestExcuteNameTx(t *testing.T) {
 	name := "AB1234567890"
 	txBody.Payload = buildNamePayload(name, types.NameCreate, "")
 
-	sender, _ := sdb.GetLuaStateDB().GetAccountStateV(txBody.Account)
+	sender, _ := state.GetAccountState(txBody.Account, sdb.GetStateDB())
 	sender.AddBalance(types.MaxAER)
-	receiver, _ := sdb.GetLuaStateDB().GetAccountStateV(txBody.Recipient)
-	bs := sdb.NewBlockState(sdb.GetLuaRoot(), nil)
+	receiver, _ := state.GetAccountState(txBody.Recipient, sdb.GetStateDB())
+	bs := sdb.NewBlockState(sdb.GetRoot())
 	scs := openContractState(t, bs)
 
 	blockInfo := &types.BlockHeaderInfo{No: uint64(0), ForkVersion: 0}
@@ -103,9 +103,9 @@ func TestExcuteFailNameTx(t *testing.T) {
 	name := "AB1234567890"
 	txBody.Payload = buildNamePayload(name, types.NameCreate+"Broken", "")
 
-	sender, _ := sdb.GetLuaStateDB().GetAccountStateV(txBody.Account)
-	receiver, _ := sdb.GetLuaStateDB().GetAccountStateV(txBody.Recipient)
-	bs := sdb.NewBlockState(sdb.GetLuaRoot(), nil)
+	sender, _ := state.GetAccountState(txBody.Account, sdb.GetStateDB())
+	receiver, _ := state.GetAccountState(txBody.Recipient, sdb.GetStateDB())
+	bs := sdb.NewBlockState(sdb.GetRoot())
 	scs := openContractState(t, bs)
 	blockInfo := &types.BlockHeaderInfo{No: uint64(0), ForkVersion: 0}
 	_, err := ExecuteNameTx(bs, scs, txBody, sender, receiver, blockInfo)
@@ -113,21 +113,21 @@ func TestExcuteFailNameTx(t *testing.T) {
 }
 
 func openContractState(t *testing.T, bs *state.BlockState) *state.ContractState {
-	scs, err := bs.LuaStateDB.GetNameAccountState()
+	scs, err := state.GetNameAccountState(bs.StateDB)
 	assert.NoError(t, err, "could not open contract state")
 	return scs
 }
 
 func openSystemContractState(t *testing.T, bs *state.BlockState) *state.ContractState {
-	scs, err := bs.LuaStateDB.GetSystemAccountState()
+	scs, err := state.GetSystemAccountState(bs.StateDB)
 	assert.NoError(t, err, "could not open contract state")
 	return scs
 }
 
 func commitContractState(t *testing.T, bs *state.BlockState, scs *state.ContractState) {
-	bs.LuaStateDB.StageContractState(scs)
-	bs.LuaStateDB.Update()
-	bs.LuaStateDB.Commit()
+	state.StageContractState(scs, bs.StateDB)
+	bs.Update()
+	bs.Commit()
 	sdb.UpdateRoot(bs)
 }
 

@@ -4,17 +4,15 @@ import (
 	"math/big"
 
 	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/bluele/gcache"
-	ethstate "github.com/ethereum/go-ethereum/core/state"
 	"github.com/willf/bloom"
 )
 
 // BlockState contains BlockInfo and statedb for block
 type BlockState struct {
-	LuaStateDB *StateDB
-	EvmStateDB *ethstate.StateDB
-
+	*statedb.StateDB
 	BpReward      big.Int // final bp reward, increment when tx executes
 	receipts      types.Receipts
 	CCProposal    *consensus.ConfChangePropose
@@ -42,16 +40,11 @@ func SetGasPrice(gasPrice *big.Int) BlockStateOptFn {
 }
 
 // NewBlockState create new blockState contains blockInfo, account states and undo states
-func NewBlockState(luaStates *StateDB, evmStates *ethstate.StateDB, options ...BlockStateOptFn) *BlockState {
+func NewBlockState(states *statedb.StateDB, options ...BlockStateOptFn) *BlockState {
 	b := &BlockState{
+		StateDB:   states,
 		codeCache: gcache.New(100).LRU().Build(),
 		abiCache:  gcache.New(100).LRU().Build(),
-	}
-	if luaStates != nil {
-		b.LuaStateDB = luaStates.Clone()
-	}
-	if evmStates != nil {
-		b.EvmStateDB = evmStates.Copy()
 	}
 	for _, opt := range options {
 		opt(b)
@@ -60,82 +53,24 @@ func NewBlockState(luaStates *StateDB, evmStates *ethstate.StateDB, options ...B
 }
 
 type BlockSnapshot struct {
-	LuaVersion Snapshot
-	luaStorage map[types.AccountID]int
-	EvmVersion int
+	state   statedb.Snapshot
+	storage map[types.AccountID]int
 }
 
 func (bs *BlockState) Snapshot() BlockSnapshot {
 	result := BlockSnapshot{
-		LuaVersion: bs.LuaStateDB.Snapshot(),
-		luaStorage: bs.LuaStateDB.cache.snapshot(),
-	}
-	if bs.EvmStateDB != nil {
-		result.EvmVersion = bs.EvmStateDB.Snapshot()
+		state:   bs.StateDB.Snapshot(),
+		storage: bs.StateDB.Cache.Snapshot(),
 	}
 	return result
 }
 
 func (bs *BlockState) Rollback(bSnap BlockSnapshot) error {
-	if err := bs.LuaStateDB.cache.rollback(bSnap.luaStorage); err != nil {
+	if err := bs.StateDB.Cache.Rollback(bSnap.storage); err != nil {
 		return err
 	}
-	if err := bs.LuaStateDB.Rollback(bSnap.LuaVersion); err != nil {
-		return err
-	}
-	if bs.EvmStateDB != nil {
-		bs.EvmStateDB.RevertToSnapshot(bSnap.EvmVersion)
-	}
-
-	return nil
+	return bs.StateDB.Rollback(bSnap.state)
 }
-
-func (bs *BlockState) GetLuaRoot() []byte {
-	return bs.LuaStateDB.GetRoot()
-}
-
-func (bs *BlockState) SetLuaRoot(root []byte) {
-	bs.LuaStateDB.SetRoot(root)
-}
-
-func (bs *BlockState) GetEvmRoot() []byte {
-	if bs.EvmStateDB == nil {
-		return nil
-	}
-	return bs.EvmStateDB.IntermediateRoot(false).Bytes()
-}
-
-func (bs *BlockState) Update() error {
-	if bs.LuaStateDB != nil {
-		err := bs.LuaStateDB.Update()
-		if err != nil {
-			return err
-		}
-	}
-	if bs.EvmStateDB != nil {
-		bs.EvmStateDB.Finalise(true)
-	}
-	return nil
-}
-
-func (bs *BlockState) Commit() error {
-	if bs.LuaStateDB != nil {
-		err := bs.LuaStateDB.Commit()
-		if err != nil {
-			return err
-		}
-	}
-	if bs.EvmStateDB != nil {
-		_, err := bs.EvmStateDB.Commit(true)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-//-----------------------------------------------------------------------------------------//
-//
 
 func (bs *BlockState) Consensus() []byte {
 	return bs.consensus

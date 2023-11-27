@@ -381,7 +381,11 @@ func (sn *Snapshots) AddSnapshot(refBlockNo types.BlockNo) ([]string, error) {
 }
 
 func (sn *Snapshots) gatherRankers() ([]string, error) {
-	return system.GetRankers(sn.sdb)
+	scs, err := state.GetSystemAccountState(sn.sdb.GetStateDB())
+	if err != nil {
+		return nil, err
+	}
+	return system.GetRankers(scs)
 }
 
 // UpdateCluster updates the current BP list by the ones corresponding to
@@ -495,7 +499,10 @@ func (sn *Snapshots) loadClusterSnapshot(blockNo types.BlockNo) ([]string, error
 		return nil, err
 	}
 
-	stateDB := sn.sdb.OpenLuaStateDB(block.GetHeader().GetBlocksRootHash())
-
-	return system.GetRankers(stateDB)
+	stateDB := sn.sdb.OpenNewStateDB(block.GetHeader().GetBlocksRootHash())
+	scs, err := state.GetSystemAccountState(stateDB)
+	if err != nil {
+		return nil, err
+	}
+	return system.GetRankers(scs)
 }

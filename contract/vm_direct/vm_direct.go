@@ -140,7 +140,10 @@ func LoadDummyChainEx(chainType ChainType) (*DummyChain, error) {
 	types.InitGovernance("dpos", true)
 
 	// To pass dao parameters test
-	scs, err := bc.sdb.GetLuaStateDB().OpenContractStateAccount(types.ToAccountID([]byte("aergo.system")))
+	scs, err := state.GetSystemAccountState(bc.sdb.GetStateDB())
+	if err != nil {
+		return nil, err
+	}
 	system.InitSystemParams(scs, 3)
 
 	return bc, nil
@@ -251,7 +254,11 @@ func newBlockExecutor(bc *DummyChain, txs []*types.Tx) (*blockExecutor, error) {
 
 	exec = NewTxExecutor(context.Background(), nil, bc, bi, contract.ChainService)
 
-	blockState.SetGasPrice(system.GetGasPriceFromState(blockState.LuaStateDB))
+	scs, err := state.GetSystemAccountState(blockState.StateDB)
+	if err != nil {
+		return nil, err
+	}
+	blockState.SetGasPrice(system.GetGasPriceFromState(scs))
 
 	blockState.Receipts().SetHardFork(bc.HardforkConfig, bc.bestBlockNo+1)
 
@@ -365,7 +372,7 @@ func adjustReturnValue(ret string) string {
 	return ret
 }
 
-func resetAccount(account *state.V, fee *big.Int, nonce *uint64) error {
+func resetAccount(account *state.AccountState, fee *big.Int, nonce *uint64) error {
 	account.Reset()
 	if fee != nil {
 		if account.Balance().Cmp(fee) < 0 {
@@ -414,7 +421,7 @@ func executeTx(
 		return err
 	}
 
-	sender, err := bs.LuaStateDB.GetAccountStateV(account)
+	sender, err := state.GetAccountState(account, bs.StateDB)
 	if err != nil {
 		return err
 	}
@@ -468,16 +475,16 @@ func executeTx(
 	if recipient, err = name.Resolve(bs, txBody.Recipient, isQuirkTx); err != nil {
 		return err
 	}
-	var receiver *state.V
+	var receiver *state.AccountState
 	status := "SUCCESS"
 	if len(recipient) > 0 {
-		receiver, err = bs.LuaStateDB.GetAccountStateV(recipient)
+		receiver, err = state.GetAccountState(recipient, bs.StateDB)
 		if receiver != nil && txBody.Type == types.TxType_REDEPLOY {
 			status = "RECREATED"
 			receiver.SetRedeploy()
 		}
 	} else {
-		receiver, err = bs.LuaStateDB.CreateAccountStateV(contract.CreateContractID(txBody.Account, txBody.Nonce))
+		receiver, err = state.CreateAccountState(contract.CreateContractID(txBody.Account, txBody.Nonce), bs.StateDB)
 		status = "CREATED"
 	}
 	if err != nil {
@@ -503,7 +510,7 @@ func executeTx(
 			return err
 		}
 		var contractState *state.ContractState
-		contractState, err = bs.LuaStateDB.OpenContractState(receiver.AccountID(), receiver.State())
+		contractState, err = state.OpenContractState(receiver.AccountID(), receiver.State(), bs.StateDB)
 		if err != nil {
 			return err
 		}
@@ -582,7 +589,7 @@ func executeTx(
 	return bs.AddReceipt(receipt)
 }
 
-func executeGovernanceTx(ccc consensus.ChainConsensusCluster, bs *state.BlockState, txBody *types.TxBody, sender, receiver *state.V,
+func executeGovernanceTx(ccc consensus.ChainConsensusCluster, bs *state.BlockState, txBody *types.TxBody, sender, receiver *state.AccountState,
 	blockInfo *types.BlockHeaderInfo) ([]*types.Event, error) {
 
 	if len(txBody.Payload) <= 0 {
@@ -591,7 +598,7 @@ func executeGovernanceTx(ccc consensus.ChainConsensusCluster, bs *state.BlockSta
 
 	governance := string(txBody.Recipient)
 
-	scs, err := bs.LuaStateDB.OpenContractState(receiver.AccountID(), receiver.State())
+	scs, err := state.OpenContractState(receiver.AccountID(), receiver.State(), bs.StateDB)
 	if err != nil {
 		return nil, err
 	}
@@ -609,7 +616,7 @@ func executeGovernanceTx(ccc consensus.ChainConsensusCluster, bs *state.BlockSta
 	}
 
 	if err == nil {
-		err = bs.LuaStateDB.StageContractState(scs)
+		err = state.StageContractState(scs, bs.StateDB)
 	}
 
 	return events, err
@@ -628,10 +635,10 @@ func SendBlockReward(bState *state.BlockState, coinbaseAccount []byte) error {
 		return err
 	}
 
-	receiverChange := types.State(*receiverState)
+	receiverChange := receiverState.Clone()
 	receiverChange.Balance = new(big.Int).Add(receiverChange.GetBalanceBigInt(), bpReward).Bytes()
 
-	err = bState.LuaStateDB.PutState(receiverID, &receiverChange)
+	err = bState.PutState(receiverID, receiverChange)
 	if err != nil {
 		return err
 	}

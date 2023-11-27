@@ -16,12 +16,7 @@ type NameMap struct {
 	Destination []byte
 }
 
-// AccountStateReader is an interface for getting a name account state.
-type AccountStateReader interface {
-	GetNameAccountState() (*state.ContractState, error)
-}
-
-func CreateName(scs *state.ContractState, tx *types.TxBody, sender, receiver *state.V, name string) error {
+func CreateName(scs *state.ContractState, tx *types.TxBody, sender, receiver *state.AccountState, name string) error {
 	amount := tx.GetAmountBigInt()
 	sender.SubBalance(amount)
 	receiver.AddBalance(amount)
@@ -35,7 +30,7 @@ func createName(scs *state.ContractState, name []byte, owner []byte) error {
 
 // UpdateName is avaliable after bid implement
 func UpdateName(bs *state.BlockState, scs *state.ContractState, tx *types.TxBody,
-	sender, receiver *state.V, name, to string) error {
+	sender, receiver *state.AccountState, name, to string) error {
 	if len(getAddress(scs, []byte(name))) <= types.NameLength {
 		return fmt.Errorf("%s is not created yet", string(name))
 	}
@@ -45,7 +40,7 @@ func UpdateName(bs *state.BlockState, scs *state.ContractState, tx *types.TxBody
 	amount := tx.GetAmountBigInt()
 	sender.SubBalance(amount)
 	receiver.AddBalance(amount)
-	contract, err := bs.LuaStateDB.OpenContractStateAccount(types.ToAccountID(destination))
+	contract, err := state.OpenContractStateAccount(types.ToAccountID(destination), bs.StateDB)
 	if err != nil {
 		return types.ErrTxInvalidRecipient
 	}
@@ -88,11 +83,11 @@ func Resolve(bs *state.BlockState, name []byte, legacy bool) ([]byte, error) {
 }
 
 func openContract(bs *state.BlockState) (*state.ContractState, error) {
-	v, err := bs.LuaStateDB.GetAccountStateV([]byte(types.AergoName))
+	v, err := state.GetAccountState([]byte(types.AergoName), bs.StateDB)
 	if err != nil {
 		return nil, err
 	}
-	scs, err := bs.LuaStateDB.OpenContractState(v.AccountID(), v.State())
+	scs, err := state.OpenContractState(v.AccountID(), v.State(), bs.StateDB)
 	if err != nil {
 		return nil, err
 	}
@@ -149,13 +144,9 @@ func getNameMap(scs *state.ContractState, name []byte, useInitial bool) *NameMap
 	return deserializeNameMap(ownerdata)
 }
 
-func GetNameInfo(r AccountStateReader, name string) (*types.NameInfo, error) {
-	scs, err := r.GetNameAccountState()
-	if err != nil {
-		return nil, err
-	}
-	owner := getOwner(scs, []byte(name), true)
-	return &types.NameInfo{Name: &types.Name{Name: string(name)}, Owner: owner, Destination: GetAddress(scs, []byte(name))}, err
+func GetNameInfo(ncs *state.ContractState, name string) (*types.NameInfo, error) {
+	owner := getOwner(ncs, []byte(name), true)
+	return &types.NameInfo{Name: &types.Name{Name: string(name)}, Owner: owner, Destination: GetAddress(ncs, []byte(name))}, nil
 }
 
 func registerOwner(scs *state.ContractState, name, owner, destination []byte) error {

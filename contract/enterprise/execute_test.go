@@ -7,6 +7,7 @@ import (
 
 	"github.com/aergoio/aergo/v2/consensus"
 	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -204,25 +205,25 @@ func TestEnterpriseChangeCluster(t *testing.T) {
 	_, err := ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
 	assert.NoError(t, err, "add admin")
 
-	bs := state.NewBlockState(&state.StateDB{}, nil)
+	bs := state.NewBlockState(&statedb.StateDB{})
 	tx.Payload = []byte(`{"name":"changeCluster", "args":[{"command" : "add", "name": "aergonew", "address": "/ip4/127.0.0.1/tcp/11001", "peerid":"16Uiu2HAmAAtqye6QQbeG9EZnrWJbGK8Xw74cZxpnGGEAZAB3zJ8B"}]}`)
 	_, err = ExecuteEnterpriseTx(bs, ccc, scs, tx, sender, receiver, testBlockNo)
 	assert.NoError(t, err)
 	assert.NotNil(t, bs.CCProposal)
 
-	bs = state.NewBlockState(&state.StateDB{}, nil)
+	bs = state.NewBlockState(&statedb.StateDB{})
 	tx.Payload = []byte(`{"name":"changeCluster", "args":[{"command" : "remove", "id": "1234"}]}`)
 	_, err = ExecuteEnterpriseTx(bs, ccc, scs, tx, sender, receiver, testBlockNo)
 	assert.NoError(t, err)
 	assert.NotNil(t, bs.CCProposal)
 
-	bs = state.NewBlockState(&state.StateDB{}, nil)
+	bs = state.NewBlockState(&statedb.StateDB{})
 	tx.Payload = []byte(`{"name":"changeCluster", "args":[{"command" : "nocmd", "name": "aergonew", "address": "/ip4/127.0.0.1/tcp/11001", "PeerID":"16Uiu2HAmAAtqye6QQbeG9EZnrWJbGK8Xw74cZxpnGGEAZAB3zJ8B"}]}`)
 	_, err = ExecuteEnterpriseTx(bs, ccc, scs, tx, sender, receiver, testBlockNo)
 	assert.Error(t, err)
 	assert.Nil(t, bs.CCProposal)
 
-	bs = state.NewBlockState(&state.StateDB{}, nil)
+	bs = state.NewBlockState(&statedb.StateDB{})
 	tx.Payload = []byte(`{"name":"changeCluster", "args":[{"command" : "add", "name": "aergonew", "address": "http://127.0.0.1:1001", "peerid":"16Uiu2HAmAAtqye6QQbeG9EZnrWJbGK8Xw74cZxpnGGEAZAB3zJ8B"}]}`)
 	_, err = ExecuteEnterpriseTx(bs, ccc, scs, tx, sender, receiver, testBlockNo)
 	assert.Error(t, err)

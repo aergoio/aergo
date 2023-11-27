@@ -376,14 +376,14 @@ func (tx *transaction) Clone() *transaction {
 	}
 	body := &TxBody{
 		Nonce:     tx.GetBody().Nonce,
-		Account:   Clone(tx.GetBody().Account).([]byte),
-		Recipient: Clone(tx.GetBody().Recipient).([]byte),
-		Amount:    Clone(tx.GetBody().Amount).([]byte),
-		Payload:   Clone(tx.GetBody().Payload).([]byte),
+		Account:   tx.GetBody().Account,
+		Recipient: tx.GetBody().Recipient,
+		Amount:    tx.GetBody().Amount,
+		Payload:   tx.GetBody().Payload,
 		GasLimit:  tx.GetBody().GasLimit,
-		GasPrice:  Clone(tx.GetBody().GasPrice).([]byte),
+		GasPrice:  tx.GetBody().GasPrice,
 		Type:      tx.GetBody().Type,
-		Sign:      Clone(tx.GetBody().Sign).([]byte),
+		Sign:      tx.GetBody().Sign,
 	}
 	res := &transaction{
 		Tx: &Tx{Body: body},

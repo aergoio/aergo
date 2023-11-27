@@ -67,7 +67,7 @@ func SetPreloadTx(tx *types.Tx, service int) {
 }
 
 // Execute executes a normal transaction which is possibly executing smart contract.
-func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, tx *types.Tx, sender, receiver *state.V, bi *types.BlockHeaderInfo, preloadService int, isFeeDelegation bool) (rv string, events []*types.Event, usedFee *big.Int, err error) {
+func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, tx *types.Tx, sender, receiver *state.AccountState, bi *types.BlockHeaderInfo, preloadService int, isFeeDelegation bool) (rv string, events []*types.Event, usedFee *big.Int, err error) {
 
 	var (
 		txBody     = tx.GetBody()
@@ -106,7 +106,7 @@ func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, t
 	}
 
 	// open the contract state
-	contractState, err := bs.LuaStateDB.OpenContractState(receiver.AccountID(), receiver.State())
+	contractState, err := state.OpenContractState(receiver.AccountID(), receiver.State(), bs.StateDB)
 	if err != nil {
 		return
 	}
@@ -194,7 +194,7 @@ func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, t
 	}
 
 	// save the contract state
-	err = bs.LuaStateDB.StageContractState(contractState)
+	err = state.StageContractState(contractState, bs.StateDB)
 	if err != nil {
 		return "", events, usedFee, err
 	}
@@ -254,7 +254,7 @@ func preloadWorker() {
 		}
 
 		// get the state of the recipient
-		receiver, err := bs.LuaStateDB.GetAccountStateV(recipient)
+		receiver, err := state.GetAccountState(recipient, bs.StateDB)
 		if err != nil {
 			replyCh <- &preloadReply{tx, nil, err}
 			continue
@@ -268,7 +268,7 @@ func preloadWorker() {
 		}
 
 		// open the contract state
-		contractState, err := bs.LuaStateDB.OpenContractState(receiver.AccountID(), receiver.State())
+		contractState, err := state.OpenContractState(receiver.AccountID(), receiver.State(), bs.StateDB)
 		if err != nil {
 			replyCh <- &preloadReply{tx, nil, err}
 			continue
@@ -320,7 +320,7 @@ func CreateContractID(account []byte, nonce uint64) []byte {
 	return append([]byte{0x0C}, recipientHash...) // prepend 0x0C to make it same length as account addresses
 }
 
-func checkRedeploy(sender, receiver *state.V, contractState *state.ContractState) error {
+func checkRedeploy(sender, receiver *state.AccountState, contractState *state.ContractState) error {
 	// check if the contract exists
 	if !receiver.IsContract() || receiver.IsNew() {
 		receiverAddr := types.EncodeAddress(receiver.ID())
