@@ -9,11 +9,11 @@ import (
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
-	"github.com/aergoio/aergo/v2/message"
-	"github.com/aergoio/aergo/v2/message/messagemock"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/aergoio/aergo/v2/p2p/p2pmock"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/message"
+	"github.com/aergoio/aergo/v2/types/message/messagemock"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )
