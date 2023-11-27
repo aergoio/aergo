@@ -330,7 +330,7 @@ func (e *blockExecutor) execute() error {
 		return err
 	}
 
-	if err := contract.SaveRecoveryPoint(e.BlockState); err != nil {
+	if err := contract.SaveRecoveryPoint(e.BlockState.LuaStateDB); err != nil {
 		return err
 	}
 

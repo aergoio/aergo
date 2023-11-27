@@ -637,7 +637,7 @@ func (bc *DummyChain) ConnectBlock(txs ...LuaTxTester) error {
 			return err
 		}
 	}
-	err := contract.SaveRecoveryPoint(blockState)
+	err := contract.SaveRecoveryPoint(blockState.LuaStateDB)
 	if err != nil {
 		return err
 	}
