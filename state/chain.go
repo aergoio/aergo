@@ -171,7 +171,7 @@ func (sdb *ChainStateDB) SetGenesis(genesis *types.Genesis, bpInit func(*statedb
 
 	for address, balance := range genesis.Balance {
 		if v, ok := new(big.Int).SetString(balance, 10); ok {
-			accountState, err := GetAccountState(types.ToAddress(address), gbState.LuaStateDB)
+			accountState, err := GetAccountState(types.ToAddress(address), gbState.LuaStateDB, gbState.EvmStateDB)
 			if err != nil {
 				return err
 			}

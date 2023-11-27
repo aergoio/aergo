@@ -1,12 +1,13 @@
-package account
+package state
 
 import (
 	"testing"
 
+	key "github.com/aergoio/aergo/v2/account/key/crypto"
 	"github.com/stretchr/testify/require"
 )
 
-func TestAccountFormat(t *testing.T) {
+func TestEthAccount(t *testing.T) {
 	for _, test := range []struct {
 		account    []byte
 		luaAccount string
@@ -16,10 +17,8 @@ func TestAccountFormat(t *testing.T) {
 			"AmPJht1vphFthrzB5TTHBRsqJ3yezmPgb9P8V8v4aCbCLpEg2WYC", // base58check encoded from compressed pubkey ( 33 length )
 			"0x17cC364f7b86772b7bbd40e23e0217eDC7edbCCF"},          // hex encoded from uncompressed pubkey ( 65 length )
 	} {
-		acc, err := NewAccount(test.account, nil, nil)
-		require.NoError(t, err)
+		acc := key.NewAddressEth(test.account)
 
-		require.Equal(t, test.luaAccount, acc.LuaAccount)
-		require.Equal(t, test.evmAccount, acc.EthAccount.String())
+		require.Equal(t, test.evmAccount, acc.String())
 	}
 }

@@ -914,7 +914,7 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 		return err
 	}
 
-	sender, err := state.GetAccountState(account, bs.LuaStateDB)
+	sender, err := state.GetAccountState(account, bs.LuaStateDB, bs.EvmStateDB)
 	if err != nil {
 		return err
 	}
@@ -930,13 +930,13 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 	var receiver *state.AccountState
 	status := "SUCCESS"
 	if len(recipient) > 0 {
-		receiver, err = state.GetAccountState(recipient, bs.LuaStateDB)
+		receiver, err = state.GetAccountState(recipient, bs.LuaStateDB, bs.EvmStateDB)
 		if receiver != nil && txBody.Type == types.TxType_REDEPLOY {
 			status = "RECREATED"
 			receiver.SetRedeploy()
 		}
 	} else {
-		receiver, err = state.CreateAccountState(contract.CreateContractID(txBody.Account, txBody.Nonce), bs.LuaStateDB)
+		receiver, err = state.CreateAccountState(contract.CreateContractID(txBody.Account, txBody.Nonce), bs.LuaStateDB, bs.EvmStateDB)
 		status = "CREATED"
 	}
 	if err != nil {
@@ -951,9 +951,8 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 		rv, events, txFee, err = contract.Execute(execCtx, bs, cdb, tx.GetTx(), sender, receiver, bi, preloadService, false)
 		sender.SubBalance(txFee)
 	case types.TxType_EVMDEPLOY:
-		senderETHAddress := evm.ConvertAddress(sender.ID())
-		logger.Info().Msgf("EVM contract deploy with payload length %d from %s", len(txBody.Payload), hex.EncodeToString(senderETHAddress))
-		_, contractAddress, _, err := evmService.Create(senderETHAddress, txBody.Payload)
+		logger.Info().Msgf("EVM contract deploy with payload length %d from %s", len(txBody.Payload), sender.EthID().Hex())
+		_, contractAddress, _, err := evmService.Create(sender.EthID(), txBody.Payload)
 		if err != nil {
 			logger.Warn().Err(err).Str("txhash", base58.Encode(tx.GetHash())).Msg("EVM contract deploy failed")
 		} else {
@@ -962,11 +961,10 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 
 		txFee = new(big.Int).SetUint64(0)
 	case types.TxType_EVMCALL:
-		senderETHAddress := evm.ConvertAddress(sender.ID())
 		contractAddress := txBody.Payload[0:20]
 		payload := txBody.Payload[20:]
-		logger.Info().Msgf("EVM contract call at %s with payload %s from %s", hex.EncodeToString(contractAddress), hex.EncodeToString(payload), hex.EncodeToString(senderETHAddress))
-		res, _, err := evmService.Call(senderETHAddress, contractAddress, payload)
+		logger.Info().Msgf("EVM contract call at %s with payload %s from %s", sender.EthID().Hex(), hex.EncodeToString(payload), sender.EthID().Hex())
+		res, _, err := evmService.Call(sender.EthID(), contractAddress, txBody.Payload)
 		if err != nil {
 			logger.Warn().Err(err).Str("txhash", base58.Encode(tx.GetHash())).Msg("EVM contract call failed")
 		} else {
@@ -1084,7 +1082,7 @@ func sendRewardCoinbase(bState *state.BlockState, coinbaseAccount []byte) error 
 	}
 
 	// add bp reward to coinbase account
-	coinbaseAccountState, err := state.GetAccountState(coinbaseAccount, bState.LuaStateDB)
+	coinbaseAccountState, err := state.GetAccountState(coinbaseAccount, bState.LuaStateDB, bState.EvmStateDB)
 	if err != nil {
 		return err
 	}

@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"github.com/aergoio/aergo-lib/log"
-	key "github.com/aergoio/aergo/v2/account/key/crypto"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -37,7 +36,7 @@ func NewEVMCall(queryStateRoot []byte, ethState *state.StateDB) *EVM {
 	}
 }
 
-func (evm *EVM) Query(originAddress []byte, contractAddress []byte, payload []byte) ([]byte, uint64, error) {
+func (evm *EVM) Query(address []byte, contractAddress []byte, payload []byte) ([]byte, uint64, error) {
 	// create evmCfg
 	evmCfg := vm.Config{
 		NoBaseFee: true,
@@ -50,7 +49,7 @@ func (evm *EVM) Query(originAddress []byte, contractAddress []byte, payload []by
 		EVMConfig: evmCfg,
 	}
 
-	ethOriginAddress := common.BytesToAddress(originAddress)
+	ethOriginAddress := common.BytesToAddress(address)
 	contractEthAddress := common.BytesToAddress(contractAddress)
 	runtimeCfg.Origin = ethOriginAddress
 	runtimeCfg.GasLimit = 1000000
@@ -63,7 +62,7 @@ func (evm *EVM) Query(originAddress []byte, contractAddress []byte, payload []by
 	return ret, gas, nil
 }
 
-func (evm *EVM) Call(originAddress []byte, contractAddress []byte, payload []byte) ([]byte, uint64, error) {
+func (evm *EVM) Call(address common.Address, contract, payload []byte) ([]byte, uint64, error) {
 	if evm.readonly {
 		return nil, 0, errors.New("cannot call on readonly")
 	}
@@ -79,12 +78,10 @@ func (evm *EVM) Call(originAddress []byte, contractAddress []byte, payload []byt
 		EVMConfig: evmCfg,
 	}
 
-	ethOriginAddress := common.BytesToAddress(originAddress)
-	contractEthAddress := common.BytesToAddress(contractAddress)
-	runtimeCfg.Origin = ethOriginAddress
+	runtimeCfg.Origin = address
 	runtimeCfg.GasLimit = 1000000
 
-	ret, gas, err := runtime.Call(contractEthAddress, payload, runtimeCfg)
+	ret, gas, err := runtime.Call(common.BytesToAddress(contract), payload, runtimeCfg)
 	if err != nil {
 		return ret, gas, err
 	}
@@ -92,15 +89,13 @@ func (evm *EVM) Call(originAddress []byte, contractAddress []byte, payload []byt
 	return ret, gas, nil
 }
 
-func (evm *EVM) Create(originAddress []byte, payload []byte) ([]byte, []byte, uint64, error) {
+func (evm *EVM) Create(ethAddress common.Address, payload []byte) ([]byte, []byte, uint64, error) {
 	if evm.readonly {
 		return nil, nil, 0, errors.New("cannot create on readonly")
 	}
 
 	// create evmCfg
 	evmCfg := vm.Config{}
-
-	ethAddress := common.BytesToAddress(originAddress)
 
 	// create call cfg
 	runtimeCfg := &runtime.Config{
@@ -116,11 +111,4 @@ func (evm *EVM) Create(originAddress []byte, payload []byte) ([]byte, []byte, ui
 	}
 
 	return ret, ethContractAddress.Bytes(), 0, nil
-}
-
-func ConvertAddress(aergoAddress []byte) []byte {
-	if unCompressed := key.ConvAddressUncompressed(aergoAddress); unCompressed != nil {
-		return common.BytesToAddress(unCompressed).Bytes()
-	}
-	return nil
 }
