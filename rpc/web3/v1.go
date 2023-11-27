@@ -17,12 +17,60 @@ import (
 	"github.com/aergoio/aergo/v2/rpc"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/jsonrpc"
-	"github.com/asaskevich/govalidator"
 )
 
+type APIHandler func() (http.Handler, bool)
+
 type Web3APIv1 struct {
-	rpc     *rpc.AergoRPCService
-	request *http.Request
+	rpc     	*rpc.AergoRPCService
+	request 	*http.Request
+
+	handlerMap	map[string]map[string]APIHandler
+}
+
+
+func (api *Web3APIv1) NewHandler() {
+    handlerGet := map[string]APIHandler{
+	"/getAccounts":						api.GetAccounts,
+	"/getState":						api.GetState,
+	"/getProof":						api.GetStateAndProof,
+	"/getNameInfo":						api.GetNameInfo,
+	"/getBalance":						api.GetBalance,
+	"/getBlock":						api.GetBlock,
+	"/getBlockNumber":					api.Blockchain,
+	"/getBlockBody":					api.GetBlockBody,
+	"/listBlockHeaders":				api.ListBlockHeaders,
+	"/getBlockMetadata":				api.GetBlockMetadata,
+	"/getTransaction":					api.GetTX,
+	"/getTransactionReceipt":			api.GetReceipt,
+	"/getBlockTransactionReceipts":		api.GetReceipts,
+	"/getBlockTX":						api.GetBlockTX,
+	"/call":							api.QueryContract,
+	"/getPastEvents":					api.ListEvents,
+	"/getABI":							api.GetABI,
+	"/queryContractState":				api.QueryContractState,
+	"/getBlockTransactionCount":		api.GetBlockTransactionCount,
+	"/getChainInfo":					api.GetChainInfo,
+	"/getConsensusInfo":				api.GetConsensusInfo,
+	"/getAccountVotes":					api.GetAccountVotes,
+	"/getNodeInfo":						api.NodeState,
+	"/getChainId":						api.GetPeers,
+	"/getServerInfo":					api.GetServerInfo,
+	"/getStaking":						api.GetStaking,
+	"/getVotes":						api.GetVotes,
+	"/metric":							api.Metric,
+	"/getEnterpriseConfig":				api.GetEnterpriseConfig,
+	"/getConfChangeProgress":			api.GetConfChangeProgress,
+	"/chainStat":						api.ChainStat,
+	}
+
+	handlerPost := map[string]APIHandler{
+		"/sendSignedTransaction":      api.CommitTX,
+	}
+    
+	api.handlerMap = make(map[string]map[string]APIHandler)
+	api.handlerMap[http.MethodGet] = handlerGet
+	api.handlerMap[http.MethodPost] = handlerPost
 }
 
 func (api *Web3APIv1) handler(w http.ResponseWriter, r *http.Request) {
@@ -39,81 +87,12 @@ func (api *Web3APIv1) restAPIHandler(r *http.Request) (handler http.Handler, ok 
 	path := r.URL.Path
 	path = strings.TrimPrefix(path, prefixV1)
 
-	if r.Method == http.MethodGet {
-		switch path {
-		case "/getAccounts":
-			return api.GetAccounts()
-		case "/getState":
-			return api.GetState()
-		case "/getProof":
-			return api.GetStateAndProof()
-		case "/getNameInfo":
-			return api.GetNameInfo()
-		case "/getBalance":
-			return api.GetBalance()
-		case "/getBlock":
-			return api.GetBlock()
-		case "/getBlockNumber":
-			return api.Blockchain()
-		case "/getBlockBody":
-			return api.GetBlockBody()
-		case "/listBlockHeaders":
-			return api.ListBlockHeaders()
-		case "/getBlockMetadata":
-			return api.GetBlockMetadata()
-		case "/getTransaction":
-			return api.GetTX()
-		case "/getTransactionReceipt":
-			return api.GetReceipt()
-		case "/getBlockTransactionReceipts":
-			return api.GetReceipts()
-		case "/getBlockTX":
-			return api.GetBlockTX()
-		case "/call":
-			return api.QueryContract()
-		case "/getPastEvents":
-			return api.ListEvents()
-		case "/getABI":
-			return api.GetABI()
-		case "/queryContractState":
-			return api.QueryContractState()
-		case "/getBlockTransactionCount":
-			return api.GetBlockTransactionCount()
-		case "/getChainInfo":
-			return api.GetChainInfo()
-		case "/getConsensusInfo":
-			return api.GetConsensusInfo()
-		case "/getAccountVotes":
-			return api.GetAccountVotes()
-		case "/getNodeInfo":
-			return api.NodeState()
-		case "/getChainId":
-			return api.GetPeers()
-		case "/getServerInfo":
-			return api.GetServerInfo()
-		case "/getStaking":
-			return api.GetStaking()
-		case "/getVotes":
-			return api.GetVotes()
-		case "/metric":
-			return api.Metric()
-		case "/getEnterpriseConfig":
-			return api.GetEnterpriseConfig()
-		case "/getConfChangeProgress":
-			return api.GetConfChangeProgress()
-		case "/chainStat":
-			return api.ChainStat()
-		default:
-			return nil, false
-		}
-	} else if r.Method == http.MethodPost {
-		switch path {
-		case "/sendSignedTransaction":
-			return api.CommitTX()
-		default:
-			return nil, false
-		}
+	selectedHandler := api.handlerMap[r.Method][path]
+
+	if selectedHandler != nil {
+		return selectedHandler()
 	}
+
 	return nil, false
 }
 
@@ -144,10 +123,6 @@ func (api *Web3APIv1) GetState() (handler http.Handler, ok bool) {
 			return commonResponseHandler(&types.Empty{}, err), true
 		}
 		request.Value = accountBytes
-	}
-
-	if _, err := govalidator.ValidateStruct(request); err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
 	}
 
 	result, err := api.rpc.GetState(api.request.Context(), request)
@@ -185,10 +160,6 @@ func (api *Web3APIv1) GetStateAndProof() (handler http.Handler, ok bool) {
 		request.Compressed = compressedValue
 	}
 
-	if _, err := govalidator.ValidateStruct(request); err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
-	}
-
 	result, err := api.rpc.GetStateAndProof(api.request.Context(), request)
 	if err != nil {
 		return commonResponseHandler(&types.Empty{}, err), true
@@ -220,11 +191,6 @@ func (api *Web3APIv1) GetNameInfo() (handler http.Handler, ok bool) {
 		request.BlockNo = numberValue
 	}
 
-	// Validate
-	if _, err := govalidator.ValidateStruct(request); err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
-	}
-
 	result, err := api.rpc.GetNameInfo(api.request.Context(), request)
 	if err != nil {
 		return commonResponseHandler(&types.Empty{}, err), true
@@ -248,10 +214,6 @@ func (api *Web3APIv1) GetBalance() (handler http.Handler, ok bool) {
 			return commonResponseHandler(&types.Empty{}, err), true
 		}
 		request.Value = accountBytes
-	}
-
-	if _, err := govalidator.ValidateStruct(request); err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
 	}
 
 	result, err := api.rpc.GetState(api.request.Context(), request)
@@ -292,11 +254,6 @@ func (api *Web3APIv1) GetBlock() (handler http.Handler, ok bool) {
 		request.Value = byteValue
 	}
 
-	// Validate
-	if _, err := govalidator.ValidateStruct(request); err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
-	}
-
 	result, err := api.rpc.GetBlock(api.request.Context(), request)
 	if err != nil {
 		return commonResponseHandler(&types.Empty{}, err), true
@@ -333,11 +290,6 @@ func (api *Web3APIv1) GetBlockTransactionCount() (handler http.Handler, ok bool)
 		byteValue := make([]byte, 8)
 		binary.LittleEndian.PutUint64(byteValue, number)
 		request.Value = byteValue
-	}
-
-	// Validate
-	if _, err := govalidator.ValidateStruct(request); err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
 	}
 
 	result, err := api.rpc.GetBlock(api.request.Context(), request)
@@ -428,11 +380,6 @@ func (api *Web3APIv1) GetBlockBody() (handler http.Handler, ok bool) {
 		request.Paging.Offset = uint32(offsetValue)
 	}
 
-	// Validate
-	if _, err := govalidator.ValidateStruct(request); err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
-	}
-
 	result, err := api.rpc.GetBlockBody(api.request.Context(), request)
 	if err != nil {
 		return commonResponseHandler(&types.Empty{}, err), true
@@ -486,11 +433,6 @@ func (api *Web3APIv1) ListBlockHeaders() (handler http.Handler, ok bool) {
 		request.Asc = ascValue
 	}
 
-	// Validate
-	if _, err := govalidator.ValidateStruct(request); err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
-	}
-
 	result, err := api.rpc.ListBlockHeaders(api.request.Context(), request)
 	if err != nil {
 		return commonResponseHandler(&types.Empty{}, err), true
@@ -527,11 +469,6 @@ func (api *Web3APIv1) GetBlockMetadata() (handler http.Handler, ok bool) {
 		byteValue := make([]byte, 8)
 		binary.LittleEndian.PutUint64(byteValue, number)
 		request.Value = byteValue
-	}
-
-	// Validate
-	if _, err := govalidator.ValidateStruct(request); err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
 	}
 
 	result, err := api.rpc.GetBlockMetadata(api.request.Context(), request)
@@ -584,10 +521,6 @@ func (api *Web3APIv1) ListBlockMetadata() (handler http.Handler, ok bool) {
 			return commonResponseHandler(&types.Empty{}, parseErr), true
 		}
 		request.Asc = ascValue
-	}
-
-	if _, err := govalidator.ValidateStruct(request); err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
 	}
 
 	result, err := api.rpc.ListBlockMetadata(api.request.Context(), request)
@@ -651,10 +584,6 @@ func (api *Web3APIv1) GetReceipt() (handler http.Handler, ok bool) {
 		request.Value = hashBytes
 	}
 
-	if _, err := govalidator.ValidateStruct(request); err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
-	}
-
 	result, err := api.rpc.GetReceipt(api.request.Context(), request)
 	if err != nil {
 		return commonResponseHandler(&types.Empty{}, err), true
@@ -692,10 +621,6 @@ func (api *Web3APIv1) GetReceipts() (handler http.Handler, ok bool) {
 		request.Value = byteValue
 	}
 
-	if _, err := govalidator.ValidateStruct(request); err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
-	}
-
 	result, err := api.rpc.GetReceipts(api.request.Context(), request)
 	if err != nil {
 		return commonResponseHandler(&types.Empty{}, err), true
@@ -719,10 +644,6 @@ func (api *Web3APIv1) GetTX() (handler http.Handler, ok bool) {
 			return commonResponseHandler(&types.Empty{}, err), true
 		}
 		request.Value = hashBytes
-	}
-
-	if _, err := govalidator.ValidateStruct(request); err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
 	}
 
 	result, err := api.rpc.GetTX(api.request.Context(), request)
@@ -755,10 +676,6 @@ func (api *Web3APIv1) GetBlockTX() (handler http.Handler, ok bool) {
 			return commonResponseHandler(&types.Empty{}, err), true
 		}
 		request.Value = hashBytes
-	}
-
-	if _, err := govalidator.ValidateStruct(request); err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
 	}
 
 	result, err := api.rpc.GetTX(api.request.Context(), request)
@@ -814,12 +731,13 @@ func (api *Web3APIv1) QueryContract() (handler http.Handler, ok bool) {
 
 	request.Queryinfo = callinfo
 
-	if _, err := govalidator.ValidateStruct(request); err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
-	}
+	result, err := api.rpc.QueryContract(api.request.Context(), request)
+	if err != nil {
+        return commonResponseHandler(&types.Empty{}, err), true
+    }
 
-	msg, err := api.rpc.QueryContract(api.request.Context(), request)
-	return stringResponseHandler("{\"result\":"+string(msg.Value)+"}", nil), true
+	output := jsonrpc.ConvQueryContract(result)
+    return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 }
 
 func (api *Web3APIv1) ListEvents() (handler http.Handler, ok bool) {
@@ -886,15 +804,11 @@ func (api *Web3APIv1) ListEvents() (handler http.Handler, ok bool) {
 		request.RecentBlockCnt = 0
 	}
 
-	if _, err := govalidator.ValidateStruct(request); err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
-	}
-
-	events, err := api.rpc.ListEvents(api.request.Context(), request)
+	result, err := api.rpc.ListEvents(api.request.Context(), request)
 	if err != nil {
 		return commonResponseHandler(&types.Empty{}, err), true
 	}
-	output := jsonrpc.ConvEvents(events)
+	output := jsonrpc.ConvEvents(result)
 	return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 }
 
@@ -915,16 +829,12 @@ func (api *Web3APIv1) GetABI() (handler http.Handler, ok bool) {
 		request.Value = hashBytes
 	}
 
-	// Validate
-	if _, err := govalidator.ValidateStruct(request); err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
-	}
-
-	abi, err := api.rpc.GetABI(api.request.Context(), request)
+	result, err := api.rpc.GetABI(api.request.Context(), request)
 	if err != nil {
 		return commonResponseHandler(&types.Empty{}, err), true
 	}
-	output := jsonrpc.ConvAbi(abi)
+
+	output := jsonrpc.ConvAbi(result)
 	return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 }
 
@@ -944,17 +854,12 @@ func (api *Web3APIv1) GetAccountVotes() (handler http.Handler, ok bool) {
 		request.Value = hashBytes
 	}
 
-	// Validate
-	if _, err := govalidator.ValidateStruct(request); err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
-	}
-
-	vote, err := api.rpc.GetAccountVotes(api.request.Context(), request)
+	result, err := api.rpc.GetAccountVotes(api.request.Context(), request)
 	if err != nil {
 		return commonResponseHandler(&types.Empty{}, err), true
 	}
 
-	output := jsonrpc.ConvInOutAccountVoteInfo(vote)
+	output := jsonrpc.ConvInOutAccountVoteInfo(result)
 	return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 }
 
@@ -997,16 +902,13 @@ func (api *Web3APIv1) QueryContractState() (handler http.Handler, ok bool) {
 		request.Compressed = compressedValue
 	}
 
-	if _, err := govalidator.ValidateStruct(request); err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
-	}
-
 	result, err := api.rpc.QueryContractState(api.request.Context(), request)
 	if err != nil {
 		return commonResponseHandler(&types.Empty{}, err), true
 	}
 
-	return stringResponseHandler(jsonrpc.MarshalJSON(result), nil), true
+	output := jsonrpc.ConvQueryContractState(result)
+	return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true	
 }
 
 func (api *Web3APIv1) NodeState() (handler http.Handler, ok bool) {
@@ -1033,13 +935,13 @@ func (api *Web3APIv1) NodeState() (handler http.Handler, ok bool) {
 		request.Timeout = byteValue
 	}
 
-	if _, err := govalidator.ValidateStruct(request); err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
-	}
+	result, err := api.rpc.NodeState(api.request.Context(), request)
+	if err != nil {
+        return commonResponseHandler(&types.Empty{}, err), true
+    }
 
-	msg, err := api.rpc.NodeState(api.request.Context(), request)
-
-	return stringResponseHandler(string(msg.Value), nil), true
+	output := jsonrpc.ConvNodeState(result)
+    return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 }
 
 func (api *Web3APIv1) GetPeers() (handler http.Handler, ok bool) {
@@ -1067,17 +969,13 @@ func (api *Web3APIv1) GetPeers() (handler http.Handler, ok bool) {
 		request.ShowSelf = showSelfValue
 	}
 
-	if _, err := govalidator.ValidateStruct(request); err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
-	}
-
 	result, err := api.rpc.GetPeers(api.request.Context(), request)
 	if err != nil {
 		return commonResponseHandler(&types.Empty{}, err), true
 	}
 
 	output := jsonrpc.ConvPeerList(result)
-	return commonResponseHandler(jsonrpc.MarshalJSON(output), nil), true
+	return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 }
 
 func (api *Web3APIv1) GetServerInfo() (handler http.Handler, ok bool) {
@@ -1091,22 +989,14 @@ func (api *Web3APIv1) GetServerInfo() (handler http.Handler, ok bool) {
 	if len(keys) > 0 {
 		request.Key = keys
 	}
-
-	if _, err := govalidator.ValidateStruct(request); err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
-	}
-
+	
 	result, err := api.rpc.GetServerInfo(api.request.Context(), request)
 	if err != nil {
 		return commonResponseHandler(&types.Empty{}, err), true
 	}
 
-	output, err := json.MarshalIndent(result, "", " ")
-	if err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
-	}
-	
-	return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true	
+	output := jsonrpc.ConvServerInfo(result)
+    return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 }
 
 func (api *Web3APIv1) GetStaking() (handler http.Handler, ok bool) {
@@ -1125,11 +1015,13 @@ func (api *Web3APIv1) GetStaking() (handler http.Handler, ok bool) {
 		request.Value = addressBytes
 	}
 
-	if _, err := govalidator.ValidateStruct(request); err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
-	}
+	result, err := api.rpc.GetStaking(api.request.Context(), request)
+    if err != nil {
+        return commonResponseHandler(&types.Empty{}, err), true
+    }
 
-	return commonResponseHandler(api.rpc.GetStaking(api.request.Context(), request)), true
+    output := jsonrpc.ConvStaking(result)
+    return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 }
 
 func (api *Web3APIv1) GetVotes() (handler http.Handler, ok bool) {
@@ -1150,27 +1042,13 @@ func (api *Web3APIv1) GetVotes() (handler http.Handler, ok bool) {
 		request.Count = uint32(sizeValue)
 	}
 
-	if _, err := govalidator.ValidateStruct(request); err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
-	}
-
-	msg, err := api.rpc.GetVotes(api.request.Context(), request)
+	result, err := api.rpc.GetVotes(api.request.Context(), request)
 	if err != nil {
 		return commonResponseHandler(&types.Empty{}, err), true
 	}
 
-	result := "["
-	comma := ","
-	for i, r := range msg.GetVotes() {
-		result = result + "{\"" + base58.Encode(r.Candidate) + "\":" + r.GetAmountBigInt().String() + "}"
-		if i+1 == len(msg.GetVotes()) {
-			comma = ""
-		}
-		result = result + comma
-	}
-	result = result + "]"
-
-	return stringResponseHandler(result, nil), true
+    output := jsonrpc.ConvVotes(result)
+    return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 }
 
 func (api *Web3APIv1) Metric() (handler http.Handler, ok bool) {
@@ -1184,11 +1062,6 @@ func (api *Web3APIv1) Metric() (handler http.Handler, ok bool) {
 	metricType := values.Get("type")
 	if metricType != "" {
 		request.Types = append(request.Types, types.MetricType(types.MetricType_value[metricType]))
-	}
-
-	// Validate
-	if _, err := govalidator.ValidateStruct(request); err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
 	}
 
 	result, err := api.rpc.Metric(api.request.Context(), request)
@@ -1213,29 +1086,13 @@ func (api *Web3APIv1) GetEnterpriseConfig() (handler http.Handler, ok bool) {
 		request.Key = key
 	}
 
-	if _, err := govalidator.ValidateStruct(request); err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
-	}
-
-	msg, err := api.rpc.GetEnterpriseConfig(api.request.Context(), request)
+	result, err := api.rpc.GetEnterpriseConfig(api.request.Context(), request)
 	if err != nil {
 		return commonResponseHandler(&types.Empty{}, err), true
 	}
 
-	type outConf struct {
-		Key    string
-		On     *bool
-		Values []string
-	}
-
-	var out outConf
-	out.Key = msg.Key
-	out.Values = msg.Values
-	if strings.ToUpper(key) != "PERMISSIONS" {
-		out.On = &msg.On
-	}
-
-	return stringResponseHandler(jsonrpc.MarshalJSON(out), nil), true
+	output := jsonrpc.ConvEnterpriseConfig(result)
+    return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 }
 
 func (api *Web3APIv1) GetConfChangeProgress() (handler http.Handler, ok bool) {
@@ -1254,10 +1111,6 @@ func (api *Web3APIv1) GetConfChangeProgress() (handler http.Handler, ok bool) {
 		request.Value = hashBytes
 	}
 
-	if _, err := govalidator.ValidateStruct(request); err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
-	}
-
 	block, err := api.rpc.GetBlock(api.request.Context(), request)
 	if err != nil {
 		return commonResponseHandler(&types.Empty{}, err), true
@@ -1266,7 +1119,13 @@ func (api *Web3APIv1) GetConfChangeProgress() (handler http.Handler, ok bool) {
 	b := make([]byte, 8)
 	binary.LittleEndian.PutUint64(b, block.BlockNo())
 
-	return commonResponseHandler(api.rpc.GetConfChangeProgress(api.request.Context(), &types.SingleBytes{Value: b})), true
+	result, err := api.rpc.GetConfChangeProgress(api.request.Context(), &types.SingleBytes{Value: b})
+    if err != nil {
+        return commonResponseHandler(&types.Empty{}, err), true
+    }
+
+    output := jsonrpc.ConvConfChangeProgress(result)
+    return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 }
 
 func (api *Web3APIv1) CommitTX() (handler http.Handler, ok bool) {

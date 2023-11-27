@@ -70,6 +70,7 @@ func NewWeb3(cfg *config.Config, rpc *rpc.AergoRPCService) *Web3 {
 
 	// API v1
 	web3svc := &Web3APIv1{rpc: rpc}
+	web3svc.NewHandler()
 	mux.Handle("/v1/", tollbooth.LimitHandler(limiter, c.Handler(http.HandlerFunc(web3svc.handler))))
 
 	web3svr := &Web3{

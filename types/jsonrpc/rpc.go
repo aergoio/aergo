@@ -20,7 +20,7 @@ func ConvPeerList(msg *types.PeerList) *InOutPeerList {
 }
 
 type InOutPeerList struct {
-	Peers []*InOutPeer `json:"peers"`
+	Peers []*InOutPeer 		`json:"peers"`
 }
 
 func ConvPeer(msg *types.Peer) *InOutPeer {

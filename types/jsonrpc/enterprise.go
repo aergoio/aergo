@@ -1,6 +1,8 @@
 package jsonrpc
 
 import (
+	"strings"
+
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/types"
 )
@@ -58,4 +60,44 @@ type InOutMemberAttr struct {
 	Name    string `json:"name,omitempty"`
 	Address string `json:"address,omitempty"`
 	PeerID  string `json:"peerID,omitempty"`
+}
+
+func ConvEnterpriseConfig(msg *types.EnterpriseConfig) *InOutEnterpriseConfig {
+	ec := &InOutEnterpriseConfig{}
+	ec.Key = msg.GetKey()
+
+	ec.Values = make([]string, len(msg.Values))
+	for i, value := range msg.Values {
+		ec.Values[i] = value
+	}
+
+	if strings.ToUpper(ec.Key) != "PERMISSIONS" {
+		ec.On = msg.On
+	}
+	return ec
+}
+
+type InOutEnterpriseConfig struct {
+	Key    string			`json:"key,omitempty"`
+	On     bool				`json:"on,omitempty"`
+	Values []string			`json:"values,omitempty"`	
+}
+
+func ConvConfChangeProgress(msg *types.ConfChangeProgress) *InOutConfChangeProgress {
+	ccp := &InOutConfChangeProgress{}
+	
+	ccp.State = int32(msg.GetState())
+	ccp.Err = msg.GetErr()
+	ccp.Members = make([]*InOutMemberAttr, len(msg.Members))
+	for i, m := range msg.Members {
+		ccp.Members[i] = ConvMemberAttr(m)
+	}
+
+	return ccp
+}
+
+type InOutConfChangeProgress struct {
+	State   int32				 	`json:"state,omitempty"`
+	Err     string          		`json:"err,omitempty"`
+	Members []*InOutMemberAttr   	`json:"members,omitempty"`
 }

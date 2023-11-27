@@ -152,8 +152,8 @@ func ConvReceipts(msg *types.Receipts) *InOutReceipts {
 }
 
 type InOutReceipts struct {
-	Receipts       	[]*InOutReceipt
-	BlockNo        	uint64	
+	Receipts       	[]*InOutReceipt		`json:"receipts"`
+	BlockNo        	uint64				`json:"blockNo,omitempty"`
 }
 
 func ConvEvents(msg *types.EventList) *InOutEventList {

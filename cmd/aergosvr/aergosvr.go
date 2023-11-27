@@ -151,7 +151,7 @@ func rootRun(cmd *cobra.Command, args []string) {
 	// All the services objects including Consensus must be created before the
 	// actors are started.
 	compMng.Start()
-
+	
 	web3Svr.Start()
 
 	if cfg.Consensus.EnableBp {

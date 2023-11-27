@@ -3,6 +3,7 @@ package jsonrpc
 import (
 	"math/big"
 
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/types"
 )
 
@@ -22,6 +23,10 @@ type InOutAccountVoteInfo struct {
 }
 
 func ConvStaking(msg *types.Staking) *InOutStaking {
+	if msg == nil {
+		return nil
+	}
+	
 	return &InOutStaking{
 		Amount: new(big.Int).SetBytes(msg.Amount).String(),
 		When:   msg.When,
@@ -46,3 +51,33 @@ type InOutVoteInfo struct {
 	Candidates []string `json:"candidates,omitempty"`
 	Amount     string   `json:"amount,omitempty"`
 }
+
+func ConvVote(msg *types.Vote) *InOutVote {
+	return &InOutVote{
+		Candidate: base58.Encode(msg.Candidate),
+		Amount: msg.GetAmountBigInt().String(),
+	}
+}
+
+type InOutVote struct {
+	Candidate string `json:"candidate,omitempty"`
+	Amount    string `json:"amount,omitempty"`
+}
+
+func ConvVotes(msg *types.VoteList) *InOutVotes {
+	vs := &InOutVotes{}
+	vs.Id = msg.GetId()
+	
+	vs.Votes = make([]*InOutVote, len(msg.Votes))
+	for i, vote := range msg.Votes {
+		vs.Votes[i] = ConvVote(vote)
+	}
+
+	return vs
+}
+
+type InOutVotes struct {
+	Votes []*InOutVote 	`json:"votes,omitempty"`
+	Id    string  		`json:"id,omitempty"`
+}
+

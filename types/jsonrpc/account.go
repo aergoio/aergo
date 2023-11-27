@@ -1,6 +1,8 @@
 package jsonrpc
 
 import (
+	"math/big"
+
 	"github.com/aergoio/aergo/v2/types"
 )
 
@@ -44,14 +46,14 @@ func ConvState(msg *types.State) *InOutState {
 
 	s := &InOutState{}
 	s.Nonce = msg.GetNonce()
-	s.Balance, _ = ConvertUnit(msg.GetBalanceBigInt(), "aergo")
+	s.Balance = new(big.Int).SetBytes(msg.GetBalance()).String()
 		
 	return s
 }
 
 type InOutState struct {
-	Nonce            uint64 `json:"nonce,omitempty"`
-	Balance          string `json:"balance,omitempty"`
+	Nonce            uint64 `json:"nonce"`
+	Balance          string `json:"balance"`
 	Account          string `json:"account,omitempty"`	
 }
 
@@ -62,7 +64,7 @@ func ConvStateAndPoof(msg *types.AccountProof) *InOutStateAndPoof {
 
 	ap := &InOutStateAndPoof{}
 	ap.Nonce = msg.GetState().GetNonce()
-	ap.Balance, _ = ConvertUnit(msg.GetState().GetBalanceBigInt(), "aergo")
+	ap.Balance = new(big.Int).SetBytes(msg.State.GetBalance()).String()
 	ap.Included = msg.GetInclusion()
 	ap.MerkleProofLength = len(msg.GetAuditPath())
 	ap.Height = msg.GetHeight()
@@ -71,11 +73,11 @@ func ConvStateAndPoof(msg *types.AccountProof) *InOutStateAndPoof {
 }
 
 type InOutStateAndPoof struct {
-	Nonce           	uint64 	`json:"nonce,omitempty"`
-	Balance         	string 	`json:"balance,omitempty"`
+	Nonce           	uint64 	`json:"nonce"`
+	Balance         	string 	`json:"balance"`
 	Account          	string 	`json:"account,omitempty"`	
 	Included			bool	`json:"included,omitempty"`	
-	MerkleProofLength	int 	`json:"merkleprooflength,omitempty"`	
+	MerkleProofLength	int 	`json:"merkle proof length,omitempty"`	
 	Height				uint32 	`json:"height,omitempty"`	
 }
 
@@ -94,9 +96,9 @@ func ConvNameInfo(msg *types.NameInfo) *InOutNameInfo {
 }
 
 type InOutNameInfo struct {
-	Name        string  `json:"name,omitempty"`
-	Owner       string 	`json:"owner,omitempty"`
-	Destination string 	`json:"destination,omitempty"`
+	Name        string  `json:"name"`
+	Owner       string 	`json:"owner"`
+	Destination string 	`json:"destination"`
 }
 
 func ConvBalance(msg *types.State) *InOutBalance {
@@ -112,5 +114,5 @@ func ConvBalance(msg *types.State) *InOutBalance {
 }
 
 type InOutBalance struct {
-	Balance          string `json:"balance,omitempty"`	
+	Balance          string `json:"balance"`	
 }

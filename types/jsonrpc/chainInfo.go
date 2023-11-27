@@ -98,29 +98,30 @@ type InOutBlockchainStatus struct {
 }
 
 func ConvChainStat(msg *types.ChainStats) *InOutChainStats {
-	return &InOutChainStats{
-		Report: msg.GetReport(),
-	}
+	cs := &InOutChainStats{}
+	_ = json.Unmarshal([]byte(msg.GetReport()), &cs.Report)
+	return cs
 }
 
 type InOutChainStats struct {
-	Report string `json:"report,omitempty"`
+	Report interface{} `json:"report,omitempty"`
 }
 
 func ConvConsensusInfo(msg *types.ConsensusInfo) *InOutConsensusInfo {
 	
 	ci := &InOutConsensusInfo{}
-	ci.Type = msg.GetType()
-	ci.Info = msg.GetInfo()
-	ci.Bps = make([]string, len(msg.Bps))
+	ci.Type = msg.GetType()	
+	_ = json.Unmarshal([]byte(msg.GetInfo()), &ci.Info)
+	
+	ci.Bps = make([]interface{}, len(msg.Bps))
 	for i, bps := range msg.Bps {
-		ci.Bps[i] = bps
+		_ = json.Unmarshal([]byte(bps), &ci.Bps[i])
 	}
 	return ci
 }
 
 type InOutConsensusInfo struct {
-	Type string   `json:"type,omitempty"`
-	Info string   `json:"info,omitempty"`
-	Bps  []string `json:"bps,omitempty"`
+	Type string   		`json:"type,omitempty"`
+	Info interface{}   	`json:"info,omitempty"`
+	Bps  []interface{} 	`json:"bps,omitempty"`
 }

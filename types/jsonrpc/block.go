@@ -120,7 +120,7 @@ func ConvBlockHeaderList(msg *types.BlockHeaderList) *InOutBlockHeaderList {
 }
 
 type InOutBlockHeaderList struct {
-	Blocks []*InOutBlock
+	Blocks []*InOutBlock 	`json:"blocks"`
 }
 
 func ConvBlockBodyPaged(msg *types.BlockBodyPaged) *InOutBlockBodyPaged {
