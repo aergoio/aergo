@@ -236,7 +236,7 @@ func (g *Genesis) Validate() error {
 // Block returns Block corresponding to g.
 func (g *Genesis) Block() *Block {
 	if g.block == nil {
-		g.SetBlock(NewBlock(&BlockHeaderInfo{Ts: g.Timestamp}, nil, nil, nil, nil, nil))
+		g.SetBlock(NewBlock(&BlockHeaderInfo{Ts: g.Timestamp}, nil, nil, nil, nil, nil, nil))
 		if id, err := g.ID.Bytes(); err == nil {
 			g.block.SetChainID(id)
 		}

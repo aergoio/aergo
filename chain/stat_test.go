@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var block = types.NewBlock(types.EmptyBlockHeaderInfo, nil, nil, nil, nil, nil)
+var block = types.NewBlock(types.EmptyBlockHeaderInfo, nil, nil, nil, nil, nil, nil)
 
 func TestChainStatReorgClone(t *testing.T) {
 	var chk = assert.New(t)

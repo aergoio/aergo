@@ -56,7 +56,7 @@ func init() {
 		}},
 	}
 
-	testBlock := types.NewBlock(types.EmptyBlockHeaderInfo, nil, nil, nil, nil, nil)
+	testBlock := types.NewBlock(types.EmptyBlockHeaderInfo, nil, nil, nil, nil, nil, nil)
 
 	testSnapData = consensus.NewSnapshotData(testMbrs, nil, testBlock)
 }

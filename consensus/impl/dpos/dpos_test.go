@@ -23,12 +23,14 @@ func newBlock(ts int64) *types.Block {
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 }
 
 func newBlockFromPrev(prev *types.Block, ts int64, bv types.BlockVersionner) *types.Block {
 	return types.NewBlock(
 		types.NewBlockHeaderInfoFromPrevBlock(prev, ts, bv),
+		nil,
 		nil,
 		nil,
 		nil,

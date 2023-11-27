@@ -229,8 +229,8 @@ func (v DummyBlockVersionner) IsV2Fork(BlockNo) bool {
 }
 
 // NewBlock represents to create a block to store transactions.
-func NewBlock(bi *BlockHeaderInfo, blockRoot []byte, receipts *Receipts, txs []*Tx, coinbaseAcc []byte, consensus []byte) *Block {
-	return &Block{
+func NewBlock(bi *BlockHeaderInfo, blockRoot []byte, evmRoot []byte, receipts *Receipts, txs []*Tx, coinbaseAcc []byte, consensus []byte) *Block {
+	block := &Block{
 		Header: &BlockHeader{
 			ChainID:          bi.ChainId,
 			PrevBlockHash:    bi.PrevBlockHash,
@@ -246,6 +246,10 @@ func NewBlock(bi *BlockHeaderInfo, blockRoot []byte, receipts *Receipts, txs []*
 			Txs: txs,
 		},
 	}
+	if bi.ForkVersion > 4 { // FIXME - fork version when evm is enabled
+		block.Header.EvmRootHash = evmRoot
+	}
+	return block
 }
 
 // Localtime retrurns a time.Time object, which is coverted from block
@@ -280,6 +284,11 @@ func writeBlockHeader(w io.Writer, bh *BlockHeader) error {
 			return err
 		}
 	}
+	if len(bh.EvmRootHash) != 0 {
+		if err := binary.Write(w, binary.LittleEndian, bh.EvmRootHash); err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
@@ -300,6 +309,11 @@ func writeBlockHeaderOmitSign(w io.Writer, bh *BlockHeader) error {
 		bh.Consensus,
 	} {
 		if err := binary.Write(w, binary.LittleEndian, f); err != nil {
+			return err
+		}
+	}
+	if len(bh.EvmRootHash) != 0 {
+		if err := binary.Write(w, binary.LittleEndian, bh.EvmRootHash); err != nil {
 			return err
 		}
 	}
