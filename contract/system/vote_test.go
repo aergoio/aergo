@@ -37,15 +37,15 @@ func initTest(t *testing.T) (*state.ContractState, *state.AccountState, *state.A
 	// Need to pass the
 	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
 
-	scs, err := state.GetSystemAccountState(bs.StateDB)
+	scs, err := state.GetSystemAccountState(bs.LuaStateDB)
 	assert.NoError(t, err, "could not open contract state")
 	InitSystemParams(scs, 3)
 
 	account, err := types.DecodeAddress(testSender)
 	assert.NoError(t, err, "could not decode test address")
-	sender, err := state.GetAccountState(account, bs.StateDB)
+	sender, err := state.GetAccountState(account, bs.LuaStateDB)
 	assert.NoError(t, err, "could not get test address state")
-	receiver, err := state.GetAccountState([]byte(types.AergoSystem), bs.StateDB)
+	receiver, err := state.GetAccountState([]byte(types.AergoSystem), bs.LuaStateDB)
 	assert.NoError(t, err, "could not get test address state")
 	return scs, sender, receiver
 }
@@ -53,17 +53,17 @@ func initTest(t *testing.T) (*state.ContractState, *state.AccountState, *state.A
 func getSender(t *testing.T, addr string) *state.AccountState {
 	account, err := types.DecodeAddress(addr)
 	assert.NoError(t, err, "could not decode test address")
-	sender, err := state.GetAccountState(account, bs.StateDB)
+	sender, err := state.GetAccountState(account, bs.LuaStateDB)
 	assert.NoError(t, err, "could not get test address state")
 	return sender
 }
 
 func commitNextBlock(t *testing.T, scs *state.ContractState) *state.ContractState {
-	state.StageContractState(scs, bs.StateDB)
+	state.StageContractState(scs, bs.LuaStateDB)
 	bs.Update()
 	bs.Commit()
 	cdb.UpdateRoot(bs)
-	ret, err := state.GetSystemAccountState(bs.StateDB)
+	ret, err := state.GetSystemAccountState(bs.LuaStateDB)
 	assert.NoError(t, err, "could not open contract state")
 	return ret
 }

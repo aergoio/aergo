@@ -112,10 +112,10 @@ func getStateDB(cfg *config.Config, cdb consensus.ChainDB, sdb *state.ChainState
 		if block, err := cdb.GetBlockByNo(vprInitBlockNo(cfg.Blockchain.VerifyBlock)); err != nil {
 			return nil, err
 		} else {
-			return sdb.OpenLuaStateDB(block.GetHeader().GetBlocksRootHash()), nil
+			return sdb.OpenNewStateDB(block.GetHeader().GetBlocksRootHash()), nil
 		}
 	}
-	return sdb.GetLuaStateDB(), nil
+	return sdb.GetStateDB(), nil
 }
 
 // New returns a new DPos object
@@ -158,7 +158,7 @@ func sendVotingReward(bState *state.BlockState, dummy []byte) error {
 	}
 
 	// calc reward
-	vaultAccountState, err := state.GetAccountState([]byte(types.AergoVault), bState.StateDB)
+	vaultAccountState, err := state.GetAccountState([]byte(types.AergoVault), bState.LuaStateDB)
 	if err != nil {
 		logger.Info().Err(err).Msg("skip voting reward")
 		return nil
@@ -178,7 +178,7 @@ func sendVotingReward(bState *state.BlockState, dummy []byte) error {
 		logger.Debug().Err(err).Msg("no voting reward winner")
 		return nil
 	}
-	winnerAccountState, err := state.GetAccountState(winner, bState.StateDB)
+	winnerAccountState, err := state.GetAccountState(winner, bState.LuaStateDB)
 	if err != nil {
 		logger.Info().Err(err).Msg("skip voting reward")
 		return nil

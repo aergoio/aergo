@@ -435,8 +435,8 @@ func (mp *MemPool) setStateDB(block *types.Block) (bool, bool) {
 		mp.bestBlockInfo = types.NewBlockHeaderInfo(block)
 		mp.acceptChainIdHash = common.Hasher(types.MakeChainId(block.GetHeader().GetChainID(), mp.nextBlockVersion()))
 		stateRoot := block.GetHeader().GetBlocksRootHash()
-		if mp.luaStateDB == nil {
-			mp.luaStateDB = mp.sdb.OpenLuaStateDB(stateRoot)
+		if mp.stateDB == nil {
+			mp.stateDB = mp.sdb.OpenNewStateDB(stateRoot)
 			cid := types.NewChainID()
 			if err := cid.Read(block.GetHeader().GetChainID()); err != nil {
 				mp.Error().Err(err).Msg("failed to read chain ID")
@@ -459,8 +459,8 @@ func (mp *MemPool) setStateDB(block *types.Block) (bool, bool) {
 				Str("chainidhash", base58.Encode(mp.bestChainIdHash)).
 				Str("next chainidhash", base58.Encode(mp.acceptChainIdHash)).
 				Msg("new StateDB opened")
-		} else if !bytes.Equal(mp.luaStateDB.GetRoot(), stateRoot) {
-			if err := mp.luaStateDB.SetRoot(stateRoot); err != nil {
+		} else if !bytes.Equal(mp.stateDB.GetRoot(), stateRoot) {
+			if err := mp.stateDB.SetRoot(stateRoot); err != nil {
 				mp.Error().Err(err).Msg("failed to set root of StateDB")
 			}
 		}
@@ -799,10 +799,10 @@ func (mp *MemPool) getAccountState(acc []byte) (*types.State, error) {
 		return &types.State{Balance: new(big.Int).SetUint64(bal).Bytes(), Nonce: nonce}, nil
 	}
 
-	state, err := mp.luaStateDB.GetAccountState(types.ToAccountID(acc))
+	state, err := mp.stateDB.GetAccountState(types.ToAccountID(acc))
 
 	if err != nil {
-		mp.Fatal().Err(err).Str("sroot", base58.Encode(mp.luaStateDB.GetRoot())).Msg("failed to get state")
+		mp.Fatal().Err(err).Str("sroot", base58.Encode(mp.stateDB.GetRoot())).Msg("failed to get state")
 
 		//FIXME PANIC?
 		//mp.Fatal().Err(err).Msg("failed to get state")

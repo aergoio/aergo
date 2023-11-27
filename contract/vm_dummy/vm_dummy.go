@@ -190,7 +190,7 @@ func (bc *DummyChain) newBState() *state.BlockState {
 		},
 	}
 	return state.NewBlockState(
-		bc.sdb.OpenLuaStateDB(bc.sdb.GetLuaRoot()),
+		bc.sdb.OpenNewStateDB(bc.sdb.GetLuaRoot()),
 		nil,
 		state.SetPrevBlockHash(bc.cBlock.GetHeader().PrevBlockHash),
 		state.SetGasPrice(bc.gasPrice),
@@ -225,7 +225,7 @@ func (bc *DummyChain) GetReceipt(txHash []byte) *types.Receipt {
 }
 
 func (bc *DummyChain) GetAccountState(name string) (*types.State, error) {
-	return bc.sdb.GetLuaStateDB().GetAccountState(types.ToAccountID(contract.StrHash(name)))
+	return bc.sdb.GetStateDB().GetAccountState(types.ToAccountID(contract.StrHash(name)))
 }
 
 func (bc *DummyChain) GetStaking(name string) (*types.Staking, error) {
@@ -337,11 +337,11 @@ func (l *luaTxSend) run(execCtx context.Context, bs *state.BlockState, bc *Dummy
 
 	updatedSenderState := senderState.Clone()
 	updatedSenderState.Balance = new(big.Int).Sub(updatedSenderState.GetBalanceBigInt(), l.amount).Bytes()
-	bs.PutState(senderID, updatedSenderState)
+	bs.LuaStateDB.PutState(senderID, updatedSenderState)
 
 	updatedReceiverState := receiverState.Clone()
 	updatedReceiverState.Balance = new(big.Int).Add(updatedReceiverState.GetBalanceBigInt(), l.amount).Bytes()
-	bs.PutState(receiverID, updatedReceiverState)
+	bs.LuaStateDB.PutState(receiverID, updatedReceiverState)
 
 	r := types.NewReceipt(l.receiver, l.okMsg(), "")
 	r.TxHash = l.Hash()
@@ -451,18 +451,18 @@ func contractFrame(l luaTxContract, bs *state.BlockState, cdb contract.ChainAcce
 	run func(s, c *state.AccountState, id types.AccountID, cs *state.ContractState) (string, []*types.Event, *big.Int, error)) error {
 
 	creatorId := types.ToAccountID(l.sender())
-	creatorState, err := state.GetAccountState(l.sender(), bs.StateDB)
+	creatorState, err := state.GetAccountState(l.sender(), bs.LuaStateDB)
 	if err != nil {
 		return err
 	}
 
 	contractId := types.ToAccountID(l.recipient())
-	contractState, err := state.GetAccountState(l.recipient(), bs.StateDB)
+	contractState, err := state.GetAccountState(l.recipient(), bs.LuaStateDB)
 	if err != nil {
 		return err
 	}
 
-	eContractState, err := state.OpenContractState(contractId, contractState.State(), bs.StateDB)
+	eContractState, err := state.OpenContractState(contractId, contractState.State(), bs.LuaStateDB)
 	if err != nil {
 		return err
 	}
@@ -541,7 +541,7 @@ func (l *luaTxDeploy) run(execCtx context.Context, bs *state.BlockState, bc *Dum
 			if err != nil {
 				return "", nil, ctrFee, err
 			}
-			err = state.StageContractState(eContractState, bs.StateDB)
+			err = state.StageContractState(eContractState, bs.LuaStateDB)
 			if err != nil {
 				return "", nil, ctrFee, err
 			}
@@ -600,7 +600,7 @@ func (l *luaTxCall) run(execCtx context.Context, bs *state.BlockState, bc *Dummy
 			if err != nil {
 				return "", nil, ctrFee, err
 			}
-			err = state.StageContractState(eContractState, bs.StateDB)
+			err = state.StageContractState(eContractState, bs.LuaStateDB)
 			if err != nil {
 				return "", nil, ctrFee, err
 			}

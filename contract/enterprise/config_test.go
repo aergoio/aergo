@@ -18,7 +18,7 @@ func initTest(t *testing.T) (*state.ContractState, *state.AccountState, *state.A
 	cdb = state.NewChainStateDB()
 	cdb.Init(string(db.BadgerImpl), "test", nil, false)
 	genesis := types.GetTestGenesis()
-	sdb = cdb.OpenNewStateDB(cdb.GetRoot())
+	sdb = cdb.OpenNewStateDB(cdb.GetLuaRoot())
 	err := cdb.SetGenesis(genesis, nil)
 	if err != nil {
 		t.Fatalf("failed init : %s", err.Error())

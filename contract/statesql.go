@@ -151,7 +151,7 @@ func SaveRecoveryPoint(bs *state.BlockState) error {
 				}
 				receiverChange := receiverState.Clone()
 				receiverChange.SqlRecoveryPoint = uint64(rp)
-				err = bs.PutState(db.accountID, receiverChange)
+				err = bs.LuaStateDB.PutState(db.accountID, receiverChange)
 				if err != nil {
 					return err
 				}

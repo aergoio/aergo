@@ -4,14 +4,14 @@ import (
 	"math/big"
 
 	key "github.com/aergoio/aergo/v2/account/key/crypto"
-	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	ethstate "github.com/ethereum/go-ethereum/core/state"
 )
 
 // address : compressed public key (33 bytes)
-func NewAccount(address []byte, luaState *state.StateDB, ethState *ethstate.StateDB) (*Account, error) {
+func NewAccount(address []byte, luaState *statedb.StateDB, ethState *ethstate.StateDB) (*Account, error) {
 	var err error
 
 	acc := &Account{}
@@ -50,7 +50,7 @@ type Account struct {
 	// lua
 	LuaAccount  string
 	LuaAid      types.AccountID
-	LuaState    *state.StateDB
+	LuaState    *statedb.StateDB
 	LuaAccState *types.State
 
 	// ethereum

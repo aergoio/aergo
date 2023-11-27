@@ -43,7 +43,7 @@ func TestName(t *testing.T) {
 
 	sender, _ := state.GetAccountState(tx.Account, sdb.GetStateDB())
 	receiver, _ := state.GetAccountState(tx.Recipient, sdb.GetStateDB())
-	bs := sdb.NewBlockState(sdb.GetRoot())
+	bs := sdb.NewBlockState(sdb.GetLuaRoot(), nil)
 	scs := openContractState(t, bs)
 
 	err := CreateName(scs, tx, sender, receiver, name)
@@ -78,7 +78,7 @@ func TestNameRecursive(t *testing.T) {
 
 	sender, _ := state.GetAccountState(tx.Account, sdb.GetStateDB())
 	receiver, _ := state.GetAccountState(tx.Recipient, sdb.GetStateDB())
-	bs := sdb.NewBlockState(sdb.GetRoot())
+	bs := sdb.NewBlockState(sdb.GetLuaRoot(), nil)
 	scs := openContractState(t, bs)
 	err := CreateName(scs, tx, sender, receiver, name1)
 	assert.NoError(t, err, "create name")

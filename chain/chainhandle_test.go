@@ -72,7 +72,7 @@ func newTestBlockInfo(chainID []byte) *types.BlockHeaderInfo {
 func TestErrorInExecuteTx(t *testing.T) {
 	initTest(t, true)
 	defer deinitTest()
-	bs := state.NewBlockState(sdb.GetLuaStateDB(), sdb.GetEvmStateDB())
+	bs := state.NewBlockState(sdb.GetStateDB(), sdb.GetEvmStateDB())
 
 	tx := &types.Tx{}
 
@@ -109,7 +109,7 @@ func TestErrorInExecuteTx(t *testing.T) {
 func TestBasicExecuteTx(t *testing.T) {
 	initTest(t, true)
 	defer deinitTest()
-	bs := state.NewBlockState(sdb.GetLuaStateDB(), sdb.GetEvmStateDB())
+	bs := state.NewBlockState(sdb.GetStateDB(), sdb.GetEvmStateDB())
 
 	tx := &types.Tx{Body: &types.TxBody{}}
 

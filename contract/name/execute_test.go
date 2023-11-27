@@ -22,7 +22,7 @@ func TestExcuteNameTx(t *testing.T) {
 	sender, _ := state.GetAccountState(txBody.Account, sdb.GetStateDB())
 	sender.AddBalance(types.MaxAER)
 	receiver, _ := state.GetAccountState(txBody.Recipient, sdb.GetStateDB())
-	bs := sdb.NewBlockState(sdb.GetRoot())
+	bs := sdb.NewBlockState(sdb.GetLuaRoot(), nil)
 	scs := openContractState(t, bs)
 
 	blockInfo := &types.BlockHeaderInfo{No: uint64(0), ForkVersion: 0}
@@ -105,7 +105,7 @@ func TestExcuteFailNameTx(t *testing.T) {
 
 	sender, _ := state.GetAccountState(txBody.Account, sdb.GetStateDB())
 	receiver, _ := state.GetAccountState(txBody.Recipient, sdb.GetStateDB())
-	bs := sdb.NewBlockState(sdb.GetRoot())
+	bs := sdb.NewBlockState(sdb.GetLuaRoot(), nil)
 	scs := openContractState(t, bs)
 	blockInfo := &types.BlockHeaderInfo{No: uint64(0), ForkVersion: 0}
 	_, err := ExecuteNameTx(bs, scs, txBody, sender, receiver, blockInfo)
@@ -113,19 +113,19 @@ func TestExcuteFailNameTx(t *testing.T) {
 }
 
 func openContractState(t *testing.T, bs *state.BlockState) *state.ContractState {
-	scs, err := state.GetNameAccountState(bs.StateDB)
+	scs, err := state.GetNameAccountState(bs.LuaStateDB)
 	assert.NoError(t, err, "could not open contract state")
 	return scs
 }
 
 func openSystemContractState(t *testing.T, bs *state.BlockState) *state.ContractState {
-	scs, err := state.GetSystemAccountState(bs.StateDB)
+	scs, err := state.GetSystemAccountState(bs.LuaStateDB)
 	assert.NoError(t, err, "could not open contract state")
 	return scs
 }
 
 func commitContractState(t *testing.T, bs *state.BlockState, scs *state.ContractState) {
-	state.StageContractState(scs, bs.StateDB)
+	state.StageContractState(scs, bs.LuaStateDB)
 	bs.Update()
 	bs.Commit()
 	sdb.UpdateRoot(bs)

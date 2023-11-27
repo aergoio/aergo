@@ -137,7 +137,7 @@ func initVprtTestWithSc(t *testing.T, initTable func(*state.ContractState)) {
 func initDB(t *testing.T) {
 	vprChainStateDB = state.NewChainStateDB()
 	_ = vprChainStateDB.Init(string(db.BadgerImpl), "test", nil, false)
-	vprStateDB = vprChainStateDB.GetLuaStateDB()
+	vprStateDB = vprChainStateDB.GetStateDB()
 	genesis := types.GetTestGenesis()
 
 	err := vprChainStateDB.SetGenesis(genesis, nil)

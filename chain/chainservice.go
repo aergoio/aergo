@@ -503,7 +503,7 @@ func (cs *ChainService) GetChainTree() ([]byte, error) {
 func (cs *ChainService) getVotes(id string, n uint32) (*types.VoteList, error) {
 	switch ConsensusName() {
 	case consensus.ConsensusName[consensus.ConsensusDPOS]:
-		sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
+		sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetLuaRoot())
 		scs, err := state.GetSystemAccountState(sdb)
 		if err != nil {
 			return nil, err
@@ -525,7 +525,7 @@ func (cs *ChainService) getAccountVote(addr []byte) (*types.AccountVoteInfo, err
 		return nil, ErrNotSupportedConsensus
 	}
 
-	sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
+	sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetLuaRoot())
 	scs, err := state.GetSystemAccountState(sdb)
 	if err != nil {
 		return nil, err
@@ -547,7 +547,7 @@ func (cs *ChainService) getStaking(addr []byte) (*types.Staking, error) {
 		return nil, ErrNotSupportedConsensus
 	}
 
-	sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
+	sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetLuaRoot())
 	scs, err := state.GetSystemAccountState(sdb)
 	if err != nil {
 		return nil, err
@@ -570,9 +570,9 @@ func (cs *ChainService) getNameInfo(qname string, blockNo types.BlockNo) (*types
 		if err != nil {
 			return nil, err
 		}
-		stateDB = cs.sdb.OpenLuaStateDB(block.GetHeader().GetBlocksRootHash())
+		stateDB = cs.sdb.OpenNewStateDB(block.GetHeader().GetBlocksRootHash())
 	} else {
-		stateDB = cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
+		stateDB = cs.sdb.OpenNewStateDB(cs.sdb.GetLuaRoot())
 	}
 
 	ncs, err := state.GetNameAccountState(stateDB)
@@ -583,7 +583,7 @@ func (cs *ChainService) getNameInfo(qname string, blockNo types.BlockNo) (*types
 }
 
 func (cs *ChainService) getEnterpriseConf(key string) (*types.EnterpriseConfig, error) {
-	sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
+	sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetLuaRoot())
 	ecs, err := state.GetEnterpriseAccountState(sdb)
 	if err != nil {
 		return nil, err
@@ -758,7 +758,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			Err:   err,
 		})
 	case *message.GetState:
-		sdb = cw.sdb.OpenLuaStateDB(cw.sdb.GetLuaRoot())
+		sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetLuaRoot())
 		address, err := getAddressNameResolved(sdb, msg.Account)
 		if err != nil {
 			context.Respond(message.GetStateRsp{
@@ -779,7 +779,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			Err:     err,
 		})
 	case *message.GetStateAndProof:
-		sdb = cw.sdb.OpenLuaStateDB(cw.sdb.GetLuaRoot())
+		sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetLuaRoot())
 		stateProof, err := getAccProof(sdb, msg.Account, msg.Root, msg.Compressed)
 		context.Respond(message.GetStateAndProofRsp{
 			StateProof: stateProof,
@@ -799,7 +799,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			Err:     err,
 		})
 	case *message.GetABI:
-		sdb = cw.sdb.OpenLuaStateDB(cw.sdb.GetLuaRoot())
+		sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetLuaRoot())
 		address, err := getAddressNameResolved(sdb, msg.Contract)
 		if err != nil {
 			context.Respond(message.GetABIRsp{
@@ -824,8 +824,8 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 	case *message.GetQuery:
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
-		sdb = cw.sdb.OpenLuaStateDB(cw.sdb.GetLuaRoot())
-		evmdb := cw.sdb.OpenEvmStateDB(cw.sdb.GetLuaRoot())
+		sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetLuaRoot())
+		evmdb := cw.sdb.OpenEvmStateDB(cw.sdb.GetEvmRoot())
 		address, err := getAddressNameResolved(sdb, msg.Contract)
 		if err != nil {
 			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
@@ -841,7 +841,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			context.Respond(message.GetQueryRsp{Result: ret, Err: err})
 		}
 	case *message.GetStateQuery:
-		sdb = cw.sdb.OpenLuaStateDB(cw.sdb.GetLuaRoot())
+		sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetLuaRoot())
 		contractProof, err := getAccProof(sdb, msg.ContractAddress, msg.Root, msg.Compressed)
 		if err != nil {
 			context.Respond(message.GetStateQueryRsp{
@@ -925,7 +925,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
 
-		sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetRoot())
+		sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetLuaRoot())
 		ctrState, err := state.OpenContractStateAccount(types.ToAccountID(msg.Contract), sdb)
 		if err != nil {
 			logger.Error().Str("hash", base58.Encode(msg.Contract)).Err(err).Msg("failed to get state for contract")

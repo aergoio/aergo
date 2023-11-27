@@ -86,12 +86,12 @@ func (cs *ChainService) recoverNormal() error {
 
 	logger.Info().Msg("start normal recovery")
 
-	stateDB := cs.sdb.GetLuaStateDB()
+	stateDB := cs.sdb.GetStateDB()
 	if !stateDB.HasMarker(best.GetHeader().GetBlocksRootHash()) {
 		logger.Warn().Str("besthash", best.ID()).Uint64("no", best.GetHeader().GetBlockNo()).Msg("marker of state root does not exist")
 	}
 
-	if !bytes.Equal(cs.sdb.GetLuaStateDB().GetRoot(), best.GetHeader().GetBlocksRootHash()) {
+	if !bytes.Equal(cs.sdb.GetStateDB().GetRoot(), best.GetHeader().GetBlocksRootHash()) {
 		return ErrRecoInvalidSdbRoot
 	}
 

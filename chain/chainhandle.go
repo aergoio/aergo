@@ -590,7 +590,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 		}
 
 		bState = state.NewBlockState(
-			cs.sdb.GetLuaStateDB(),
+			cs.sdb.GetStateDB(),
 			cs.sdb.GetEvmStateDB(),
 			state.SetPrevBlockHash(block.GetHeader().GetPrevBlockHash()),
 		)
@@ -825,7 +825,7 @@ func (cs *ChainService) executeBlockReco(_ *state.BlockState, block *types.Block
 		return err
 	}
 
-	if !cs.sdb.GetLuaStateDB().HasMarker(block.GetHeader().GetBlocksRootHash()) {
+	if !cs.sdb.GetStateDB().HasMarker(block.GetHeader().GetBlocksRootHash()) {
 		logger.Error().Str("hash", block.ID()).Uint64("no", block.GetHeader().GetBlockNo()).Msg("state marker does not exist")
 		return ErrStateNoMarker
 	}
@@ -919,7 +919,7 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 		return err
 	}
 
-	sender, err := state.GetAccountState(account, bs.StateDB)
+	sender, err := state.GetAccountState(account, bs.LuaStateDB)
 	if err != nil {
 		return err
 	}
@@ -935,13 +935,13 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 	var receiver *state.AccountState
 	status := "SUCCESS"
 	if len(recipient) > 0 {
-		receiver, err = state.GetAccountState(recipient, bs.StateDB)
+		receiver, err = state.GetAccountState(recipient, bs.LuaStateDB)
 		if receiver != nil && txBody.Type == types.TxType_REDEPLOY {
 			status = "RECREATED"
 			receiver.SetRedeploy()
 		}
 	} else {
-		receiver, err = state.CreateAccountState(contract.CreateContractID(txBody.Account, txBody.Nonce), bs.StateDB)
+		receiver, err = state.CreateAccountState(contract.CreateContractID(txBody.Account, txBody.Nonce), bs.LuaStateDB)
 		status = "CREATED"
 	}
 	if err != nil {
@@ -992,7 +992,7 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 		}
 
 		var contractState *state.ContractState
-		contractState, err = state.OpenContractState(receiver.AccountID(), receiver.State(), bs.StateDB)
+		contractState, err = state.OpenContractState(receiver.AccountID(), receiver.State(), bs.LuaStateDB)
 		if err != nil {
 			return err
 		}
@@ -1089,7 +1089,7 @@ func sendRewardCoinbase(bState *state.BlockState, coinbaseAccount []byte) error 
 	}
 
 	// add bp reward to coinbase account
-	coinbaseAccountState, err := state.GetAccountState(coinbaseAccount, bState.StateDB)
+	coinbaseAccountState, err := state.GetAccountState(coinbaseAccount, bState.LuaStateDB)
 	if err != nil {
 		return err
 	}

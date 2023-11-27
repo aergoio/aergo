@@ -16,7 +16,7 @@ var stateDB *statedb.StateDB
 func initTest(t *testing.T) {
 	chainStateDB = NewChainStateDB()
 	_ = chainStateDB.Init(string(db.BadgerImpl), "test", nil, false)
-	stateDB = chainStateDB.GetLuaStateDB()
+	stateDB = chainStateDB.GetStateDB()
 	genesis := types.GetTestGenesis()
 
 	err := chainStateDB.SetGenesis(genesis, nil)
