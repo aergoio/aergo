@@ -1,17 +1,17 @@
 package encoding
 
 import (
-	"encoding/hex"
 	"errors"
 	"fmt"
 
-	"github.com/anaskhan96/base58check"
+	"github.com/aergoio/aergo/v2/internal/enc/base58check"
+	"github.com/aergoio/aergo/v2/internal/enc/hex"
 )
 
 const CodeVersion = 0xC0
 
 func EncodeCode(code []byte) string {
-	encoded, _ := base58check.Encode(fmt.Sprintf("%x", CodeVersion), hex.EncodeToString(code))
+	encoded, _ := base58check.Encode(fmt.Sprintf("%x", CodeVersion), hex.Encode(code))
 	return encoded
 }
 
@@ -20,7 +20,7 @@ func DecodeCode(encodedCode string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	decodedBytes, err := hex.DecodeString(decodedString)
+	decodedBytes, err := hex.Decode(decodedString)
 	if err != nil {
 		return nil, err
 	}

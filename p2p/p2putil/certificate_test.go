@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/internal/enc/proto"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
-	"github.com/golang/protobuf/proto"
 )
 
 func TestNewAgentCertV1(t *testing.T) {
@@ -51,7 +51,7 @@ func TestNewAgentCertV1(t *testing.T) {
 					t.Errorf("NewAgentCertV1() bpID = %v, want %v", got.AgentID, tt.args.agentID)
 				}
 				if !got.BPPubKey.IsEqual(tt.args.bpKey.PubKey()) {
-					t.Errorf("NewAgentCertV1() pubKey = %v, want %v", enc.ToString(got.BPPubKey.SerializeCompressed()), enc.ToString(tt.args.bpKey.PubKey().SerializeCompressed()))
+					t.Errorf("NewAgentCertV1() pubKey = %v, want %v", base58.Encode(got.BPPubKey.SerializeCompressed()), base58.Encode(tt.args.bpKey.PubKey().SerializeCompressed()))
 				}
 				if !types.IsSamePeerID(got.BPID, tt.args.bpID) {
 					t.Errorf("NewAgentCertV1() bpID = %v, want %v", got.BPID, tt.args.bpID)
@@ -258,7 +258,7 @@ func Test_calculateCertificateHash(t *testing.T) {
 	}
 
 	if !bytes.Equal(h1, h11) {
-		t.Fatalf("calculated hash is differ! %v , want %v ", enc.ToString(h11), enc.ToString(h1))
+		t.Fatalf("calculated hash is differ! %v , want %v ", base58.Encode(h11), base58.Encode(h1))
 	}
 	h2, err := calculateCertificateHash(w2)
 	if err != nil {
@@ -266,7 +266,7 @@ func Test_calculateCertificateHash(t *testing.T) {
 	}
 
 	if bytes.Equal(h1, h2) {
-		t.Fatalf("calculated hash is same! %v , want different ", enc.ToString(h2))
+		t.Fatalf("calculated hash is same! %v , want different ", base58.Encode(h2))
 	}
 
 }

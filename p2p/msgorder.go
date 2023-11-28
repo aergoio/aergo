@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo/v2/consensus"
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/aergoio/aergo/v2/p2p/p2putil"
 	"github.com/aergoio/aergo/v2/p2p/raftsupport"
@@ -169,7 +169,7 @@ func (pr *pbBpNoticeOrder) SendTo(pi p2pcommon.RemotePeer) error {
 	}
 	if pr.trace {
 		p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Stringer(p2putil.LogProtoID, pr.GetProtocolID()).
-			Str(p2putil.LogMsgID, pr.GetMsgID().String()).Str(p2putil.LogBlkHash, enc.ToString(pr.block.Hash)).Msg("Notify block produced")
+			Str(p2putil.LogMsgID, pr.GetMsgID().String()).Str(p2putil.LogBlkHash, base58.Encode(pr.block.Hash)).Msg("Notify block produced")
 	}
 	return nil
 }

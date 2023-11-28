@@ -9,8 +9,8 @@ import (
 	"fmt"
 
 	"github.com/aergoio/aergo/v2/cmd/aergocli/util/encoding/json"
+	"github.com/aergoio/aergo/v2/internal/enc/proto"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc"
 )
 
