@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"math/big"
+
+	"github.com/ethereum/go-ethereum/common"
 )
 
 const (
@@ -16,7 +18,10 @@ const (
 )
 
 // too few accounts to use map
-var specialAccounts [][]byte
+var (
+	specialAccounts   [][]byte
+	specialAccountEth map[string]common.Address
+)
 
 func init() {
 	specialAccounts = make([][]byte, 0, 4)
@@ -24,6 +29,16 @@ func init() {
 	specialAccounts = append(specialAccounts, []byte(AergoName))
 	specialAccounts = append(specialAccounts, []byte(AergoEnterprise))
 	specialAccounts = append(specialAccounts, []byte(AergoVault))
+
+	specialAccountEth = make(map[string]common.Address)
+	specialAccountEth[AergoSystem] = common.BigToAddress(big.NewInt(1))     // 0x0000000000000000000000000000000000000001
+	specialAccountEth[AergoName] = common.BigToAddress(big.NewInt(2))       // 0x0000000000000000000000000000000000000002
+	specialAccountEth[AergoEnterprise] = common.BigToAddress(big.NewInt(3)) // 0x0000000000000000000000000000000000000003
+	specialAccountEth[AergoVault] = common.BigToAddress(big.NewInt(4))      // 0x0000000000000000000000000000000000000004
+}
+
+func GetSpecialAccountEth(name []byte) common.Address {
+	return specialAccountEth[string(name)]
 }
 
 // IsSpecialAccount check if name is the one of special account names.
