@@ -16,29 +16,7 @@ import (
 	"github.com/minio/sha256-simd"
 )
 
-/* The preloadWorker optimizes the execution time by preloading the next transaction while executing the current transaction */
-type preloadRequest struct {
-	preloadService int
-	bs             *state.BlockState
-	bi             *types.BlockHeaderInfo
-	next           *types.Tx // the tx to preload the executor for, the next to be executed
-	current        *types.Tx // the tx currently being executed
-}
-
-type preloadReply struct {
-	tx  *types.Tx
-	ex  *executor
-	err error
-}
-
-type preloader struct {
-	requestedTx *types.Tx // the next preload tx to be executed
-	replyCh     chan *preloadReply
-}
-
 var (
-	loadReqCh     chan *preloadRequest
-	preloaders    [2]preloader
 	PubNet        bool
 	TraceBlockNo  uint64
 	bpTimeout     <-chan struct{}
@@ -53,17 +31,8 @@ const (
 )
 
 func init() {
-	loadReqCh = make(chan *preloadRequest, 10)
-	preloaders[BlockFactory].replyCh = make(chan *preloadReply, 4)
-	preloaders[ChainService].replyCh = make(chan *preloadReply, 4)
 	addressRegexp, _ = regexp.Compile("^[a-zA-Z0-9]+$")
 
-	go preloadWorker()
-}
-
-// mark the next preload tx to be executed
-func SetPreloadTx(tx *types.Tx, service int) {
-	preloaders[service].requestedTx = tx
 }
 
 // Execute executes a normal transaction which is possibly executing smart contract.
@@ -123,27 +92,6 @@ func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, t
 
 	var ex *executor
 
-	// is there a request to preload an executor for this tx?
-	if !receiver.IsDeploy() && preloaders[preloadService].requestedTx == tx {
-		// get the reply channel
-		replyCh := preloaders[preloadService].replyCh
-		// wait for the reply
-		for {
-			preload := <-replyCh
-			if preload.tx != tx {
-				preload.ex.close()
-				continue
-			}
-			// get the executor and error from the reply
-			ex = preload.ex
-			err = preload.err
-			break
-		}
-		if err != nil {
-			return
-		}
-	}
-
 	var ctrFee *big.Int
 
 	// is there a preloaded executor?
@@ -201,92 +149,6 @@ func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, t
 
 	// return the result
 	return rv, events, usedFee, nil
-}
-
-// send a request to preload an executor for the next tx
-func RequestPreload(bs *state.BlockState, bi *types.BlockHeaderInfo, next, current *types.Tx, preloadService int) {
-	loadReqCh <- &preloadRequest{preloadService, bs, bi, next, current}
-}
-
-// the preloadWorker preloads an executor for the next tx
-func preloadWorker() {
-	// infinite loop
-	for {
-		var err error
-
-		// wait for a preload request
-		request := <-loadReqCh
-		// get the reply channel for this request
-		replyCh := preloaders[request.preloadService].replyCh
-
-		// if there are more than 2 requests waiting for a reply, close the oldest one
-		if len(replyCh) > 2 {
-			select {
-			case preload := <-replyCh:
-				preload.ex.close()
-			default:
-			}
-		}
-
-		bs := request.bs
-		tx := request.next // the tx to preload the executor for
-		txBody := tx.GetBody()
-		recipient := txBody.Recipient
-
-		// only preload an executor for a normal, transfer, call or fee delegation tx
-		if (txBody.Type != types.TxType_NORMAL &&
-			txBody.Type != types.TxType_TRANSFER &&
-			txBody.Type != types.TxType_CALL &&
-			txBody.Type != types.TxType_FEEDELEGATION) ||
-			len(recipient) == 0 {
-			continue
-		}
-
-		// if the tx currently being executed is a redeploy
-		if request.current.GetBody().Type == types.TxType_REDEPLOY {
-			// if the next tx is a call to the redeployed contract
-			currentTxBody := request.current.GetBody()
-			if bytes.Equal(recipient, currentTxBody.Recipient) {
-				// do not preload an executor for a contract that is being redeployed
-				replyCh <- &preloadReply{tx, nil, nil}
-				continue
-			}
-		}
-
-		// get the state of the recipient
-		receiver, err := state.GetAccountState(recipient, bs.StateDB)
-		if err != nil {
-			replyCh <- &preloadReply{tx, nil, err}
-			continue
-		}
-
-		// when deploy and call in same block and not deployed yet
-		if receiver.IsNew() || !receiver.IsContract() {
-			// do not preload an executor for a contract that is not deployed yet
-			replyCh <- &preloadReply{tx, nil, nil}
-			continue
-		}
-
-		// open the contract state
-		contractState, err := state.OpenContractState(receiver.AccountID(), receiver.State(), bs.StateDB)
-		if err != nil {
-			replyCh <- &preloadReply{tx, nil, err}
-			continue
-		}
-
-		// create a new context
-		// FIXME need valid context
-		ctx := NewVmContext(context.Background(), bs, nil, nil, receiver, contractState, txBody.GetAccount(), tx.GetHash(), request.bi, "", false, false, receiver.RP(), request.preloadService, txBody.GetAmountBigInt(), txBody.GetGasLimit(), txBody.Type == types.TxType_FEEDELEGATION)
-
-		// load a new executor
-		ex, err := PreloadExecutor(bs, contractState, txBody.Payload, receiver.ID(), ctx)
-		if ex == nil && ctx.traceFile != nil {
-			ctx.traceFile.Close()
-		}
-
-		// send reply with executor
-		replyCh <- &preloadReply{tx, ex, err}
-	}
 }
 
 // check if the tx is valid and if the code should be executed
