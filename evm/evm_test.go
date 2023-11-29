@@ -150,7 +150,7 @@ func TestGETH(t *testing.T) {
 	}
 
 	// try creating new state (new block)
-	nextRoot, _ := testState.Commit(true)
+	nextRoot, _ := testState.Commit(0, true)
 	testState2, _ := state.New(nextRoot, testDB, nil)
 
 	if testState2 == nil {

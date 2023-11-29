@@ -591,8 +591,9 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 
 		bState = state.NewBlockState(
 			cs.sdb.GetStateDB(),
-			cs.sdb.GetEvmStateDB(),
+			cs.sdb.OpenEvmStateDB(block.GetHeader().GetEvmRootHash()),
 			state.SetPrevBlockHash(block.GetHeader().GetPrevBlockHash()),
+			state.SetBlockNo(block.GetHeader().GetBlockNo()),
 		)
 		bi = types.NewBlockHeaderInfo(block)
 		// FIXME currently the verify only function is allowed long execution time,

@@ -239,8 +239,9 @@ func (bf *BlockFactory) generateBlock(execCtx context.Context, bpi *bpInfo, lpbN
 		bpi.bestBlock.GetHeader().GetBlocksRootHash(),
 		bpi.bestBlock.GetHeader().GetEvmRootHash(),
 		state.SetPrevBlockHash(bpi.bestBlock.BlockHash()),
+		state.SetGasPrice(system.GetGasPrice()),
+		state.SetBlockNo(bpi.bestBlock.BlockNo()),
 	)
-	bs.SetGasPrice(system.GetGasPrice())
 	bs.Receipts().SetHardFork(bf.bv, bi.No)
 
 	bGen := chain.NewBlockGenerator(

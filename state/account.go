@@ -104,6 +104,9 @@ func (as *AccountState) PutState() error {
 		return err
 	}
 	if as.ethStates != nil {
+		if as.ethStates.Empty(as.ethId) {
+			as.ethStates.CreateAccount(as.ethId)
+		}
 		as.ethStates.SetBalance(as.ethId, new(big.Int).SetBytes(as.newState.Balance))
 		as.ethStates.SetNonce(as.ethId, as.newState.Nonce)
 	}
@@ -136,7 +139,7 @@ func GetAccountState(id []byte, states *statedb.StateDB, ethStates *ethstate.Sta
 	if err != nil {
 		return nil, err
 	}
-	ethAccount := key.NewAddressEth(id)
+	ethAccount := GetAddressEth(id)
 
 	if st == nil {
 		if states.Testmode {
@@ -180,8 +183,15 @@ func InitAccountState(id []byte, sdb *statedb.StateDB, ethsdb *ethstate.StateDB,
 		ethStates: ethsdb,
 		id:        id,
 		aid:       types.ToAccountID(id),
-		ethId:     key.NewAddressEth(id),
+		ethId:     GetAddressEth(id),
 		oldState:  old,
 		newState:  new,
 	}
+}
+
+func GetAddressEth(id []byte) common.Address {
+	if types.IsSpecialAccount(id) {
+		return types.GetSpecialAccountEth(id)
+	}
+	return key.NewAddressEth(id)
 }

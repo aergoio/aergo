@@ -1,6 +1,7 @@
 package state
 
 import (
+	"fmt"
 	"math/big"
 
 	"github.com/aergoio/aergo/v2/consensus"
@@ -16,6 +17,7 @@ type BlockState struct {
 	LuaStateDB *statedb.StateDB
 	EvmStateDB *ethstate.StateDB
 
+	blockNo       uint64
 	BpReward      big.Int // final bp reward, increment when tx executes
 	receipts      types.Receipts
 	CCProposal    *consensus.ConfChangePropose
@@ -39,6 +41,12 @@ func SetPrevBlockHash(h []byte) BlockStateOptFn {
 func SetGasPrice(gasPrice *big.Int) BlockStateOptFn {
 	return func(s *BlockState) {
 		s.SetGasPrice(gasPrice)
+	}
+}
+
+func SetBlockNo(blockNo uint64) BlockStateOptFn {
+	return func(s *BlockState) {
+		s.blockNo = blockNo
 	}
 }
 
@@ -97,6 +105,7 @@ func (bs *BlockState) GetEvmRoot() []byte {
 	}
 	return bs.EvmStateDB.IntermediateRoot(false).Bytes()
 }
+
 func (bs *BlockState) Update() error {
 	if bs.LuaStateDB != nil {
 		err := bs.LuaStateDB.Update()
@@ -105,23 +114,23 @@ func (bs *BlockState) Update() error {
 		}
 	}
 	if bs.EvmStateDB != nil {
-		bs.EvmStateDB.Finalise(true)
+		// bs.EvmStateDB.Finalise(true)
 	}
 	return nil
 }
 
 func (bs *BlockState) Commit() error {
 	if bs.LuaStateDB != nil {
-		err := bs.LuaStateDB.Commit()
-		if err != nil {
+		if err := bs.LuaStateDB.Commit(); err != nil {
 			return err
 		}
 	}
 	if bs.EvmStateDB != nil {
-		_, err := bs.EvmStateDB.Commit(true)
+		_, err := bs.EvmStateDB.Commit(bs.blockNo, false)
 		if err != nil {
 			return err
 		}
+		fmt.Println("new state", bs.blockNo, bs.EvmStateDB.IntermediateRoot(true).Hex())
 	}
 	return nil
 }

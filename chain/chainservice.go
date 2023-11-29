@@ -818,7 +818,6 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
 		sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetLuaRoot())
-		evmdb := cw.sdb.OpenEvmStateDB(cw.sdb.GetEvmRoot())
 		address, err := getAddressNameResolved(sdb, msg.Contract)
 		if err != nil {
 			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
@@ -829,7 +828,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			logger.Error().Str("hash", base58.Encode(address)).Err(err).Msg("failed to get state for contract")
 			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
 		} else {
-			bs := state.NewBlockState(sdb, evmdb)
+			bs := state.NewBlockState(sdb, nil)
 			ret, err := contract.Query(address, bs, cw.cdb, ctrState, msg.Queryinfo)
 			context.Respond(message.GetQueryRsp{Result: ret, Err: err})
 		}
@@ -870,8 +869,9 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
 		logger.Info().Msgf("evm query received for contract %s with payload %s", hex.EncodeToString(msg.Contract), hex.EncodeToString(msg.Queryinfo))
-
-		evmService := evm.NewEVMCall(cw.sdb.GetEvmRoot(), cw.sdb.GetEvmStateDB())
+		block, _ := cw.cdb.GetBestBlock()
+		evmRootHash := block.Header.GetEvmRootHash()
+		evmService := evm.NewEVMCall(evmRootHash, cw.sdb.OpenEvmStateDB(evmRootHash))
 		res, _, err := evmService.Query(nil, msg.Contract, msg.Queryinfo)
 		context.Respond(message.GetEVMQueryRsp{Result: res, Err: err})
 	case *message.GetElected:
