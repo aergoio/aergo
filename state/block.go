@@ -1,7 +1,6 @@
 package state
 
 import (
-	"fmt"
 	"math/big"
 
 	"github.com/aergoio/aergo/v2/consensus"
@@ -130,7 +129,6 @@ func (bs *BlockState) Commit() error {
 		if err != nil {
 			return err
 		}
-		fmt.Println("new state", bs.blockNo, bs.EvmStateDB.IntermediateRoot(true).Hex())
 	}
 	return nil
 }

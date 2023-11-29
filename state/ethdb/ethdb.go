@@ -4,16 +4,14 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/core/rawdb"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/trie"
 )
 
 type DB struct {
-	dbType  string
-	Store   ethdb.Database
-	Statedb state.Database
-	Triedb  *trie.Database
+	dbType string
+	Store  ethdb.Database
+	Triedb *trie.Database
 }
 
 func NewDB(path string, dbType string) (*DB, error) {
@@ -33,7 +31,6 @@ func NewDB(path string, dbType string) (*DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	ethdb.Statedb = state.NewDatabase(ethdb.Store)
 	ethdb.Triedb = trie.NewDatabase(ethdb.Store, trie.HashDefaults)
 
 	return ethdb, nil

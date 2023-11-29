@@ -19,8 +19,8 @@ type StateDB struct {
 func NewStateDB(blockNo uint64, evmRoot []byte, db *DB) (*StateDB, error) {
 	sdb, err := state.New(
 		common.BytesToHash(evmRoot),
-		db.Statedb,
-		nil, // trie.NewDatabase(evmDB, trie.HashDefaults),
+		state.NewDatabaseWithNodeDB(db.Store, db.Triedb),
+		nil,
 	)
 	if err != nil {
 		return nil, err
