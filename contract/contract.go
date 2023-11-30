@@ -4,6 +4,7 @@ import "C"
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"math/big"
 	"regexp"
@@ -13,7 +14,6 @@ import (
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/dbkey"
-	"github.com/minio/sha256-simd"
 )
 
 var (
@@ -24,10 +24,12 @@ var (
 	addressRegexp *regexp.Regexp
 )
 
+// These constants indicate the situation in which the contract is executed. BlockFactory refers to execution by a block producer to create a block, from which BlockFactory class calls, and ChainService refers to execution to verify and reflect blocks created by other producers. Depending on the mode, the operations or policies may be different, and currently timeout policy is different.
+// TODO These values are also used to select slots for internal parallel processing. They have multiple roles or meanings so that mit make harder to understand the source code.
 const (
 	BlockFactory = iota
 	ChainService
-	MaxVmService
+	MaxVmService // MaxVmService
 )
 
 func init() {
@@ -36,7 +38,7 @@ func init() {
 }
 
 // Execute executes a normal transaction which is possibly executing smart contract.
-func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, tx *types.Tx, sender, receiver *state.AccountState, bi *types.BlockHeaderInfo, preloadService int, isFeeDelegation bool) (rv string, events []*types.Event, usedFee *big.Int, err error) {
+func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, tx *types.Tx, sender, receiver *state.AccountState, bi *types.BlockHeaderInfo, executionMode int, isFeeDelegation bool) (rv string, events []*types.Event, usedFee *big.Int, err error) {
 
 	var (
 		txBody     = tx.GetBody()
@@ -89,30 +91,21 @@ func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, t
 		// remove the contract from the cache
 		bs.RemoveCache(receiver.AccountID())
 	}
-
-	var ex *executor
-
 	var ctrFee *big.Int
 
-	// is there a preloaded executor?
-	if ex != nil {
-		// execute the transaction
-		rv, events, ctrFee, err = PreCall(ex, bs, sender, contractState, receiver.RP(), gasLimit)
+	// create a new context
+	ctx := NewVmContext(execCtx, bs, cdb, sender, receiver, contractState, sender.ID(), tx.GetHash(), bi, "", true, false, receiver.RP(), executionMode, txBody.GetAmountBigInt(), gasLimit, isFeeDelegation)
+
+	// execute the transaction
+	if receiver.IsDeploy() {
+		rv, events, ctrFee, err = Create(contractState, txBody.Payload, receiver.ID(), ctx)
 	} else {
-		// create a new context
-		ctx := NewVmContext(execCtx, bs, cdb, sender, receiver, contractState, sender.ID(), tx.GetHash(), bi, "", true, false, receiver.RP(), preloadService, txBody.GetAmountBigInt(), gasLimit, isFeeDelegation)
+		rv, events, ctrFee, err = Call(contractState, txBody.Payload, receiver.ID(), ctx)
+	}
 
-		// execute the transaction
-		if receiver.IsDeploy() {
-			rv, events, ctrFee, err = Create(contractState, txBody.Payload, receiver.ID(), ctx)
-		} else {
-			rv, events, ctrFee, err = Call(contractState, txBody.Payload, receiver.ID(), ctx)
-		}
-
-		// close the trace file
-		if ctx.traceFile != nil {
-			defer ctx.traceFile.Close()
-		}
+	// close the trace file
+	if ctx.traceFile != nil {
+		defer ctx.traceFile.Close()
 	}
 
 	// check if the execution fee is negative
