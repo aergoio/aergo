@@ -14,10 +14,10 @@ import (
 	"github.com/aergoio/aergo/v2/chain"
 	"github.com/aergoio/aergo/v2/contract"
 	"github.com/aergoio/aergo/v2/internal/enc/proto"
-	"github.com/aergoio/aergo/v2/message"
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/message"
 )
 
 var (

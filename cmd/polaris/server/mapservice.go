@@ -15,13 +15,13 @@ import (
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/v2/cmd/polaris/common"
 	"github.com/aergoio/aergo/v2/config"
 	"github.com/aergoio/aergo/v2/internal/network"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/aergoio/aergo/v2/p2p/p2putil"
 	v030 "github.com/aergoio/aergo/v2/p2p/v030"
 	"github.com/aergoio/aergo/v2/pkg/component"
-	"github.com/aergoio/aergo/v2/polaris/common"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/gofrs/uuid"
 )

@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/v2/examples/component/message"
-	"github.com/aergoio/aergo/v2/examples/component/server"
-	"github.com/aergoio/aergo/v2/examples/component/service"
+	"github.com/aergoio/aergo/v2/cmd/polaris/examples/component/message"
+	"github.com/aergoio/aergo/v2/cmd/polaris/examples/component/server"
+	"github.com/aergoio/aergo/v2/cmd/polaris/examples/component/service"
 	"github.com/aergoio/aergo/v2/pkg/component"
 )
 

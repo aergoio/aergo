@@ -7,7 +7,7 @@ package server
 
 import (
 	"github.com/aergoio/aergo-actor/actor"
-	"github.com/aergoio/aergo/v2/examples/component/message"
+	"github.com/aergoio/aergo/v2/cmd/polaris/examples/component/message"
 	"github.com/aergoio/aergo/v2/pkg/component"
 )
 

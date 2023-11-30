@@ -3,8 +3,8 @@ package mempool
 import (
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
-	"github.com/aergoio/aergo/v2/message"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/message"
 )
 
 type TxVerifier struct {

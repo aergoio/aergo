@@ -8,10 +8,10 @@ import (
 	"github.com/aergoio/aergo/v2/account/key"
 	cfg "github.com/aergoio/aergo/v2/config"
 	"github.com/aergoio/aergo/v2/contract/name"
-	"github.com/aergoio/aergo/v2/message"
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/message"
 )
 
 type AccountService struct {
