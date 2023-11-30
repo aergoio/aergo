@@ -9,12 +9,12 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/aergoio/aergo/v2/cmd/polaris/common"
 	"github.com/aergoio/aergo/v2/config"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/aergoio/aergo/v2/p2p/p2pmock"
 	"github.com/aergoio/aergo/v2/p2p/p2putil"
 	"github.com/aergoio/aergo/v2/pkg/component"
-	"github.com/aergoio/aergo/v2/polaris/common"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/golang/mock/gomock"
 )
@@ -37,7 +37,7 @@ func (dntc *dummyNTC) GenesisChainID() *types.ChainID {
 }
 
 var (
-	pmapDummyCfg = &config.Config{P2P: &config.P2PConfig{}, Polaris: &config.PolarisConfig{GenesisFile: "../../examples/genesis.json"}}
+	pmapDummyCfg = &config.Config{P2P: &config.P2PConfig{}, Polaris: &config.PolarisConfig{GenesisFile: "../examples/genesis.json"}}
 	pmapDummyNTC = &dummyNTC{chainID: &types.ChainID{}}
 )
 

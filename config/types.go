@@ -31,8 +31,6 @@ type Config struct {
 type BaseConfig struct {
 	DataDir        string `mapstructure:"datadir" description:"Directory to store datafiles"`
 	DbType         string `mapstructure:"dbtype" description:"db implementation to store data"`
-	EnableProfile  bool   `mapstructure:"enableprofile" description:"enable profiling"`
-	ProfilePort    int    `mapstructure:"profileport" description:"profile port (default:6060)"`
 	EnableDump     bool   `mapstructure:"enabledump" description:"enable dump feature for debugging"`
 	DumpPort       int    `mapstructure:"dumpport" description:"dump port (default:7070)"`
 	EnableTestmode bool   `mapstructure:"enabletestmode" description:"enable unsafe test mode"`
@@ -182,8 +180,6 @@ const tomlConfigFileTemplate = `# aergo TOML Configuration File (https://github.
 # base configurations
 datadir = "{{.BaseConfig.DataDir}}"
 dbtype = "{{.BaseConfig.DbType}}"
-enableprofile = {{.BaseConfig.EnableProfile}}
-profileport = {{.BaseConfig.ProfilePort}}
 enabledump = {{.BaseConfig.EnableDump}}
 dumpport = {{.BaseConfig.DumpPort}}
 personal = {{.BaseConfig.Personal}}
