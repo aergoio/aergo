@@ -11,7 +11,7 @@ import (
 	"github.com/aergoio/aergo/v2/p2p/p2putil"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/message"
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/btcec/v2"
 )
 
 var emptyIDArr []types.PeerID

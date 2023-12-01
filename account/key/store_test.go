@@ -13,7 +13,7 @@ import (
 
 	crypto "github.com/aergoio/aergo/v2/account/key/crypto"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -67,7 +67,7 @@ func TestImportKey(t *testing.T) {
 	defer deinitTest()
 	const testSize = 3
 	for i := 0; i < testSize; i++ {
-		key, err := btcec.NewPrivateKey(btcec.S256())
+		key, err := btcec.NewPrivateKey()
 		addr := crypto.GenerateAddress(&(key.PublicKey))
 		if err != nil {
 			t.Errorf("could not create key : %s", err.Error())
