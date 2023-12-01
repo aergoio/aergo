@@ -10,7 +10,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -34,7 +34,7 @@ func TestEncryptAndDecrypt(t *testing.T) {
 	defer os.RemoveAll(dir)
 
 	for i := 0; i < 2; i++ {
-		expected, err := btcec.NewPrivateKey(btcec.S256())
+		expected, err := btcec.NewPrivateKey()
 		if nil != err {
 			assert.FailNow(t, "Could not create private key", err)
 		}

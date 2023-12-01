@@ -1,7 +1,7 @@
 package p2putil
 
 import (
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/libp2p/go-libp2p/core/crypto"
 )
 
@@ -11,7 +11,7 @@ func ConvertPKToBTCEC(pk crypto.PrivKey) *btcec.PrivateKey {
 	if err != nil {
 		return nil
 	}
-	priv, _ := btcec.PrivKeyFromBytes(btcec.S256(), raw)
+	priv, _ := btcec.PrivKeyFromBytes(raw)
 	return priv
 }
 
@@ -21,7 +21,7 @@ func ConvertPubKeyToBTCEC(pk crypto.PubKey) *btcec.PublicKey {
 	if err != nil {
 		return nil
 	}
-	pub, _ := btcec.ParsePubKey(raw, btcec.S256())
+	pub, _ := btcec.ParsePubKey(raw)
 	return pub
 }
 
