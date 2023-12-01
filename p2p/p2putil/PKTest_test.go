@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo/v2/internal/enc/hex"
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/libp2p/go-libp2p/core/crypto"
 )
 
@@ -47,7 +47,7 @@ func PrintBTCPKey(priv *btcec.PrivateKey, t *testing.T) {
 }
 
 func TestLibs(t *testing.T) {
-	btcKey, err := btcec.NewPrivateKey(btcec.S256())
+	btcKey, err := btcec.NewPrivateKey()
 	if err != nil {
 		t.Fatalf("Failed to generate btcec key : %s ", err)
 	}
@@ -65,7 +65,7 @@ func TestLibs(t *testing.T) {
 }
 
 func TestLibs2(t *testing.T) {
-	btcKey, err := btcec.NewPrivateKey(btcec.S256())
+	btcKey, err := btcec.NewPrivateKey()
 	if err != nil {
 		t.Fatalf("Failed to generate btcec key : %s ", err)
 	}

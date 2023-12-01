@@ -11,7 +11,7 @@ import (
 
 	crypto "github.com/aergoio/aergo/v2/account/key/crypto"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/btcec/v2"
 )
 
 type aergokey = btcec.PrivateKey
@@ -61,7 +61,7 @@ func (ks *Store) CloseStore() {
 // CreateKey make new key in keystore and return it's address
 func (ks *Store) CreateKey(pass string) (Identity, error) {
 	//gen new key
-	privkey, err := btcec.NewPrivateKey(btcec.S256())
+	privkey, err := btcec.NewPrivateKey()
 	if err != nil {
 		return nil, err
 	}
@@ -76,10 +76,10 @@ func (ks *Store) ImportKey(imported []byte, oldpass string, newpass string) (Ide
 	if err != nil {
 		return nil, err
 	}
-	privkey, _ := btcec.PrivKeyFromBytes(btcec.S256(), key)
+	privkey, _ := btcec.PrivKeyFromBytes(key)
 	idendity, err := ks.addKey(privkey, newpass)
 	if err != nil {
-		address := crypto.GenerateAddress(&privkey.PublicKey)
+		address := crypto.GenerateAddress(privkey.PubKey().ToECDSA())
 		return address, err
 	}
 	return idendity, nil
@@ -164,7 +164,7 @@ func (ks *Store) GetKey(address []byte, pass string) (*aergokey, error) {
 }
 
 func (ks *Store) addKey(key *btcec.PrivateKey, pass string) (Identity, error) {
-	address := crypto.GenerateAddress(&key.PublicKey)
+	address := crypto.GenerateAddress(key.PubKey().ToECDSA())
 	return ks.storage.Save(address, pass, key)
 }
 

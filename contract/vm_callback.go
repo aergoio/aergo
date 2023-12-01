@@ -43,7 +43,8 @@ import (
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/dbkey"
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/btcec/v2/ecdsa"
 	"github.com/minio/sha256-simd"
 )
 
@@ -917,7 +918,7 @@ func luaECVerify(L *LState, service C.int, msg *C.char, sig *C.char, addr *C.cha
 		if err != nil {
 			return -1, C.CString("[Contract.LuaEcVerify] invalid aergo address: " + err.Error())
 		}
-		pubKey, err = btcec.ParsePubKey(bAddress, btcec.S256())
+		pubKey, err = btcec.ParsePubKey(bAddress)
 		if err != nil {
 			return -1, C.CString("[Contract.LuaEcVerify] error parsing pubKey: " + err.Error())
 		}
@@ -932,7 +933,7 @@ func luaECVerify(L *LState, service C.int, msg *C.char, sig *C.char, addr *C.cha
 			copy(btcsig[1:], bSig)
 			bSig = btcsig
 		}
-		pub, _, err := btcec.RecoverCompact(btcec.S256(), bSig, bMsg)
+		pub, _, err := ecdsa.RecoverCompact(bSig, bMsg)
 		if err != nil {
 			return -1, C.CString("[Contract.LuaEcVerify] error recoverCompact: " + err.Error())
 		}
@@ -950,7 +951,7 @@ func luaECVerify(L *LState, service C.int, msg *C.char, sig *C.char, addr *C.cha
 			verifyResult = bytes.Equal(bAddress, signAddress)
 		}
 	} else {
-		sign, err := btcec.ParseSignature(bSig, btcec.S256())
+		sign, err := ecdsa.ParseSignature(bSig)
 		if err != nil {
 			return -1, C.CString("[Contract.LuaEcVerify] error parsing signature: " + err.Error())
 		}
