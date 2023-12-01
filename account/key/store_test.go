@@ -68,7 +68,7 @@ func TestImportKey(t *testing.T) {
 	const testSize = 3
 	for i := 0; i < testSize; i++ {
 		key, err := btcec.NewPrivateKey()
-		addr := crypto.GenerateAddress(&(key.PublicKey))
+		addr := crypto.GenerateAddress(key.PubKey().ToECDSA())
 		if err != nil {
 			t.Errorf("could not create key : %s", err.Error())
 		}
