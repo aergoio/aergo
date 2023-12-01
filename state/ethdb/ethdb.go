@@ -3,6 +3,7 @@ package ethdb
 import (
 	"fmt"
 
+	"github.com/aergoio/aergo/v2/types/dbkey"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/trie"
@@ -18,6 +19,7 @@ func NewDB(path string, dbType string) (*DB, error) {
 	ethdb := &DB{}
 
 	var err error
+	ethdb.dbType = dbType
 	switch dbType {
 	case "memorydb":
 		ethdb.Store = rawdb.NewMemoryDatabase()
@@ -38,4 +40,14 @@ func NewDB(path string, dbType string) (*DB, error) {
 
 func (db *DB) Close() error {
 	return db.Store.Close()
+}
+
+// TODO : before put eth root in block, it can saved in eth db
+func (db *DB) SetEthRoot(root []byte) {
+	db.Store.Put(dbkey.EthRootHash(), root)
+}
+
+func (db *DB) GetEthRoot() []byte {
+	root, _ := db.Store.Get(dbkey.EthRootHash())
+	return root
 }

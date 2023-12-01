@@ -1,6 +1,7 @@
 package state
 
 import (
+	"bytes"
 	"fmt"
 	"math/big"
 	"sync"
@@ -12,10 +13,6 @@ import (
 	"github.com/aergoio/aergo/v2/state/ethdb"
 	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
-	ethcommon "github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/state"
-	ethstate "github.com/ethereum/go-ethereum/core/state"
-	ethtypes "github.com/ethereum/go-ethereum/core/types"
 )
 
 var (
@@ -25,10 +22,11 @@ var (
 // ChainStateDB manages statedb and additional informations about blocks like a state root hash
 type ChainStateDB struct {
 	sync.RWMutex
-	luaStore  db.DB
-	luaStates *statedb.StateDB
-	ethStore  *ethdb.DB
-	testmode  bool
+	luaStore    db.DB
+	luaStates   *statedb.StateDB
+	ethStore    *ethdb.DB
+	EvmRootHash []byte
+	testmode    bool
 }
 
 // NewChainStateDB creates instance of ChainStateDB
@@ -41,11 +39,9 @@ func (sdb *ChainStateDB) Clone() *ChainStateDB {
 	sdb.Lock()
 	defer sdb.Unlock()
 	newSdb := &ChainStateDB{
-		luaStore: sdb.luaStore,
-		ethStore: sdb.ethStore,
-	}
-	if sdb.luaStates != nil {
-		newSdb.luaStates = sdb.luaStates.Clone()
+		luaStore:  sdb.luaStore,
+		luaStates: sdb.luaStates.Clone(),
+		ethStore:  sdb.ethStore,
 	}
 	return newSdb
 }
@@ -113,8 +109,11 @@ func (sdb *ChainStateDB) OpenNewStateDB(root []byte) *statedb.StateDB {
 	return statedb.NewStateDB(sdb.luaStore, root, sdb.testmode)
 }
 
-func (sdb *ChainStateDB) OpenEvmStateDB(root []byte) *ethstate.StateDB {
-	esdb, _ := ethstate.New(ethcommon.BytesToHash(root), ethstate.NewDatabase(sdb.ethStore.Store), nil)
+func (sdb *ChainStateDB) OpenEvmStateDB(root []byte) *ethdb.StateDB {
+	if root == nil { // before v4
+		root = sdb.EvmRootHash
+	}
+	esdb, _ := ethdb.NewStateDB(root, sdb.ethStore)
 	return esdb
 }
 
@@ -123,12 +122,7 @@ func (sdb *ChainStateDB) SetGenesis(genesis *types.Genesis, bpInit func(*statedb
 	stateDB := sdb.OpenNewStateDB(sdb.GetLuaRoot())
 
 	// create state of genesis block
-	ethState, err := ethstate.New(ethtypes.EmptyRootHash, state.NewDatabaseWithNodeDB(sdb.ethStore.Store, sdb.ethStore.Triedb), nil)
-	if err != nil {
-		return err
-	}
-	gbState := sdb.NewBlockState(block.Header.GetBlocksRootHash(), nil)
-	gbState.EvmStateDB = ethState
+	gbState := sdb.NewBlockState(block.Header.GetBlocksRootHash(), block.Header.GetEvmRootHash())
 
 	if len(genesis.BPs) > 0 && bpInit != nil {
 		// To avoid cyclic dedendency, BP initilization is called via function
@@ -171,6 +165,9 @@ func (sdb *ChainStateDB) SetGenesis(genesis *types.Genesis, bpInit func(*statedb
 	}
 
 	block.SetBlocksRootHash(sdb.GetLuaRoot())
+	sdb.EvmRootHash = block.Header.GetEvmRootHash()
+	sdb.ethStore.SetEthRoot(sdb.EvmRootHash)
+	// block.SetBlocksRootHash(gbState.GetEvmRoot()) // FIXME : not set before v4 hardfork
 
 	return nil
 }
@@ -214,7 +211,11 @@ func (sdb *ChainStateDB) UpdateRoot(bstate *BlockState) error {
 		return err
 	}
 
-	// no need to update evm root
+	newRootHash := bstate.GetEvmRoot()
+	if !bytes.Equal(newRootHash, sdb.EvmRootHash) {
+		sdb.ethStore.SetEthRoot(sdb.EvmRootHash)
+		sdb.EvmRootHash = bstate.GetEvmRoot()
+	}
 
 	return nil
 }
@@ -242,10 +243,7 @@ func (sdb *ChainStateDB) IsExistState(hash []byte) bool {
 
 func (sdb *ChainStateDB) NewBlockState(blockRoot []byte, evmRoot []byte, options ...BlockStateOptFn) *BlockState {
 	ls := sdb.OpenNewStateDB(blockRoot)
-	var es *ethstate.StateDB
-	if evmRoot != nil {
-		es = sdb.OpenEvmStateDB(evmRoot)
-	}
+	es, _ := ethdb.NewStateDB(evmRoot, sdb.ethStore)
 
 	return NewBlockState(ls, es, options...)
 }

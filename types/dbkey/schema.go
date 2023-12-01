@@ -16,6 +16,9 @@ const (
 	hardFork       = "hardfork"
 	reOrg          = "_reorg_marker_"
 
+	// ethereum state db root hash
+	ethRoot = "ethRoot"
+
 	// dpos
 	dposLibStatus = "dpos.LibStatus" // LibStatusKey is the key when a LIB information is put into the chain DB.
 

@@ -317,7 +317,6 @@ func writeBlockHeaderOmitSign(w io.Writer, bh *BlockHeader) error {
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -505,6 +504,10 @@ func (block *Block) setPubKey(pubKey crypto.PubKey) error {
 
 func (block *Block) SetBlocksRootHash(blockRootHash []byte) {
 	block.GetHeader().BlocksRootHash = blockRootHash
+}
+
+func (block *Block) SetEvmRootHash(EvmRootHash []byte) {
+	block.GetHeader().EvmRootHash = EvmRootHash
 }
 
 // GetMetadata generates Metadata object for block

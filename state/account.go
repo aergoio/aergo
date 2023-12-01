@@ -4,16 +4,15 @@ import (
 	"fmt"
 	"math/big"
 
-	key "github.com/aergoio/aergo/v2/account/key/crypto"
+	"github.com/aergoio/aergo/v2/state/ethdb"
 	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/ethereum/go-ethereum/common"
-	ethstate "github.com/ethereum/go-ethereum/core/state"
 )
 
 type AccountState struct {
 	luaStates *statedb.StateDB
-	ethStates *ethstate.StateDB
+	ethStates *ethdb.StateDB
 
 	id    []byte
 	aid   types.AccountID
@@ -104,11 +103,7 @@ func (as *AccountState) PutState() error {
 		return err
 	}
 	if as.ethStates != nil {
-		if as.ethStates.Empty(as.ethId) {
-			as.ethStates.CreateAccount(as.ethId)
-		}
-		as.ethStates.SetBalance(as.ethId, new(big.Int).SetBytes(as.newState.Balance))
-		as.ethStates.SetNonce(as.ethId, as.newState.Nonce)
+		as.ethStates.PutState(as.ethId, new(big.Int).SetBytes(as.newState.Balance), as.newState.Nonce, nil)
 	}
 	return nil
 }
@@ -120,7 +115,7 @@ func (as *AccountState) ClearAid() {
 //----------------------------------------------------------------------------------------------//
 // global functions
 
-func CreateAccountState(id []byte, states *statedb.StateDB, ethStates *ethstate.StateDB) (*AccountState, error) {
+func CreateAccountState(id []byte, states *statedb.StateDB, ethStates *ethdb.StateDB) (*AccountState, error) {
 	v, err := GetAccountState(id, states, ethStates)
 	if err != nil {
 		return nil, err
@@ -133,13 +128,13 @@ func CreateAccountState(id []byte, states *statedb.StateDB, ethStates *ethstate.
 	return v, nil
 }
 
-func GetAccountState(id []byte, states *statedb.StateDB, ethStates *ethstate.StateDB) (*AccountState, error) {
+func GetAccountState(id []byte, states *statedb.StateDB, ethStates *ethdb.StateDB) (*AccountState, error) {
 	aid := types.ToAccountID(id)
 	st, err := states.GetState(aid)
 	if err != nil {
 		return nil, err
 	}
-	ethAccount := GetAddressEth(id)
+	ethAccount := ethdb.GetAddressEth(id)
 
 	if st == nil {
 		if states.Testmode {
@@ -177,21 +172,14 @@ func GetAccountState(id []byte, states *statedb.StateDB, ethStates *ethstate.Sta
 	}, nil
 }
 
-func InitAccountState(id []byte, sdb *statedb.StateDB, ethsdb *ethstate.StateDB, old *types.State, new *types.State) *AccountState {
+func InitAccountState(id []byte, sdb *statedb.StateDB, ethsdb *ethdb.StateDB, old *types.State, new *types.State) *AccountState {
 	return &AccountState{
 		luaStates: sdb,
 		ethStates: ethsdb,
 		id:        id,
 		aid:       types.ToAccountID(id),
-		ethId:     GetAddressEth(id),
+		ethId:     ethdb.GetAddressEth(id),
 		oldState:  old,
 		newState:  new,
 	}
-}
-
-func GetAddressEth(id []byte) common.Address {
-	if types.IsSpecialAccount(id) {
-		return types.GetSpecialAccountEth(id)
-	}
-	return key.NewAddressEth(id)
 }

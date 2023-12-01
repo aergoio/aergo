@@ -26,7 +26,6 @@ func TestRawDB(t *testing.T) {
 		{"memorydb"}, {"leveldb"}, {"pebbledb"},
 	} {
 		db, err := NewDB(makedbPath(test.dbName), test.dbName)
-		defer db.Close()
 		require.NoError(t, err)
 		res, _ := db.Store.Get([]byte("foo"))
 		if res != nil {
@@ -38,6 +37,7 @@ func TestRawDB(t *testing.T) {
 		if !bytes.Equal(res, []byte("bar")) {
 			t.Errorf("retrieved value does not match")
 		}
+		db.Close()
 	}
 }
 

@@ -5,6 +5,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/trie"
 )
 
 const (
@@ -12,35 +13,46 @@ const (
 )
 
 type StateDB struct {
-	blockNo    uint64
+	trieDB     *trie.Database
 	evmStateDB *state.StateDB
 }
 
-func NewStateDB(blockNo uint64, evmRoot []byte, db *DB) (*StateDB, error) {
-	sdb, err := state.New(
-		common.BytesToHash(evmRoot),
-		state.NewDatabaseWithNodeDB(db.Store, db.Triedb),
-		nil,
-	)
+func NewStateDB(root []byte, db *DB) (*StateDB, error) {
+	triedb := trie.NewDatabase(db.Store, &trie.Config{Preimages: true})
+	statedb := state.NewDatabaseWithNodeDB(db.Store, triedb)
+
+	sdb, err := state.New(common.BytesToHash(root), statedb, nil)
 	if err != nil {
 		return nil, err
 	}
 
 	return &StateDB{
-		blockNo:    blockNo,
+		trieDB:     triedb,
 		evmStateDB: sdb,
 	}, nil
 }
 
-func (sdb *StateDB) Close() {
-	sdb.evmStateDB.StopPrefetcher()
+func (sdb *StateDB) Copy() *StateDB {
+	return &StateDB{
+		trieDB:     sdb.trieDB,
+		evmStateDB: sdb.evmStateDB.Copy(),
+	}
 }
 
-func (sdb *StateDB) PutState(addr common.Address, balance *big.Int, nonce uint64) int {
-	sdb.evmStateDB.CreateAccount(addr)
+func (sdb *StateDB) GetStateDB() *state.StateDB {
+	return sdb.evmStateDB
+}
+
+func (sdb *StateDB) PutState(addr common.Address, balance *big.Int, nonce uint64, code []byte) {
 	sdb.evmStateDB.SetNonce(addr, nonce)
 	sdb.evmStateDB.SetBalance(addr, balance)
-	return 0
+	if len(code) > 0 {
+		sdb.evmStateDB.SetCode(addr, code)
+	}
+}
+
+func (sdb *StateDB) GetState(addr common.Address) (balance *big.Int, nonce uint64, code []byte) {
+	return sdb.evmStateDB.GetBalance(addr), sdb.evmStateDB.GetNonce(addr), sdb.evmStateDB.GetCode(addr)
 }
 
 func (sdb *StateDB) Root() []byte {
@@ -55,10 +67,15 @@ func (sdb *StateDB) Rollback(snapshot int) {
 	sdb.evmStateDB.RevertToSnapshot(snapshot)
 }
 
-func (sdb *StateDB) Commit() (root []byte, err error) {
-	newRoot, err := sdb.evmStateDB.Commit(sdb.blockNo, false)
+func (sdb *StateDB) Commit(blockNo uint64) (root []byte, err error) {
+	newRoot, err := sdb.evmStateDB.Commit(blockNo, false)
 	if err != nil {
 		return nil, err
 	}
+	err = sdb.trieDB.Commit(newRoot, false)
+	if err != nil {
+		return nil, err
+	}
+
 	return newRoot.Bytes(), nil
 }

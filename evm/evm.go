@@ -4,8 +4,8 @@ import (
 	"errors"
 
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/v2/state/ethdb"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/core/vm/runtime"
 )
@@ -16,11 +16,11 @@ var (
 
 type EVM struct {
 	readonly  bool
-	ethState  *state.StateDB
+	ethState  *ethdb.StateDB
 	stateRoot common.Hash
 }
 
-func NewEVM(prevStateRoot []byte, ethState *state.StateDB) *EVM {
+func NewEVM(prevStateRoot []byte, ethState *ethdb.StateDB) *EVM {
 	return &EVM{
 		readonly:  false,
 		stateRoot: common.BytesToHash(prevStateRoot),
@@ -28,7 +28,7 @@ func NewEVM(prevStateRoot []byte, ethState *state.StateDB) *EVM {
 	}
 }
 
-func NewEVMCall(queryStateRoot []byte, ethState *state.StateDB) *EVM {
+func NewEVMCall(queryStateRoot []byte, ethState *ethdb.StateDB) *EVM {
 	return &EVM{
 		readonly:  true,
 		stateRoot: common.BytesToHash(queryStateRoot),
@@ -43,9 +43,9 @@ func (evm *EVM) Query(address []byte, contractAddress []byte, payload []byte) ([
 	}
 
 	// create call cfg
-	queryState, _ := state.New(evm.stateRoot, evm.ethState.Database(), nil)
+	queryState := evm.ethState.Copy()
 	runtimeCfg := &runtime.Config{
-		State:     queryState,
+		State:     queryState.GetStateDB(),
 		EVMConfig: evmCfg,
 	}
 
@@ -74,7 +74,7 @@ func (evm *EVM) Call(address common.Address, contract, payload []byte) ([]byte, 
 
 	// create call cfg
 	runtimeCfg := &runtime.Config{
-		State:     evm.ethState,
+		State:     evm.ethState.GetStateDB(),
 		EVMConfig: evmCfg,
 	}
 
@@ -99,7 +99,7 @@ func (evm *EVM) Create(ethAddress common.Address, payload []byte) ([]byte, []byt
 
 	// create call cfg
 	runtimeCfg := &runtime.Config{
-		State:     evm.ethState,
+		State:     evm.ethState.GetStateDB(),
 		EVMConfig: evmCfg,
 	}
 

@@ -41,6 +41,10 @@ func ReOrg() []byte {
 	return []byte(reOrg)
 }
 
+func EthRootHash() []byte {
+	return []byte(ethRoot)
+}
+
 // dpos
 func DposLibStatus() []byte {
 	return []byte(dposLibStatus)

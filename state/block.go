@@ -4,17 +4,17 @@ import (
 	"math/big"
 
 	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/state/ethdb"
 	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/bluele/gcache"
-	ethstate "github.com/ethereum/go-ethereum/core/state"
 	"github.com/willf/bloom"
 )
 
 // BlockState contains BlockInfo and statedb for block
 type BlockState struct {
 	LuaStateDB *statedb.StateDB
-	EvmStateDB *ethstate.StateDB
+	EvmStateDB *ethdb.StateDB
 
 	blockNo       uint64
 	BpReward      big.Int // final bp reward, increment when tx executes
@@ -50,7 +50,7 @@ func SetBlockNo(blockNo uint64) BlockStateOptFn {
 }
 
 // NewBlockState create new blockState contains blockInfo, account states and undo states
-func NewBlockState(luaStates *statedb.StateDB, evmStates *ethstate.StateDB, options ...BlockStateOptFn) *BlockState {
+func NewBlockState(luaStates *statedb.StateDB, evmStates *ethdb.StateDB, options ...BlockStateOptFn) *BlockState {
 	b := &BlockState{
 		LuaStateDB: luaStates,
 		EvmStateDB: evmStates,
@@ -88,7 +88,7 @@ func (bs *BlockState) Rollback(bSnap *BlockSnapshot) error {
 		return err
 	}
 	if bs.EvmStateDB != nil {
-		bs.EvmStateDB.RevertToSnapshot(bSnap.EvmVersion)
+		bs.EvmStateDB.Rollback(bSnap.EvmVersion)
 	}
 
 	return nil
@@ -102,7 +102,7 @@ func (bs *BlockState) GetEvmRoot() []byte {
 	if bs.EvmStateDB == nil {
 		return nil
 	}
-	return bs.EvmStateDB.IntermediateRoot(false).Bytes()
+	return bs.EvmStateDB.Root()
 }
 
 func (bs *BlockState) Update() error {
@@ -111,9 +111,6 @@ func (bs *BlockState) Update() error {
 		if err != nil {
 			return err
 		}
-	}
-	if bs.EvmStateDB != nil {
-		// bs.EvmStateDB.Finalise(true)
 	}
 	return nil
 }
@@ -125,7 +122,7 @@ func (bs *BlockState) Commit() error {
 		}
 	}
 	if bs.EvmStateDB != nil {
-		_, err := bs.EvmStateDB.Commit(bs.blockNo, false)
+		_, err := bs.EvmStateDB.Commit(bs.blockNo)
 		if err != nil {
 			return err
 		}
