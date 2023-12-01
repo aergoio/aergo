@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo/v2/internal/enc/hex"
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/libp2p/go-libp2p/core/crypto"
 )
 
@@ -17,7 +17,7 @@ func TestConvertPKToLibP2P(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			btcPK, err := btcec.NewPrivateKey(btcec.S256())
+			btcPK, err := btcec.NewPrivateKey()
 			if err != nil {
 				t.Fatalf("Failed to create test input pk: %v", err.Error())
 			}
@@ -57,7 +57,7 @@ func TestConvertPubKeyToLibP2P(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			btcPK, err := btcec.NewPrivateKey(btcec.S256())
+			btcPK, err := btcec.NewPrivateKey()
 			if err != nil {
 				t.Fatalf("Failed to create test input pk: %v", err.Error())
 			}

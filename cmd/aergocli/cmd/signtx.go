@@ -10,7 +10,7 @@ import (
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/jsonrpc"
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/spf13/cobra"
 )
 
@@ -60,7 +60,7 @@ var signCmd = &cobra.Command{
 				return
 			}
 			tx := &types.Tx{Body: param}
-			signKey, pubkey := btcec.PrivKeyFromBytes(btcec.S256(), rawKey)
+			signKey, pubkey := btcec.PrivKeyFromBytes(rawKey)
 			err = key.SignTx(tx, signKey)
 			if err != nil {
 				cmd.Printf("Failed: %s\n", err.Error())
