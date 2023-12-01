@@ -27,7 +27,7 @@ func executeGovernanceTx(ccc consensus.ChainConsensusCluster, bs *state.BlockSta
 
 	governance := string(txBody.Recipient)
 
-	scs, err := state.OpenContractState(receiver.AccountID(), receiver.State(), bs.LuaStateDB)
+	scs, err := statedb.OpenContractState(receiver.AccountID(), receiver.State(), bs.LuaStateDB)
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +48,7 @@ func executeGovernanceTx(ccc consensus.ChainConsensusCluster, bs *state.BlockSta
 		err = types.ErrTxInvalidRecipient
 	}
 	if err == nil {
-		err = state.StageContractState(scs, bs.LuaStateDB)
+		err = statedb.StageContractState(scs, bs.LuaStateDB)
 	}
 
 	return events, err
@@ -57,7 +57,7 @@ func executeGovernanceTx(ccc consensus.ChainConsensusCluster, bs *state.BlockSta
 // InitGenesisBPs opens system contract and put initial voting result
 // it also set *State in Genesis to use statedb
 func InitGenesisBPs(states *statedb.StateDB, genesis *types.Genesis) error {
-	scs, err := state.GetSystemAccountState(states)
+	scs, err := statedb.GetSystemAccountState(states)
 	if err != nil {
 		return err
 	}
@@ -73,7 +73,7 @@ func InitGenesisBPs(states *statedb.StateDB, genesis *types.Genesis) error {
 	// Set genesis.BPs to the votes-ordered BPs. This will be used later for
 	// bootstrapping.
 	genesis.BPs = system.BuildOrderedCandidates(voteResult)
-	if err = state.StageContractState(scs, states); err != nil {
+	if err = statedb.StageContractState(scs, states); err != nil {
 		return err
 	}
 	if err = states.Update(); err != nil {

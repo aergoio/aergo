@@ -24,6 +24,7 @@ import (
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/internal/enc/proto"
 	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/message"
 )
@@ -985,8 +986,8 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 			return err
 		}
 
-		var contractState *state.ContractState
-		contractState, err = state.OpenContractState(receiver.AccountID(), receiver.State(), bs.LuaStateDB)
+		var contractState *statedb.ContractState
+		contractState, err = statedb.OpenContractState(receiver.AccountID(), receiver.State(), bs.LuaStateDB)
 		if err != nil {
 			return err
 		}

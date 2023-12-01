@@ -9,7 +9,7 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/dbkey"
 )
@@ -116,11 +116,11 @@ func (c *unstakeCmd) run() (*types.Event, error) {
 	}, nil
 }
 
-func setStaking(scs *state.ContractState, account []byte, staking *types.Staking) error {
+func setStaking(scs *statedb.ContractState, account []byte, staking *types.Staking) error {
 	return scs.SetData(dbkey.SystemStaking(account), serializeStaking(staking))
 }
 
-func getStaking(scs *state.ContractState, account []byte) (*types.Staking, error) {
+func getStaking(scs *statedb.ContractState, account []byte) (*types.Staking, error) {
 	data, err := scs.GetData(dbkey.SystemStaking(account))
 	if err != nil {
 		return nil, err
@@ -132,18 +132,18 @@ func getStaking(scs *state.ContractState, account []byte) (*types.Staking, error
 	return &staking, nil
 }
 
-func GetStaking(scs *state.ContractState, address []byte) (*types.Staking, error) {
+func GetStaking(scs *statedb.ContractState, address []byte) (*types.Staking, error) {
 	if address != nil {
 		return getStaking(scs, address)
 	}
 	return nil, errors.New("invalid argument: address should not be nil")
 }
 
-func GetStakingTotal(scs *state.ContractState) (*big.Int, error) {
+func GetStakingTotal(scs *statedb.ContractState) (*big.Int, error) {
 	return getStakingTotal(scs)
 }
 
-func getStakingTotal(scs *state.ContractState) (*big.Int, error) {
+func getStakingTotal(scs *statedb.ContractState) (*big.Int, error) {
 	data, err := scs.GetData(dbkey.SystemStakingTotal())
 	if err != nil {
 		return nil, err
@@ -151,7 +151,7 @@ func getStakingTotal(scs *state.ContractState) (*big.Int, error) {
 	return new(big.Int).SetBytes(data), nil
 }
 
-func addTotal(scs *state.ContractState, amount *big.Int) error {
+func addTotal(scs *statedb.ContractState, amount *big.Int) error {
 	data, err := scs.GetData(dbkey.SystemStakingTotal())
 	if err != nil {
 		return err
@@ -160,7 +160,7 @@ func addTotal(scs *state.ContractState, amount *big.Int) error {
 	return scs.SetData(dbkey.SystemStakingTotal(), new(big.Int).Add(total, amount).Bytes())
 }
 
-func subTotal(scs *state.ContractState, amount *big.Int) error {
+func subTotal(scs *statedb.ContractState, amount *big.Int) error {
 	data, err := scs.GetData(dbkey.SystemStakingTotal())
 	if err != nil {
 		return err

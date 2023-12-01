@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -139,7 +140,7 @@ func TestUnstakingError(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
 	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
-	scs, err := state.GetSystemAccountState(cdb.GetStateDB())
+	scs, err := statedb.GetSystemAccountState(cdb.GetStateDB())
 	assert.Equal(t, err, nil, "could not open contract state")
 
 	account, err := types.DecodeAddress(testSender)

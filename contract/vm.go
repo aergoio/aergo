@@ -74,7 +74,7 @@ type ChainAccessor interface {
 }
 
 type callState struct {
-	ctrState  *state.ContractState
+	ctrState  *statedb.ContractState
 	prevState *types.State
 	curState  *types.State
 	tx        sqlTx
@@ -180,7 +180,7 @@ func getTraceFile(blkno uint64, tx []byte) *os.File {
 	return f
 }
 
-func NewVmContext(execCtx context.Context, blockState *state.BlockState, cdb ChainAccessor, sender, reciever *state.AccountState, contractState *state.ContractState, senderID, txHash []byte, bi *types.BlockHeaderInfo, node string, confirmed, query bool, rp uint64, service int, amount *big.Int, gasLimit uint64, feeDelegation bool) *vmContext {
+func NewVmContext(execCtx context.Context, blockState *state.BlockState, cdb ChainAccessor, sender, reciever *state.AccountState, contractState *statedb.ContractState, senderID, txHash []byte, bi *types.BlockHeaderInfo, node string, confirmed, query bool, rp uint64, service int, amount *big.Int, gasLimit uint64, feeDelegation bool) *vmContext {
 
 	cs := &callState{ctrState: contractState, curState: reciever.State()}
 
@@ -216,7 +216,7 @@ func NewVmContextQuery(
 	blockState *state.BlockState,
 	cdb ChainAccessor,
 	receiverId []byte,
-	contractState *state.ContractState,
+	contractState *statedb.ContractState,
 	rp uint64,
 ) (*vmContext, error) {
 	cs := &callState{ctrState: contractState, curState: contractState.State}
@@ -307,7 +307,7 @@ func (Ls *lStatesBuffer) close() {
 	Ls.s = Ls.s[:0]
 }
 
-func resolveFunction(contractState *state.ContractState, bs *state.BlockState, name string, constructor bool) (*types.Function, error) {
+func resolveFunction(contractState *statedb.ContractState, bs *state.BlockState, name string, constructor bool) (*types.Function, error) {
 	abi, err := GetABI(contractState, bs)
 	if err != nil {
 		return nil, err
@@ -338,7 +338,7 @@ func newExecutor(
 	amount *big.Int,
 	isCreate bool,
 	isDelegation bool,
-	ctrState *state.ContractState,
+	ctrState *statedb.ContractState,
 ) *executor {
 
 	if ctx.blockInfo.ForkVersion != currentForkVersion {
@@ -688,7 +688,7 @@ func (ce *executor) commitCalledContract() error {
 			continue
 		}
 		if v.ctrState != nil {
-			err = state.StageContractState(v.ctrState, bs.LuaStateDB)
+			err = statedb.StageContractState(v.ctrState, bs.LuaStateDB)
 			if err != nil {
 				return newDbSystemError(err)
 			}
@@ -806,7 +806,7 @@ func getCallInfo(ci interface{}, args []byte, contractAddress []byte) error {
 }
 
 func Call(
-	contractState *state.ContractState,
+	contractState *statedb.ContractState,
 	payload, contractAddress []byte,
 	ctx *vmContext,
 ) (string, []*types.Event, *big.Int, error) {
@@ -917,7 +917,7 @@ func PreCall(
 	ce *executor,
 	bs *state.BlockState,
 	sender *state.AccountState,
-	contractState *state.ContractState,
+	contractState *statedb.ContractState,
 	rp, gasLimit uint64,
 ) (string, []*types.Event, *big.Int, error) {
 	var err error
@@ -985,7 +985,7 @@ func PreCall(
 }
 
 // loads a contract and prepares it for execution
-func PreloadExecutor(bs *state.BlockState, contractState *state.ContractState, payload, contractAddress []byte,
+func PreloadExecutor(bs *state.BlockState, contractState *statedb.ContractState, payload, contractAddress []byte,
 	ctx *vmContext) (*executor, error) {
 
 	var err error
@@ -1020,7 +1020,7 @@ func PreloadExecutor(bs *state.BlockState, contractState *state.ContractState, p
 	return ce, ce.err
 }
 
-func setContract(contractState *state.ContractState, contractAddress, payload []byte) ([]byte, []byte, error) {
+func setContract(contractState *statedb.ContractState, contractAddress, payload []byte) ([]byte, []byte, error) {
 	codePayload := luacUtil.LuaCodePayload(payload)
 	if _, err := codePayload.IsValidFormat(); err != nil {
 		ctrLgr.Warn().Err(err).Str("contract", types.EncodeAddress(contractAddress)).Msg("deploy")
@@ -1045,7 +1045,7 @@ func setContract(contractState *state.ContractState, contractAddress, payload []
 }
 
 func Create(
-	contractState *state.ContractState,
+	contractState *statedb.ContractState,
 	code, contractAddress []byte,
 	ctx *vmContext,
 ) (string, []*types.Event, *big.Int, error) {
@@ -1183,7 +1183,7 @@ func freeContextSlot(ctx *vmContext) {
 	contexts[ctx.service] = nil
 }
 
-func Query(contractAddress []byte, bs *state.BlockState, cdb ChainAccessor, contractState *state.ContractState, queryInfo []byte) (res []byte, err error) {
+func Query(contractAddress []byte, bs *state.BlockState, cdb ChainAccessor, contractState *statedb.ContractState, queryInfo []byte) (res []byte, err error) {
 	var ci types.CallInfo
 
 	contract := getContract(contractState, bs)
@@ -1227,7 +1227,7 @@ func Query(contractAddress []byte, bs *state.BlockState, cdb ChainAccessor, cont
 }
 
 func CheckFeeDelegation(contractAddress []byte, bs *state.BlockState, bi *types.BlockHeaderInfo, cdb ChainAccessor,
-	contractState *state.ContractState, payload, txHash, sender, amount []byte) (err error) {
+	contractState *statedb.ContractState, payload, txHash, sender, amount []byte) (err error) {
 	var ci types.CallInfo
 
 	err = getCallInfo(&ci, payload, contractAddress)
@@ -1306,7 +1306,7 @@ func CheckFeeDelegation(contractAddress []byte, bs *state.BlockState, bi *types.
 	return nil
 }
 
-func getCode(contractState *state.ContractState, bs *state.BlockState) ([]byte, error) {
+func getCode(contractState *statedb.ContractState, bs *state.BlockState) ([]byte, error) {
 	var code []byte
 	var err error
 
@@ -1323,7 +1323,7 @@ func getCode(contractState *state.ContractState, bs *state.BlockState) ([]byte, 
 	return code, nil
 }
 
-func getContract(contractState *state.ContractState, bs *state.BlockState) []byte {
+func getContract(contractState *statedb.ContractState, bs *state.BlockState) []byte {
 	code, err := getCode(contractState, bs)
 	if err != nil {
 		return nil
@@ -1331,7 +1331,7 @@ func getContract(contractState *state.ContractState, bs *state.BlockState) []byt
 	return luacUtil.LuaCode(code).ByteCode()
 }
 
-func GetABI(contractState *state.ContractState, bs *state.BlockState) (*types.ABI, error) {
+func GetABI(contractState *statedb.ContractState, bs *state.BlockState) (*types.ABI, error) {
 	var abi *types.ABI
 
 	abi = bs.GetABI(contractState.GetAccountID())

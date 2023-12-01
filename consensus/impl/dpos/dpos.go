@@ -207,7 +207,7 @@ func sendVotingReward(bState *state.BlockState, dummy []byte) error {
 }
 
 func InitVPR(sdb *statedb.StateDB) error {
-	s, err := state.GetSystemAccountState(sdb)
+	s, err := statedb.GetSystemAccountState(sdb)
 	if err != nil {
 		return err
 	}

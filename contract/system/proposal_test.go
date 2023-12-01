@@ -6,16 +6,16 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo/v2/config"
-	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/stretchr/testify/assert"
 )
 
 type TestAccountStateReader struct {
-	Scs *state.ContractState
+	Scs *statedb.ContractState
 }
 
-func (tas *TestAccountStateReader) GetSystemAccountState() (*state.ContractState, error) {
+func (tas *TestAccountStateReader) GetSystemAccountState() (*statedb.ContractState, error) {
 	if tas != nil && tas.Scs != nil {
 		return tas.Scs, nil
 	}

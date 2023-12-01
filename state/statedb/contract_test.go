@@ -1,31 +1,12 @@
-package state
+package statedb
 
 import (
-	"os"
 	"testing"
 
-	"github.com/aergoio/aergo-lib/db"
-	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/stretchr/testify/assert"
 )
 
-var chainStateDB *ChainStateDB
-var stateDB *statedb.StateDB
-
-func initTest(t *testing.T) {
-	chainStateDB = NewChainStateDB()
-	_ = chainStateDB.Init(string(db.BadgerImpl), "test", nil, false)
-	stateDB = chainStateDB.GetStateDB()
-	genesis := types.GetTestGenesis()
-
-	err := chainStateDB.SetGenesis(genesis, nil)
-	assert.NoError(t, err, "failed init")
-}
-func deinitTest() {
-	_ = chainStateDB.Close()
-	_ = os.RemoveAll("test")
-}
 func TestContractStateCode(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
@@ -291,7 +272,7 @@ func TestContractStateRollback(t *testing.T) {
 	assert.Equal(t, []byte("2"), res)
 
 	// rollback to empty: rev 0
-	contractState.Rollback(statedb.Snapshot(0))
+	contractState.Rollback(Snapshot(0))
 	res, _ = contractState.GetData(testKey)
 	assert.Nil(t, res)
 }

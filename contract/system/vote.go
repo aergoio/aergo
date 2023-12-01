@@ -13,7 +13,7 @@ import (
 	"strings"
 
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
-	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/dbkey"
 )
@@ -285,11 +285,11 @@ func refreshAllVote(context *SystemContext) error {
 }
 
 // GetVote return amount, to, err.
-func GetVote(scs *state.ContractState, voter []byte, issue []byte) (*types.Vote, error) {
+func GetVote(scs *statedb.ContractState, voter []byte, issue []byte) (*types.Vote, error) {
 	return getVote(scs, issue, voter)
 }
 
-func getVote(scs *state.ContractState, key, voter []byte) (*types.Vote, error) {
+func getVote(scs *statedb.ContractState, key, voter []byte) (*types.Vote, error) {
 	data, err := scs.GetData(dbkey.SystemVote(key, voter))
 	if err != nil {
 		return nil, err
@@ -306,7 +306,7 @@ func getVote(scs *state.ContractState, key, voter []byte) (*types.Vote, error) {
 	return &types.Vote{}, nil
 }
 
-func setVote(scs *state.ContractState, key, voter []byte, vote *types.Vote) error {
+func setVote(scs *statedb.ContractState, key, voter []byte, vote *types.Vote) error {
 	if bytes.Equal(key, defaultVoteKey) {
 		return scs.SetData(dbkey.SystemVote(key, voter), serializeVote(vote))
 	} else {
@@ -329,7 +329,7 @@ func BuildOrderedCandidates(vote map[string]*big.Int) []string {
 }
 
 // GetVoteResult returns the top n voting result from the system account state.
-func GetVoteResult(scs *state.ContractState, id []byte, n int) (*types.VoteList, error) {
+func GetVoteResult(scs *statedb.ContractState, id []byte, n int) (*types.VoteList, error) {
 	if !bytes.Equal(id, defaultVoteKey) {
 		id = GenProposalKey(string(id))
 	}
@@ -337,7 +337,7 @@ func GetVoteResult(scs *state.ContractState, id []byte, n int) (*types.VoteList,
 }
 
 // GetRankers returns the IDs of the top n rankers.
-func GetRankers(scs *state.ContractState) ([]string, error) {
+func GetRankers(scs *statedb.ContractState) ([]string, error) {
 	n := GetBpCount()
 
 	vl, err := GetVoteResult(scs, defaultVoteKey, n)

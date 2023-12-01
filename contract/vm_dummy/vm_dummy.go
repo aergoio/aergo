@@ -22,6 +22,7 @@ import (
 	"github.com/aergoio/aergo/v2/fee"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	sha256 "github.com/minio/sha256-simd"
 )
@@ -136,7 +137,7 @@ func LoadDummyChain(opts ...DummyChainOptions) (*DummyChain, error) {
 	types.InitGovernance("dpos", true)
 
 	// To pass dao parameters test
-	scs, err := state.GetSystemAccountState(bc.sdb.GetStateDB())
+	scs, err := statedb.GetSystemAccountState(bc.sdb.GetStateDB())
 	system.InitSystemParams(scs, 3)
 
 	fee.EnableZeroFee()
@@ -202,7 +203,7 @@ func (bc *DummyChain) BeginReceiptTx() db.Transaction {
 }
 
 func (bc *DummyChain) GetABI(code string) (*types.ABI, error) {
-	cState, err := state.OpenContractStateAccount(types.ToAccountID(contract.StrHash(code)), bc.sdb.GetStateDB())
+	cState, err := statedb.OpenContractStateAccount(types.ToAccountID(contract.StrHash(code)), bc.sdb.GetStateDB())
 	if err != nil {
 		return nil, err
 	}
@@ -229,7 +230,7 @@ func (bc *DummyChain) GetAccountState(name string) (*types.State, error) {
 }
 
 func (bc *DummyChain) GetStaking(name string) (*types.Staking, error) {
-	scs, err := state.GetSystemAccountState(bc.sdb.GetStateDB())
+	scs, err := statedb.GetSystemAccountState(bc.sdb.GetStateDB())
 	if err != nil {
 		return nil, err
 	}
@@ -448,7 +449,7 @@ func (l *luaTxDeploy) Constructor(args string) *luaTxDeploy {
 }
 
 func contractFrame(l luaTxContract, bs *state.BlockState, cdb contract.ChainAccessor, receiptTx db.Transaction,
-	run func(s, c *state.AccountState, id types.AccountID, cs *state.ContractState) (string, []*types.Event, *big.Int, error)) error {
+	run func(s, c *state.AccountState, id types.AccountID, cs *statedb.ContractState) (string, []*types.Event, *big.Int, error)) error {
 
 	creatorId := types.ToAccountID(l.sender())
 	creatorState, err := state.GetAccountState(l.sender(), bs.LuaStateDB, bs.EvmStateDB)
@@ -462,7 +463,7 @@ func contractFrame(l luaTxContract, bs *state.BlockState, cdb contract.ChainAcce
 		return err
 	}
 
-	eContractState, err := state.OpenContractState(contractId, contractState.State(), bs.LuaStateDB)
+	eContractState, err := statedb.OpenContractState(contractId, contractState.State(), bs.LuaStateDB)
 	if err != nil {
 		return err
 	}
@@ -532,7 +533,7 @@ func (l *luaTxDeploy) run(execCtx context.Context, bs *state.BlockState, bc *Dum
 		return l.cErr
 	}
 	return contractFrame(l, bs, bc, receiptTx,
-		func(sender, contractV *state.AccountState, contractId types.AccountID, eContractState *state.ContractState) (string, []*types.Event, *big.Int, error) {
+		func(sender, contractV *state.AccountState, contractId types.AccountID, eContractState *statedb.ContractState) (string, []*types.Event, *big.Int, error) {
 			contractV.State().SqlRecoveryPoint = 1
 
 			ctx := contract.NewVmContext(execCtx, bs, nil, sender, contractV, eContractState, sender.ID(), l.Hash(), bi, "", true, false, contractV.State().SqlRecoveryPoint, contract.BlockFactory, l.amount(), math.MaxUint64, false)
@@ -541,7 +542,7 @@ func (l *luaTxDeploy) run(execCtx context.Context, bs *state.BlockState, bc *Dum
 			if err != nil {
 				return "", nil, ctrFee, err
 			}
-			err = state.StageContractState(eContractState, bs.LuaStateDB)
+			err = statedb.StageContractState(eContractState, bs.LuaStateDB)
 			if err != nil {
 				return "", nil, ctrFee, err
 			}
@@ -593,14 +594,14 @@ func (l *luaTxCall) Fail(expectedErr string) *luaTxCall {
 
 func (l *luaTxCall) run(execCtx context.Context, bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error {
 	err := contractFrame(l, bs, bc, receiptTx,
-		func(sender, contractV *state.AccountState, contractId types.AccountID, eContractState *state.ContractState) (string, []*types.Event, *big.Int, error) {
+		func(sender, contractV *state.AccountState, contractId types.AccountID, eContractState *statedb.ContractState) (string, []*types.Event, *big.Int, error) {
 			ctx := contract.NewVmContext(execCtx, bs, bc, sender, contractV, eContractState, sender.ID(), l.Hash(), bi, "", true, false, contractV.State().SqlRecoveryPoint, contract.BlockFactory, l.amount(), math.MaxUint64, l.feeDelegate)
 
 			rv, events, ctrFee, err := contract.Call(eContractState, l.payload(), l.recipient(), ctx)
 			if err != nil {
 				return "", nil, ctrFee, err
 			}
-			err = state.StageContractState(eContractState, bs.LuaStateDB)
+			err = statedb.StageContractState(eContractState, bs.LuaStateDB)
 			if err != nil {
 				return "", nil, ctrFee, err
 			}
@@ -675,7 +676,7 @@ func (bc *DummyChain) DisConnectBlock() error {
 }
 
 func (bc *DummyChain) Query(contract_name, queryInfo, expectedErr string, expectedRvs ...string) error {
-	cState, err := state.OpenContractStateAccount(types.ToAccountID(contract.StrHash(contract_name)), bc.sdb.GetStateDB())
+	cState, err := statedb.OpenContractStateAccount(types.ToAccountID(contract.StrHash(contract_name)), bc.sdb.GetStateDB())
 	if err != nil {
 		return err
 	}
@@ -704,7 +705,7 @@ func (bc *DummyChain) Query(contract_name, queryInfo, expectedErr string, expect
 }
 
 func (bc *DummyChain) QueryOnly(contract_name, queryInfo string, expectedErr string) (bool, string, error) {
-	cState, err := state.OpenContractStateAccount(types.ToAccountID(contract.StrHash(contract_name)), bc.sdb.GetStateDB())
+	cState, err := statedb.OpenContractStateAccount(types.ToAccountID(contract.StrHash(contract_name)), bc.sdb.GetStateDB())
 	if err != nil {
 		return false, "", err
 	}

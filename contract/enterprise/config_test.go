@@ -14,7 +14,7 @@ import (
 var cdb *state.ChainStateDB
 var sdb *statedb.StateDB
 
-func initTest(t *testing.T) (*state.ContractState, *state.AccountState, *state.AccountState) {
+func initTest(t *testing.T) (*statedb.ContractState, *state.AccountState, *state.AccountState) {
 	cdb = state.NewChainStateDB()
 	cdb.Init(string(db.BadgerImpl), "test", nil, false)
 	genesis := types.GetTestGenesis()
@@ -25,7 +25,7 @@ func initTest(t *testing.T) (*state.ContractState, *state.AccountState, *state.A
 	}
 	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
 
-	scs, err := state.GetSystemAccountState(cdb.GetStateDB())
+	scs, err := statedb.GetSystemAccountState(cdb.GetStateDB())
 	assert.NoError(t, err, "could not open contract state")
 
 	account, err := types.DecodeAddress(testSender)

@@ -6,13 +6,11 @@ import (
 	"github.com/aergoio/aergo/v2/types/dbkey"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/trie"
 )
 
 type DB struct {
 	dbType string
 	Store  ethdb.Database
-	Triedb *trie.Database
 }
 
 func NewDB(path string, dbType string) (*DB, error) {
@@ -33,7 +31,6 @@ func NewDB(path string, dbType string) (*DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	ethdb.Triedb = trie.NewDatabase(ethdb.Store, trie.HashDefaults)
 
 	return ethdb, nil
 }
