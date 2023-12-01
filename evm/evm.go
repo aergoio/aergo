@@ -7,7 +7,6 @@ import (
 	"github.com/aergoio/aergo/v2/state/ethdb"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/core/vm/runtime"
 )
 
 var (
@@ -44,7 +43,7 @@ func (evm *EVM) Query(address []byte, contractAddress []byte, payload []byte) ([
 
 	// create call cfg
 	queryState := evm.ethState.Copy()
-	runtimeCfg := &runtime.Config{
+	runtimeCfg := &Config{
 		State:     queryState.GetStateDB(),
 		EVMConfig: evmCfg,
 	}
@@ -54,7 +53,7 @@ func (evm *EVM) Query(address []byte, contractAddress []byte, payload []byte) ([
 	runtimeCfg.Origin = ethOriginAddress
 	runtimeCfg.GasLimit = 1000000
 
-	ret, gas, err := runtime.Call(contractEthAddress, payload, runtimeCfg)
+	ret, gas, err := Call(contractEthAddress, payload, runtimeCfg)
 	if err != nil {
 		return ret, gas, err
 	}
@@ -73,7 +72,7 @@ func (evm *EVM) Call(address common.Address, contract, payload []byte) ([]byte, 
 	}
 
 	// create call cfg
-	runtimeCfg := &runtime.Config{
+	runtimeCfg := &Config{
 		State:     evm.ethState.GetStateDB(),
 		EVMConfig: evmCfg,
 	}
@@ -81,7 +80,7 @@ func (evm *EVM) Call(address common.Address, contract, payload []byte) ([]byte, 
 	runtimeCfg.Origin = address
 	runtimeCfg.GasLimit = 1000000
 
-	ret, gas, err := runtime.Call(common.BytesToAddress(contract), payload, runtimeCfg)
+	ret, gas, err := Call(common.BytesToAddress(contract), payload, runtimeCfg)
 	if err != nil {
 		return ret, gas, err
 	}
@@ -98,14 +97,14 @@ func (evm *EVM) Create(ethAddress common.Address, payload []byte) ([]byte, []byt
 	evmCfg := vm.Config{}
 
 	// create call cfg
-	runtimeCfg := &runtime.Config{
+	runtimeCfg := &Config{
 		State:     evm.ethState.GetStateDB(),
 		EVMConfig: evmCfg,
 	}
 
 	runtimeCfg.Origin = ethAddress
 
-	ret, ethContractAddress, _, err := runtime.Create(payload, runtimeCfg)
+	ret, ethContractAddress, _, err := Create(payload, runtimeCfg)
 	if err != nil {
 		return nil, nil, 0, err
 	}
