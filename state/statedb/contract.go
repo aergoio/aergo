@@ -14,7 +14,7 @@ type ContractState struct {
 	*types.State
 	account types.AccountID
 	code    []byte
-	storage *BufferedStorage
+	storage *bufferedStorage
 	store   db.DB
 }
 
@@ -56,7 +56,7 @@ func (cs *ContractState) GetCode() ([]byte, error) {
 		// not defined. do nothing.
 		return nil, nil
 	}
-	err := LoadData(cs.store, cs.State.CodeHash, &cs.code)
+	err := loadData(cs.store, cs.State.CodeHash, &cs.code)
 	if err != nil {
 		return nil, err
 	}
@@ -69,13 +69,13 @@ func (cs *ContractState) GetAccountID() types.AccountID {
 
 // SetRawKV saves (key, value) to st.store without any kind of encoding.
 func (cs *ContractState) SetRawKV(key []byte, value []byte) error {
-	return SaveData(cs.store, key, value)
+	return saveData(cs.store, key, value)
 }
 
 // GetRawKV loads (key, value) from st.store.
 func (cs *ContractState) GetRawKV(key []byte) ([]byte, error) {
 	var b []byte
-	if err := LoadData(cs.store, key, &b); err != nil {
+	if err := loadData(cs.store, key, &b); err != nil {
 		return nil, err
 	}
 	return b, nil
@@ -83,19 +83,19 @@ func (cs *ContractState) GetRawKV(key []byte) ([]byte, error) {
 
 // HasKey returns existence of the key
 func (cs *ContractState) HasKey(key []byte) bool {
-	return cs.storage.Has(types.GetHashID(key), true)
+	return cs.storage.has(types.GetHashID(key), true)
 }
 
 // SetData store key and value pair to the storage.
 func (cs *ContractState) SetData(key, value []byte) error {
-	cs.storage.Put(NewValueEntry(types.GetHashID(key), value))
+	cs.storage.put(newValueEntry(types.GetHashID(key), value))
 	return nil
 }
 
 // GetData returns the value corresponding to the key from the buffered storage.
 func (cs *ContractState) GetData(key []byte) ([]byte, error) {
 	id := types.GetHashID(key)
-	if entry := cs.storage.Get(id); entry != nil {
+	if entry := cs.storage.get(id); entry != nil {
 		if value := entry.Value(); value != nil {
 			return value.([]byte), nil
 		}
@@ -113,7 +113,7 @@ func (cs *ContractState) getInitialData(id []byte) ([]byte, error) {
 		return nil, nil
 	}
 	value := []byte{}
-	if err := LoadData(cs.store, dkey, &value); err != nil {
+	if err := loadData(cs.store, dkey, &value); err != nil {
 		return nil, err
 	}
 	return value, nil
@@ -127,23 +127,23 @@ func (cs *ContractState) GetInitialData(key []byte) ([]byte, error) {
 
 // DeleteData remove key and value pair from the storage.
 func (cs *ContractState) DeleteData(key []byte) error {
-	cs.storage.Put(NewValueEntryDelete(types.GetHashID(key)))
+	cs.storage.put(newValueEntryDelete(types.GetHashID(key)))
 	return nil
 }
 
 // Snapshot returns revision number of storage buffer
 func (cs *ContractState) Snapshot() Snapshot {
-	return Snapshot(cs.storage.Buffer.Snapshot())
+	return Snapshot(cs.storage.Buffer.snapshot())
 }
 
 // Rollback discards changes of storage buffer to revision number
 func (cs *ContractState) Rollback(revision Snapshot) error {
-	return cs.storage.Buffer.Rollback(int(revision))
+	return cs.storage.Buffer.rollback(int(revision))
 }
 
 // Hash implements types.ImplHashBytes
 func (cs *ContractState) Hash() []byte {
-	return GetHashBytes(cs.State)
+	return getHashBytes(cs.State)
 }
 
 // Marshal implements types.ImplMarshal
@@ -151,7 +151,7 @@ func (cs *ContractState) Marshal() ([]byte, error) {
 	return proto.Encode(cs.State)
 }
 
-func (cs *ContractState) cache() *StateBuffer {
+func (cs *ContractState) cache() *stateBuffer {
 	return cs.storage.Buffer
 }
 
@@ -167,10 +167,10 @@ func OpenContractStateAccount(aid types.AccountID, states *StateDB) (*ContractSt
 }
 
 func OpenContractState(aid types.AccountID, st *types.State, states *StateDB) (*ContractState, error) {
-	storage := states.Cache.Get(aid)
+	storage := states.Cache.get(aid)
 	if storage == nil {
 		root := common.Compactz(st.StorageRoot)
-		storage = NewBufferedStorage(root, states.Store)
+		storage = newBufferedStorage(root, states.Store)
 	}
 	res := &ContractState{
 		State:   st,
@@ -182,7 +182,7 @@ func OpenContractState(aid types.AccountID, st *types.State, states *StateDB) (*
 }
 
 func StageContractState(st *ContractState, states *StateDB) error {
-	states.Cache.Put(st.account, st.storage)
+	states.Cache.put(st.account, st.storage)
 	st.storage = nil
 	return nil
 }
