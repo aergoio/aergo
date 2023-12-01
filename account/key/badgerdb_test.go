@@ -26,7 +26,7 @@ func TestSaveAndLoadOnBadger(t *testing.T) {
 		assert.FailNow(t, "Could not create private key", err)
 	}
 
-	identity := crypto.GenerateAddress(&expected.PublicKey)
+	identity := crypto.GenerateAddress(expected.PubKey().ToECDSA())
 	password := "password"
 	saved, err := storage.Save(identity, password, expected)
 	if nil != err {
@@ -52,7 +52,7 @@ func TestSaveAndListOnBadger(t *testing.T) {
 		assert.FailNow(t, "Could not create private key", err)
 	}
 
-	identity := crypto.GenerateAddress(&expected.PublicKey)
+	identity := crypto.GenerateAddress(expected.PubKey().ToECDSA())
 	password := "password"
 	saved, err := storage.Save(identity, password, expected)
 	if nil != err {
