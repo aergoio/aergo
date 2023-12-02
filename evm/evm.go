@@ -16,6 +16,9 @@ var (
 )
 
 type EVM struct {
+	accounts map[common.Address]*state.AccountState
+	blocks   map[uint64][]byte
+
 	readonly  bool
 	ethState  *ethdb.StateDB
 	stateRoot common.Hash
@@ -37,14 +40,14 @@ func NewEVMQuery(queryStateRoot []byte, ethState *ethdb.StateDB) *EVM {
 	}
 }
 
-func (evm *EVM) Query(address []byte, contractAddress []byte, payload []byte) ([]byte, uint64, error) {
+func (e *EVM) Query(address []byte, contractAddress []byte, payload []byte) ([]byte, uint64, error) {
 	// create evmCfg
 	evmCfg := vm.Config{
 		NoBaseFee: true,
 	}
 
 	// create call cfg
-	queryState := evm.ethState.Copy()
+	queryState := e.ethState.Copy()
 	runtimeCfg := &Config{
 		State:     queryState.GetStateDB(),
 		EVMConfig: evmCfg,
@@ -55,7 +58,7 @@ func (evm *EVM) Query(address []byte, contractAddress []byte, payload []byte) ([
 	runtimeCfg.Origin = ethOriginAddress
 	runtimeCfg.GasLimit = 1000000
 
-	ret, gas, err := Call(contractEthAddress, payload, runtimeCfg)
+	ret, gas, err := e.call(contractEthAddress, payload, runtimeCfg)
 	if err != nil {
 		return ret, gas, err
 	}
@@ -63,8 +66,8 @@ func (evm *EVM) Query(address []byte, contractAddress []byte, payload []byte) ([
 	return ret, gas, nil
 }
 
-func (evm *EVM) Call(address common.Address, contract, payload []byte) ([]byte, uint64, error) {
-	if evm.readonly {
+func (e *EVM) Call(address common.Address, contract, payload []byte) ([]byte, uint64, error) {
+	if e.readonly {
 		return nil, 0, errors.New("cannot call on readonly")
 	}
 
@@ -75,14 +78,14 @@ func (evm *EVM) Call(address common.Address, contract, payload []byte) ([]byte, 
 
 	// create call cfg
 	runtimeCfg := &Config{
-		State:     evm.ethState.GetStateDB(),
+		State:     e.ethState.GetStateDB(),
 		EVMConfig: evmCfg,
 	}
 
 	runtimeCfg.Origin = address
 	runtimeCfg.GasLimit = 1000000
 
-	ret, gas, err := Call(common.BytesToAddress(contract), payload, runtimeCfg)
+	ret, gas, err := e.call(common.BytesToAddress(contract), payload, runtimeCfg)
 	if err != nil {
 		return ret, gas, err
 	}
@@ -90,8 +93,8 @@ func (evm *EVM) Call(address common.Address, contract, payload []byte) ([]byte, 
 	return ret, gas, nil
 }
 
-func (evm *EVM) Create(ethAddress common.Address, payload []byte) ([]byte, []byte, uint64, error) {
-	if evm.readonly {
+func (e *EVM) Create(ethAddress common.Address, payload []byte) ([]byte, []byte, uint64, error) {
+	if e.readonly {
 		return nil, nil, 0, errors.New("cannot create on readonly")
 	}
 
@@ -100,13 +103,13 @@ func (evm *EVM) Create(ethAddress common.Address, payload []byte) ([]byte, []byt
 
 	// create call cfg
 	runtimeCfg := &Config{
-		State:     evm.ethState.GetStateDB(),
+		State:     e.ethState.GetStateDB(),
 		EVMConfig: evmCfg,
 	}
 
 	runtimeCfg.Origin = ethAddress
 
-	ret, ethContractAddress, _, err := Create(payload, runtimeCfg)
+	ret, ethContractAddress, _, err := e.create(payload, runtimeCfg)
 	if err != nil {
 		return nil, nil, 0, err
 	}
@@ -114,22 +117,35 @@ func (evm *EVM) Create(ethAddress common.Address, payload []byte) ([]byte, []byt
 	return ret, ethContractAddress.Bytes(), 0, nil
 }
 
-func GetHashFn() vm.GetHashFunc {
+func (e *EVM) GetHashFn() vm.GetHashFunc {
 	return func(n uint64) common.Hash {
-		// TODO
-		return common.BytesToHash([]byte("hash"))
+		blockHash := e.blocks[n]
+		return common.BytesToHash(blockHash)
 	}
 }
 
-func TransferFn(st *state.BlockState) vm.TransferFunc {
+func (e *EVM) TransferFn() vm.TransferFunc {
 	return func(db vm.StateDB, sender, recipient common.Address, amount *big.Int) {
-		// TODO
+		if senderState := e.accounts[sender]; senderState != nil {
+			senderState.SubBalance(amount)
+		} else {
+			// TODO - get from state
+		}
+		if receipientState := e.accounts[recipient]; receipientState != nil {
+			receipientState.AddBalance(amount)
+		} else {
+			// TODO - get from state
+		}
 	}
 }
 
-func CanTransferFn(st *state.BlockState) vm.CanTransferFunc {
+func (e *EVM) CanTransferFn() vm.CanTransferFunc {
 	return func(sdb vm.StateDB, addr common.Address, amount *big.Int) bool {
-		// TODO
+		if state := e.accounts[addr]; state != nil {
+			return state.Balance().Cmp(amount) >= 0
+		} else {
+			// TODO - get from state
+		}
 		return false
 	}
 }

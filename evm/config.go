@@ -101,7 +101,7 @@ func setDefault(cfg *Config) {
 	}
 }
 
-func NewEnv(cfg *Config) *vm.EVM {
+func NewEnv(cfg *Config, evm *EVM) *vm.EVM {
 	txContext := vm.TxContext{
 		Origin:     cfg.Origin,
 		GasPrice:   cfg.GasPrice,
@@ -109,9 +109,9 @@ func NewEnv(cfg *Config) *vm.EVM {
 		BlobFeeCap: cfg.BlobFeeCap,
 	}
 	blockContext := vm.BlockContext{
-		CanTransfer: CanTransferFn(nil),
-		Transfer:    TransferFn(nil),
-		GetHash:     GetHashFn(),
+		CanTransfer: evm.CanTransferFn(),
+		Transfer:    evm.TransferFn(),
+		GetHash:     evm.GetHashFn(),
 		Coinbase:    cfg.Coinbase,
 		BlockNumber: cfg.BlockNumber,
 		Time:        cfg.Time,

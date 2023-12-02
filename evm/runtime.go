@@ -10,12 +10,12 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 )
 
-// Execute executes the code using the input as call data during the execution.
+// execute executes the code using the input as call data during the execution.
 // It returns the EVM's return value, the new state and an error if it failed.
 //
-// Execute sets up an in-memory, temporary, environment for the execution of
+// execute sets up an in-memory, temporary, environment for the execution of
 // the given code. It makes sure that it's restored to its original state afterwards.
-func Execute(code, input []byte, cfg *Config) ([]byte, *state.StateDB, error) {
+func (e *EVM) execute(code, input []byte, cfg *Config) ([]byte, *state.StateDB, error) {
 	if cfg == nil {
 		return nil, nil, errors.New("config is nil")
 	}
@@ -25,7 +25,7 @@ func Execute(code, input []byte, cfg *Config) ([]byte, *state.StateDB, error) {
 	}
 	var (
 		address = common.BytesToAddress([]byte("contract"))
-		vmenv   = NewEnv(cfg)
+		vmenv   = NewEnv(cfg, e)
 		sender  = vm.AccountRef(cfg.Origin)
 		rules   = cfg.ChainConfig.Rules(vmenv.Context.BlockNumber, vmenv.Context.Random != nil, vmenv.Context.Time)
 	)
@@ -47,13 +47,13 @@ func Execute(code, input []byte, cfg *Config) ([]byte, *state.StateDB, error) {
 	return ret, cfg.State, err
 }
 
-// Create executes the code using the EVM create method
-func Create(input []byte, cfg *Config) ([]byte, common.Address, uint64, error) {
+// create executes the code using the EVM create method
+func (e *EVM) create(input []byte, cfg *Config) ([]byte, common.Address, uint64, error) {
 	if cfg == nil || cfg.State == nil { // state always init outside
 		return nil, common.Address{}, 0, errors.New("config is nil")
 	}
 	var (
-		vmenv  = NewEnv(cfg)
+		vmenv  = NewEnv(cfg, e)
 		sender = vm.AccountRef(cfg.Origin)
 		rules  = cfg.ChainConfig.Rules(vmenv.Context.BlockNumber, vmenv.Context.Random != nil, vmenv.Context.Time)
 	)
@@ -71,18 +71,18 @@ func Create(input []byte, cfg *Config) ([]byte, common.Address, uint64, error) {
 	return code, address, leftOverGas, err
 }
 
-// Call executes the code given by the contract's address. It will return the
+// call executes the code given by the contract's address. It will return the
 // EVM's return value or an error if it failed.
 //
-// Call, unlike Execute, requires a config and also requires the State field to
+// call, unlike Execute, requires a config and also requires the State field to
 // be set.
-func Call(address common.Address, input []byte, cfg *Config) ([]byte, uint64, error) {
+func (e *EVM) call(address common.Address, input []byte, cfg *Config) ([]byte, uint64, error) {
 	if cfg == nil {
 		return nil, 0, errors.New("config is nil")
 	}
 
 	var (
-		vmenv   = NewEnv(cfg)
+		vmenv   = NewEnv(cfg, e)
 		sender  = cfg.State.GetOrNewStateObject(cfg.Origin)
 		statedb = cfg.State
 		rules   = cfg.ChainConfig.Rules(vmenv.Context.BlockNumber, vmenv.Context.Random != nil, vmenv.Context.Time)
