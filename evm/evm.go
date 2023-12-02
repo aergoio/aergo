@@ -2,8 +2,10 @@ package evm
 
 import (
 	"errors"
+	"math/big"
 
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/state/ethdb"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -27,7 +29,7 @@ func NewEVM(prevStateRoot []byte, ethState *ethdb.StateDB) *EVM {
 	}
 }
 
-func NewEVMCall(queryStateRoot []byte, ethState *ethdb.StateDB) *EVM {
+func NewEVMQuery(queryStateRoot []byte, ethState *ethdb.StateDB) *EVM {
 	return &EVM{
 		readonly:  true,
 		stateRoot: common.BytesToHash(queryStateRoot),
@@ -110,4 +112,24 @@ func (evm *EVM) Create(ethAddress common.Address, payload []byte) ([]byte, []byt
 	}
 
 	return ret, ethContractAddress.Bytes(), 0, nil
+}
+
+func GetHashFn() vm.GetHashFunc {
+	return func(n uint64) common.Hash {
+		// TODO
+		return common.BytesToHash([]byte("hash"))
+	}
+}
+
+func TransferFn(st *state.BlockState) vm.TransferFunc {
+	return func(db vm.StateDB, sender, recipient common.Address, amount *big.Int) {
+		// TODO
+	}
+}
+
+func CanTransferFn(st *state.BlockState) vm.CanTransferFunc {
+	return func(sdb vm.StateDB, addr common.Address, amount *big.Int) bool {
+		// TODO
+		return false
+	}
 }

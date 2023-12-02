@@ -869,7 +869,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
 		logger.Info().Msgf("evm query received for contract %s with payload %s", hex.EncodeToString(msg.Contract), hex.EncodeToString(msg.Queryinfo))
-		evmService := evm.NewEVMCall(cw.sdb.EvmRootHash, cw.sdb.OpenEvmStateDB(nil))
+		evmService := evm.NewEVMQuery(cw.sdb.EvmRootHash, cw.sdb.OpenEvmStateDB(nil))
 		res, _, err := evmService.Query(nil, msg.Contract, msg.Queryinfo)
 		context.Respond(message.GetEVMQueryRsp{Result: res, Err: err})
 	case *message.GetElected:

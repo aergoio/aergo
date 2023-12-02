@@ -1,40 +1,14 @@
 package evm
 
 import (
-	"math/big"
+	"errors"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/params"
 )
-
-// TODO : modify runtime config and functions to be compatible with aergo
-
-type Config struct {
-	ChainConfig *params.ChainConfig
-	Difficulty  *big.Int
-	Origin      common.Address
-	Coinbase    common.Address
-	BlockNumber *big.Int
-	Time        uint64
-	GasLimit    uint64
-	GasPrice    *big.Int
-	Value       *big.Int
-	Debug       bool
-	EVMConfig   vm.Config
-	BaseFee     *big.Int
-	BlobBaseFee *big.Int
-	BlobHashes  []common.Hash
-	BlobFeeCap  *big.Int
-	Random      *common.Hash
-
-	State     *state.StateDB
-	GetHashFn func(n uint64) common.Hash
-}
 
 // Execute executes the code using the input as call data during the execution.
 // It returns the EVM's return value, the new state and an error if it failed.
@@ -43,9 +17,8 @@ type Config struct {
 // the given code. It makes sure that it's restored to its original state afterwards.
 func Execute(code, input []byte, cfg *Config) ([]byte, *state.StateDB, error) {
 	if cfg == nil {
-		cfg = new(Config)
+		return nil, nil, errors.New("config is nil")
 	}
-	// setDefaults(cfg)
 
 	if cfg.State == nil {
 		cfg.State, _ = state.New(types.EmptyRootHash, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
@@ -76,13 +49,8 @@ func Execute(code, input []byte, cfg *Config) ([]byte, *state.StateDB, error) {
 
 // Create executes the code using the EVM create method
 func Create(input []byte, cfg *Config) ([]byte, common.Address, uint64, error) {
-	if cfg == nil {
-		cfg = new(Config)
-	}
-	// setDefaults(cfg)
-
-	if cfg.State == nil {
-		cfg.State, _ = state.New(types.EmptyRootHash, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
+	if cfg == nil || cfg.State == nil { // state always init outside
+		return nil, common.Address{}, 0, errors.New("config is nil")
 	}
 	var (
 		vmenv  = NewEnv(cfg)
@@ -109,7 +77,9 @@ func Create(input []byte, cfg *Config) ([]byte, common.Address, uint64, error) {
 // Call, unlike Execute, requires a config and also requires the State field to
 // be set.
 func Call(address common.Address, input []byte, cfg *Config) ([]byte, uint64, error) {
-	// setDefaults(cfg)
+	if cfg == nil {
+		return nil, 0, errors.New("config is nil")
+	}
 
 	var (
 		vmenv   = NewEnv(cfg)
@@ -131,28 +101,4 @@ func Call(address common.Address, input []byte, cfg *Config) ([]byte, uint64, er
 		cfg.Value,
 	)
 	return ret, leftOverGas, err
-}
-
-func NewEnv(cfg *Config) *vm.EVM {
-	txContext := vm.TxContext{
-		Origin:     cfg.Origin,
-		GasPrice:   cfg.GasPrice,
-		BlobHashes: cfg.BlobHashes,
-		BlobFeeCap: cfg.BlobFeeCap,
-	}
-	blockContext := vm.BlockContext{
-		CanTransfer: core.CanTransfer,
-		Transfer:    core.Transfer,
-		GetHash:     cfg.GetHashFn,
-		Coinbase:    cfg.Coinbase,
-		BlockNumber: cfg.BlockNumber,
-		Time:        cfg.Time,
-		Difficulty:  cfg.Difficulty,
-		GasLimit:    cfg.GasLimit,
-		BaseFee:     cfg.BaseFee,
-		BlobBaseFee: cfg.BlobBaseFee,
-		Random:      cfg.Random,
-	}
-
-	return vm.NewEVM(blockContext, txContext, cfg.State, cfg.ChainConfig, cfg.EVMConfig)
 }
