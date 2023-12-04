@@ -295,7 +295,7 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	types.InitGovernance(cs.ConsensusType(), cs.IsPublic())
 
 	//reset parameter of aergo.system
-	systemState, err := cs.SDB().GetSystemAccountState()
+	systemState, err := statedb.GetSystemAccountState(cs.SDB().GetStateDB())
 	if err != nil {
 		logger.Panic().Err(err).Msg("failed to read aergo.system state")
 	}
