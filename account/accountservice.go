@@ -63,7 +63,7 @@ func (as *AccountService) Statistics() *map[string]interface{} {
 	}
 }
 func (as *AccountService) resolveName(namedAddress []byte) ([]byte, error) {
-	scs, err := as.sdb.GetStateDB().GetNameAccountState()
+	scs, err := state.GetNameAccountState(as.sdb.GetStateDB())
 	if err != nil {
 		return nil, err
 	}

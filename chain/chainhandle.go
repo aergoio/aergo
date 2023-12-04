@@ -870,7 +870,7 @@ func adjustRv(ret string) string {
 	return ret
 }
 
-func resetAccount(account *state.V, fee *big.Int, nonce *uint64) error {
+func resetAccount(account *state.AccountState, fee *big.Int, nonce *uint64) error {
 	account.Reset()
 	if fee != nil {
 		if account.Balance().Cmp(fee) < 0 {
@@ -910,7 +910,7 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 		return err
 	}
 
-	sender, err := bs.GetAccountStateV(account)
+	sender, err := state.GetAccountState(account, bs.StateDB)
 	if err != nil {
 		return err
 	}
@@ -923,16 +923,16 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 	if recipient, err = name.Resolve(bs, txBody.Recipient, isQuirkTx); err != nil {
 		return err
 	}
-	var receiver *state.V
+	var receiver *state.AccountState
 	status := "SUCCESS"
 	if len(recipient) > 0 {
-		receiver, err = bs.GetAccountStateV(recipient)
+		receiver, err = state.GetAccountState(recipient, bs.StateDB)
 		if receiver != nil && txBody.Type == types.TxType_REDEPLOY {
 			status = "RECREATED"
 			receiver.SetRedeploy()
 		}
 	} else {
-		receiver, err = bs.CreateAccountStateV(contract.CreateContractID(txBody.Account, txBody.Nonce))
+		receiver, err = state.CreateAccountState(contract.CreateContractID(txBody.Account, txBody.Nonce), bs.StateDB)
 		status = "CREATED"
 	}
 	if err != nil {
@@ -959,7 +959,7 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 		}
 
 		var contractState *state.ContractState
-		contractState, err = bs.OpenContractState(receiver.AccountID(), receiver.State())
+		contractState, err = state.OpenContractState(receiver.AccountID(), receiver.State(), bs.StateDB)
 		if err != nil {
 			return err
 		}
@@ -1055,22 +1055,19 @@ func sendRewardCoinbase(bState *state.BlockState, coinbaseAccount []byte) error 
 		return nil
 	}
 
-	receiverID := types.ToAccountID(coinbaseAccount)
-	receiverState, err := bState.GetAccountState(receiverID)
+	// add bp reward to coinbase account
+	coinbaseAccountState, err := state.GetAccountState(coinbaseAccount, bState.StateDB)
 	if err != nil {
 		return err
 	}
-
-	receiverChange := types.State(*receiverState)
-	receiverChange.Balance = new(big.Int).Add(receiverChange.GetBalanceBigInt(), bpReward).Bytes()
-
-	err = bState.PutState(receiverID, &receiverChange)
+	coinbaseAccountState.AddBalance(bpReward)
+	err = coinbaseAccountState.PutState()
 	if err != nil {
 		return err
 	}
 
 	logger.Debug().Str("reward", bpReward.String()).
-		Str("newbalance", receiverChange.GetBalanceBigInt().String()).Msg("send reward to coinbase account")
+		Str("newbalance", coinbaseAccountState.Balance().String()).Msg("send reward to coinbase account")
 
 	return nil
 }

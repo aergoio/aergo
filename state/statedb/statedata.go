@@ -1,4 +1,4 @@
-package state
+package statedb
 
 import (
 	"github.com/aergoio/aergo-lib/db"
@@ -7,22 +7,22 @@ import (
 	"github.com/aergoio/aergo/v2/types"
 )
 
-func saveData(store db.DB, key []byte, data interface{}) error {
+func SaveData(store db.DB, key []byte, data interface{}) error {
 	if key == nil {
 		return errSaveData
 	}
 	var err error
 	var raw []byte
-	switch data.(type) {
+	switch msg := data.(type) {
 	case ([]byte):
-		raw = data.([]byte)
+		raw = msg
 	case proto.Message:
-		raw, err = proto.Encode(data.(proto.Message))
+		raw, err = proto.Encode(msg)
 		if err != nil {
 			return err
 		}
 	default:
-		raw, err = gob.Encode(data)
+		raw, err = gob.Encode(msg)
 		if err != nil {
 			return err
 		}
@@ -31,7 +31,7 @@ func saveData(store db.DB, key []byte, data interface{}) error {
 	return nil
 }
 
-func loadData(store db.DB, key []byte, data interface{}) error {
+func LoadData(store db.DB, key []byte, data interface{}) error {
 	if key == nil {
 		return errLoadData
 	}
@@ -41,13 +41,13 @@ func loadData(store db.DB, key []byte, data interface{}) error {
 		return nil
 	}
 	var err error
-	switch data.(type) {
+	switch msg := data.(type) {
 	case *[]byte:
-		*(data).(*[]byte) = raw
+		*msg = raw
 	case proto.Message:
-		err = proto.Decode(raw, data.(proto.Message))
+		err = proto.Decode(raw, msg)
 	default:
-		err = gob.Decode(raw, data)
+		err = gob.Decode(raw, msg)
 	}
 	return err
 }
@@ -57,7 +57,7 @@ func (states *StateDB) loadStateData(key []byte) (*types.State, error) {
 		return nil, errLoadStateData
 	}
 	data := &types.State{}
-	if err := loadData(states.store, key, data); err != nil {
+	if err := LoadData(states.Store, key, data); err != nil {
 		return nil, err
 	}
 	return data, nil

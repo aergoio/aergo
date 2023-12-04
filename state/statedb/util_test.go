@@ -1,4 +1,4 @@
-package state
+package statedb
 
 import (
 	"testing"

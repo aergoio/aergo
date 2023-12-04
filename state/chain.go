@@ -6,15 +6,21 @@ import (
 	"sync"
 
 	"github.com/aergoio/aergo-lib/db"
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/v2/internal/common"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
+)
+
+var (
+	logger = log.NewLogger(statedb.StateName)
 )
 
 // ChainStateDB manages statedb and additional informations about blocks like a state root hash
 type ChainStateDB struct {
 	sync.RWMutex
-	states   *StateDB
+	states   *statedb.StateDB
 	store    db.DB
 	testmode bool
 }
@@ -44,7 +50,7 @@ func (sdb *ChainStateDB) Init(dbType string, dataDir string, bestBlock *types.Bl
 	sdb.testmode = test
 	// init db
 	if sdb.store == nil {
-		dbPath := common.PathMkdirAll(dataDir, stateName)
+		dbPath := common.PathMkdirAll(dataDir, statedb.StateName)
 		sdb.store = db.NewDB(db.ImplType(dbType), dbPath)
 	}
 
@@ -55,7 +61,7 @@ func (sdb *ChainStateDB) Init(dbType string, dataDir string, bestBlock *types.Bl
 			sroot = bestBlock.GetHeader().GetBlocksRootHash()
 		}
 
-		sdb.states = NewStateDB(sdb.store, sroot, sdb.testmode)
+		sdb.states = statedb.NewStateDB(sdb.store, sroot, sdb.testmode)
 	}
 	return nil
 }
@@ -73,21 +79,21 @@ func (sdb *ChainStateDB) Close() error {
 }
 
 // GetStateDB returns statedb stores account states
-func (sdb *ChainStateDB) GetStateDB() *StateDB {
+func (sdb *ChainStateDB) GetStateDB() *statedb.StateDB {
 	return sdb.states
 }
 
 // GetSystemAccountState returns the state of the aergo system account.
 func (sdb *ChainStateDB) GetSystemAccountState() (*ContractState, error) {
-	return sdb.GetStateDB().GetSystemAccountState()
+	return GetSystemAccountState(sdb.GetStateDB())
 }
 
 // OpenNewStateDB returns new instance of statedb given state root hash
-func (sdb *ChainStateDB) OpenNewStateDB(root []byte) *StateDB {
-	return NewStateDB(sdb.store, root, sdb.testmode)
+func (sdb *ChainStateDB) OpenNewStateDB(root []byte) *statedb.StateDB {
+	return statedb.NewStateDB(sdb.store, root, sdb.testmode)
 }
 
-func (sdb *ChainStateDB) SetGenesis(genesis *types.Genesis, bpInit func(*StateDB, *types.Genesis) error) error {
+func (sdb *ChainStateDB) SetGenesis(genesis *types.Genesis, bpInit func(*statedb.StateDB, *types.Genesis) error) error {
 	block := genesis.Block()
 	stateDB := sdb.OpenNewStateDB(sdb.GetRoot())
 
@@ -102,7 +108,7 @@ func (sdb *ChainStateDB) SetGenesis(genesis *types.Genesis, bpInit func(*StateDB
 		}
 
 		aid := types.ToAccountID([]byte(types.AergoSystem))
-		scs, err := stateDB.GetSystemAccountState()
+		scs, err := GetSystemAccountState(stateDB)
 		if err != nil {
 			return err
 		}
@@ -113,10 +119,13 @@ func (sdb *ChainStateDB) SetGenesis(genesis *types.Genesis, bpInit func(*StateDB
 	}
 
 	for address, balance := range genesis.Balance {
-		bytes := types.ToAddress(address)
-		id := types.ToAccountID(bytes)
 		if v, ok := new(big.Int).SetString(balance, 10); ok {
-			if err := gbState.PutState(id, &types.State{Balance: v.Bytes()}); err != nil {
+			accountState, err := GetAccountState(types.ToAddress(address), gbState.StateDB)
+			if err != nil {
+				return err
+			}
+			accountState.AddBalance(v)
+			if err := accountState.PutState(); err != nil {
 				return err
 			}
 			genesis.AddBalance(v)

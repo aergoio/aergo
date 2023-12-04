@@ -13,6 +13,7 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -40,7 +41,7 @@ var (
 	}
 
 	vprChainStateDB     *state.ChainStateDB
-	vprStateDB          *state.StateDB
+	vprStateDB          *statedb.StateDB
 	initializedVprtTest bool
 )
 
@@ -83,7 +84,7 @@ func defaultVpr() *vpr {
 }
 
 func store(t *testing.T, s *state.ContractState) {
-	err := vprStateDB.StageContractState(s)
+	err := state.StageContractState(s, vprStateDB)
 	assert.NoError(t, err, "fail to stage")
 	err = vprStateDB.Update()
 	assert.NoError(t, err, "fail to update")
@@ -125,7 +126,7 @@ func initVprtTest(t *testing.T, initTable func()) {
 func initVprtTestWithSc(t *testing.T, initTable func(*state.ContractState)) {
 	initDB(t)
 
-	s, err := vprStateDB.GetSystemAccountState()
+	s, err := state.GetSystemAccountState(vprStateDB)
 	assert.NoError(t, err, "fail to open the system contract state")
 
 	initTable(s)
@@ -148,7 +149,7 @@ func getStateRoot() []byte {
 }
 
 func openSystemAccountWith(root []byte) *state.ContractState {
-	s, err := vprChainStateDB.OpenNewStateDB(root).GetSystemAccountState()
+	s, err := state.GetSystemAccountState(vprChainStateDB.OpenNewStateDB(root))
 	if err != nil {
 		return nil
 	}
@@ -172,7 +173,7 @@ func initRankTableRand(rankMax uint32) {
 }
 
 func openSystemAccount(t *testing.T) *state.ContractState {
-	s, err := vprStateDB.GetSystemAccountState()
+	s, err := state.GetSystemAccountState(vprStateDB)
 	assert.NoError(t, err, "fail to open the system contract state")
 	logger.Debug().Msgf(
 		"(after) state, contract: %s, %s\n",

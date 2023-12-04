@@ -4,20 +4,15 @@ import (
 	"math/big"
 
 	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/bluele/gcache"
 	"github.com/willf/bloom"
 )
 
-// BlockInfo contains BlockHash and StateRoot
-type BlockInfo struct {
-	BlockHash types.BlockID
-	StateRoot types.HashID
-}
-
 // BlockState contains BlockInfo and statedb for block
 type BlockState struct {
-	StateDB
+	*statedb.StateDB
 	BpReward      big.Int // final bp reward, increment when tx executes
 	receipts      types.Receipts
 	CCProposal    *consensus.ConfChangePropose
@@ -28,14 +23,6 @@ type BlockState struct {
 	timeoutTx types.Transaction
 	codeCache gcache.Cache
 	abiCache  gcache.Cache
-}
-
-// GetStateRoot return bytes of bi.StateRoot
-func (bi *BlockInfo) GetStateRoot() []byte {
-	if bi == nil {
-		return nil
-	}
-	return bi.StateRoot.Bytes()
 }
 
 type BlockStateOptFn func(s *BlockState)
@@ -53,9 +40,9 @@ func SetGasPrice(gasPrice *big.Int) BlockStateOptFn {
 }
 
 // NewBlockState create new blockState contains blockInfo, account states and undo states
-func NewBlockState(states *StateDB, options ...BlockStateOptFn) *BlockState {
+func NewBlockState(states *statedb.StateDB, options ...BlockStateOptFn) *BlockState {
 	b := &BlockState{
-		StateDB:   *states,
+		StateDB:   states,
 		codeCache: gcache.New(100).LRU().Build(),
 		abiCache:  gcache.New(100).LRU().Build(),
 	}
@@ -66,20 +53,20 @@ func NewBlockState(states *StateDB, options ...BlockStateOptFn) *BlockState {
 }
 
 type BlockSnapshot struct {
-	state   Snapshot
+	state   statedb.Snapshot
 	storage map[types.AccountID]int
 }
 
 func (bs *BlockState) Snapshot() BlockSnapshot {
 	result := BlockSnapshot{
 		state:   bs.StateDB.Snapshot(),
-		storage: bs.StateDB.cache.snapshot(),
+		storage: bs.StateDB.Cache.Snapshot(),
 	}
 	return result
 }
 
 func (bs *BlockState) Rollback(bSnap BlockSnapshot) error {
-	if err := bs.StateDB.cache.rollback(bSnap.storage); err != nil {
+	if err := bs.StateDB.Cache.Rollback(bSnap.storage); err != nil {
 		return err
 	}
 	return bs.StateDB.Rollback(bSnap.state)
