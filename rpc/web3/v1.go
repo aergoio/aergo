@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
@@ -22,52 +23,51 @@ import (
 type APIHandler func() (http.Handler, bool)
 
 type Web3APIv1 struct {
-	rpc     	*rpc.AergoRPCService
-	request 	*http.Request
+	rpc     *rpc.AergoRPCService
+	request *http.Request
 
-	handlerMap	map[string]map[string]APIHandler
+	handlerMap map[string]map[string]APIHandler
 }
 
-
 func (api *Web3APIv1) NewHandler() {
-    handlerGet := map[string]APIHandler{
-	"/getAccounts":						api.GetAccounts,
-	"/getState":						api.GetState,
-	"/getProof":						api.GetStateAndProof,
-	"/getNameInfo":						api.GetNameInfo,
-	"/getBalance":						api.GetBalance,
-	"/getBlock":						api.GetBlock,
-	"/getBlockNumber":					api.Blockchain,
-	"/getBlockBody":					api.GetBlockBody,
-	"/listBlockHeaders":				api.ListBlockHeaders,
-	"/getBlockMetadata":				api.GetBlockMetadata,
-	"/getTransaction":					api.GetTX,
-	"/getTransactionReceipt":			api.GetReceipt,
-	"/getBlockTransactionReceipts":		api.GetReceipts,
-	"/getBlockTX":						api.GetBlockTX,
-	"/call":							api.QueryContract,
-	"/getPastEvents":					api.ListEvents,
-	"/getABI":							api.GetABI,
-	"/queryContractState":				api.QueryContractState,
-	"/getBlockTransactionCount":		api.GetBlockTransactionCount,
-	"/getChainInfo":					api.GetChainInfo,
-	"/getConsensusInfo":				api.GetConsensusInfo,
-	"/getAccountVotes":					api.GetAccountVotes,
-	"/getNodeInfo":						api.NodeState,
-	"/getChainId":						api.GetPeers,
-	"/getServerInfo":					api.GetServerInfo,
-	"/getStaking":						api.GetStaking,
-	"/getVotes":						api.GetVotes,
-	"/metric":							api.Metric,
-	"/getEnterpriseConfig":				api.GetEnterpriseConfig,
-	"/getConfChangeProgress":			api.GetConfChangeProgress,
-	"/chainStat":						api.ChainStat,
+	handlerGet := map[string]APIHandler{
+		"/getAccounts":                 api.GetAccounts,
+		"/getState":                    api.GetState,
+		"/getProof":                    api.GetStateAndProof,
+		"/getNameInfo":                 api.GetNameInfo,
+		"/getBalance":                  api.GetBalance,
+		"/getBlock":                    api.GetBlock,
+		"/getBlockNumber":              api.Blockchain,
+		"/getBlockBody":                api.GetBlockBody,
+		"/listBlockHeaders":            api.ListBlockHeaders,
+		"/getBlockMetadata":            api.GetBlockMetadata,
+		"/getTransaction":              api.GetTX,
+		"/getTransactionReceipt":       api.GetReceipt,
+		"/getBlockTransactionReceipts": api.GetReceipts,
+		"/getBlockTX":                  api.GetBlockTX,
+		"/call":                        api.QueryContract,
+		"/getPastEvents":               api.ListEvents,
+		"/getABI":                      api.GetABI,
+		"/queryContractState":          api.QueryContractState,
+		"/getBlockTransactionCount":    api.GetBlockTransactionCount,
+		"/getChainInfo":                api.GetChainInfo,
+		"/getConsensusInfo":            api.GetConsensusInfo,
+		"/getAccountVotes":             api.GetAccountVotes,
+		"/getNodeInfo":                 api.NodeState,
+		"/getChainId":                  api.GetPeers,
+		"/getServerInfo":               api.GetServerInfo,
+		"/getStaking":                  api.GetStaking,
+		"/getVotes":                    api.GetVotes,
+		"/metric":                      api.Metric,
+		"/getEnterpriseConfig":         api.GetEnterpriseConfig,
+		"/getConfChangeProgress":       api.GetConfChangeProgress,
+		"/chainStat":                   api.ChainStat,
 	}
 
 	handlerPost := map[string]APIHandler{
-		"/sendSignedTransaction":      api.CommitTX,
+		"/sendSignedTransaction": api.CommitTX,
 	}
-    
+
 	api.handlerMap = make(map[string]map[string]APIHandler)
 	api.handlerMap[http.MethodGet] = handlerGet
 	api.handlerMap[http.MethodPost] = handlerPost
@@ -106,7 +106,7 @@ func (api *Web3APIv1) GetAccounts() (handler http.Handler, ok bool) {
 	}
 
 	output := jsonrpc.ConvAccounts(result)
-    return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
+	return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 }
 
 func (api *Web3APIv1) GetState() (handler http.Handler, ok bool) {
@@ -129,10 +129,10 @@ func (api *Web3APIv1) GetState() (handler http.Handler, ok bool) {
 	if err != nil {
 		return commonResponseHandler(&types.Empty{}, err), true
 	}
-	
+
 	output := jsonrpc.ConvState(result)
 	output.Account = account
-    return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
+	return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 }
 
 func (api *Web3APIv1) GetStateAndProof() (handler http.Handler, ok bool) {
@@ -164,10 +164,10 @@ func (api *Web3APIv1) GetStateAndProof() (handler http.Handler, ok bool) {
 	if err != nil {
 		return commonResponseHandler(&types.Empty{}, err), true
 	}
-	
+
 	output := jsonrpc.ConvStateAndPoof(result)
 	output.Account = account
-    return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
+	return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 }
 
 func (api *Web3APIv1) GetNameInfo() (handler http.Handler, ok bool) {
@@ -197,7 +197,7 @@ func (api *Web3APIv1) GetNameInfo() (handler http.Handler, ok bool) {
 	}
 
 	output := jsonrpc.ConvNameInfo(result)
-    return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
+	return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 }
 
 func (api *Web3APIv1) GetBalance() (handler http.Handler, ok bool) {
@@ -222,7 +222,7 @@ func (api *Web3APIv1) GetBalance() (handler http.Handler, ok bool) {
 	}
 
 	output := jsonrpc.ConvBalance(result)
-    return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
+	return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 }
 
 func (api *Web3APIv1) GetBlock() (handler http.Handler, ok bool) {
@@ -298,7 +298,7 @@ func (api *Web3APIv1) GetBlockTransactionCount() (handler http.Handler, ok bool)
 	}
 
 	output := jsonrpc.ConvBlockTransactionCount(result)
-    return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
+	return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 }
 
 func (api *Web3APIv1) Blockchain() (handler http.Handler, ok bool) {
@@ -327,7 +327,7 @@ func (api *Web3APIv1) Blockchain() (handler http.Handler, ok bool) {
 	}
 
 	output := jsonrpc.ConvBlockchainStatus(result)
-	return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true	
+	return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 }
 
 func (api *Web3APIv1) GetBlockBody() (handler http.Handler, ok bool) {
@@ -529,7 +529,7 @@ func (api *Web3APIv1) ListBlockMetadata() (handler http.Handler, ok bool) {
 	}
 
 	output := jsonrpc.ConvListBlockMetadata(result)
-	return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true	
+	return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 }
 
 func (api *Web3APIv1) GetChainInfo() (handler http.Handler, ok bool) {
@@ -649,7 +649,7 @@ func (api *Web3APIv1) GetTX() (handler http.Handler, ok bool) {
 	result, err := api.rpc.GetTX(api.request.Context(), request)
 	if err == nil {
 		output := jsonrpc.ConvTx(result, jsonrpc.Base58)
-		return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true		
+		return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 	} else {
 		resultblock, err := api.rpc.GetBlockTX(api.request.Context(), request)
 
@@ -688,7 +688,7 @@ func (api *Web3APIv1) GetBlockTX() (handler http.Handler, ok bool) {
 			return commonResponseHandler(&types.Empty{}, err), true
 		}
 		output := jsonrpc.ConvTxInBlock(outputblock, jsonrpc.Base58)
-		return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true		
+		return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 	}
 }
 
@@ -718,7 +718,7 @@ func (api *Web3APIv1) QueryContract() (handler http.Handler, ok bool) {
 
 	if query != "" {
 		err = json.Unmarshal([]byte(query), &ci.Args)
-		
+
 		if err != nil {
 			return commonResponseHandler(&types.Empty{}, err), true
 		}
@@ -733,11 +733,11 @@ func (api *Web3APIv1) QueryContract() (handler http.Handler, ok bool) {
 
 	result, err := api.rpc.QueryContract(api.request.Context(), request)
 	if err != nil {
-        return commonResponseHandler(&types.Empty{}, err), true
-    }
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
 
 	output := jsonrpc.ConvQueryContract(result)
-    return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
+	return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 }
 
 func (api *Web3APIv1) ListEvents() (handler http.Handler, ok bool) {
@@ -908,7 +908,7 @@ func (api *Web3APIv1) QueryContractState() (handler http.Handler, ok bool) {
 	}
 
 	output := jsonrpc.ConvQueryContractState(result)
-	return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true	
+	return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 }
 
 func (api *Web3APIv1) NodeState() (handler http.Handler, ok bool) {
@@ -937,11 +937,11 @@ func (api *Web3APIv1) NodeState() (handler http.Handler, ok bool) {
 
 	result, err := api.rpc.NodeState(api.request.Context(), request)
 	if err != nil {
-        return commonResponseHandler(&types.Empty{}, err), true
-    }
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
 
 	output := jsonrpc.ConvNodeState(result)
-    return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
+	return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 }
 
 func (api *Web3APIv1) GetPeers() (handler http.Handler, ok bool) {
@@ -989,14 +989,14 @@ func (api *Web3APIv1) GetServerInfo() (handler http.Handler, ok bool) {
 	if len(keys) > 0 {
 		request.Key = keys
 	}
-	
+
 	result, err := api.rpc.GetServerInfo(api.request.Context(), request)
 	if err != nil {
 		return commonResponseHandler(&types.Empty{}, err), true
 	}
 
 	output := jsonrpc.ConvServerInfo(result)
-    return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
+	return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 }
 
 func (api *Web3APIv1) GetStaking() (handler http.Handler, ok bool) {
@@ -1016,12 +1016,12 @@ func (api *Web3APIv1) GetStaking() (handler http.Handler, ok bool) {
 	}
 
 	result, err := api.rpc.GetStaking(api.request.Context(), request)
-    if err != nil {
-        return commonResponseHandler(&types.Empty{}, err), true
-    }
+	if err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
 
-    output := jsonrpc.ConvStaking(result)
-    return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
+	output := jsonrpc.ConvStaking(result)
+	return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 }
 
 func (api *Web3APIv1) GetVotes() (handler http.Handler, ok bool) {
@@ -1047,8 +1047,8 @@ func (api *Web3APIv1) GetVotes() (handler http.Handler, ok bool) {
 		return commonResponseHandler(&types.Empty{}, err), true
 	}
 
-    output := jsonrpc.ConvVotes(result)
-    return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
+	output := jsonrpc.ConvVotes(result)
+	return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 }
 
 func (api *Web3APIv1) Metric() (handler http.Handler, ok bool) {
@@ -1070,7 +1070,7 @@ func (api *Web3APIv1) Metric() (handler http.Handler, ok bool) {
 	}
 
 	res := jsonrpc.ConvMetrics(result)
-	return stringResponseHandler(jsonrpc.MarshalJSON(res), nil), true	
+	return stringResponseHandler(jsonrpc.MarshalJSON(res), nil), true
 }
 
 func (api *Web3APIv1) GetEnterpriseConfig() (handler http.Handler, ok bool) {
@@ -1092,7 +1092,7 @@ func (api *Web3APIv1) GetEnterpriseConfig() (handler http.Handler, ok bool) {
 	}
 
 	output := jsonrpc.ConvEnterpriseConfig(result)
-    return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
+	return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 }
 
 func (api *Web3APIv1) GetConfChangeProgress() (handler http.Handler, ok bool) {
@@ -1120,12 +1120,12 @@ func (api *Web3APIv1) GetConfChangeProgress() (handler http.Handler, ok bool) {
 	binary.LittleEndian.PutUint64(b, block.BlockNo())
 
 	result, err := api.rpc.GetConfChangeProgress(api.request.Context(), &types.SingleBytes{Value: b})
-    if err != nil {
-        return commonResponseHandler(&types.Empty{}, err), true
-    }
+	if err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
 
-    output := jsonrpc.ConvConfChangeProgress(result)
-    return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
+	output := jsonrpc.ConvConfChangeProgress(result)
+	return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 }
 
 func (api *Web3APIv1) CommitTX() (handler http.Handler, ok bool) {
@@ -1139,11 +1139,15 @@ func (api *Web3APIv1) CommitTX() (handler http.Handler, ok bool) {
 		return commonResponseHandler(&types.Empty{}, err), true
 	}
 
-	result, err := api.rpc.CommitTX(api.request.Context(), &types.TxList{Txs: txs})
-    if err != nil {
-        return commonResponseHandler(&types.Empty{}, err), true
-    }
+	if len(txs) > 0 && txs[0].Body.Type == types.TxType_DEPLOY {
+		return commonResponseHandler(&types.Empty{}, errors.New("Feature not supported yet")), true
+	}
 
-    output := jsonrpc.ConvCommitResultList(result)
-    return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
+	result, err := api.rpc.CommitTX(api.request.Context(), &types.TxList{Txs: txs})
+	if err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+
+	output := jsonrpc.ConvCommitResultList(result)
+	return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 }
