@@ -72,7 +72,7 @@ func getOnlyContractState(ctx *vmContext, id []byte) (*state.ContractState, erro
 type recoveryEntry struct {
 	seq           int
 	amount        *big.Int
-	senderState   *types.State
+	senderState   *state.AccountState
 	senderNonce   uint64
 	callState     *callState
 	onlySend      bool
@@ -87,7 +87,7 @@ func (re *recoveryEntry) recovery(bs *state.BlockState) error {
 	cs := re.callState
 	if re.amount.Cmp(&zero) > 0 {
 		if re.senderState != nil {
-			re.senderState.Balance = new(big.Int).Add(re.senderState.GetBalanceBigInt(), re.amount).Bytes()
+			re.senderState.AddBalance(re.amount)
 		}
 		if cs != nil {
 			cs.accState.SubBalance(re.amount)
@@ -97,7 +97,7 @@ func (re *recoveryEntry) recovery(bs *state.BlockState) error {
 		return nil
 	}
 	if re.senderState != nil {
-		re.senderState.Nonce = re.senderNonce
+		re.senderState.SetNonce(re.senderNonce)
 	}
 
 	if cs == nil {
@@ -133,7 +133,7 @@ func (re *recoveryEntry) recovery(bs *state.BlockState) error {
 	return nil
 }
 
-func setRecoveryPoint(aid types.AccountID, ctx *vmContext, senderState *types.State,
+func setRecoveryPoint(aid types.AccountID, ctx *vmContext, senderState *state.AccountState,
 	cs *callState, amount *big.Int, isSend, isDeploy bool) (int, error) {
 	var seq int
 	prev := ctx.lastRecoveryEntry
@@ -142,11 +142,15 @@ func setRecoveryPoint(aid types.AccountID, ctx *vmContext, senderState *types.St
 	} else {
 		seq = 1
 	}
+	var nonce uint64
+	if senderState != nil {
+		nonce = senderState.Nonce()
+	}
 	re := &recoveryEntry{
 		seq,
 		amount,
 		senderState,
-		senderState.GetNonce(),
+		nonce,
 		cs,
 		isSend,
 		isDeploy,

@@ -270,7 +270,7 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 		}
 	}
 
-	seq, err := setRecoveryPoint(aid, ctx, senderState.State(), cs, amountBig, false, false)
+	seq, err := setRecoveryPoint(aid, ctx, senderState, cs, amountBig, false, false)
 	if ctx.traceFile != nil {
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[CALL Contract %v(%v) %v]\n",
 			contractAddress, aid.String(), fnameStr))
@@ -508,7 +508,7 @@ func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char)
 		}
 
 		// create a recovery point
-		seq, err := setRecoveryPoint(aid, ctx, senderState.State(), cs, amountBig, false, false)
+		seq, err := setRecoveryPoint(aid, ctx, senderState, cs, amountBig, false, false)
 		if err != nil {
 			return C.CString("[System.LuaSendAmount] database error: " + err.Error())
 		}
@@ -574,7 +574,7 @@ func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char)
 
 	// update the recovery point
 	if ctx.lastRecoveryEntry != nil {
-		_, _ = setRecoveryPoint(aid, ctx, senderState.State(), cs, amountBig, true, false)
+		_, _ = setRecoveryPoint(aid, ctx, senderState, cs, amountBig, true, false)
 	}
 
 	// log some info
@@ -1115,7 +1115,7 @@ func luaDeployContract(
 	}
 
 	// create a recovery point
-	seq, err := setRecoveryPoint(newContract.AccountID(), ctx, senderState.State(), cs, amountBig, false, true)
+	seq, err := setRecoveryPoint(newContract.AccountID(), ctx, senderState, cs, amountBig, false, true)
 	if err != nil {
 		return -1, C.CString("[System.LuaDeployContract] DB err:" + err.Error())
 	}
@@ -1341,7 +1341,7 @@ func luaGovernance(L *LState, service C.int, gType C.char, arg *C.char) *C.char 
 		return C.CString("[Contract.LuaGovernance] error: " + err.Error())
 	}
 
-	seq, err := setRecoveryPoint(aid, ctx, senderState.State(), scsState, zeroBig, false, false)
+	seq, err := setRecoveryPoint(aid, ctx, senderState, scsState, zeroBig, false, false)
 	if err != nil {
 		return C.CString("[Contract.LuaGovernance] database error: " + err.Error())
 	}
@@ -1367,7 +1367,7 @@ func luaGovernance(L *LState, service C.int, gType C.char, arg *C.char) *C.char 
 
 	if ctx.lastRecoveryEntry != nil {
 		if gType == 'S' {
-			seq, _ = setRecoveryPoint(aid, ctx, senderState.State(), scsState, amountBig, true, false)
+			seq, _ = setRecoveryPoint(aid, ctx, senderState, scsState, amountBig, true, false)
 			if ctx.traceFile != nil {
 				_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[GOVERNANCE]aid(%s)\n", aid.String()))
 				_, _ = ctx.traceFile.WriteString(fmt.Sprintf("snapshot set %d\n", seq))
@@ -1376,7 +1376,7 @@ func luaGovernance(L *LState, service C.int, gType C.char, arg *C.char) *C.char 
 					senderState.Balance().String(), receiverState.Balance().String()))
 			}
 		} else if gType == 'U' {
-			seq, _ = setRecoveryPoint(aid, ctx, receiverState.State(), ctx.curContract.callState, amountBig, true, false)
+			seq, _ = setRecoveryPoint(aid, ctx, receiverState, ctx.curContract.callState, amountBig, true, false)
 			if ctx.traceFile != nil {
 				_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[GOVERNANCE]aid(%s)\n", aid.String()))
 				_, _ = ctx.traceFile.WriteString(fmt.Sprintf("snapshot set %d\n", seq))
