@@ -196,3 +196,15 @@ func InitAccountState(id []byte, sdb *statedb.StateDB, stOld, stNew *types.State
 		newState: stNew,
 	}
 }
+
+func SendBalance(sender, receiver *AccountState, amount *big.Int) error {
+	if sender == receiver {
+		return nil
+	}
+	if sender.Balance().Cmp(amount) < 0 {
+		return fmt.Errorf("insufficient balance")
+	}
+	sender.SubBalance(amount)
+	receiver.AddBalance(amount)
+	return nil
+}

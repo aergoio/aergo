@@ -134,10 +134,11 @@ func InitContext(numCtx int) {
 
 func NewVmContext(execCtx context.Context, blockState *state.BlockState, cdb ChainAccessor, sender, reciever *state.AccountState, contractState *state.ContractState, senderID, txHash []byte, bi *types.BlockHeaderInfo, node string, confirmed, query bool, rp uint64, service int, amount *big.Int, gasLimit uint64, feeDelegation bool) *vmContext {
 
-	cs := &callState{ctrState: contractState, curState: reciever.State()}
+	csReceiver := &callState{ctrState: contractState, accState: reciever}
+	csSender := &callState{accState: sender}
 
 	ctx := &vmContext{
-		curContract:     newContractInfo(cs, senderID, reciever.ID(), rp, amount),
+		curContract:     newContractInfo(csReceiver, senderID, reciever.ID(), rp, amount),
 		bs:              blockState,
 		cdb:             cdb,
 		origin:          senderID,
@@ -152,10 +153,12 @@ func NewVmContext(execCtx context.Context, blockState *state.BlockState, cdb Cha
 		isFeeDelegation: feeDelegation,
 		execCtx:         execCtx,
 	}
+
+	// init call state
 	ctx.callState = make(map[types.AccountID]*callState)
-	ctx.callState[reciever.AccountID()] = cs
+	ctx.callState[reciever.AccountID()] = csReceiver
 	if sender != nil {
-		ctx.callState[sender.AccountID()] = &callState{curState: sender.State()}
+		ctx.callState[sender.AccountID()] = csSender
 	}
 	if TraceBlockNo != 0 && TraceBlockNo == ctx.blockInfo.No {
 		ctx.traceFile = getTraceFile(ctx.blockInfo.No, txHash)
@@ -171,7 +174,11 @@ func NewVmContextQuery(
 	contractState *state.ContractState,
 	rp uint64,
 ) (*vmContext, error) {
-	cs := &callState{ctrState: contractState, curState: contractState.State}
+	cs := &callState{
+		ctrState: contractState,
+		accState: state.InitAccountState(contractState.GetID(), blockState.StateDB, contractState.State, contractState.State),
+	}
+
 	bb, err := cdb.GetBestBlock()
 	if err != nil {
 		return nil, err
@@ -608,7 +615,7 @@ func (ce *executor) commitCalledContract() error {
 	rootContract := ctx.curContract.callState.ctrState
 
 	var err error
-	for k, v := range ctx.callState {
+	for _, v := range ctx.callState {
 		if v.tx != nil {
 			err = v.tx.release()
 			if err != nil {
@@ -625,10 +632,7 @@ func (ce *executor) commitCalledContract() error {
 			}
 		}
 		/* For Sender */
-		if v.prevState == nil {
-			continue
-		}
-		err = bs.PutState(k, v.curState)
+		err = v.accState.PutState()
 		if err != nil {
 			return newDbSystemError(err)
 		}
@@ -638,7 +642,7 @@ func (ce *executor) commitCalledContract() error {
 		_, _ = ce.ctx.traceFile.WriteString("[Put State Balance]\n")
 		for k, v := range ctx.callState {
 			_, _ = ce.ctx.traceFile.WriteString(fmt.Sprintf("%s : nonce=%d ammount=%s\n",
-				k.String(), v.curState.GetNonce(), v.curState.GetBalanceBigInt().String()))
+				k.String(), v.accState.Nonce(), v.accState.Balance().String()))
 		}
 	}
 
@@ -653,11 +657,7 @@ func (ce *executor) rollbackToSavepoint() error {
 	}
 
 	var err error
-	for id, v := range ctx.callState {
-		if v.prevState != nil && len(v.prevState.GetCodeHash()) == 0 &&
-			len(v.curState.GetCodeHash()) != 0 {
-			ctx.bs.RemoveCache(id)
-		}
+	for _, v := range ctx.callState {
 		if v.tx == nil {
 			continue
 		}
@@ -889,8 +889,8 @@ func PreCall(
 	ctx.bs = bs
 	cs := ctx.curContract.callState
 	cs.ctrState = contractState
-	cs.curState = contractState.State
-	ctx.callState[sender.AccountID()] = &callState{curState: sender.State()}
+	cs.accState = state.InitAccountState(contractState.GetID(), bs.StateDB, contractState.State, contractState.State)
+	ctx.callState[sender.AccountID()] = &callState{accState: sender}
 
 	ctx.curContract.rp = rp
 

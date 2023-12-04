@@ -12,10 +12,9 @@ import (
 )
 
 type callState struct {
-	ctrState  *state.ContractState
-	prevState *types.State
-	curState  *types.State
-	tx        sqlTx
+	ctrState *state.ContractState
+	accState *state.AccountState
+	tx       sqlTx
 }
 
 func getCallState(ctx *vmContext, id []byte) (*callState, error) {
@@ -23,14 +22,11 @@ func getCallState(ctx *vmContext, id []byte) (*callState, error) {
 	cs := ctx.callState[aid]
 	if cs == nil {
 		bs := ctx.bs
-
-		prevState, err := bs.GetAccountState(aid)
+		accState, err := state.GetAccountState(id, bs.StateDB)
 		if err != nil {
 			return nil, err
 		}
-
-		curState := prevState.Clone()
-		cs = &callState{prevState: prevState, curState: curState}
+		cs = &callState{accState: accState}
 		ctx.callState[aid] = cs
 	}
 	return cs, nil
@@ -42,7 +38,7 @@ func getCtrState(ctx *vmContext, id []byte) (*callState, error) {
 		return nil, err
 	}
 	if cs.ctrState == nil {
-		cs.ctrState, err = state.OpenContractState(id, cs.curState, ctx.bs.StateDB)
+		cs.ctrState, err = state.OpenContractState(id, cs.accState.State(), ctx.bs.StateDB)
 	}
 	return cs, err
 }
@@ -94,7 +90,7 @@ func (re *recoveryEntry) recovery(bs *state.BlockState) error {
 			re.senderState.Balance = new(big.Int).Add(re.senderState.GetBalanceBigInt(), re.amount).Bytes()
 		}
 		if cs != nil {
-			cs.curState.Balance = new(big.Int).Sub(cs.curState.GetBalanceBigInt(), re.amount).Bytes()
+			cs.accState.SubBalance(re.amount)
 		}
 	}
 	if re.onlySend {
@@ -135,6 +131,44 @@ func (re *recoveryEntry) recovery(bs *state.BlockState) error {
 		}
 	}
 	return nil
+}
+
+func setRecoveryPoint(aid types.AccountID, ctx *vmContext, senderState *types.State,
+	cs *callState, amount *big.Int, isSend, isDeploy bool) (int, error) {
+	var seq int
+	prev := ctx.lastRecoveryEntry
+	if prev != nil {
+		seq = prev.seq + 1
+	} else {
+		seq = 1
+	}
+	re := &recoveryEntry{
+		seq,
+		amount,
+		senderState,
+		senderState.GetNonce(),
+		cs,
+		isSend,
+		isDeploy,
+		nil,
+		-1,
+		prev,
+	}
+	ctx.lastRecoveryEntry = re
+	if isSend {
+		return seq, nil
+	}
+	re.stateRevision = cs.ctrState.Snapshot()
+	tx := cs.tx
+	if tx != nil {
+		saveName := fmt.Sprintf("%s_%p", aid.String(), &re)
+		err := tx.subSavepoint(saveName)
+		if err != nil {
+			return seq, err
+		}
+		re.sqlSaveName = &saveName
+	}
+	return seq, nil
 }
 
 func getTraceFile(blkno uint64, tx []byte) *os.File {
