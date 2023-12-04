@@ -140,16 +140,16 @@ func ParseTxBody(tb *InOutTxBody) (msg *types.TxBody, err error) {
 		}
 	}
 
-	if tb.PayloadJson.Name != "" {		
+	if tb.PayloadJson.Name != "" {
 		payload, err := json.Marshal(tb.PayloadJson)
 
 		if err != nil {
 			return nil, err
-		}else{
+		} else {
 			msg.Payload = payload
 		}
 	}
-	
+
 	msg.GasLimit = tb.GasLimit
 	if tb.GasPrice != "" {
 		price, err := ParseUnit(tb.GasPrice)
@@ -175,22 +175,22 @@ func ParseTxBody(tb *InOutTxBody) (msg *types.TxBody, err error) {
 }
 
 type InOutPayload struct {
-	Name string       	`json:"name,omitempty"`
-	Arg  []interface{} 	`json:"arg,omitempty"`
+	Name string        `json:"name,omitempty"`
+	Arg  []interface{} `json:"arg,omitempty"`
 }
 
 type InOutTxBody struct {
-	Nonce       uint64       	`json:"nonce,omitempty"`
-	Account     string       	`json:"account,omitempty"`
-	Recipient   string       	`json:"recipient,omitempty"`
-	Amount      string      	`json:"amount,omitempty"`
-	Payload     string       	`json:"payload,omitempty"`
-	PayloadJson	types.CallInfo  `json:"payloadJson,omitempty"`
-	GasLimit    uint64       	`json:"gasLimit,omitempty"`
-	GasPrice    string       	`json:"gasPrice,omitempty"`
-	Type        types.TxType 	`json:"type,omitempty"`
-	ChainIdHash string       	`json:"chainIdHash,omitempty"`
-	Sign        string       	`json:"sign,omitempty"`
+	Nonce       uint64         `json:"nonce,omitempty"`
+	Account     string         `json:"account,omitempty"`
+	Recipient   string         `json:"recipient,omitempty"`
+	Amount      string         `json:"amount,omitempty"`
+	Payload     string         `json:"payload,omitempty"`
+	PayloadJson types.CallInfo `json:"payloadJson,omitempty"`
+	GasLimit    uint64         `json:"gasLimit,omitempty"`
+	GasPrice    string         `json:"gasPrice,omitempty"`
+	Type        types.TxType   `json:"type,omitempty"`
+	ChainIdHash string         `json:"chainIdHash,omitempty"`
+	Sign        string         `json:"sign,omitempty"`
 }
 
 func (b *InOutTxBody) String() string {
@@ -210,8 +210,8 @@ func ConvTxInBlock(msg *types.TxInBlock, payloadType EncodingType) *InOutTxInBlo
 }
 
 type InOutTxInBlock struct {
-	TxIdx InOutTxIdx 	`json:"txIdx"`
-	Tx    InOutTx		`json:"tx"`
+	TxIdx InOutTxIdx `json:"txIdx"`
+	Tx    InOutTx    `json:"tx"`
 }
 
 func ConvTxIdx(msg *types.TxIdx) *InOutTxIdx {

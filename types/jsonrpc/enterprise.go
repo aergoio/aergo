@@ -78,14 +78,14 @@ func ConvEnterpriseConfig(msg *types.EnterpriseConfig) *InOutEnterpriseConfig {
 }
 
 type InOutEnterpriseConfig struct {
-	Key    string			`json:"key,omitempty"`
-	On     bool				`json:"on,omitempty"`
-	Values []string			`json:"values,omitempty"`	
+	Key    string   `json:"key,omitempty"`
+	On     bool     `json:"on,omitempty"`
+	Values []string `json:"values,omitempty"`
 }
 
 func ConvConfChangeProgress(msg *types.ConfChangeProgress) *InOutConfChangeProgress {
 	ccp := &InOutConfChangeProgress{}
-	
+
 	ccp.State = int32(msg.GetState())
 	ccp.Err = msg.GetErr()
 	ccp.Members = make([]*InOutMemberAttr, len(msg.Members))
@@ -97,7 +97,7 @@ func ConvConfChangeProgress(msg *types.ConfChangeProgress) *InOutConfChangeProgr
 }
 
 type InOutConfChangeProgress struct {
-	State   int32				 	`json:"state,omitempty"`
-	Err     string          		`json:"err,omitempty"`
-	Members []*InOutMemberAttr   	`json:"members,omitempty"`
+	State   int32              `json:"state,omitempty"`
+	Err     string             `json:"err,omitempty"`
+	Members []*InOutMemberAttr `json:"members,omitempty"`
 }

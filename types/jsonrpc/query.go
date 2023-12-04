@@ -11,9 +11,8 @@ func ConvQueryContract(msg *types.SingleBytes) *InOutQueryContract {
 }
 
 type InOutQueryContract struct {
-	Result string 		`json:"result"`
+	Result string `json:"result"`
 }
-
 
 func ConvContractVarProof(msg *types.ContractVarProof) *InOutContractVarProof {
 	ap := &InOutContractVarProof{}
@@ -26,10 +25,10 @@ func ConvContractVarProof(msg *types.ContractVarProof) *InOutContractVarProof {
 }
 
 type InOutContractVarProof struct {
-	Value     			string  `json:"value,omitempty"`
-	Included			bool	`json:"included,omitempty"`	
-	MerkleProofLength	int 	`json:"merkleprooflength,omitempty"`	
-	Height				uint32 	`json:"height,omitempty"`	
+	Value             string `json:"value,omitempty"`
+	Included          bool   `json:"included,omitempty"`
+	MerkleProofLength int    `json:"merkleprooflength,omitempty"`
+	Height            uint32 `json:"height,omitempty"`
 }
 
 func ConvQueryContractState(msg *types.StateQueryProof) *InOutQueryContractState {
@@ -48,4 +47,3 @@ type InOutQueryContractState struct {
 	ContractProof *InOutStateAndPoof       `json:"contractProof,omitempty"`
 	VarProofs     []*InOutContractVarProof `json:"varProofs,omitempty"`
 }
-

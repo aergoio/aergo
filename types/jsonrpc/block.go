@@ -120,7 +120,7 @@ func ConvBlockHeaderList(msg *types.BlockHeaderList) *InOutBlockHeaderList {
 }
 
 type InOutBlockHeaderList struct {
-	Blocks []*InOutBlock 	`json:"blocks"`
+	Blocks []*InOutBlock `json:"blocks"`
 }
 
 func ConvBlockBodyPaged(msg *types.BlockBodyPaged) *InOutBlockBodyPaged {
@@ -138,9 +138,9 @@ func ConvBlockBodyPaged(msg *types.BlockBodyPaged) *InOutBlockBodyPaged {
 }
 
 type InOutBlockBodyPaged struct {
-	Total  uint32     `json:"total,omitempty"`
-	Offset uint32     `json:"offset,omitempty"`
-	Size   uint32     `json:"size,omitempty"`
+	Total  uint32          `json:"total,omitempty"`
+	Offset uint32          `json:"offset,omitempty"`
+	Size   uint32          `json:"size,omitempty"`
 	Body   *InOutBlockBody `json:"body,omitempty"`
 }
 
@@ -159,10 +159,10 @@ func ConvBlockMetadata(msg *types.BlockMetadata) *InOutBlockMetadata {
 }
 
 type InOutBlockMetadata struct {
-	Hash   	string           	`json:"hash,omitempty"`
-	Header  *InOutBlockHeader 	`json:"header,omitempty"`
-	Txcount int32        		`json:"txcount,omitempty"`
-	Size    int64        		`json:"size,omitempty"`
+	Hash    string            `json:"hash,omitempty"`
+	Header  *InOutBlockHeader `json:"header,omitempty"`
+	Txcount int32             `json:"txcount,omitempty"`
+	Size    int64             `json:"size,omitempty"`
 }
 
 func ConvListBlockMetadata(msg *types.BlockMetadataList) *InOutBlockMetadataList {
@@ -199,6 +199,5 @@ func ConvBlockTransactionCount(msg *types.Block) *InOutBlockTransactionCount {
 }
 
 type InOutBlockTransactionCount struct {
-	Count   int 	`json:"count,omitempty"`
-	
+	Count int `json:"count,omitempty"`
 }

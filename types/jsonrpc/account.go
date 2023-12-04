@@ -9,11 +9,11 @@ import (
 func ConvAccount(msg *types.Account) *InOutAccount {
 	if msg == nil {
 		return nil
-	}	
+	}
 
 	a := &InOutAccount{}
 	a.Address = types.EncodeAddress(msg.GetAddress())
-	
+
 	return a
 }
 
@@ -31,12 +31,12 @@ func ConvAccounts(msg *types.AccountList) *InOutAccountList {
 	for i, account := range msg.Accounts {
 		al.Accounts[i] = ConvAccount(account)
 	}
-	
+
 	return al
 }
 
 type InOutAccountList struct {
-	Accounts []*InOutAccount	`json:"accounts,omitempty"`
+	Accounts []*InOutAccount `json:"accounts,omitempty"`
 }
 
 func ConvState(msg *types.State) *InOutState {
@@ -47,14 +47,14 @@ func ConvState(msg *types.State) *InOutState {
 	s := &InOutState{}
 	s.Nonce = msg.GetNonce()
 	s.Balance = new(big.Int).SetBytes(msg.GetBalance()).String()
-		
+
 	return s
 }
 
 type InOutState struct {
-	Nonce            uint64 `json:"nonce"`
-	Balance          string `json:"balance"`
-	Account          string `json:"account,omitempty"`	
+	Nonce   uint64 `json:"nonce"`
+	Balance string `json:"balance"`
+	Account string `json:"account,omitempty"`
 }
 
 func ConvStateAndPoof(msg *types.AccountProof) *InOutStateAndPoof {
@@ -73,14 +73,13 @@ func ConvStateAndPoof(msg *types.AccountProof) *InOutStateAndPoof {
 }
 
 type InOutStateAndPoof struct {
-	Nonce           	uint64 	`json:"nonce"`
-	Balance         	string 	`json:"balance"`
-	Account          	string 	`json:"account,omitempty"`	
-	Included			bool	`json:"included,omitempty"`	
-	MerkleProofLength	int 	`json:"merkle proof length,omitempty"`	
-	Height				uint32 	`json:"height,omitempty"`	
+	Nonce             uint64 `json:"nonce"`
+	Balance           string `json:"balance"`
+	Account           string `json:"account,omitempty"`
+	Included          bool   `json:"included,omitempty"`
+	MerkleProofLength int    `json:"merkle proof length,omitempty"`
+	Height            uint32 `json:"height,omitempty"`
 }
-
 
 func ConvNameInfo(msg *types.NameInfo) *InOutNameInfo {
 	if msg == nil {
@@ -96,9 +95,9 @@ func ConvNameInfo(msg *types.NameInfo) *InOutNameInfo {
 }
 
 type InOutNameInfo struct {
-	Name        string  `json:"name"`
-	Owner       string 	`json:"owner"`
-	Destination string 	`json:"destination"`
+	Name        string `json:"name"`
+	Owner       string `json:"owner"`
+	Destination string `json:"destination"`
 }
 
 func ConvBalance(msg *types.State) *InOutBalance {
@@ -109,10 +108,10 @@ func ConvBalance(msg *types.State) *InOutBalance {
 	b := &InOutBalance{}
 	state := ConvState(msg)
 	b.Balance = state.Balance
-		
+
 	return b
 }
 
 type InOutBalance struct {
-	Balance          string `json:"balance"`	
+	Balance string `json:"balance"`
 }

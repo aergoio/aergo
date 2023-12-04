@@ -108,11 +108,11 @@ type InOutChainStats struct {
 }
 
 func ConvConsensusInfo(msg *types.ConsensusInfo) *InOutConsensusInfo {
-	
+
 	ci := &InOutConsensusInfo{}
-	ci.Type = msg.GetType()	
+	ci.Type = msg.GetType()
 	_ = json.Unmarshal([]byte(msg.GetInfo()), &ci.Info)
-	
+
 	ci.Bps = make([]interface{}, len(msg.Bps))
 	for i, bps := range msg.Bps {
 		_ = json.Unmarshal([]byte(bps), &ci.Bps[i])
@@ -121,7 +121,7 @@ func ConvConsensusInfo(msg *types.ConsensusInfo) *InOutConsensusInfo {
 }
 
 type InOutConsensusInfo struct {
-	Type string   		`json:"type,omitempty"`
-	Info interface{}   	`json:"info,omitempty"`
-	Bps  []interface{} 	`json:"bps,omitempty"`
+	Type string        `json:"type,omitempty"`
+	Info interface{}   `json:"info,omitempty"`
+	Bps  []interface{} `json:"bps,omitempty"`
 }
