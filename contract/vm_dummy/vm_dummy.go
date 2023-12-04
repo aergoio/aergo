@@ -203,7 +203,7 @@ func (bc *DummyChain) BeginReceiptTx() db.Transaction {
 }
 
 func (bc *DummyChain) GetABI(code string) (*types.ABI, error) {
-	cState, err := statedb.OpenContractStateAccount(types.ToAccountID(contract.StrHash(code)), bc.sdb.GetStateDB())
+	cState, err := statedb.OpenContractStateAccount(contract.StrHash(code), bc.sdb.GetStateDB())
 	if err != nil {
 		return nil, err
 	}
@@ -463,7 +463,7 @@ func contractFrame(l luaTxContract, bs *state.BlockState, cdb contract.ChainAcce
 		return err
 	}
 
-	eContractState, err := statedb.OpenContractState(contractId, contractState.State(), bs.LuaStateDB)
+	eContractState, err := statedb.OpenContractState(l.recipient(), contractState.State(), bs.StateDB)
 	if err != nil {
 		return err
 	}
@@ -542,7 +542,7 @@ func (l *luaTxDeploy) run(execCtx context.Context, bs *state.BlockState, bc *Dum
 			if err != nil {
 				return "", nil, ctrFee, err
 			}
-			err = statedb.StageContractState(eContractState, bs.LuaStateDB)
+			err = statedb.StageContractState(eContractState, bs.StateDB)
 			if err != nil {
 				return "", nil, ctrFee, err
 			}
@@ -601,7 +601,7 @@ func (l *luaTxCall) run(execCtx context.Context, bs *state.BlockState, bc *Dummy
 			if err != nil {
 				return "", nil, ctrFee, err
 			}
-			err = statedb.StageContractState(eContractState, bs.LuaStateDB)
+			err = statedb.StageContractState(eContractState, bs.StateDB)
 			if err != nil {
 				return "", nil, ctrFee, err
 			}
@@ -676,7 +676,7 @@ func (bc *DummyChain) DisConnectBlock() error {
 }
 
 func (bc *DummyChain) Query(contract_name, queryInfo, expectedErr string, expectedRvs ...string) error {
-	cState, err := statedb.OpenContractStateAccount(types.ToAccountID(contract.StrHash(contract_name)), bc.sdb.GetStateDB())
+	cState, err := statedb.OpenContractStateAccount(contract.StrHash(contract_name), bc.sdb.GetStateDB())
 	if err != nil {
 		return err
 	}
@@ -705,7 +705,7 @@ func (bc *DummyChain) Query(contract_name, queryInfo, expectedErr string, expect
 }
 
 func (bc *DummyChain) QueryOnly(contract_name, queryInfo string, expectedErr string) (bool, string, error) {
-	cState, err := statedb.OpenContractStateAccount(types.ToAccountID(contract.StrHash(contract_name)), bc.sdb.GetStateDB())
+	cState, err := statedb.OpenContractStateAccount(contract.StrHash(contract_name), bc.sdb.GetStateDB())
 	if err != nil {
 		return false, "", err
 	}

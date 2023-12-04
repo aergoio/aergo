@@ -2,7 +2,6 @@ package statedb
 
 import (
 	"bytes"
-	"math/big"
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/v2/internal/common"
@@ -12,24 +11,11 @@ import (
 
 type ContractState struct {
 	*types.State
+	id      []byte
 	account types.AccountID
 	code    []byte
 	storage *bufferedStorage
 	store   db.DB
-}
-
-func (cs *ContractState) SetNonce(nonce uint64) {
-	cs.State.Nonce = nonce
-}
-func (st *ContractState) GetNonce() uint64 {
-	return st.State.GetNonce()
-}
-
-func (cs *ContractState) SetBalance(balance *big.Int) {
-	cs.State.Balance = balance.Bytes()
-}
-func (cs *ContractState) GetBalance() *big.Int {
-	return new(big.Int).SetBytes(cs.State.GetBalance())
 }
 
 func (cs *ContractState) SetCode(code []byte) error {
@@ -51,12 +37,12 @@ func (cs *ContractState) GetCode() ([]byte, error) {
 		// already loaded.
 		return cs.code, nil
 	}
-	codeHash := cs.State.GetCodeHash()
+	codeHash := cs.GetCodeHash()
 	if codeHash == nil {
 		// not defined. do nothing.
 		return nil, nil
 	}
-	err := loadData(cs.store, cs.State.CodeHash, &cs.code)
+	err := loadData(cs.store, cs.State.GetCodeHash(), &cs.code)
 	if err != nil {
 		return nil, err
 	}
@@ -65,6 +51,14 @@ func (cs *ContractState) GetCode() ([]byte, error) {
 
 func (cs *ContractState) GetAccountID() types.AccountID {
 	return cs.account
+}
+
+func (cs *ContractState) GetID() []byte {
+	idPadding := types.AddressPadding(cs.id)
+	if cs.account.String() == types.ToAccountID(idPadding).String() {
+		return idPadding
+	}
+	return cs.id
 }
 
 // SetRawKV saves (key, value) to st.store without any kind of encoding.
@@ -158,15 +152,17 @@ func (cs *ContractState) cache() *stateBuffer {
 //---------------------------------------------------------------//
 // global functions
 
-func OpenContractStateAccount(aid types.AccountID, states *StateDB) (*ContractState, error) {
+func OpenContractStateAccount(id []byte, states *StateDB) (*ContractState, error) {
+	aid := types.ToAccountID(id)
 	st, err := states.GetAccountState(aid)
 	if err != nil {
 		return nil, err
 	}
-	return OpenContractState(aid, st, states)
+	return OpenContractState(id, st, states)
 }
 
-func OpenContractState(aid types.AccountID, st *types.State, states *StateDB) (*ContractState, error) {
+func OpenContractState(id []byte, st *types.State, states *StateDB) (*ContractState, error) {
+	aid := types.ToAccountID(id)
 	storage := states.Cache.get(aid)
 	if storage == nil {
 		root := common.Compactz(st.StorageRoot)
@@ -174,6 +170,7 @@ func OpenContractState(aid types.AccountID, st *types.State, states *StateDB) (*
 	}
 	res := &ContractState{
 		State:   st,
+		id:      id,
 		account: aid,
 		storage: storage,
 		store:   states.Store,
@@ -189,15 +186,15 @@ func StageContractState(st *ContractState, states *StateDB) error {
 
 // GetSystemAccountState returns the ContractState of the AERGO system account.
 func GetSystemAccountState(states *StateDB) (*ContractState, error) {
-	return OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)), states)
+	return OpenContractStateAccount([]byte(types.AergoSystem), states)
 }
 
 // GetNameAccountState returns the ContractState of the AERGO name account.
 func GetNameAccountState(states *StateDB) (*ContractState, error) {
-	return OpenContractStateAccount(types.ToAccountID([]byte(types.AergoName)), states)
+	return OpenContractStateAccount([]byte(types.AergoName), states)
 }
 
 // GetEnterpriseAccountState returns the ContractState of the AERGO enterprise account.
 func GetEnterpriseAccountState(states *StateDB) (*ContractState, error) {
-	return OpenContractStateAccount(types.ToAccountID([]byte(types.AergoEnterprise)), states)
+	return OpenContractStateAccount([]byte(types.AergoEnterprise), states)
 }

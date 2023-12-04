@@ -255,7 +255,7 @@ func newBlockExecutor(bc *DummyChain, txs []*types.Tx) (*blockExecutor, error) {
 
 	exec = NewTxExecutor(context.Background(), nil, bc, bi, contract.ChainService)
 
-	scs, err := statedb.GetSystemAccountState(blockState.LuaStateDB)
+	scs, err := statedb.GetSystemAccountState(blockState.StateDB)
 	if err != nil {
 		return nil, err
 	}
@@ -511,7 +511,7 @@ func executeTx(
 			return err
 		}
 		var contractState *statedb.ContractState
-		contractState, err = statedb.OpenContractState(receiver.AccountID(), receiver.State(), bs.LuaStateDB)
+		contractState, err = statedb.OpenContractState(receiver.ID(), receiver.State(), bs.StateDB)
 		if err != nil {
 			return err
 		}
@@ -599,7 +599,7 @@ func executeGovernanceTx(ccc consensus.ChainConsensusCluster, bs *state.BlockSta
 
 	governance := string(txBody.Recipient)
 
-	scs, err := statedb.OpenContractState(receiver.AccountID(), receiver.State(), bs.LuaStateDB)
+	scs, err := statedb.OpenContractState(receiver.ID(), receiver.State(), bs.StateDB)
 	if err != nil {
 		return nil, err
 	}
@@ -617,7 +617,7 @@ func executeGovernanceTx(ccc consensus.ChainConsensusCluster, bs *state.BlockSta
 	}
 
 	if err == nil {
-		err = statedb.StageContractState(scs, bs.LuaStateDB)
+		err = statedb.StageContractState(scs, bs.StateDB)
 	}
 
 	return events, err

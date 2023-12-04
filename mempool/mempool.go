@@ -444,6 +444,7 @@ func (mp *MemPool) setStateDB(block *types.Block) (bool, bool) {
 				mp.isPublic = cid.PublicNet
 				if !mp.isPublic {
 					ecs, err := statedb.GetEnterpriseAccountState(mp.stateDB)
+					ecs, err := statedb.GetEnterpriseAccountState(mp.stateDB)
 					if err != nil {
 						mp.Warn().Err(err).Msg("failed to get whitelist")
 					}
@@ -658,12 +659,12 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 			return types.ErrTxInvalidRecipient
 		}
 	case types.TxType_GOVERNANCE:
-		aergoState, err := mp.getAccountState(tx.GetBody().GetRecipient())
+		id := tx.GetBody().GetRecipient()
+		aergoState, err := mp.getAccountState(id)
 		if err != nil {
 			return err
 		}
-		aid := types.ToAccountID(tx.GetBody().GetRecipient())
-		scs, err := statedb.OpenContractState(aid, aergoState, mp.stateDB)
+		scs, err := statedb.OpenContractState(id, aergoState, mp.stateDB)
 		if err != nil {
 			return err
 		}
@@ -795,26 +796,14 @@ func (mp *MemPool) getAccountState(acc []byte) (*types.State, error) {
 		strAcc := aid.String()
 		bal := getBalanceByAccMock(strAcc)
 		nonce := getNonceByAccMock(strAcc)
-		//mp.Error().Str("acc:", strAcc).Int("nonce", int(nonce)).Msg("")
 		return &types.State{Balance: new(big.Int).SetUint64(bal).Bytes(), Nonce: nonce}, nil
 	}
 
 	state, err := mp.stateDB.GetAccountState(types.ToAccountID(acc))
-
 	if err != nil {
 		mp.Fatal().Err(err).Str("sroot", base58.Encode(mp.stateDB.GetRoot())).Msg("failed to get state")
-
-		//FIXME PANIC?
-		//mp.Fatal().Err(err).Msg("failed to get state")
 		return nil, err
 	}
-	/*
-		if state.Balance == 0 {
-			strAcc := types.EncodeAddress(acc)
-			mp.Info().Str("address", strAcc).Msg("w t f")
-
-		}
-	*/
 	return state, nil
 }
 
