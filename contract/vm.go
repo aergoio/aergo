@@ -41,6 +41,7 @@ import (
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/internal/enc/hex"
 	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/dbkey"
 	jsoniter "github.com/json-iterator/go"
@@ -125,7 +126,7 @@ type recoveryEntry struct {
 	onlySend      bool
 	isDeploy      bool
 	sqlSaveName   *string
-	stateRevision state.Snapshot
+	stateRevision statedb.Snapshot
 	prev          *recoveryEntry
 }
 
@@ -179,7 +180,7 @@ func getTraceFile(blkno uint64, tx []byte) *os.File {
 	return f
 }
 
-func NewVmContext(execCtx context.Context, blockState *state.BlockState, cdb ChainAccessor, sender, reciever *state.V, contractState *state.ContractState, senderID, txHash []byte, bi *types.BlockHeaderInfo, node string, confirmed, query bool, rp uint64, service int, amount *big.Int, gasLimit uint64, feeDelegation bool) *vmContext {
+func NewVmContext(execCtx context.Context, blockState *state.BlockState, cdb ChainAccessor, sender, reciever *state.AccountState, contractState *state.ContractState, senderID, txHash []byte, bi *types.BlockHeaderInfo, node string, confirmed, query bool, rp uint64, service int, amount *big.Int, gasLimit uint64, feeDelegation bool) *vmContext {
 
 	cs := &callState{ctrState: contractState, curState: reciever.State()}
 
@@ -687,7 +688,7 @@ func (ce *executor) commitCalledContract() error {
 			continue
 		}
 		if v.ctrState != nil {
-			err = bs.StageContractState(v.ctrState)
+			err = state.StageContractState(v.ctrState, bs.StateDB)
 			if err != nil {
 				return newDbSystemError(err)
 			}
@@ -915,7 +916,7 @@ func setRandomSeed(ctx *vmContext) {
 func PreCall(
 	ce *executor,
 	bs *state.BlockState,
-	sender *state.V,
+	sender *state.AccountState,
 	contractState *state.ContractState,
 	rp, gasLimit uint64,
 ) (string, []*types.Event, *big.Int, error) {

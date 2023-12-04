@@ -60,8 +60,6 @@ func (ctx *ServerContext) GetDefaultBaseConfig() BaseConfig {
 	return BaseConfig{
 		DataDir:        ctx.ExpandPathEnv("$HOME/data"),
 		DbType:         "badgerdb",
-		EnableProfile:  false,
-		ProfilePort:    6060,
 		EnableDump:     false,
 		DumpPort:       GetDefaultDumpPort(),
 		EnableTestmode: false,

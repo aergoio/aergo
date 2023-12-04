@@ -12,9 +12,9 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/v2/config"
 	cfg "github.com/aergoio/aergo/v2/config"
-	"github.com/aergoio/aergo/v2/message"
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/rpc"
+	"github.com/aergoio/aergo/v2/types/message"
 	"github.com/didip/tollbooth"
 	"github.com/rs/cors"
 )

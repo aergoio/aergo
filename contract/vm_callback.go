@@ -194,8 +194,8 @@ func getCallState(ctx *vmContext, aid types.AccountID) (*callState, error) {
 			return nil, err
 		}
 
-		curState := types.Clone(*prevState).(types.State)
-		cs = &callState{prevState: prevState, curState: &curState}
+		curState := prevState.Clone()
+		cs = &callState{prevState: prevState, curState: curState}
 		ctx.callState[aid] = cs
 	}
 	return cs, nil
@@ -207,7 +207,7 @@ func getCtrState(ctx *vmContext, aid types.AccountID) (*callState, error) {
 		return nil, err
 	}
 	if cs.ctrState == nil {
-		cs.ctrState, err = ctx.bs.OpenContractState(aid, cs.curState)
+		cs.ctrState, err = state.OpenContractState(aid, cs.curState, ctx.bs.StateDB)
 	}
 	return cs, err
 }
@@ -363,7 +363,7 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 func getOnlyContractState(ctx *vmContext, aid types.AccountID) (*state.ContractState, error) {
 	cs := ctx.callState[aid]
 	if cs == nil || cs.ctrState == nil {
-		return ctx.bs.OpenContractStateAccount(aid)
+		return state.OpenContractStateAccount(aid, ctx.bs.StateDB)
 	}
 	return cs.ctrState, nil
 }
@@ -514,7 +514,7 @@ func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char)
 
 		// get the contract state
 		if cs.ctrState == nil {
-			cs.ctrState, err = ctx.bs.OpenContractState(aid, cs.curState)
+			cs.ctrState, err = state.OpenContractState(aid, cs.curState, ctx.bs.StateDB)
 			if err != nil {
 				return C.CString("[Contract.LuaSendAmount] getContractState error: " + err.Error())
 			}
@@ -1178,11 +1178,11 @@ func luaDeployContract(
 	// create account for the contract
 	prevContractInfo := ctx.curContract
 	creator := prevContractInfo.callState.curState
-	newContract, err := bs.CreateAccountStateV(CreateContractID(prevContractInfo.contractId, creator.GetNonce()))
+	newContract, err := state.CreateAccountState(CreateContractID(prevContractInfo.contractId, creator.GetNonce()), bs.StateDB)
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDeployContract]:" + err.Error())
 	}
-	contractState, err := bs.OpenContractState(newContract.AccountID(), newContract.State())
+	contractState, err := state.OpenContractState(newContract.AccountID(), newContract.State(), bs.StateDB)
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDeployContract]:" + err.Error())
 	}
@@ -1419,9 +1419,9 @@ func luaGovernance(L *LState, service C.int, gType C.char, arg *C.char) *C.char 
 	curContract := ctx.curContract
 
 	senderState := curContract.callState.curState
-	sender := ctx.bs.InitAccountStateV(curContract.contractId,
+	sender := state.InitAccountState(curContract.contractId, ctx.bs.StateDB,
 		curContract.callState.prevState, curContract.callState.curState)
-	receiver := ctx.bs.InitAccountStateV([]byte(types.AergoSystem),
+	receiver := state.InitAccountState([]byte(types.AergoSystem), ctx.bs.StateDB,
 		scsState.prevState, scsState.curState)
 
 	if sender.AccountID().String() == "A9zXKkooeGYAZC5ReCcgeg4ddsvMHAy2ivUafXhrnzpj" {
@@ -1599,12 +1599,12 @@ func luaGetStaking(service C.int, addr *C.char) (*C.char, C.lua_Integer, *C.char
 	)
 
 	ctx = contexts[service]
-	scs, err = ctx.bs.GetSystemAccountState()
+	scs, err = state.GetSystemAccountState(ctx.bs.StateDB)
 	if err != nil {
 		return nil, 0, C.CString(err.Error())
 	}
 
-	namescs, err = ctx.bs.GetNameAccountState()
+	namescs, err = state.GetNameAccountState(ctx.bs.StateDB)
 	if err != nil {
 		return nil, 0, C.CString(err.Error())
 	}
