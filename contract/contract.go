@@ -106,7 +106,7 @@ func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, t
 	}
 
 	// open the contract state
-	contractState, err := state.OpenContractState(receiver.AccountID(), receiver.State(), bs.StateDB)
+	contractState, err := state.OpenContractState(receiver.ID(), receiver.State(), bs.StateDB)
 	if err != nil {
 		return
 	}
@@ -268,7 +268,7 @@ func preloadWorker() {
 		}
 
 		// open the contract state
-		contractState, err := state.OpenContractState(receiver.AccountID(), receiver.State(), bs.StateDB)
+		contractState, err := state.OpenContractState(receiver.ID(), receiver.State(), bs.StateDB)
 		if err != nil {
 			replyCh <- &preloadReply{tx, nil, err}
 			continue

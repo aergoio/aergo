@@ -77,7 +77,7 @@ func TestVoteResult(t *testing.T) {
 	const testSize = 64
 	initTest(t)
 	defer deinitTest()
-	scs, err := state.OpenContractStateAccount(types.ToAccountID([]byte("testUpdateVoteResult")), cdb.GetStateDB())
+	scs, err := state.OpenContractStateAccount([]byte("testUpdateVoteResult"), cdb.GetStateDB())
 	assert.NoError(t, err, "could not open contract state")
 	testResult := map[string]*big.Int{}
 	for i := 0; i < testSize; i++ {
@@ -106,7 +106,7 @@ func TestVoteData(t *testing.T) {
 	const testSize = 64
 	initTest(t)
 	defer deinitTest()
-	scs, err := state.OpenContractStateAccount(types.ToAccountID([]byte("testSetGetVoteDate")), cdb.GetStateDB())
+	scs, err := state.OpenContractStateAccount([]byte("testSetGetVoteDate"), cdb.GetStateDB())
 	assert.NoError(t, err, "could not open contract state")
 
 	for i := 0; i < testSize; i++ {

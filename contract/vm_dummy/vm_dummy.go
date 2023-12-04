@@ -201,7 +201,7 @@ func (bc *DummyChain) BeginReceiptTx() db.Transaction {
 }
 
 func (bc *DummyChain) GetABI(code string) (*types.ABI, error) {
-	cState, err := state.OpenContractStateAccount(types.ToAccountID(contract.StrHash(code)), bc.sdb.GetStateDB())
+	cState, err := state.OpenContractStateAccount(contract.StrHash(code), bc.sdb.GetStateDB())
 	if err != nil {
 		return nil, err
 	}
@@ -461,7 +461,7 @@ func contractFrame(l luaTxContract, bs *state.BlockState, cdb contract.ChainAcce
 		return err
 	}
 
-	eContractState, err := state.OpenContractState(contractId, contractState.State(), bs.StateDB)
+	eContractState, err := state.OpenContractState(l.recipient(), contractState.State(), bs.StateDB)
 	if err != nil {
 		return err
 	}
@@ -674,7 +674,7 @@ func (bc *DummyChain) DisConnectBlock() error {
 }
 
 func (bc *DummyChain) Query(contract_name, queryInfo, expectedErr string, expectedRvs ...string) error {
-	cState, err := state.OpenContractStateAccount(types.ToAccountID(contract.StrHash(contract_name)), bc.sdb.GetStateDB())
+	cState, err := state.OpenContractStateAccount(contract.StrHash(contract_name), bc.sdb.GetStateDB())
 	if err != nil {
 		return err
 	}
@@ -703,7 +703,7 @@ func (bc *DummyChain) Query(contract_name, queryInfo, expectedErr string, expect
 }
 
 func (bc *DummyChain) QueryOnly(contract_name, queryInfo string, expectedErr string) (bool, string, error) {
-	cState, err := state.OpenContractStateAccount(types.ToAccountID(contract.StrHash(contract_name)), bc.sdb.GetStateDB())
+	cState, err := state.OpenContractStateAccount(contract.StrHash(contract_name), bc.sdb.GetStateDB())
 	if err != nil {
 		return false, "", err
 	}

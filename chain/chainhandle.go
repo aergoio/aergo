@@ -959,7 +959,7 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 		}
 
 		var contractState *state.ContractState
-		contractState, err = state.OpenContractState(receiver.AccountID(), receiver.State(), bs.StateDB)
+		contractState, err = state.OpenContractState(receiver.ID(), receiver.State(), bs.StateDB)
 		if err != nil {
 			return err
 		}

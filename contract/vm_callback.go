@@ -184,7 +184,8 @@ func luaDelDB(L *LState, service C.int, key unsafe.Pointer, keyLen C.int) *C.cha
 	return nil
 }
 
-func getCallState(ctx *vmContext, aid types.AccountID) (*callState, error) {
+func getCallState(ctx *vmContext, id []byte) (*callState, error) {
+	aid := types.ToAccountID(id)
 	cs := ctx.callState[aid]
 	if cs == nil {
 		bs := ctx.bs
@@ -201,13 +202,13 @@ func getCallState(ctx *vmContext, aid types.AccountID) (*callState, error) {
 	return cs, nil
 }
 
-func getCtrState(ctx *vmContext, aid types.AccountID) (*callState, error) {
-	cs, err := getCallState(ctx, aid)
+func getCtrState(ctx *vmContext, id []byte) (*callState, error) {
+	cs, err := getCallState(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 	if cs.ctrState == nil {
-		cs.ctrState, err = state.OpenContractState(aid, cs.curState, ctx.bs.StateDB)
+		cs.ctrState, err = state.OpenContractState(id, cs.curState, ctx.bs.StateDB)
 	}
 	return cs, err
 }
@@ -261,7 +262,7 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 	}
 
 	// get the contract state
-	cs, err := getCtrState(ctx, aid)
+	cs, err := getCtrState(ctx, cid)
 	if err != nil {
 		return -1, C.CString("[Contract.LuaCallContract] getAccount error: " + err.Error())
 	}
@@ -360,10 +361,10 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 	return ret, nil
 }
 
-func getOnlyContractState(ctx *vmContext, aid types.AccountID) (*state.ContractState, error) {
-	cs := ctx.callState[aid]
+func getOnlyContractState(ctx *vmContext, id []byte) (*state.ContractState, error) {
+	cs := ctx.callState[types.ToAccountID(id)]
 	if cs == nil || cs.ctrState == nil {
-		return state.OpenContractStateAccount(aid, ctx.bs.StateDB)
+		return state.OpenContractStateAccount(id, ctx.bs.StateDB)
 	}
 	return cs.ctrState, nil
 }
@@ -388,7 +389,7 @@ func luaDelegateCallContract(L *LState, service C.int, contractId *C.char,
 	aid := types.ToAccountID(cid)
 
 	// get the contract state
-	contractState, err := getOnlyContractState(ctx, aid)
+	contractState, err := getOnlyContractState(ctx, cid)
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDelegateCallContract]getContractState error" + err.Error())
 	}
@@ -501,7 +502,7 @@ func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char)
 
 	// get the receiver state
 	aid := types.ToAccountID(cid)
-	cs, err := getCallState(ctx, aid)
+	cs, err := getCallState(ctx, cid)
 	if err != nil {
 		return C.CString("[Contract.LuaSendAmount] getAccount error: " + err.Error())
 	}
@@ -514,7 +515,7 @@ func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char)
 
 		// get the contract state
 		if cs.ctrState == nil {
-			cs.ctrState, err = state.OpenContractState(aid, cs.curState, ctx.bs.StateDB)
+			cs.ctrState, err = state.OpenContractState(cid, cs.curState, ctx.bs.StateDB)
 			if err != nil {
 				return C.CString("[Contract.LuaSendAmount] getContractState error: " + err.Error())
 			}
@@ -1136,9 +1137,8 @@ func luaDeployContract(
 	// check if contract name or address is given
 	cid, err := getAddressNameResolved(contractStr, bs)
 	if err == nil {
-		aid := types.ToAccountID(cid)
 		// check if contract exists
-		contractState, err := getOnlyContractState(ctx, aid)
+		contractState, err := getOnlyContractState(ctx, cid)
 		if err != nil {
 			return -1, C.CString("[Contract.LuaDeployContract]" + err.Error())
 		}
@@ -1182,7 +1182,7 @@ func luaDeployContract(
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDeployContract]:" + err.Error())
 	}
-	contractState, err := state.OpenContractState(newContract.AccountID(), newContract.State(), bs.StateDB)
+	contractState, err := state.OpenContractState(newContract.ID(), newContract.State(), bs.StateDB)
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDeployContract]:" + err.Error())
 	}
@@ -1366,8 +1366,7 @@ func luaIsContract(L *LState, service C.int, contractId *C.char) (C.int, *C.char
 		return -1, C.CString("[Contract.LuaIsContract] invalid contractId: " + err.Error())
 	}
 
-	aid := types.ToAccountID(cid)
-	cs, err := getCallState(ctx, aid)
+	cs, err := getCallState(ctx, cid)
 	if err != nil {
 		return -1, C.CString("[Contract.LuaIsContract] getAccount error: " + err.Error())
 	}
@@ -1410,8 +1409,9 @@ func luaGovernance(L *LState, service C.int, gType C.char, arg *C.char) *C.char 
 		payload = []byte(fmt.Sprintf(`{"Name":"%s","Args":%s}`, types.OpvoteDAO.Cmd(), C.GoString(arg)))
 	}
 
-	aid := types.ToAccountID([]byte(types.AergoSystem))
-	scsState, err := getCtrState(ctx, aid)
+	cid := []byte(types.AergoSystem)
+	aid := types.ToAccountID(cid)
+	scsState, err := getCtrState(ctx, cid)
 	if err != nil {
 		return C.CString("[Contract.LuaGovernance] getAccount error: " + err.Error())
 	}

@@ -42,7 +42,17 @@ func (as *AccountState) SetNonce(nonce uint64) {
 	as.newState.Nonce = nonce
 }
 
+func (as *AccountState) Nonce() uint64 {
+	if as.newState == nil {
+		return 0
+	}
+	return as.newState.Nonce
+}
+
 func (as *AccountState) Balance() *big.Int {
+	if as.newState == nil {
+		return big.NewInt(0)
+	}
 	return new(big.Int).SetBytes(as.newState.Balance)
 }
 
@@ -56,8 +66,37 @@ func (as *AccountState) SubBalance(amount *big.Int) {
 	as.newState.Balance = new(big.Int).Sub(balance, amount).Bytes()
 }
 
-func (as *AccountState) RP() uint64 {
+func (as *AccountState) SetCodeHash(codeHash []byte) {
+	as.newState.CodeHash = codeHash
+}
+
+func (as *AccountState) CodeHash() []byte {
+	if as.newState == nil {
+		return nil
+	}
+	return as.newState.CodeHash
+}
+
+func (as *AccountState) SetRP() uint64 {
 	return as.newState.SqlRecoveryPoint
+}
+
+func (as *AccountState) RP() uint64 {
+	if as.newState == nil {
+		return 0
+	}
+	return as.newState.SqlRecoveryPoint
+}
+
+func (as *AccountState) SetStorageRoot(storageRoot []byte) {
+	as.newState.StorageRoot = storageRoot
+}
+
+func (as *AccountState) StorageRoot() []byte {
+	if as.newState == nil {
+		return nil
+	}
+	return as.newState.StorageRoot
 }
 
 func (as *AccountState) IsNew() bool {
@@ -144,12 +183,12 @@ func GetAccountState(id []byte, states *statedb.StateDB) (*AccountState, error) 
 	}, nil
 }
 
-func InitAccountState(id []byte, sdb *statedb.StateDB, old *types.State, new *types.State) *AccountState {
+func InitAccountState(id []byte, sdb *statedb.StateDB, stOld, stNew *types.State) *AccountState {
 	return &AccountState{
 		sdb:      sdb,
 		id:       id,
 		aid:      types.ToAccountID(id),
-		oldState: old,
-		newState: new,
+		oldState: stOld,
+		newState: stNew,
 	}
 }

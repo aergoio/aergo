@@ -800,7 +800,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			})
 			break
 		}
-		contractState, err := state.OpenContractStateAccount(types.ToAccountID(address), sdb)
+		contractState, err := state.OpenContractStateAccount(address, sdb)
 		if err == nil {
 			abi, err := contract.GetABI(contractState, nil)
 			context.Respond(message.GetABIRsp{
@@ -822,7 +822,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
 			break
 		}
-		ctrState, err := state.OpenContractStateAccount(types.ToAccountID(address), sdb)
+		ctrState, err := state.OpenContractStateAccount(address, sdb)
 		if err != nil {
 			logger.Error().Str("hash", base58.Encode(address)).Err(err).Msg("failed to get state for contract")
 			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
@@ -910,7 +910,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		defer runtime.UnlockOSThread()
 
 		sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetRoot())
-		ctrState, err := state.OpenContractStateAccount(types.ToAccountID(msg.Contract), sdb)
+		ctrState, err := state.OpenContractStateAccount(msg.Contract, sdb)
 		if err != nil {
 			logger.Error().Str("hash", base58.Encode(msg.Contract)).Err(err).Msg("failed to get state for contract")
 			context.Respond(message.CheckFeeDelegationRsp{Err: err})
