@@ -11,6 +11,7 @@ import (
 
 	"github.com/aergoio/aergo/v2/fee"
 	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/dbkey"
 	"github.com/minio/sha256-simd"
@@ -106,7 +107,7 @@ func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, t
 	}
 
 	// open the contract state
-	contractState, err := state.OpenContractState(receiver.ID(), receiver.State(), bs.StateDB)
+	contractState, err := statedb.OpenContractState(receiver.ID(), receiver.State(), bs.StateDB)
 	if err != nil {
 		return
 	}
@@ -194,7 +195,7 @@ func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, t
 	}
 
 	// save the contract state
-	err = state.StageContractState(contractState, bs.StateDB)
+	err = statedb.StageContractState(contractState, bs.StateDB)
 	if err != nil {
 		return "", events, usedFee, err
 	}
@@ -268,7 +269,7 @@ func preloadWorker() {
 		}
 
 		// open the contract state
-		contractState, err := state.OpenContractState(receiver.ID(), receiver.State(), bs.StateDB)
+		contractState, err := statedb.OpenContractState(receiver.ID(), receiver.State(), bs.StateDB)
 		if err != nil {
 			replyCh <- &preloadReply{tx, nil, err}
 			continue
@@ -320,7 +321,7 @@ func CreateContractID(account []byte, nonce uint64) []byte {
 	return append([]byte{0x0C}, recipientHash...) // prepend 0x0C to make it same length as account addresses
 }
 
-func checkRedeploy(sender, receiver *state.AccountState, contractState *state.ContractState) error {
+func checkRedeploy(sender, receiver *state.AccountState, contractState *statedb.ContractState) error {
 	// check if the contract exists
 	if !receiver.IsContract() || receiver.IsNew() {
 		receiverAddr := types.EncodeAddress(receiver.ID())

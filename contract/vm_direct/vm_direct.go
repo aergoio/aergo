@@ -20,6 +20,7 @@ import (
 	"github.com/aergoio/aergo/v2/fee"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 )
 
@@ -140,7 +141,7 @@ func LoadDummyChainEx(chainType ChainType) (*DummyChain, error) {
 	types.InitGovernance("dpos", true)
 
 	// To pass dao parameters test
-	scs, err := state.GetSystemAccountState(bc.sdb.GetStateDB())
+	scs, err := statedb.GetSystemAccountState(bc.sdb.GetStateDB())
 	if err != nil {
 		return nil, err
 	}
@@ -253,7 +254,7 @@ func newBlockExecutor(bc *DummyChain, txs []*types.Tx) (*blockExecutor, error) {
 
 	exec = NewTxExecutor(context.Background(), nil, bc, bi, contract.ChainService)
 
-	scs, err := state.GetSystemAccountState(blockState.StateDB)
+	scs, err := statedb.GetSystemAccountState(blockState.StateDB)
 	if err != nil {
 		return nil, err
 	}
@@ -508,8 +509,8 @@ func executeTx(
 		if err != nil {
 			return err
 		}
-		var contractState *state.ContractState
-		contractState, err = state.OpenContractState(receiver.ID(), receiver.State(), bs.StateDB)
+		var contractState *statedb.ContractState
+		contractState, err = statedb.OpenContractState(receiver.ID(), receiver.State(), bs.StateDB)
 		if err != nil {
 			return err
 		}
@@ -597,7 +598,7 @@ func executeGovernanceTx(ccc consensus.ChainConsensusCluster, bs *state.BlockSta
 
 	governance := string(txBody.Recipient)
 
-	scs, err := state.OpenContractState(receiver.ID(), receiver.State(), bs.StateDB)
+	scs, err := statedb.OpenContractState(receiver.ID(), receiver.State(), bs.StateDB)
 	if err != nil {
 		return nil, err
 	}
@@ -615,7 +616,7 @@ func executeGovernanceTx(ccc consensus.ChainConsensusCluster, bs *state.BlockSta
 	}
 
 	if err == nil {
-		err = state.StageContractState(scs, bs.StateDB)
+		err = statedb.StageContractState(scs, bs.StateDB)
 	}
 
 	return events, err

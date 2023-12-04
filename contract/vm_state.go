@@ -12,7 +12,7 @@ import (
 )
 
 type callState struct {
-	ctrState *state.ContractState
+	ctrState *statedb.ContractState
 	accState *state.AccountState
 	tx       sqlTx
 }
@@ -38,7 +38,7 @@ func getCtrState(ctx *vmContext, id []byte) (*callState, error) {
 		return nil, err
 	}
 	if cs.ctrState == nil {
-		cs.ctrState, err = state.OpenContractState(id, cs.accState.State(), ctx.bs.StateDB)
+		cs.ctrState, err = statedb.OpenContractState(id, cs.accState.State(), ctx.bs.StateDB)
 	}
 	return cs, err
 }
@@ -61,10 +61,10 @@ func newContractInfo(cs *callState, sender, contractId []byte, rp uint64, amount
 	}
 }
 
-func getOnlyContractState(ctx *vmContext, id []byte) (*state.ContractState, error) {
+func getOnlyContractState(ctx *vmContext, id []byte) (*statedb.ContractState, error) {
 	cs := ctx.callState[types.ToAccountID(id)]
 	if cs == nil || cs.ctrState == nil {
-		return state.OpenContractStateAccount(id, ctx.bs.StateDB)
+		return statedb.OpenContractStateAccount(id, ctx.bs.StateDB)
 	}
 	return cs.ctrState, nil
 }

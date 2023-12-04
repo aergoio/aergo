@@ -443,7 +443,7 @@ func (mp *MemPool) setStateDB(block *types.Block) (bool, bool) {
 			} else {
 				mp.isPublic = cid.PublicNet
 				if !mp.isPublic {
-					ecs, err := state.GetEnterpriseAccountState(mp.stateDB)
+					ecs, err := statedb.GetEnterpriseAccountState(mp.stateDB)
 					if err != nil {
 						mp.Warn().Err(err).Msg("failed to get whitelist")
 					}
@@ -591,7 +591,7 @@ func (mp *MemPool) getNameDest(account []byte, owner bool) []byte {
 		return account
 	}
 
-	scs, err := state.GetNameAccountState(mp.stateDB)
+	scs, err := statedb.GetNameAccountState(mp.stateDB)
 	if err != nil {
 		mp.Error().Str("for name", string(account)).Msgf("failed to open contract %s", types.AergoName)
 		return nil
@@ -663,7 +663,7 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 		if err != nil {
 			return err
 		}
-		scs, err := state.OpenContractState(id, aergoState, mp.stateDB)
+		scs, err := statedb.OpenContractState(id, aergoState, mp.stateDB)
 		if err != nil {
 			return err
 		}
@@ -689,7 +689,7 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 				return err
 			}
 		case types.AergoEnterprise:
-			enterprisecs, err := state.GetEnterpriseAccountState(mp.stateDB)
+			enterprisecs, err := statedb.GetEnterpriseAccountState(mp.stateDB)
 			if err != nil {
 				return err
 			}

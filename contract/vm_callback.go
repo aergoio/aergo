@@ -41,6 +41,7 @@ import (
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/internal/enc/hex"
 	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/dbkey"
 	"github.com/btcsuite/btcd/btcec"
@@ -469,7 +470,7 @@ func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char)
 
 		// get the contract state
 		if cs.ctrState == nil {
-			cs.ctrState, err = state.OpenContractState(cid, receiverState.State(), ctx.bs.StateDB)
+			cs.ctrState, err = statedb.OpenContractState(cid, receiverState.State(), ctx.bs.StateDB)
 			if err != nil {
 				return C.CString("[Contract.LuaSendAmount] getContractState error: " + err.Error())
 			}
@@ -1083,7 +1084,7 @@ func luaDeployContract(
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDeployContract]:" + err.Error())
 	}
-	contractState, err := state.OpenContractState(newContract.ID(), newContract.State(), bs.StateDB)
+	contractState, err := statedb.OpenContractState(newContract.ID(), newContract.State(), bs.StateDB)
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDeployContract]:" + err.Error())
 	}
@@ -1493,18 +1494,18 @@ func luaGetStaking(service C.int, addr *C.char) (*C.char, C.lua_Integer, *C.char
 
 	var (
 		ctx          *vmContext
-		scs, namescs *state.ContractState
+		scs, namescs *statedb.ContractState
 		err          error
 		staking      *types.Staking
 	)
 
 	ctx = contexts[service]
-	scs, err = state.GetSystemAccountState(ctx.bs.StateDB)
+	scs, err = statedb.GetSystemAccountState(ctx.bs.StateDB)
 	if err != nil {
 		return nil, 0, C.CString(err.Error())
 	}
 
-	namescs, err = state.GetNameAccountState(ctx.bs.StateDB)
+	namescs, err = statedb.GetNameAccountState(ctx.bs.StateDB)
 	if err != nil {
 		return nil, 0, C.CString(err.Error())
 	}
