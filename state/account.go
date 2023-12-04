@@ -211,13 +211,14 @@ func GetAccountState(id []byte, states *statedb.StateDB, ethStates *ethdb.StateD
 	}, nil
 }
 
-func InitAccountState(id []byte, sdb *statedb.StateDB, stOld, stNew *types.State) *AccountState {
+func InitAccountState(id []byte, states *statedb.StateDB, ethstates *ethdb.StateDB, stOld, stNew *types.State) *AccountState {
 	return &AccountState{
-		sdb:      sdb,
-		id:       id,
-		aid:      types.ToAccountID(id),
-		oldState: stOld,
-		newState: stNew,
+		luaStates: states,
+		ethStates: ethstates,
+		id:        id,
+		aid:       types.ToAccountID(id),
+		oldState:  stOld,
+		newState:  stNew,
 	}
 }
 

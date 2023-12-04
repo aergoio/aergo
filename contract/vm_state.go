@@ -22,7 +22,7 @@ func getCallState(ctx *vmContext, id []byte) (*callState, error) {
 	cs := ctx.callState[aid]
 	if cs == nil {
 		bs := ctx.bs
-		accState, err := state.GetAccountState(id, bs.StateDB)
+		accState, err := state.GetAccountState(id, bs.LuaStateDB, bs.EvmStateDB)
 		if err != nil {
 			return nil, err
 		}
@@ -38,7 +38,7 @@ func getCtrState(ctx *vmContext, id []byte) (*callState, error) {
 		return nil, err
 	}
 	if cs.ctrState == nil {
-		cs.ctrState, err = statedb.OpenContractState(id, cs.accState.State(), ctx.bs.StateDB)
+		cs.ctrState, err = statedb.OpenContractState(id, cs.accState.State(), ctx.bs.LuaStateDB)
 	}
 	return cs, err
 }
@@ -64,7 +64,7 @@ func newContractInfo(cs *callState, sender, contractId []byte, rp uint64, amount
 func getOnlyContractState(ctx *vmContext, id []byte) (*statedb.ContractState, error) {
 	cs := ctx.callState[types.ToAccountID(id)]
 	if cs == nil || cs.ctrState == nil {
-		return statedb.OpenContractStateAccount(id, ctx.bs.StateDB)
+		return statedb.OpenContractStateAccount(id, ctx.bs.LuaStateDB)
 	}
 	return cs.ctrState, nil
 }

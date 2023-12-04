@@ -38,7 +38,7 @@ func initTest(t *testing.T) (*statedb.ContractState, *state.AccountState, *state
 	// Need to pass the
 	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
 
-	scs, err := statedb.GetSystemAccountState(bs.StateDB)
+	scs, err := statedb.GetSystemAccountState(bs.LuaStateDB)
 	assert.NoError(t, err, "could not open contract state")
 	InitSystemParams(scs, 3)
 
@@ -60,11 +60,11 @@ func getSender(t *testing.T, addr string) *state.AccountState {
 }
 
 func commitNextBlock(t *testing.T, scs *statedb.ContractState) *statedb.ContractState {
-	statedb.StageContractState(scs, bs.StateDB)
+	statedb.StageContractState(scs, bs.LuaStateDB)
 	bs.Update()
 	bs.Commit()
 	cdb.UpdateRoot(bs)
-	ret, err := statedb.GetSystemAccountState(bs.StateDB)
+	ret, err := statedb.GetSystemAccountState(bs.LuaStateDB)
 	assert.NoError(t, err, "could not open contract state")
 	return ret
 }

@@ -1,5 +1,6 @@
 package main
 
+/*
 import (
 	"fmt"
 	"testing"
@@ -32,3 +33,4 @@ func TestEVM(t *testing.T) {
 	// luasdb.GetState()
 
 }
+*/

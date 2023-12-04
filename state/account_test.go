@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	key "github.com/aergoio/aergo/v2/account/key/crypto"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -22,15 +24,6 @@ func TestEthAccount(t *testing.T) {
 		require.Equal(t, test.evmAccount, acc.String())
 	}
 }
-package state
-
-import (
-	"testing"
-
-	"github.com/aergoio/aergo/v2/internal/enc/base58"
-	"github.com/aergoio/aergo/v2/types"
-	"github.com/stretchr/testify/require"
-)
 
 func TestAidWithPadding(t *testing.T) {
 	for _, test := range []struct {

@@ -26,7 +26,7 @@ func executeGovernanceTx(ccc consensus.ChainConsensusCluster, bs *state.BlockSta
 	}
 
 	governance := string(txBody.Recipient)
-	scs, err := statedb.OpenContractState(receiver.IDNoPadding(), receiver.State(), bs.StateDB)
+	scs, err := statedb.OpenContractState(receiver.IDNoPadding(), receiver.State(), bs.LuaStateDB)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +47,7 @@ func executeGovernanceTx(ccc consensus.ChainConsensusCluster, bs *state.BlockSta
 		err = types.ErrTxInvalidRecipient
 	}
 	if err == nil {
-		err = statedb.StageContractState(scs, bs.StateDB)
+		err = statedb.StageContractState(scs, bs.LuaStateDB)
 	}
 
 	return events, err

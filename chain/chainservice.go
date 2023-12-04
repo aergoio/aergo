@@ -496,7 +496,7 @@ func (cs *ChainService) GetChainTree() ([]byte, error) {
 func (cs *ChainService) getVotes(id string, n uint32) (*types.VoteList, error) {
 	switch ConsensusName() {
 	case consensus.ConsensusName[consensus.ConsensusDPOS]:
-		sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
+		sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetLuaRoot())
 		scs, err := statedb.GetSystemAccountState(sdb)
 		if err != nil {
 			return nil, err
@@ -518,7 +518,7 @@ func (cs *ChainService) getAccountVote(addr []byte) (*types.AccountVoteInfo, err
 		return nil, ErrNotSupportedConsensus
 	}
 
-	sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
+	sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetLuaRoot())
 	scs, err := statedb.GetSystemAccountState(sdb)
 	if err != nil {
 		return nil, err
@@ -540,7 +540,7 @@ func (cs *ChainService) getStaking(addr []byte) (*types.Staking, error) {
 		return nil, ErrNotSupportedConsensus
 	}
 
-	sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
+	sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetLuaRoot())
 	scs, err := statedb.GetSystemAccountState(sdb)
 	if err != nil {
 		return nil, err
@@ -576,7 +576,7 @@ func (cs *ChainService) getNameInfo(qname string, blockNo types.BlockNo) (*types
 }
 
 func (cs *ChainService) getEnterpriseConf(key string) (*types.EnterpriseConfig, error) {
-	sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
+	sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetLuaRoot())
 	ecs, err := statedb.GetEnterpriseAccountState(sdb)
 	if err != nil {
 		return nil, err
@@ -918,7 +918,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
 
-		sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetRoot())
+		sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetLuaRoot())
 		ctrState, err := statedb.OpenContractStateAccount(msg.Contract, sdb)
 		if err != nil {
 			logger.Error().Str("hash", base58.Encode(msg.Contract)).Err(err).Msg("failed to get state for contract")

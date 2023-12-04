@@ -444,7 +444,6 @@ func (mp *MemPool) setStateDB(block *types.Block) (bool, bool) {
 				mp.isPublic = cid.PublicNet
 				if !mp.isPublic {
 					ecs, err := statedb.GetEnterpriseAccountState(mp.stateDB)
-					ecs, err := statedb.GetEnterpriseAccountState(mp.stateDB)
 					if err != nil {
 						mp.Warn().Err(err).Msg("failed to get whitelist")
 					}

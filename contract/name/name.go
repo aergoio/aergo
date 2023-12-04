@@ -41,7 +41,7 @@ func UpdateName(bs *state.BlockState, scs *statedb.ContractState, tx *types.TxBo
 	amount := tx.GetAmountBigInt()
 	sender.SubBalance(amount)
 	receiver.AddBalance(amount)
-	contract, err := statedb.OpenContractStateAccount(destination, bs.StateDB)
+	contract, err := statedb.OpenContractStateAccount(destination, bs.LuaStateDB)
 	if err != nil {
 		return types.ErrTxInvalidRecipient
 	}
@@ -84,11 +84,11 @@ func Resolve(bs *state.BlockState, name []byte, legacy bool) ([]byte, error) {
 }
 
 func openContract(bs *state.BlockState) (*statedb.ContractState, error) {
-	v, err := state.GetAccountState([]byte(types.AergoName), bs.StateDB)
+	v, err := state.GetAccountState([]byte(types.AergoName), bs.LuaStateDB, bs.EvmStateDB)
 	if err != nil {
 		return nil, err
 	}
-	scs, err := statedb.OpenContractState(v.ID(), v.State(), bs.StateDB)
+	scs, err := statedb.OpenContractState(v.ID(), v.State(), bs.LuaStateDB)
 	if err != nil {
 		return nil, err
 	}

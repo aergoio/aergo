@@ -463,7 +463,7 @@ func contractFrame(l luaTxContract, bs *state.BlockState, cdb contract.ChainAcce
 		return err
 	}
 
-	eContractState, err := statedb.OpenContractState(l.recipient(), contractState.State(), bs.StateDB)
+	eContractState, err := statedb.OpenContractState(l.recipient(), contractState.State(), bs.LuaStateDB)
 	if err != nil {
 		return err
 	}
@@ -542,7 +542,7 @@ func (l *luaTxDeploy) run(execCtx context.Context, bs *state.BlockState, bc *Dum
 			if err != nil {
 				return "", nil, ctrFee, err
 			}
-			err = statedb.StageContractState(eContractState, bs.StateDB)
+			err = statedb.StageContractState(eContractState, bs.LuaStateDB)
 			if err != nil {
 				return "", nil, ctrFee, err
 			}
@@ -601,7 +601,7 @@ func (l *luaTxCall) run(execCtx context.Context, bs *state.BlockState, bc *Dummy
 			if err != nil {
 				return "", nil, ctrFee, err
 			}
-			err = statedb.StageContractState(eContractState, bs.StateDB)
+			err = statedb.StageContractState(eContractState, bs.LuaStateDB)
 			if err != nil {
 				return "", nil, ctrFee, err
 			}

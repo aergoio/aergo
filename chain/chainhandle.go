@@ -987,7 +987,7 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 		}
 
 		var contractState *statedb.ContractState
-		contractState, err = statedb.OpenContractState(receiver.ID(), receiver.State(), bs.StateDB)
+		contractState, err = statedb.OpenContractState(receiver.ID(), receiver.State(), bs.LuaStateDB)
 		if err != nil {
 			return err
 		}

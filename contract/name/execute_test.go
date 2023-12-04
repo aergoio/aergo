@@ -114,19 +114,19 @@ func TestExcuteFailNameTx(t *testing.T) {
 }
 
 func openContractState(t *testing.T, bs *state.BlockState) *statedb.ContractState {
-	scs, err := statedb.GetNameAccountState(bs.StateDB)
+	scs, err := statedb.GetNameAccountState(bs.LuaStateDB)
 	assert.NoError(t, err, "could not open contract state")
 	return scs
 }
 
 func openSystemContractState(t *testing.T, bs *state.BlockState) *statedb.ContractState {
-	scs, err := statedb.GetSystemAccountState(bs.StateDB)
+	scs, err := statedb.GetSystemAccountState(bs.LuaStateDB)
 	assert.NoError(t, err, "could not open contract state")
 	return scs
 }
 
 func commitContractState(t *testing.T, bs *state.BlockState, scs *statedb.ContractState) {
-	statedb.StageContractState(scs, bs.StateDB)
+	statedb.StageContractState(scs, bs.LuaStateDB)
 	bs.Update()
 	bs.Commit()
 	sdb.UpdateRoot(bs)
