@@ -65,17 +65,6 @@ func init() {
 	zeroBig = types.NewZeroAmount()
 }
 
-func addUpdateSize(ctx *vmContext, updateSize int64) error {
-	if ctx.IsGasSystem() {
-		return nil
-	}
-	if ctx.dbUpdateTotalSize+updateSize > dbUpdateMaxLimit {
-		return errors.New("exceeded size of updates in the state database")
-	}
-	ctx.dbUpdateTotalSize += updateSize
-	return nil
-}
-
 //export luaSetDB
 func luaSetDB(L *LState, service C.int, key unsafe.Pointer, keyLen C.int, value *C.char) *C.char {
 	ctx := contexts[service]
@@ -89,7 +78,7 @@ func luaSetDB(L *LState, service C.int, key unsafe.Pointer, keyLen C.int, value 
 	if err := ctx.curContract.callState.ctrState.SetData(C.GoBytes(key, keyLen), val); err != nil {
 		return C.CString(err.Error())
 	}
-	if err := addUpdateSize(ctx, int64(types.HashIDLength+len(val))); err != nil {
+	if err := ctx.addUpdateSize(int64(types.HashIDLength + len(val))); err != nil {
 		C.luaL_setuncatchablerror(L)
 		return C.CString(err.Error())
 	}
@@ -172,7 +161,7 @@ func luaDelDB(L *LState, service C.int, key unsafe.Pointer, keyLen C.int) *C.cha
 	if err := ctx.curContract.callState.ctrState.DeleteData(C.GoBytes(key, keyLen)); err != nil {
 		return C.CString(err.Error())
 	}
-	if err := addUpdateSize(ctx, int64(32)); err != nil {
+	if err := ctx.addUpdateSize(int64(32)); err != nil {
 		C.luaL_setuncatchablerror(L)
 		return C.CString(err.Error())
 	}
@@ -182,35 +171,6 @@ func luaDelDB(L *LState, service C.int, key unsafe.Pointer, keyLen C.int) *C.cha
 			string(C.GoBytes(key, keyLen)), keyLen, C.GoBytes(key, keyLen)))
 	}
 	return nil
-}
-
-func getCallState(ctx *vmContext, id []byte) (*callState, error) {
-	aid := types.ToAccountID(id)
-	cs := ctx.callState[aid]
-	if cs == nil {
-		bs := ctx.bs
-
-		prevState, err := bs.GetAccountState(aid)
-		if err != nil {
-			return nil, err
-		}
-
-		curState := prevState.Clone()
-		cs = &callState{prevState: prevState, curState: curState}
-		ctx.callState[aid] = cs
-	}
-	return cs, nil
-}
-
-func getCtrState(ctx *vmContext, id []byte) (*callState, error) {
-	cs, err := getCallState(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	if cs.ctrState == nil {
-		cs.ctrState, err = state.OpenContractState(id, cs.curState, ctx.bs.StateDB)
-	}
-	return cs, err
 }
 
 func setInstCount(ctx *vmContext, parent *LState, child *LState) {
@@ -359,14 +319,6 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 	}
 
 	return ret, nil
-}
-
-func getOnlyContractState(ctx *vmContext, id []byte) (*state.ContractState, error) {
-	cs := ctx.callState[types.ToAccountID(id)]
-	if cs == nil || cs.ctrState == nil {
-		return state.OpenContractStateAccount(id, ctx.bs.StateDB)
-	}
-	return cs.ctrState, nil
 }
 
 //export luaDelegateCallContract
@@ -1170,7 +1122,7 @@ func luaDeployContract(
 		}
 	}
 
-	err = addUpdateSize(ctx, int64(len(code)))
+	err = ctx.addUpdateSize(int64(len(code)))
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDeployContract]:" + err.Error())
 	}

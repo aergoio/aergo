@@ -41,7 +41,6 @@ import (
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/internal/enc/hex"
 	"github.com/aergoio/aergo/v2/state"
-	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/dbkey"
 	jsoniter "github.com/json-iterator/go"
@@ -73,21 +72,6 @@ type ChainAccessor interface {
 	GetBestBlock() (*types.Block, error)
 }
 
-type callState struct {
-	ctrState  *state.ContractState
-	prevState *types.State
-	curState  *types.State
-	tx        sqlTx
-}
-
-type contractInfo struct {
-	callState  *callState
-	sender     []byte
-	contractId []byte
-	rp         uint64
-	amount     *big.Int
-}
-
 // vmContext contains context datas during execution of smart contract.
 // It has both call infos which are immutable, and real time statuses
 // which are mutable during execution
@@ -117,20 +101,6 @@ type vmContext struct {
 	execCtx           context.Context
 }
 
-type recoveryEntry struct {
-	seq           int
-	amount        *big.Int
-	senderState   *types.State
-	senderNonce   uint64
-	callState     *callState
-	onlySend      bool
-	isDeploy      bool
-	sqlSaveName   *string
-	stateRevision statedb.Snapshot
-	prev          *recoveryEntry
-}
-
-type LState = C.struct_lua_State
 type executor struct {
 	L          *LState
 	code       []byte
@@ -160,24 +130,6 @@ func init() {
 func InitContext(numCtx int) {
 	maxContext = numCtx
 	contexts = make([]*vmContext, maxContext)
-}
-
-func newContractInfo(cs *callState, sender, contractId []byte, rp uint64, amount *big.Int) *contractInfo {
-	return &contractInfo{
-		cs,
-		sender,
-		contractId,
-		rp,
-		amount,
-	}
-}
-
-func getTraceFile(blkno uint64, tx []byte) *os.File {
-	f, _ := os.OpenFile(fmt.Sprintf("%s%s%d.trace", os.TempDir(), string(os.PathSeparator), blkno), os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
-	if f != nil {
-		_, _ = f.WriteString(fmt.Sprintf("[START TX]: %s\n", base58.Encode(tx)))
-	}
-	return f
 }
 
 func NewVmContext(execCtx context.Context, blockState *state.BlockState, cdb ChainAccessor, sender, reciever *state.AccountState, contractState *state.ContractState, senderID, txHash []byte, bi *types.BlockHeaderInfo, node string, confirmed, query bool, rp uint64, service int, amount *big.Int, gasLimit uint64, feeDelegation bool) *vmContext {
@@ -268,43 +220,15 @@ func (ctx *vmContext) usedGas() uint64 {
 	return ctx.gasLimit - ctx.remainedGas
 }
 
-func newLState() *LState {
-	ctrLgr.Debug().Msg("LState created")
-	return C.vm_newstate(C.int(currentForkVersion))
-}
-
-func (L *LState) close() {
-	if L != nil {
-		C.lua_close(L)
+func (ctx *vmContext) addUpdateSize(updateSize int64) error {
+	if ctx.IsGasSystem() {
+		return nil
 	}
-}
-
-type lStatesBuffer struct {
-	s     []*LState
-	limit int
-}
-
-func newLStatesBuffer(limit int) *lStatesBuffer {
-	return &lStatesBuffer{
-		s:     make([]*LState, 0),
-		limit: limit,
+	if ctx.dbUpdateTotalSize+updateSize > dbUpdateMaxLimit {
+		return errors.New("exceeded size of updates in the state database")
 	}
-}
-
-func (Ls *lStatesBuffer) len() int {
-	return len(Ls.s)
-}
-
-func (Ls *lStatesBuffer) append(s *LState) {
-	Ls.s = append(Ls.s, s)
-	if Ls.len() == Ls.limit {
-		Ls.close()
-	}
-}
-
-func (Ls *lStatesBuffer) close() {
-	C.vm_closestates(&Ls.s[0], C.int(len(Ls.s)))
-	Ls.s = Ls.s[:0]
+	ctx.dbUpdateTotalSize += updateSize
+	return nil
 }
 
 func resolveFunction(contractState *state.ContractState, bs *state.BlockState, name string, constructor bool) (*types.Function, error) {
@@ -666,6 +590,13 @@ func (ce *executor) call(instLimit C.int, target *LState) C.int {
 	return nRet
 }
 
+func vmAutoload(L *LState, funcName string) bool {
+	s := C.CString(funcName)
+	loaded := C.vm_autoload(L, s)
+	C.free(unsafe.Pointer(s))
+	return loaded != C.int(0)
+}
+
 func (ce *executor) commitCalledContract() error {
 	ctx := ce.ctx
 
@@ -789,6 +720,36 @@ func (ce *executor) refreshRemainingGas() {
 
 func (ce *executor) gas() uint64 {
 	return uint64(C.lua_gasget(ce.L))
+}
+func (ce *executor) vmLoadCode(id []byte) {
+	var chunkId *C.char
+	if ce.ctx.blockInfo.ForkVersion >= 3 {
+		chunkId = C.CString("@" + types.EncodeAddress(id))
+	} else {
+		chunkId = C.CString(hex.Encode(id))
+	}
+	defer C.free(unsafe.Pointer(chunkId))
+	if cErrMsg := C.vm_loadbuff(
+		ce.L,
+		(*C.char)(unsafe.Pointer(&ce.code[0])),
+		C.size_t(len(ce.code)),
+		chunkId,
+		ce.ctx.service-C.int(maxContext),
+	); cErrMsg != nil {
+		errMsg := C.GoString(cErrMsg)
+		ce.err = errors.New(errMsg)
+		ctrLgr.Debug().Err(ce.err).Str("contract", types.EncodeAddress(id)).Msg("failed to load code")
+	}
+}
+
+func (ce *executor) vmLoadCall() {
+	if cErrMsg := C.vm_loadcall(
+		ce.L,
+	); cErrMsg != nil {
+		errMsg := C.GoString(cErrMsg)
+		ce.err = errors.New(errMsg)
+	}
+	C.luaL_set_service(ce.L, ce.ctx.service)
 }
 
 func getCallInfo(ci interface{}, args []byte, contractAddress []byte) error {
@@ -1359,57 +1320,6 @@ func GetABI(contractState *state.ContractState, bs *state.BlockState) (*types.AB
 	return abi, nil
 }
 
-func (re *recoveryEntry) recovery(bs *state.BlockState) error {
-	var zero big.Int
-	cs := re.callState
-	if re.amount.Cmp(&zero) > 0 {
-		if re.senderState != nil {
-			re.senderState.Balance = new(big.Int).Add(re.senderState.GetBalanceBigInt(), re.amount).Bytes()
-		}
-		if cs != nil {
-			cs.curState.Balance = new(big.Int).Sub(cs.curState.GetBalanceBigInt(), re.amount).Bytes()
-		}
-	}
-	if re.onlySend {
-		return nil
-	}
-	if re.senderState != nil {
-		re.senderState.Nonce = re.senderNonce
-	}
-
-	if cs == nil {
-		return nil
-	}
-	if re.stateRevision != -1 {
-		err := cs.ctrState.Rollback(re.stateRevision)
-		if err != nil {
-			return newDbSystemError(err)
-		}
-		if re.isDeploy {
-			err := cs.ctrState.SetCode(nil)
-			if err != nil {
-				return newDbSystemError(err)
-			}
-			bs.RemoveCache(cs.ctrState.GetAccountID())
-		}
-	}
-	if cs.tx != nil {
-		if re.sqlSaveName == nil {
-			err := cs.tx.rollbackToSavepoint()
-			if err != nil {
-				return newDbSystemError(err)
-			}
-			cs.tx = nil
-		} else {
-			err := cs.tx.rollbackToSubSavepoint(*re.sqlSaveName)
-			if err != nil {
-				return newDbSystemError(err)
-			}
-		}
-	}
-	return nil
-}
-
 func Compile(code string, parent *LState) (luacUtil.LuaCode, error) {
 	L := luacUtil.NewLState()
 	if L == nil {
@@ -1436,42 +1346,4 @@ func Compile(code string, parent *LState) (luacUtil.LuaCode, error) {
 		return nil, err
 	}
 	return byteCodeAbi, nil
-}
-
-func vmAutoload(L *LState, funcName string) bool {
-	s := C.CString(funcName)
-	loaded := C.vm_autoload(L, s)
-	C.free(unsafe.Pointer(s))
-	return loaded != C.int(0)
-}
-
-func (ce *executor) vmLoadCode(id []byte) {
-	var chunkId *C.char
-	if ce.ctx.blockInfo.ForkVersion >= 3 {
-		chunkId = C.CString("@" + types.EncodeAddress(id))
-	} else {
-		chunkId = C.CString(hex.Encode(id))
-	}
-	defer C.free(unsafe.Pointer(chunkId))
-	if cErrMsg := C.vm_loadbuff(
-		ce.L,
-		(*C.char)(unsafe.Pointer(&ce.code[0])),
-		C.size_t(len(ce.code)),
-		chunkId,
-		ce.ctx.service-C.int(maxContext),
-	); cErrMsg != nil {
-		errMsg := C.GoString(cErrMsg)
-		ce.err = errors.New(errMsg)
-		ctrLgr.Debug().Err(ce.err).Str("contract", types.EncodeAddress(id)).Msg("failed to load code")
-	}
-}
-
-func (ce *executor) vmLoadCall() {
-	if cErrMsg := C.vm_loadcall(
-		ce.L,
-	); cErrMsg != nil {
-		errMsg := C.GoString(cErrMsg)
-		ce.err = errors.New(errMsg)
-	}
-	C.luaL_set_service(ce.L, ce.ctx.service)
 }
