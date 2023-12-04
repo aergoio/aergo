@@ -25,8 +25,12 @@ const (
 
 func (as *AccountState) ID() []byte {
 	if len(as.id) < types.AddressLength {
-		as.id = types.AddressPadding(as.id)
+		return types.AddressPadding(as.id)
 	}
+	return as.IDNoPadding()
+}
+
+func (as *AccountState) IDNoPadding() []byte {
 	return as.id
 }
 
