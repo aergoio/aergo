@@ -3,13 +3,14 @@ package ethdb
 import (
 	"math/big"
 
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/trie"
 )
 
 const (
-	StateName = "evm_state"
+	StateName = "state_evm"
 )
 
 type StateDB struct {
@@ -43,16 +44,30 @@ func (sdb *StateDB) GetStateDB() *state.StateDB {
 	return sdb.evmStateDB
 }
 
-func (sdb *StateDB) PutState(addr common.Address, balance *big.Int, nonce uint64, code []byte) {
+func (sdb *StateDB) PutState(id []byte, addr common.Address, balance *big.Int, nonce uint64, code []byte) {
 	sdb.evmStateDB.SetNonce(addr, nonce)
 	sdb.evmStateDB.SetBalance(addr, balance)
-	if len(code) > 0 {
-		sdb.evmStateDB.SetCode(addr, code)
-	}
+
+	// id must be 33 bytes
+	idWithCode := make([]byte, types.AddressLength+len(code))
+	copy(idWithCode, id)
+	copy(idWithCode[types.AddressLength:], code)
+
+	sdb.evmStateDB.SetCode(addr, idWithCode)
 }
 
-func (sdb *StateDB) GetState(addr common.Address) (balance *big.Int, nonce uint64, code []byte) {
-	return sdb.evmStateDB.GetBalance(addr), sdb.evmStateDB.GetNonce(addr), sdb.evmStateDB.GetCode(addr)
+func (sdb *StateDB) GetState(addr common.Address) (id []byte, balance *big.Int, nonce uint64, code []byte) {
+	idWithCode := sdb.evmStateDB.GetCode(addr)
+	id = idWithCode[:types.AddressLength]
+	balance = sdb.evmStateDB.GetBalance(addr)
+	nonce = sdb.evmStateDB.GetNonce(addr)
+	code = idWithCode[types.AddressLength:]
+	return id, balance, nonce, code
+}
+
+func (sdb *StateDB) GetId(addr common.Address) (id []byte) {
+	idWithCode := sdb.evmStateDB.GetCode(addr)
+	return idWithCode[:types.AddressLength]
 }
 
 func (sdb *StateDB) Root() []byte {

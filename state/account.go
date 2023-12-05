@@ -136,7 +136,7 @@ func (as *AccountState) PutState() error {
 		return err
 	}
 	if as.ethStates != nil {
-		as.ethStates.PutState(as.ethId, new(big.Int).SetBytes(as.newState.Balance), as.newState.Nonce, nil)
+		as.ethStates.PutState(as.id, as.ethId, new(big.Int).SetBytes(as.newState.Balance), as.newState.Nonce, nil)
 	}
 	return nil
 }

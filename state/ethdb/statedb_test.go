@@ -26,7 +26,7 @@ func TestState(t *testing.T) {
 	balance := big.NewInt(100)
 	nonce := uint64(0)
 	code := []byte("code")
-	sdbOld.PutState(addr, balance, nonce, code)
+	sdbOld.PutState(nil, addr, balance, nonce, code)
 
 	newRoot, err := sdbOld.Commit(0)
 	require.NoError(t, err)

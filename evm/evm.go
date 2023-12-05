@@ -7,6 +7,8 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/state/ethdb"
+	"github.com/aergoio/aergo/v2/state/statedb"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 )
@@ -15,26 +17,33 @@ var (
 	logger = log.NewLogger("evm")
 )
 
-type EVM struct {
-	accounts map[common.Address]*state.AccountState
-	blocks   map[uint64][]byte
-
-	readonly  bool
-	ethState  *ethdb.StateDB
-	stateRoot common.Hash
+type ChainAccessor interface {
+	GetBlockByNo(blockNo types.BlockNo) (*types.Block, error)
+	GetBestBlock() (*types.Block, error)
 }
 
-func NewEVM(prevStateRoot []byte, ethState *ethdb.StateDB) *EVM {
+type EVM struct {
+	readonly      bool
+	chainAccessor ChainAccessor
+	luaState      *statedb.StateDB
+	ethState      *ethdb.StateDB
+	stateRoot     common.Hash
+}
+
+func NewEVM(prevStateRoot []byte, chainAccessor ChainAccessor, luaState *statedb.StateDB, ethState *ethdb.StateDB) *EVM {
 	return &EVM{
-		readonly:  false,
-		stateRoot: common.BytesToHash(prevStateRoot),
-		ethState:  ethState,
+		readonly:      false,
+		chainAccessor: chainAccessor,
+		stateRoot:     common.BytesToHash(prevStateRoot),
+		luaState:      luaState,
+		ethState:      ethState,
 	}
 }
 
-func NewEVMQuery(queryStateRoot []byte, ethState *ethdb.StateDB) *EVM {
+func NewEVMQuery(chainAccessor ChainAccessor, queryStateRoot []byte, luaState *statedb.StateDB, ethState *ethdb.StateDB) *EVM {
 	return &EVM{
 		readonly:  true,
+		luaState:  nil,
 		stateRoot: common.BytesToHash(queryStateRoot),
 		ethState:  ethState,
 	}
@@ -119,33 +128,37 @@ func (e *EVM) Create(ethAddress common.Address, payload []byte) ([]byte, []byte,
 
 func (e *EVM) GetHashFn() vm.GetHashFunc {
 	return func(n uint64) common.Hash {
-		blockHash := e.blocks[n]
-		return common.BytesToHash(blockHash)
+		block, err := e.chainAccessor.GetBlockByNo(n)
+		if err != nil {
+			return common.Hash{}
+		}
+		return common.BytesToHash(block.Hash)
 	}
 }
 
 func (e *EVM) TransferFn() vm.TransferFunc {
 	return func(db vm.StateDB, sender, recipient common.Address, amount *big.Int) {
-		if senderState := e.accounts[sender]; senderState != nil {
-			senderState.SubBalance(amount)
-		} else {
-			// TODO - get from state
+		senderAccState, err := state.GetAccountState(e.ethState.GetId(sender), e.luaState, e.ethState)
+		if err != nil {
+			panic("impossible") // FIXME
 		}
-		if receipientState := e.accounts[recipient]; receipientState != nil {
-			receipientState.AddBalance(amount)
-		} else {
-			// TODO - get from state
+		receipientAccState, err := state.GetAccountState(e.ethState.GetId(recipient), e.luaState, e.ethState)
+		if err != nil {
+			panic("impossible") // FIXME
+		}
+		err = state.SendBalance(senderAccState, receipientAccState, amount)
+		if err != nil {
+			panic("impossible") // FIXME
 		}
 	}
 }
 
 func (e *EVM) CanTransferFn() vm.CanTransferFunc {
 	return func(sdb vm.StateDB, addr common.Address, amount *big.Int) bool {
-		if state := e.accounts[addr]; state != nil {
-			return state.Balance().Cmp(amount) >= 0
-		} else {
-			// TODO - get from state
+		accState, err := state.GetAccountState(e.ethState.GetId(addr), e.luaState, e.ethState)
+		if err != nil {
+			panic("impossible") // FIXME
 		}
-		return false
+		return accState.Balance().Cmp(amount) >= 0
 	}
 }

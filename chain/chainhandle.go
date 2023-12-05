@@ -640,7 +640,7 @@ func NewTxExecutor(execCtx context.Context, ccc consensus.ChainConsensusCluster,
 			return ErrInvalidBlockHeader
 		}
 		blockSnap := bState.Snapshot()
-		evmService := evm.NewEVM(bState.GetEvmRoot(), bState.EvmStateDB)
+		evmService := evm.NewEVM(bState.GetEvmRoot(), cdb, bState.LuaStateDB, bState.EvmStateDB)
 		err := executeTx(execCtx, ccc, cdb, bState, tx, bi, preloadService, evmService)
 		if err != nil {
 			logger.Error().Err(err).Str("hash", base58.Encode(tx.GetHash())).Msg("tx failed")

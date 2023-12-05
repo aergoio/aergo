@@ -70,7 +70,7 @@ func (sdb *ChainStateDB) Init(dbType string, dataDir string, bestBlock *types.Bl
 	}
 
 	if sdb.ethStore == nil {
-		dbPath := common.PathMkdirAll(dataDir, "state_evm")
+		dbPath := common.PathMkdirAll(dataDir, ethdb.StateName)
 		sdb.ethStore, err = ethdb.NewDB(dbPath, dbType)
 		if err != nil {
 			return err

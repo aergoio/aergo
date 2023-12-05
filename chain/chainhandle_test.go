@@ -74,7 +74,7 @@ func TestErrorInExecuteTx(t *testing.T) {
 	initTest(t, true)
 	defer deinitTest()
 	bs := state.NewBlockState(sdb.GetStateDB(), sdb.OpenEvmStateDB(nil))
-	evmService := evm.NewEVM(bs.GetEvmRoot(), bs.EvmStateDB)
+	evmService := evm.NewEVM(bs.GetEvmRoot(), nil, bs.LuaStateDB, bs.EvmStateDB)
 
 	tx := &types.Tx{}
 	err := executeTx(nil, nil, nil, bs, types.NewTransaction(tx), newTestBlockInfo(chainID), contract.ChainService, evmService)
@@ -111,7 +111,7 @@ func TestBasicExecuteTx(t *testing.T) {
 	initTest(t, true)
 	defer deinitTest()
 	bs := state.NewBlockState(sdb.GetStateDB(), sdb.OpenEvmStateDB(nil))
-	evmService := evm.NewEVM(bs.GetEvmRoot(), bs.EvmStateDB)
+	evmService := evm.NewEVM(bs.GetEvmRoot(), nil, bs.LuaStateDB, bs.EvmStateDB)
 
 	tx := &types.Tx{Body: &types.TxBody{}}
 
