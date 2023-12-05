@@ -100,7 +100,9 @@ func (c *unstakeCmd) run() (*types.Event, error) {
 	if err := subTotal(scs, balanceAdjustment); err != nil {
 		return nil, err
 	}
-	if err := state.SendBalance(sender, receiver, balanceAdjustment); err != nil {
+
+	// receive balance
+	if err := state.SendBalance(receiver, sender, balanceAdjustment); err != nil {
 		return nil, err
 	}
 
