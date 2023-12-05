@@ -19,8 +19,9 @@ type NameMap struct {
 
 func CreateName(scs *statedb.ContractState, tx *types.TxBody, sender, receiver *state.AccountState, name string) error {
 	amount := tx.GetAmountBigInt()
-	sender.SubBalance(amount)
-	receiver.AddBalance(amount)
+	if err := state.SendBalance(sender, receiver, amount); err != nil {
+		return err
+	}
 	return createName(scs, []byte(name), sender.ID())
 }
 
@@ -39,8 +40,9 @@ func UpdateName(bs *state.BlockState, scs *statedb.ContractState, tx *types.TxBo
 	destination = GetAddress(scs, destination)
 
 	amount := tx.GetAmountBigInt()
-	sender.SubBalance(amount)
-	receiver.AddBalance(amount)
+	if err := state.SendBalance(sender, receiver, amount); err != nil {
+		return err
+	}
 	contract, err := statedb.OpenContractStateAccount(destination, bs.LuaStateDB)
 	if err != nil {
 		return types.ErrTxInvalidRecipient

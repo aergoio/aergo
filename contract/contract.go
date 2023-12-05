@@ -81,16 +81,9 @@ func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, t
 	// compute the base fee
 	usedFee = fee.TxBaseFee(bi.ForkVersion, bs.GasPrice, len(txPayload))
 
-	// check if sender and receiver are not the same
-	if sender.AccountID() != receiver.AccountID() {
-		// check if sender has enough balance
-		if sender.Balance().Cmp(txBody.GetAmountBigInt()) < 0 {
-			err = types.ErrInsufficientBalance
-			return
-		}
-		// transfer the amount from the sender to the receiver
-		sender.SubBalance(txBody.GetAmountBigInt())
-		receiver.AddBalance(txBody.GetAmountBigInt())
+	// transfer the amount from the sender to the receiver
+	if err = state.SendBalance(sender, receiver, txBody.GetAmountBigInt()); err != nil {
+		return
 	}
 
 	// check if the tx is valid and if the code should be executed

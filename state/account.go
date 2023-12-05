@@ -57,16 +57,10 @@ func (as *AccountState) SetNonce(nonce uint64) {
 }
 
 func (as *AccountState) Nonce() uint64 {
-	if as.newState == nil {
-		return 0
-	}
 	return as.newState.Nonce
 }
 
 func (as *AccountState) Balance() *big.Int {
-	if as.newState == nil {
-		return big.NewInt(0)
-	}
 	return new(big.Int).SetBytes(as.newState.Balance)
 }
 
@@ -223,11 +217,11 @@ func InitAccountState(id []byte, states *statedb.StateDB, ethstates *ethdb.State
 }
 
 func SendBalance(sender, receiver *AccountState, amount *big.Int) error {
-	if sender == receiver {
+	if sender.AccountID() == receiver.AccountID() {
 		return nil
 	}
 	if sender.Balance().Cmp(amount) < 0 {
-		return fmt.Errorf("insufficient balance")
+		return types.ErrInsufficientBalance
 	}
 	sender.SubBalance(amount)
 	receiver.AddBalance(amount)

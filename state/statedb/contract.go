@@ -54,10 +54,6 @@ func (cs *ContractState) GetAccountID() types.AccountID {
 }
 
 func (cs *ContractState) GetID() []byte {
-	idPadding := types.AddressPadding(cs.id)
-	if cs.account.String() == types.ToAccountID(idPadding).String() {
-		return idPadding
-	}
 	return cs.id
 }
 

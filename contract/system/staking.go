@@ -9,6 +9,7 @@ import (
 	"errors"
 	"math/big"
 
+	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/dbkey"
@@ -51,9 +52,9 @@ func (c *stakeCmd) run() (*types.Event, error) {
 	if err := addTotal(c.scs, amount); err != nil {
 		return nil, err
 	}
-	sender.SubBalance(amount)
-	receiver.AddBalance(amount)
-
+	if err := state.SendBalance(sender, receiver, amount); err != nil {
+		return nil, err
+	}
 	jsonArgs := ""
 	if c.SystemContext.BlockInfo.ForkVersion < 2 {
 		jsonArgs = `{"who":"` + types.EncodeAddress(sender.ID()) + `", "amount":"` + amount.String() + `"}`
@@ -99,8 +100,11 @@ func (c *unstakeCmd) run() (*types.Event, error) {
 	if err := subTotal(scs, balanceAdjustment); err != nil {
 		return nil, err
 	}
-	sender.AddBalance(balanceAdjustment)
-	receiver.SubBalance(balanceAdjustment)
+
+	// receive balance
+	if err := state.SendBalance(receiver, sender, balanceAdjustment); err != nil {
+		return nil, err
+	}
 
 	jsonArgs := ""
 	if c.SystemContext.BlockInfo.ForkVersion < 2 {
