@@ -75,6 +75,7 @@ func (sdb *ChainStateDB) Init(dbType string, dataDir string, bestBlock *types.Bl
 		if err != nil {
 			return err
 		}
+		sdb.EvmRootHash = sdb.ethStore.GetEthRoot()
 	}
 	return nil
 }
