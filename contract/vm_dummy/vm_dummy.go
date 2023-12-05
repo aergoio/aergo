@@ -484,8 +484,11 @@ func contractFrame(l luaTxContract, bs *state.BlockState, cdb contract.ChainAcce
 			return types.ErrNotAllowedFeeDelegation
 		}
 	}
-	creatorState.SubBalance(l.amount())
-	contractState.AddBalance(l.amount())
+	err = state.SendBalance(creatorState, contractState, l.amount())
+	if err != nil {
+		return err
+	}
+
 	rv, events, cFee, err := run(creatorState, contractState, contractId, eContractState)
 	if cFee != nil {
 		usedFee.Add(usedFee, cFee)

@@ -136,8 +136,9 @@ func SetContractOwner(bs *state.BlockState, scs *statedb.ContractState,
 		return nil, err
 	}
 
-	ownerState.AddBalance(nameState.Balance())
-	nameState.SubBalance(nameState.Balance())
+	if err = state.SendBalance(nameState, ownerState, nameState.Balance()); err != nil {
+		return nil, err
+	}
 
 	name := []byte(types.AergoName)
 	if err = registerOwner(scs, name, rawaddr, name); err != nil {
