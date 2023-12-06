@@ -1089,7 +1089,7 @@ func luaDeployContract(
 		return -1, C.CString("[Contract.LuaDeployContract]:" + err.Error())
 	}
 
-	cs := &callState{ctrState: contractState, accState: newContract}
+	cs := &callState{isDeploy: true, ctrState: contractState, accState: newContract}
 	ctx.callState[newContract.AccountID()] = cs
 
 	// read the amount transferred to the contract

@@ -135,8 +135,8 @@ func InitContext(numCtx int) {
 
 func NewVmContext(execCtx context.Context, blockState *state.BlockState, cdb ChainAccessor, sender, receiver *state.AccountState, contractState *statedb.ContractState, senderID, txHash []byte, bi *types.BlockHeaderInfo, node string, confirmed, query bool, rp uint64, service int, amount *big.Int, gasLimit uint64, feeDelegation bool) *vmContext {
 
-	csReceiver := &callState{ctrState: contractState, accState: receiver}
-	csSender := &callState{accState: sender}
+	csReceiver := &callState{isSend: true, ctrState: contractState, accState: receiver}
+	csSender := &callState{isSend: true, accState: sender}
 
 	ctx := &vmContext{
 		curContract:     newContractInfo(csReceiver, senderID, receiver.ID(), rp, amount),
@@ -633,6 +633,10 @@ func (ce *executor) commitCalledContract() error {
 			}
 		}
 		/* For Sender */
+		if v.isSend {
+			continue
+		}
+
 		err = v.accState.PutState()
 		if err != nil {
 			return newDbSystemError(err)
@@ -658,7 +662,12 @@ func (ce *executor) rollbackToSavepoint() error {
 	}
 
 	var err error
-	for _, v := range ctx.callState {
+	for id, v := range ctx.callState {
+		// remove code cache in block ( revert new deploy )
+		if v.isDeploy && len(v.accState.CodeHash()) != 0 {
+			ctx.bs.RemoveCache(id)
+		}
+
 		if v.tx == nil {
 			continue
 		}

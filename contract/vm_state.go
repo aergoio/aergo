@@ -12,6 +12,9 @@ import (
 )
 
 type callState struct {
+	isSend   bool
+	isDeploy bool
+
 	ctrState *statedb.ContractState
 	accState *state.AccountState
 	tx       sqlTx
