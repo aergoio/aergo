@@ -1,6 +1,7 @@
 package ethdb
 
 import (
+	"bytes"
 	"math/big"
 
 	"github.com/aergoio/aergo/v2/types"
@@ -59,6 +60,9 @@ func (sdb *StateDB) PutState(id []byte, addr common.Address, balance *big.Int, n
 func (sdb *StateDB) GetState(addr common.Address) (id []byte, balance *big.Int, nonce uint64, code []byte) {
 	idWithCode := sdb.evmStateDB.GetCode(addr)
 	id = idWithCode[:types.AddressLength]
+	if bytes.Contains(idWithCode, []byte("aergo.")) { // FIXME : check governance id
+		id = bytes.TrimRight(idWithCode, "\x00")
+	}
 	balance = sdb.evmStateDB.GetBalance(addr)
 	nonce = sdb.evmStateDB.GetNonce(addr)
 	code = idWithCode[types.AddressLength:]
@@ -67,7 +71,11 @@ func (sdb *StateDB) GetState(addr common.Address) (id []byte, balance *big.Int, 
 
 func (sdb *StateDB) GetId(addr common.Address) (id []byte) {
 	idWithCode := sdb.evmStateDB.GetCode(addr)
-	return idWithCode[:types.AddressLength]
+	id = idWithCode[:types.AddressLength]
+	if bytes.Contains(idWithCode, []byte("aergo.")) { // FIXME : check governance id
+		id = bytes.TrimRight(idWithCode, "\x00")
+	}
+	return id
 }
 
 func (sdb *StateDB) Root() []byte {

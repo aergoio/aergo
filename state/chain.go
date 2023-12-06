@@ -59,7 +59,7 @@ func (sdb *ChainStateDB) Init(dbType string, dataDir string, bestBlock *types.Bl
 		sdb.luaStore = db.NewDB(db.ImplType(dbType), dbPath)
 	}
 
-	// init trie
+	// init lua state
 	if sdb.luaStates == nil {
 		var sroot []byte
 		if bestBlock != nil {
@@ -69,14 +69,16 @@ func (sdb *ChainStateDB) Init(dbType string, dataDir string, bestBlock *types.Bl
 		sdb.luaStates = statedb.NewStateDB(sdb.luaStore, sroot, sdb.testmode)
 	}
 
+	// init eth db
 	if sdb.ethStore == nil {
 		dbPath := common.PathMkdirAll(dataDir, ethdb.StateName)
 		sdb.ethStore, err = ethdb.NewDB(dbPath, dbType)
 		if err != nil {
 			return err
 		}
-		sdb.EvmRootHash = sdb.ethStore.GetEthRoot()
 	}
+	sdb.EvmRootHash = sdb.ethStore.GetEthRoot()
+
 	return nil
 }
 
@@ -161,7 +163,6 @@ func (sdb *ChainStateDB) SetGenesis(genesis *types.Genesis, bpInit func(*statedb
 	}
 
 	block.SetBlocksRootHash(sdb.GetLuaRoot())
-	sdb.EvmRootHash = block.Header.GetEvmRootHash()
 	sdb.ethStore.SetEthRoot(sdb.EvmRootHash)
 	// block.SetBlocksRootHash(gbState.GetEvmRoot()) // FIXME : not set before v4 hardfork
 
@@ -202,6 +203,8 @@ func (sdb *ChainStateDB) UpdateRoot(bstate *BlockState) error {
 
 	logger.Debug().Str("before", base58.Encode(sdb.luaStates.GetRoot())).
 		Str("luaStateRoot", base58.Encode(bstate.LuaStateDB.GetRoot())).Msg("apply block state")
+	fmt.Println("lua new root :", bstate.GetLuaRoot())
+	fmt.Println("evm new root :", bstate.GetEvmRoot())
 
 	if err := sdb.luaStates.SetRoot(bstate.LuaStateDB.GetRoot()); err != nil {
 		return err
@@ -209,8 +212,8 @@ func (sdb *ChainStateDB) UpdateRoot(bstate *BlockState) error {
 
 	newRootHash := bstate.GetEvmRoot()
 	if !bytes.Equal(newRootHash, sdb.EvmRootHash) {
-		sdb.ethStore.SetEthRoot(sdb.EvmRootHash)
-		sdb.EvmRootHash = bstate.GetEvmRoot()
+		sdb.EvmRootHash = newRootHash
+		sdb.ethStore.SetEthRoot(newRootHash)
 	}
 
 	return nil
@@ -239,7 +242,7 @@ func (sdb *ChainStateDB) IsExistState(hash []byte) bool {
 
 func (sdb *ChainStateDB) NewBlockState(blockRoot []byte, evmRoot []byte, options ...BlockStateOptFn) *BlockState {
 	ls := sdb.OpenNewStateDB(blockRoot)
-	es, _ := ethdb.NewStateDB(evmRoot, sdb.ethStore)
+	es := sdb.OpenEvmStateDB(evmRoot)
 
 	return NewBlockState(ls, es, options...)
 }
