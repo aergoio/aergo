@@ -12,8 +12,8 @@ import (
 )
 
 type callState struct {
-	isSend   bool
-	isDeploy bool
+	isCallback bool
+	isDeploy   bool
 
 	ctrState *statedb.ContractState
 	accState *state.AccountState
@@ -29,7 +29,7 @@ func getCallState(ctx *vmContext, id []byte) (*callState, error) {
 		if err != nil {
 			return nil, err
 		}
-		cs = &callState{accState: accState}
+		cs = &callState{isCallback: true, accState: accState}
 		ctx.callState[aid] = cs
 	}
 	return cs, nil

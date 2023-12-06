@@ -135,8 +135,8 @@ func InitContext(numCtx int) {
 
 func NewVmContext(execCtx context.Context, blockState *state.BlockState, cdb ChainAccessor, sender, receiver *state.AccountState, contractState *statedb.ContractState, senderID, txHash []byte, bi *types.BlockHeaderInfo, node string, confirmed, query bool, rp uint64, service int, amount *big.Int, gasLimit uint64, feeDelegation bool) *vmContext {
 
-	csReceiver := &callState{isSend: true, ctrState: contractState, accState: receiver}
-	csSender := &callState{isSend: true, accState: sender}
+	csReceiver := &callState{ctrState: contractState, accState: receiver}
+	csSender := &callState{accState: sender}
 
 	ctx := &vmContext{
 		curContract:     newContractInfo(csReceiver, senderID, receiver.ID(), rp, amount),
@@ -632,15 +632,14 @@ func (ce *executor) commitCalledContract() error {
 				return newDbSystemError(err)
 			}
 		}
-		/* For Sender */
-		if v.isSend {
-			continue
+		/* Put account state only for callback */
+		if v.isCallback {
+			err = v.accState.PutState()
+			if err != nil {
+				return newDbSystemError(err)
+			}
 		}
 
-		err = v.accState.PutState()
-		if err != nil {
-			return newDbSystemError(err)
-		}
 	}
 
 	if ctx.traceFile != nil {
