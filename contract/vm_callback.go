@@ -266,8 +266,8 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 		if ctx.isQuery == true || ctx.nestedView > 0 {
 			return -1, C.CString("[Contract.LuaCallContract] send not permitted in query")
 		}
-		if err := state.SendBalance(senderState, receiverState, amountBig); err != nil {
-			return -1, C.CString("[Contract.sendBalance] insufficient balance: " + senderState.Balance().String() + " : " + amountBig.String())
+		if r := sendBalance(senderState, receiverState, amountBig); r != nil {
+			return -1, r
 		}
 	}
 
@@ -503,8 +503,8 @@ func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char)
 
 		// send the amount to the contract
 		if amountBig.Cmp(zeroBig) > 0 {
-			if err := state.SendBalance(senderState, receiverState, amountBig); err != nil {
-				return C.CString("[Contract.sendBalance] insufficient balance: " + senderState.Balance().String() + " : " + amountBig.String())
+			if r := sendBalance(senderState, receiverState, amountBig); r != nil {
+				return r
 			}
 		}
 
@@ -569,8 +569,8 @@ func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char)
 	}
 
 	// send the amount to the receiver
-	if err := state.SendBalance(senderState, receiverState, amountBig); err != nil {
-		return C.CString("[Contract.sendBalance] insufficient balance: " + senderState.Balance().String() + " : " + amountBig.String())
+	if r := sendBalance(senderState, receiverState, amountBig); r != nil {
+		return r
 	}
 
 	// update the recovery point
@@ -1516,4 +1516,12 @@ func luaGetStaking(service C.int, addr *C.char) (*C.char, C.lua_Integer, *C.char
 	}
 
 	return C.CString(staking.GetAmountBigInt().String()), C.lua_Integer(staking.When), nil
+}
+
+func sendBalance(sender *state.AccountState, receiver *state.AccountState, amount *big.Int) *C.char {
+	if err := state.SendBalance(sender, receiver, amount); err != nil {
+		return C.CString("[Contract.sendBalance] insufficient balance: " +
+			sender.Balance().String() + " : " + amount.String())
+	}
+	return nil
 }
