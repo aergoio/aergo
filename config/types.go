@@ -219,6 +219,7 @@ npaddpolarises = [{{range .P2P.NPAddPolarises}}
 "{{.}}", {{end}}
 ]
 peerrole = "{{.P2P.PeerRole}}"
+allowlegacy = "{{.P2P.AllowLegacy}}"
 
 [polaris]
 allowprivate = {{.Polaris.AllowPrivate}}
