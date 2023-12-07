@@ -92,7 +92,7 @@ func (c *vprCmd) subVprWithHandleException(v *types.Vote) {
 	aid := c.Sender.AccountID()
 
 	// Handle exception 1. multisig contract ( AmhNcvE7RR84xoRzYNyATnwZR2JXaC5ut7neu89R13aj1b4eUxKp )
-	if aid.String() == "A9zXKkooeGYAZC5ReCcgeg4ddsvMHAy2ivUafXhrnzpj" && (no == 19612737 || no == 19612950 || no == 19613089 || no == 19613217 || no == 19613311) {
+	if aid.String() == "A9zXKkooeGYAZC5ReCcgeg4ddsvMHAy2ivUafXhrnzpj" {
 		votingPowerRank.sub(statedb.EmptyAccountID, c.Sender.ID(), v.GetAmountBigInt())
 		return
 	}
@@ -115,7 +115,7 @@ func (c *vprCmd) addVprWithHandleException(v *types.Vote) {
 	aid := c.Sender.AccountID()
 
 	// Handle exception 1. multisig contract ( AmhNcvE7RR84xoRzYNyATnwZR2JXaC5ut7neu89R13aj1b4eUxKp )
-	if aid.String() == "A9zXKkooeGYAZC5ReCcgeg4ddsvMHAy2ivUafXhrnzpj" && (no == 19612737 || no == 19612950 || no == 19613089 || no == 19613217 || no == 19613311) {
+	if aid.String() == "A9zXKkooeGYAZC5ReCcgeg4ddsvMHAy2ivUafXhrnzpj" {
 		votingPowerRank.add(statedb.EmptyAccountID, c.Sender.ID(), v.GetAmountBigInt())
 		return
 	}
