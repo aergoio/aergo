@@ -80,6 +80,7 @@ type P2PConfig struct {
 	Producers     []string `mapstructure:"producers" description:"List of peer ids of block producers, only meaningful when peer is agent"`
 	InternalZones []string `mapstructure:"internalzones" description:"List of address ranges that are recognised as inner zone of agent. defined by CIDR notation."`
 	Agent         string   `mapstructure:"agent" description:"Peer id of agent that delegates this producer, only available when local peer is producer"`
+	AllowLegacy   bool     `mapstructure:"allowlegacy" description:"Whether to allow legacy security protocols"`
 }
 
 // AuthConfig defines configuration for auditing

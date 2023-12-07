@@ -481,7 +481,7 @@ func (block *Block) PrevID() string {
 func (block *Block) setPubKey(pubKey crypto.PubKey) error {
 	var pk []byte
 	var err error
-	if pk, err = pubKey.Bytes(); err != nil {
+	if pk, err = crypto.MarshalPublicKey(pubKey); err != nil {
 		return err
 	}
 	block.Header.PubKey = pk
