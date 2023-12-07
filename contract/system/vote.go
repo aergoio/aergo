@@ -75,38 +75,62 @@ func newVprCmd(ctx *SystemContext, vr *VoteResult) *vprCmd {
 		}
 	} else {
 		cmd.add = func(v *types.Vote) error {
-			return cmd.addVote(v)
+			cmd.addVprWithHandleException(v) // calculate voting power rank with handle exception
+			return cmd.voteResult.AddVote(v)
 		}
 		cmd.sub = func(v *types.Vote) error {
-			return cmd.subVote(v)
+			cmd.subVprWithHandleException(v) // calculate voting power rank with handle exception
+			return cmd.voteResult.SubVote(v)
 		}
 	}
 
 	return cmd
 }
 
-func (c *vprCmd) subVote(v *types.Vote) error {
-	votingPowerRank.sub(c.Sender.AccountID(), c.Sender.ID(), v.GetAmountBigInt())
-	// Hotfix - reproduce vpr calculation for block 138015125
-	// When block is reverted, votingPowerRank is not reverted and calculated three times.
-	if c.BlockInfo.No == 138015125 && c.Sender.AccountID().String() == "36t2u7Q31HmEbkkYZng7DHNm3xepxHKUfgGrAXNA8pMW" {
-		for i := 0; i < 2; i++ {
-			votingPowerRank.sub(c.Sender.AccountID(), c.Sender.ID(), v.GetAmountBigInt())
-		}
+func (c *vprCmd) subVprWithHandleException(v *types.Vote) {
+	no := c.BlockInfo.No
+	aid := c.Sender.AccountID()
+
+	// Handle exception 1. multisig contract ( AmhNcvE7RR84xoRzYNyATnwZR2JXaC5ut7neu89R13aj1b4eUxKp )
+	if aid.String() == "A9zXKkooeGYAZC5ReCcgeg4ddsvMHAy2ivUafXhrnzpj" && (no == 19612737 || no == 19612950 || no == 19613089 || no == 19613217 || no == 19613311) {
+		votingPowerRank.sub(statedb.EmptyAccountID, c.Sender.ID(), v.GetAmountBigInt())
+		return
 	}
-	return c.voteResult.SubVote(v)
+
+	// Handle exception 2. reproduce vpr calculation
+	// When block is reverted, votingPowerRank is not reverted and calculated three times.
+	if aid.String() == "36t2u7Q31HmEbkkYZng7DHNm3xepxHKUfgGrAXNA8pMW" && no == 138015125 {
+		for i := 0; i < 3; i++ {
+			votingPowerRank.sub(aid, c.Sender.ID(), v.GetAmountBigInt())
+		}
+		return
+	}
+
+	// normal case
+	votingPowerRank.sub(aid, c.Sender.ID(), v.GetAmountBigInt())
 }
 
-func (c *vprCmd) addVote(v *types.Vote) error {
-	votingPowerRank.add(c.Sender.AccountID(), c.Sender.ID(), v.GetAmountBigInt())
-	// Hotfix - reproduce vpr calculation for block 138015125
-	// When block is reverted, votingPowerRank is not reverted and calculated three times.
-	if c.BlockInfo.No == 138015125 && c.Sender.AccountID().String() == "36t2u7Q31HmEbkkYZng7DHNm3xepxHKUfgGrAXNA8pMW" {
-		for i := 0; i < 2; i++ {
-			votingPowerRank.add(c.Sender.AccountID(), c.Sender.ID(), v.GetAmountBigInt())
-		}
+func (c *vprCmd) addVprWithHandleException(v *types.Vote) {
+	no := c.BlockInfo.No
+	aid := c.Sender.AccountID()
+
+	// Handle exception 1. multisig contract ( AmhNcvE7RR84xoRzYNyATnwZR2JXaC5ut7neu89R13aj1b4eUxKp )
+	if aid.String() == "A9zXKkooeGYAZC5ReCcgeg4ddsvMHAy2ivUafXhrnzpj" && (no == 19612737 || no == 19612950 || no == 19613089 || no == 19613217 || no == 19613311) {
+		votingPowerRank.add(statedb.EmptyAccountID, c.Sender.ID(), v.GetAmountBigInt())
+		return
 	}
-	return c.voteResult.AddVote(v)
+
+	// Handle exception 2. reproduce vpr calculation
+	// When block is reverted, votingPowerRank is not reverted and calculated three times.
+	if aid.String() == "36t2u7Q31HmEbkkYZng7DHNm3xepxHKUfgGrAXNA8pMW" && no == 138015125 {
+		for i := 0; i < 3; i++ {
+			votingPowerRank.add(aid, c.Sender.ID(), v.GetAmountBigInt())
+		}
+		return
+	}
+
+	// normal case
+	votingPowerRank.add(aid, c.Sender.ID(), v.GetAmountBigInt())
 }
 
 type voteCmd struct {

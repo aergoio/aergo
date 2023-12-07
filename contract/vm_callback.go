@@ -1325,10 +1325,6 @@ func luaGovernance(L *LState, service C.int, gType C.char, arg *C.char) *C.char 
 	senderState := curContract.callState.accState
 	receiverState := scsState.accState
 
-	if senderState.AccountID().String() == "A9zXKkooeGYAZC5ReCcgeg4ddsvMHAy2ivUafXhrnzpj" {
-		senderState.ClearAid()
-	}
-
 	txBody := types.TxBody{
 		Amount:  amountBig.Bytes(),
 		Payload: payload,

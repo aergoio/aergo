@@ -125,10 +125,6 @@ func (as *AccountState) PutState() error {
 	return as.sdb.PutState(as.aid, as.newState)
 }
 
-func (as *AccountState) ClearAid() {
-	as.aid = statedb.EmptyAccountID
-}
-
 //----------------------------------------------------------------------------------------------//
 // global functions
 
