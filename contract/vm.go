@@ -133,13 +133,13 @@ func InitContext(numCtx int) {
 	contexts = make([]*vmContext, maxContext)
 }
 
-func NewVmContext(execCtx context.Context, blockState *state.BlockState, cdb ChainAccessor, sender, reciever *state.AccountState, contractState *statedb.ContractState, senderID, txHash []byte, bi *types.BlockHeaderInfo, node string, confirmed, query bool, rp uint64, service int, amount *big.Int, gasLimit uint64, feeDelegation bool) *vmContext {
+func NewVmContext(execCtx context.Context, blockState *state.BlockState, cdb ChainAccessor, sender, receiver *state.AccountState, contractState *statedb.ContractState, senderID, txHash []byte, bi *types.BlockHeaderInfo, node string, confirmed, query bool, rp uint64, service int, amount *big.Int, gasLimit uint64, feeDelegation bool) *vmContext {
 
-	csReceiver := &callState{ctrState: contractState, accState: reciever}
+	csReceiver := &callState{ctrState: contractState, accState: receiver}
 	csSender := &callState{accState: sender}
 
 	ctx := &vmContext{
-		curContract:     newContractInfo(csReceiver, senderID, reciever.ID(), rp, amount),
+		curContract:     newContractInfo(csReceiver, senderID, receiver.ID(), rp, amount),
 		bs:              blockState,
 		cdb:             cdb,
 		origin:          senderID,
@@ -157,7 +157,7 @@ func NewVmContext(execCtx context.Context, blockState *state.BlockState, cdb Cha
 
 	// init call state
 	ctx.callState = make(map[types.AccountID]*callState)
-	ctx.callState[reciever.AccountID()] = csReceiver
+	ctx.callState[receiver.AccountID()] = csReceiver
 	if sender != nil {
 		ctx.callState[sender.AccountID()] = csSender
 	}
@@ -632,11 +632,14 @@ func (ce *executor) commitCalledContract() error {
 				return newDbSystemError(err)
 			}
 		}
-		/* For Sender */
-		err = v.accState.PutState()
-		if err != nil {
-			return newDbSystemError(err)
+		/* Put account state only for callback */
+		if v.isCallback {
+			err = v.accState.PutState()
+			if err != nil {
+				return newDbSystemError(err)
+			}
 		}
+
 	}
 
 	if ctx.traceFile != nil {
@@ -658,7 +661,12 @@ func (ce *executor) rollbackToSavepoint() error {
 	}
 
 	var err error
-	for _, v := range ctx.callState {
+	for id, v := range ctx.callState {
+		// remove code cache in block ( revert new deploy )
+		if v.isDeploy && len(v.accState.CodeHash()) != 0 {
+			ctx.bs.RemoveCache(id)
+		}
+
 		if v.tx == nil {
 			continue
 		}
@@ -722,6 +730,7 @@ func (ce *executor) refreshRemainingGas() {
 func (ce *executor) gas() uint64 {
 	return uint64(C.lua_gasget(ce.L))
 }
+
 func (ce *executor) vmLoadCode(id []byte) {
 	var chunkId *C.char
 	if ce.ctx.blockInfo.ForkVersion >= 3 {

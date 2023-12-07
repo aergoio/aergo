@@ -141,10 +141,6 @@ func (as *AccountState) PutState() error {
 	return nil
 }
 
-func (as *AccountState) ClearAid() {
-	as.aid = statedb.EmptyAccountID
-}
-
 //----------------------------------------------------------------------------------------------//
 // global functions
 
