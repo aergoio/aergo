@@ -92,6 +92,7 @@ func (ctx *ServerContext) GetDefaultP2PConfig() *P2PConfig {
 		NPUsePolaris:    true,
 		NPExposeSelf:    true,
 		PeerRole:        "",
+		AllowLegacy:     true,
 	}
 }
 
