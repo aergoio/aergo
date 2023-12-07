@@ -21,7 +21,16 @@ func Test(t *testing.T) {
 }
 
 func PrintLibP2PKey(priv crypto.Key, marshaled []byte, t *testing.T) {
-	oldBytes, err := priv.Bytes()
+	var oldBytes []byte
+	var err error
+	switch v := priv.(type) {
+	case crypto.PrivKey:
+		oldBytes, err = crypto.MarshalPrivateKey(v)
+	case crypto.PubKey:
+		oldBytes, err = crypto.MarshalPublicKey(v)
+	default:
+		t.Fail()
+	}
 	newBytes, err := priv.Raw()
 	if err != nil {
 		t.Errorf("Failed to get bytes: %v", err.Error())
