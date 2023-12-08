@@ -16,13 +16,12 @@ type BlockState struct {
 	LuaStateDB *statedb.StateDB
 	EvmStateDB *ethdb.StateDB
 
-	blockNo       uint64
-	BpReward      big.Int // final bp reward, increment when tx executes
-	receipts      types.Receipts
-	CCProposal    *consensus.ConfChangePropose
-	prevBlockHash []byte
-	consensus     []byte // Consensus Header
-	GasPrice      *big.Int
+	block      *types.BlockHeader
+	BpReward   big.Int // final bp reward, increment when tx executes
+	receipts   types.Receipts
+	CCProposal *consensus.ConfChangePropose
+	consensus  []byte // Consensus Header
+	gasPrice   *big.Int
 
 	timeoutTx types.Transaction
 	codeCache gcache.Cache
@@ -31,21 +30,15 @@ type BlockState struct {
 
 type BlockStateOptFn func(s *BlockState)
 
-func SetPrevBlockHash(h []byte) BlockStateOptFn {
+func SetBlock(block *types.BlockHeader) BlockStateOptFn {
 	return func(s *BlockState) {
-		s.SetPrevBlockHash(h)
+		s.block = block
 	}
 }
 
 func SetGasPrice(gasPrice *big.Int) BlockStateOptFn {
 	return func(s *BlockState) {
 		s.SetGasPrice(gasPrice)
-	}
-}
-
-func SetBlockNo(blockNo uint64) BlockStateOptFn {
-	return func(s *BlockState) {
-		s.blockNo = blockNo
 	}
 }
 
@@ -122,7 +115,7 @@ func (bs *BlockState) Commit() error {
 		}
 	}
 	if bs.EvmStateDB != nil {
-		_, err := bs.EvmStateDB.Commit(bs.blockNo)
+		_, err := bs.EvmStateDB.Commit(bs.block.BlockNo)
 		if err != nil {
 			return err
 		}
@@ -163,18 +156,28 @@ func (bs *BlockState) Receipts() *types.Receipts {
 	return &bs.receipts
 }
 
-func (bs *BlockState) SetPrevBlockHash(prevHash []byte) *BlockState {
+func (bs *BlockState) SetBlock(block *types.BlockHeader) {
 	if bs != nil {
-		bs.prevBlockHash = prevHash
+		bs.block = block
 	}
-	return bs
+}
+
+func (bs *BlockState) Block() *types.BlockHeader {
+	return bs.block
 }
 
 func (bs *BlockState) SetGasPrice(gasPrice *big.Int) *BlockState {
 	if bs != nil {
-		bs.GasPrice = gasPrice
+		bs.gasPrice = gasPrice
 	}
 	return bs
+}
+
+func (bs *BlockState) GasPrice() *big.Int {
+	if bs == nil {
+		return nil
+	}
+	return bs.gasPrice
 }
 
 func (bs *BlockState) TimeoutTx() types.Transaction {
@@ -186,10 +189,6 @@ func (bs *BlockState) TimeoutTx() types.Transaction {
 
 func (bs *BlockState) SetTimeoutTx(tx types.Transaction) {
 	bs.timeoutTx = tx
-}
-
-func (bs *BlockState) PrevBlockHash() []byte {
-	return bs.prevBlockHash
 }
 
 func (bs *BlockState) GetCode(key types.AccountID) []byte {

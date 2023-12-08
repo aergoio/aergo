@@ -207,7 +207,7 @@ func (bc *DummyChain) newBlockState() *state.BlockState {
 	return state.NewBlockState(
 		bc.sdb.OpenNewStateDB(bc.sdb.GetLuaRoot()),
 		nil,
-		state.SetPrevBlockHash(bc.cBlock.GetHeader().PrevBlockHash), // or .GetPrevBlockHash()
+		state.SetBlock(bc.cBlock.GetHeader()), // or .GetPrevBlockHash()
 		state.SetGasPrice(bc.gasPrice),
 	)
 }
@@ -462,13 +462,13 @@ func executeTx(
 		}
 	}
 
-	err = tx.ValidateWithSenderState(senderState, bs.GasPrice, bi.ForkVersion)
+	err = tx.ValidateWithSenderState(senderState, bs.GasPrice(), bi.ForkVersion)
 	if err != nil {
 		err = fmt.Errorf("%w: balance %s, amount %s, gasPrice %s, block %v, txhash: %s",
 			err,
 			sender.Balance().String(),
 			tx.GetBody().GetAmountBigInt().String(),
-			bs.GasPrice.String(),
+			bs.GasPrice().String(),
 			bi.No, base58.Encode(tx.GetHash()))
 		return err
 	}
@@ -506,7 +506,7 @@ func executeTx(
 			logger.Warn().Err(err).Str("txhash", base58.Encode(tx.GetHash())).Msg("governance tx Error")
 		}
 	case types.TxType_FEEDELEGATION:
-		err = tx.ValidateMaxFee(receiver.Balance(), bs.GasPrice, bi.ForkVersion)
+		err = tx.ValidateMaxFee(receiver.Balance(), bs.GasPrice(), bi.ForkVersion)
 		if err != nil {
 			return err
 		}
@@ -585,7 +585,7 @@ func executeTx(
 	receipt.Events = events
 	receipt.FeeDelegation = txBody.Type == types.TxType_FEEDELEGATION
 	isGovernance := txBody.Type == types.TxType_GOVERNANCE
-	receipt.GasUsed = fee.ReceiptGasUsed(bi.ForkVersion, isGovernance, txFee, bs.GasPrice)
+	receipt.GasUsed = fee.ReceiptGasUsed(bi.ForkVersion, isGovernance, txFee, bs.GasPrice())
 
 	return bs.AddReceipt(receipt)
 }

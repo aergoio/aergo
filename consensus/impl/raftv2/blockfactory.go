@@ -522,7 +522,7 @@ func (bf *BlockFactory) generateBlock(work *Work) (*types.Block, *state.BlockSta
 	blockState := bf.sdb.NewBlockState(
 		bestBlock.GetHeader().GetBlocksRootHash(),
 		bestBlock.GetHeader().GetEvmRootHash(),
-		state.SetPrevBlockHash(bestBlock.BlockHash()),
+		state.SetBlock(bestBlock.GetHeader()),
 	)
 	blockState.SetGasPrice(system.GetGasPrice())
 	blockState.Receipts().SetHardFork(bf.bv, bi.No)

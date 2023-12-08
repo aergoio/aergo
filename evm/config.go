@@ -48,7 +48,9 @@ func NewConfig(
 	cfg.GasPrice = gasPrice
 	cfg.Value = Value
 	cfg.State = state
-
+	cfg.EVMConfig = vm.Config{
+		NoBaseFee: true,
+	}
 	setDefault(cfg)
 
 	// overwrite chainid

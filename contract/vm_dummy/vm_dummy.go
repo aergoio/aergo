@@ -193,7 +193,7 @@ func (bc *DummyChain) newBState() *state.BlockState {
 	return state.NewBlockState(
 		bc.sdb.OpenNewStateDB(bc.sdb.GetLuaRoot()),
 		nil,
-		state.SetPrevBlockHash(bc.cBlock.GetHeader().PrevBlockHash),
+		state.SetBlock(bc.cBlock.GetHeader()),
 		state.SetGasPrice(bc.gasPrice),
 	)
 }

@@ -218,7 +218,7 @@ func (ctx *vmContext) setRemainingGas(L *LState) {
 }
 
 func (ctx *vmContext) usedFee() *big.Int {
-	return fee.TxExecuteFee(ctx.blockInfo.ForkVersion, ctx.bs.GasPrice, ctx.usedGas(), ctx.dbUpdateTotalSize)
+	return fee.TxExecuteFee(ctx.blockInfo.ForkVersion, ctx.bs.GasPrice(), ctx.usedGas(), ctx.dbUpdateTotalSize)
 }
 
 func (ctx *vmContext) usedGas() uint64 {

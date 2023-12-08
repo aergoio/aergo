@@ -17,12 +17,14 @@ import (
 
 func TestEVM(t *testing.T) {
 	t.Skip()
+
 	ethrdb, err := ethdb.NewDB("./data/state_evm", "leveldb")
 	require.NoError(t, err)
+
 	rootHash, _ := ethrdb.Store.Get(dbkey.EthRootHash())
 
-	luaRootHash := []byte{44, 187, 127, 8, 150, 64, 67, 28, 6, 32, 223, 231, 89, 246, 155, 54, 190, 217, 27, 184, 222, 48, 88, 98, 165, 44, 184, 221, 145, 169, 187, 175}
-	evmRootHash := []byte{23, 112, 84, 112, 102, 122, 167, 23, 97, 21, 7, 89, 190, 111, 98, 146, 108, 124, 117, 78, 200, 56, 2, 249, 152, 113, 57, 243, 200, 170, 7, 210}
+	luaRootHash := []byte{92, 90, 150, 219, 141, 234, 143, 68, 14, 116, 35, 101, 161, 220, 7, 20, 93, 34, 87, 84, 223, 170, 25, 217, 214, 33, 188, 229, 154, 158, 232, 0}
+	evmRootHash := []byte{17, 123, 75, 250, 212, 173, 6, 117, 223, 85, 45, 148, 76, 133, 7, 211, 5, 29, 15, 144, 176, 232, 255, 0, 171, 9, 7, 83, 6, 58, 55, 202}
 	require.Equal(t, evmRootHash, rootHash)
 
 	ethsdb, err := ethdb.NewStateDB(rootHash, ethrdb)

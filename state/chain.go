@@ -25,7 +25,7 @@ type ChainStateDB struct {
 	luaStore    db.DB
 	luaStates   *statedb.StateDB
 	ethStore    *ethdb.DB
-	EvmRootHash []byte
+	EthRootHash []byte
 	testmode    bool
 }
 
@@ -77,7 +77,7 @@ func (sdb *ChainStateDB) Init(dbType string, dataDir string, bestBlock *types.Bl
 			return err
 		}
 	}
-	sdb.EvmRootHash = sdb.ethStore.GetEthRoot()
+	sdb.EthRootHash = sdb.ethStore.GetEthRoot()
 
 	return nil
 }
@@ -104,14 +104,20 @@ func (sdb *ChainStateDB) GetStateDB() *statedb.StateDB {
 
 // OpenNewStateDB returns new instance of statedb given state root hash
 func (sdb *ChainStateDB) OpenNewStateDB(root []byte) *statedb.StateDB {
+	if root == nil { // before v4
+		root = sdb.GetLuaRoot()
+	}
 	return statedb.NewStateDB(sdb.luaStore, root, sdb.testmode)
 }
 
 func (sdb *ChainStateDB) OpenEvmStateDB(root []byte) *ethdb.StateDB {
 	if root == nil { // before v4
-		root = sdb.EvmRootHash
+		root = sdb.EthRootHash
 	}
-	esdb, _ := ethdb.NewStateDB(root, sdb.ethStore)
+	var esdb *ethdb.StateDB
+	if root != nil {
+		esdb, _ = ethdb.NewStateDB(root, sdb.ethStore)
+	}
 	return esdb
 }
 
@@ -163,7 +169,7 @@ func (sdb *ChainStateDB) SetGenesis(genesis *types.Genesis, bpInit func(*statedb
 	}
 
 	block.SetBlocksRootHash(sdb.GetLuaRoot())
-	sdb.ethStore.SetEthRoot(sdb.EvmRootHash)
+	sdb.ethStore.SetEthRoot(sdb.EthRootHash)
 	// block.SetBlocksRootHash(gbState.GetEvmRoot()) // FIXME : not set before v4 hardfork
 
 	return nil
@@ -211,8 +217,8 @@ func (sdb *ChainStateDB) UpdateRoot(bstate *BlockState) error {
 	}
 
 	newRootHash := bstate.GetEvmRoot()
-	if !bytes.Equal(newRootHash, sdb.EvmRootHash) {
-		sdb.EvmRootHash = newRootHash
+	if !bytes.Equal(newRootHash, sdb.EthRootHash) {
+		sdb.EthRootHash = newRootHash
 		sdb.ethStore.SetEthRoot(newRootHash)
 	}
 
@@ -235,14 +241,19 @@ func (sdb *ChainStateDB) GetLuaRoot() []byte {
 	return sdb.luaStates.GetRoot()
 }
 
+// GetLuaRoot returns state root hash
+func (sdb *ChainStateDB) GetEthRoot() []byte {
+	return sdb.EthRootHash
+}
+
 func (sdb *ChainStateDB) IsExistState(hash []byte) bool {
 	//TODO : StateRootValidation
 	return false
 }
 
-func (sdb *ChainStateDB) NewBlockState(blockRoot []byte, evmRoot []byte, options ...BlockStateOptFn) *BlockState {
-	ls := sdb.OpenNewStateDB(blockRoot)
-	es := sdb.OpenEvmStateDB(evmRoot)
+func (sdb *ChainStateDB) NewBlockState(luaRootHash, evmRootHash []byte, options ...BlockStateOptFn) *BlockState {
+	ls := sdb.OpenNewStateDB(luaRootHash)
+	es := sdb.OpenEvmStateDB(evmRootHash)
 
 	return NewBlockState(ls, es, options...)
 }

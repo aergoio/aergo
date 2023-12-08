@@ -593,8 +593,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 		bState = state.NewBlockState(
 			cs.sdb.GetStateDB(),
 			cs.sdb.OpenEvmStateDB(block.GetHeader().GetEvmRootHash()),
-			state.SetPrevBlockHash(block.GetHeader().GetPrevBlockHash()),
-			state.SetBlockNo(block.GetHeader().GetBlockNo()),
+			state.SetBlock(block.GetHeader()),
 		)
 		bi = types.NewBlockHeaderInfo(block)
 		// FIXME currently the verify only function is allowed long execution time,
@@ -640,7 +639,7 @@ func NewTxExecutor(execCtx context.Context, ccc consensus.ChainConsensusCluster,
 			return ErrInvalidBlockHeader
 		}
 		blockSnap := bState.Snapshot()
-		evmService := evm.NewEVM(bState.GetEvmRoot(), cdb, bState.LuaStateDB, bState.EvmStateDB)
+		evmService := evm.NewEVM(cdb, tx.GetTx(), bState)
 		err := executeTx(execCtx, ccc, cdb, bState, tx, bi, preloadService, evmService)
 		if err != nil {
 			logger.Error().Err(err).Str("hash", base58.Encode(tx.GetHash())).Msg("tx failed")
@@ -745,7 +744,7 @@ func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Bloc
 	if err = cs.IsBlockValid(block, bestBlock); err != nil {
 		return err
 	}
-	bstate = bstate.SetPrevBlockHash(block.GetHeader().GetPrevBlockHash())
+	bstate.SetBlock(block.GetHeader())
 	// TODO refactoring: receive execute function as argument (executeBlock or executeBlockReco)
 	ex, err := newBlockExecutor(cs, bstate, block, false)
 	if err != nil {
@@ -921,7 +920,7 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 		return err
 	}
 
-	err = tx.ValidateWithSenderState(sender.State(), bs.GasPrice, bi.ForkVersion)
+	err = tx.ValidateWithSenderState(sender.State(), bs.GasPrice(), bi.ForkVersion)
 	if err != nil {
 		return err
 	}
@@ -981,7 +980,7 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 			logger.Warn().Err(err).Str("txhash", base58.Encode(tx.GetHash())).Msg("governance tx Error")
 		}
 	case types.TxType_FEEDELEGATION:
-		err = tx.ValidateMaxFee(receiver.Balance(), bs.GasPrice, bi.ForkVersion)
+		err = tx.ValidateMaxFee(receiver.Balance(), bs.GasPrice(), bi.ForkVersion)
 		if err != nil {
 			return err
 		}
@@ -1061,7 +1060,7 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 	receipt.Events = events
 	receipt.FeeDelegation = txBody.Type == types.TxType_FEEDELEGATION
 	isGovernance := txBody.Type == types.TxType_GOVERNANCE
-	receipt.GasUsed = fee.ReceiptGasUsed(bi.ForkVersion, isGovernance, txFee, bs.GasPrice)
+	receipt.GasUsed = fee.ReceiptGasUsed(bi.ForkVersion, isGovernance, txFee, bs.GasPrice())
 
 	return bs.AddReceipt(receipt)
 }

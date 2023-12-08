@@ -7,7 +7,6 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/state/ethdb"
-	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -25,54 +24,51 @@ type ChainAccessor interface {
 type EVM struct {
 	readonly      bool
 	chainAccessor ChainAccessor
-	luaState      *statedb.StateDB
-	ethState      *ethdb.StateDB
-	stateRoot     common.Hash
+
+	txContext *types.Tx
+	bs        *state.BlockState
 }
 
-func NewEVM(prevStateRoot []byte, chainAccessor ChainAccessor, luaState *statedb.StateDB, ethState *ethdb.StateDB) *EVM {
+func NewEVM(chainAccessor ChainAccessor, txContext *types.Tx, blockState *state.BlockState) *EVM {
 	return &EVM{
 		readonly:      false,
+		txContext:     txContext,
 		chainAccessor: chainAccessor,
-		stateRoot:     common.BytesToHash(prevStateRoot),
-		luaState:      luaState,
-		ethState:      ethState,
+		bs:            blockState,
 	}
 }
 
-func NewEVMQuery(chainAccessor ChainAccessor, queryStateRoot []byte, luaState *statedb.StateDB, ethState *ethdb.StateDB) *EVM {
+func NewEVMQuery(chainAccessor ChainAccessor, queryStateRoot []byte, blockState *state.BlockState) *EVM {
 	return &EVM{
-		readonly:  true,
-		luaState:  nil,
-		stateRoot: common.BytesToHash(queryStateRoot),
-		ethState:  ethState,
+		readonly:      true,
+		chainAccessor: chainAccessor,
+		bs:            blockState,
 	}
 }
 
 func (e *EVM) Query(address []byte, contractAddress []byte, payload []byte) ([]byte, uint64, error) {
 	// create evmCfg
-	evmCfg := vm.Config{
-		NoBaseFee: true,
-	}
-
-	// create call cfg
-	queryState := e.ethState.Copy()
-	runtimeCfg := &Config{
-		State:     queryState.GetStateDB(),
-		EVMConfig: evmCfg,
-	}
 
 	ethOriginAddress := common.BytesToAddress(address)
 	contractEthAddress := common.BytesToAddress(contractAddress)
-	runtimeCfg.Origin = ethOriginAddress
-	runtimeCfg.GasLimit = 1000000
+	queryState := e.bs.EvmStateDB.GetStateDB().Copy()
+	evmCfg := NewConfig(
+		e.bs.Block().ChainID,
+		ethOriginAddress,
+		ethdb.GetAddressEth(e.bs.Block().CoinbaseAccount),
+		e.bs.Block().BlockNo,
+		uint64(e.bs.Block().Timestamp),
+		1000000, e.bs.GasPrice(), big.NewInt(0), queryState,
+	)
 
-	ret, gas, err := e.call(contractEthAddress, payload, runtimeCfg)
+	// create call cfg
+	ret, leftOverGas, err := e.call(contractEthAddress, payload, evmCfg)
+	gasUsed := evmCfg.GasLimit - leftOverGas
 	if err != nil {
-		return ret, gas, err
+		return ret, gasUsed, err
 	}
 
-	return ret, gas, nil
+	return ret, gasUsed, nil
 }
 
 func (e *EVM) Call(address common.Address, contract, payload []byte) ([]byte, uint64, error) {
@@ -81,49 +77,49 @@ func (e *EVM) Call(address common.Address, contract, payload []byte) ([]byte, ui
 	}
 
 	// create evmCfg
-	evmCfg := vm.Config{
-		NoBaseFee: true,
-	}
+	contractEth := common.BytesToAddress(contract)
+	queryState := e.bs.EvmStateDB.GetStateDB().Copy()
+	cfg := NewConfig(
+		e.bs.Block().ChainID,
+		address,
+		ethdb.GetAddressEth(e.bs.Block().CoinbaseAccount),
+		e.bs.Block().BlockNo,
+		uint64(e.bs.Block().Timestamp),
+		1000000, e.bs.GasPrice(), big.NewInt(0), queryState,
+	)
 
-	// create call cfg
-	runtimeCfg := &Config{
-		State:     e.ethState.GetStateDB(),
-		EVMConfig: evmCfg,
-	}
-
-	runtimeCfg.Origin = address
-	runtimeCfg.GasLimit = 1000000
-
-	ret, gas, err := e.call(common.BytesToAddress(contract), payload, runtimeCfg)
+	ret, leftOverGas, err := e.call(contractEth, payload, cfg)
+	gasUsed := cfg.GasLimit - leftOverGas
 	if err != nil {
-		return ret, gas, err
+		return ret, gasUsed, err
 	}
 
-	return ret, gas, nil
+	return ret, gasUsed, nil
 }
 
-func (e *EVM) Create(ethAddress common.Address, payload []byte) ([]byte, []byte, uint64, error) {
+func (e *EVM) Create(sender common.Address, payload []byte) ([]byte, []byte, uint64, error) {
 	if e.readonly {
 		return nil, nil, 0, errors.New("cannot create on readonly")
 	}
 
 	// create evmCfg
-	evmCfg := vm.Config{}
+	queryState := e.bs.EvmStateDB.GetStateDB().Copy()
+	cfg := NewConfig(
+		e.bs.Block().ChainID,
+		sender,
+		ethdb.GetAddressEth(e.bs.Block().CoinbaseAccount),
+		e.bs.Block().BlockNo,
+		uint64(e.bs.Block().Timestamp),
+		1000000, e.bs.GasPrice(), big.NewInt(0), queryState,
+	)
 
-	// create call cfg
-	runtimeCfg := &Config{
-		State:     e.ethState.GetStateDB(),
-		EVMConfig: evmCfg,
-	}
-
-	runtimeCfg.Origin = ethAddress
-
-	ret, ethContractAddress, _, err := e.create(payload, runtimeCfg)
+	ret, ethContractAddress, leftOverGas, err := e.create(payload, cfg)
+	gasUsed := cfg.GasLimit - leftOverGas
 	if err != nil {
-		return nil, nil, 0, err
+		return nil, nil, gasUsed, err
 	}
 
-	return ret, ethContractAddress.Bytes(), 0, nil
+	return ret, ethContractAddress.Bytes(), gasUsed, nil
 }
 
 func (e *EVM) GetHashFn() vm.GetHashFunc {
@@ -138,11 +134,13 @@ func (e *EVM) GetHashFn() vm.GetHashFunc {
 
 func (e *EVM) TransferFn() vm.TransferFunc {
 	return func(db vm.StateDB, sender, recipient common.Address, amount *big.Int) {
-		senderAccState, err := state.GetAccountState(e.ethState.GetId(sender), e.luaState, e.ethState)
+		senderId := e.bs.EvmStateDB.GetId(sender)
+		senderAccState, err := state.GetAccountState(senderId, e.bs.LuaStateDB, e.bs.EvmStateDB)
 		if err != nil {
 			panic("impossible") // FIXME
 		}
-		receipientAccState, err := state.GetAccountState(e.ethState.GetId(recipient), e.luaState, e.ethState)
+		receipientId := e.bs.EvmStateDB.GetId(sender)
+		receipientAccState, err := state.GetAccountState(receipientId, e.bs.LuaStateDB, e.bs.EvmStateDB)
 		if err != nil {
 			panic("impossible") // FIXME
 		}
@@ -155,7 +153,8 @@ func (e *EVM) TransferFn() vm.TransferFunc {
 
 func (e *EVM) CanTransferFn() vm.CanTransferFunc {
 	return func(sdb vm.StateDB, addr common.Address, amount *big.Int) bool {
-		accState, err := state.GetAccountState(e.ethState.GetId(addr), e.luaState, e.ethState)
+		addrId := e.bs.EvmStateDB.GetId(addr)
+		accState, err := state.GetAccountState(addrId, e.bs.LuaStateDB, e.bs.EvmStateDB)
 		if err != nil {
 			panic("impossible") // FIXME
 		}

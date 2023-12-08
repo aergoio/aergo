@@ -79,7 +79,7 @@ func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, t
 	)
 
 	// compute the base fee
-	usedFee = fee.TxBaseFee(bi.ForkVersion, bs.GasPrice, len(txPayload))
+	usedFee = fee.TxBaseFee(bi.ForkVersion, bs.GasPrice(), len(txPayload))
 
 	// transfer the amount from the sender to the receiver
 	if err = state.SendBalance(sender, receiver, txBody.GetAmountBigInt()); err != nil {
@@ -94,7 +94,7 @@ func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, t
 
 	// compute gas limit
 	var gasLimit uint64
-	if gasLimit, err = fee.GasLimit(bi.ForkVersion, isFeeDelegation, txGasLimit, len(txPayload), bs.GasPrice, usedFee, sender.Balance(), receiver.Balance()); err != nil {
+	if gasLimit, err = fee.GasLimit(bi.ForkVersion, isFeeDelegation, txGasLimit, len(txPayload), bs.GasPrice(), usedFee, sender.Balance(), receiver.Balance()); err != nil {
 		err = newVmError(types.ErrNotEnoughGas)
 		return
 	}

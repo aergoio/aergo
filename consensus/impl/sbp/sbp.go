@@ -189,7 +189,7 @@ func (s *SimpleBlockFactory) Start() {
 				blockState := s.sdb.NewBlockState(
 					prevBlock.GetHeader().GetBlocksRootHash(),
 					prevBlock.GetHeader().GetEvmRootHash(),
-					state.SetPrevBlockHash(prevBlock.BlockHash()),
+					state.SetBlock(prevBlock.GetHeader()),
 				)
 				blockState.SetGasPrice(system.GetGasPrice())
 				blockState.Receipts().SetHardFork(s.bv, bi.No)

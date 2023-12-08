@@ -869,7 +869,8 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
 		logger.Info().Msgf("evm query received for contract %s with payload %s", hex.EncodeToString(msg.Contract), hex.EncodeToString(msg.Queryinfo))
-		evmService := evm.NewEVMQuery(cw.cdb, cw.sdb.EvmRootHash, cw.sdb.OpenNewStateDB(nil), cw.sdb.OpenEvmStateDB(nil))
+		queryStateRoot := msg.Queryinfo
+		evmService := evm.NewEVMQuery(cw.cdb, queryStateRoot, cw.sdb.NewBlockState(nil, nil)) // FIXME get block from queryStateRoot
 		res, _, err := evmService.Query(nil, msg.Contract, msg.Queryinfo)
 		context.Respond(message.GetEVMQueryRsp{Result: res, Err: err})
 	case *message.GetElected:

@@ -173,7 +173,7 @@ func sendVotingReward(bState *state.BlockState, dummy []byte) error {
 	}
 
 	// pick winner
-	winner, err := system.PickVotingRewardWinner(vrSeed(bState.PrevBlockHash()))
+	winner, err := system.PickVotingRewardWinner(vrSeed(bState.Block().PrevBlockHash))
 	if err != nil {
 		logger.Debug().Err(err).Msg("no voting reward winner")
 		return nil
