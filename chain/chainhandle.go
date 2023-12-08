@@ -653,7 +653,7 @@ func (e *blockExecutor) execute() error {
 	// Receipt must be committed unconditionally.
 	if !e.commitOnly {
 		defer contract.CloseDatabase()
-		logger.Trace().Int("txCount", len(e.txs)).Msg("executing txs (maybe for connecting block)")
+		logger.Trace().Int("txCount", len(e.txs)).Msg("executing txs")
 		for _, tx := range e.txs {
 			// execute the transaction
 			if err := e.execTx(e.BlockState, types.NewTransaction(tx)); err != nil {
