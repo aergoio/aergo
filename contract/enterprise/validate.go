@@ -24,7 +24,7 @@ const ChangeCluster = "changeCluster"
 
 var ErrTxEnterpriseAdminIsNotSet = errors.New("admin is not set")
 
-func ValidateEnterpriseTx(tx *types.TxBody, sender *state.V,
+func ValidateEnterpriseTx(tx *types.TxBody, sender *state.AccountState,
 	scs *state.ContractState, blockNo types.BlockNo) (*EnterpriseContext, error) {
 	var ci types.CallInfo
 	if err := json.Unmarshal(tx.Payload, &ci); err != nil {

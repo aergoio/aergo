@@ -14,7 +14,7 @@ import (
 
 var ErrTxSystemOperatorIsNotSet = errors.New("operator is not set")
 
-func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
+func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.AccountState,
 	scs *state.ContractState, blockInfo *types.BlockHeaderInfo) (*SystemContext, error) {
 	var ci types.CallInfo
 	if err := json.Unmarshal(txBody.Payload, &ci); err != nil {
