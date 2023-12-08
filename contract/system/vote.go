@@ -75,11 +75,11 @@ func newVprCmd(ctx *SystemContext, vr *VoteResult) *vprCmd {
 		}
 	} else {
 		cmd.add = func(v *types.Vote) error {
-			cmd.addVpr(v) // calculate voting power rank with handle exception
+			cmd.addVpr(v) // calculate voting power rank with exception handling
 			return cmd.voteResult.AddVote(v)
 		}
 		cmd.sub = func(v *types.Vote) error {
-			cmd.subVpr(v) // calculate voting power rank with handle exception
+			cmd.subVpr(v) // calculate voting power rank with exception handling
 			return cmd.voteResult.SubVote(v)
 		}
 	}
