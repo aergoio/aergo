@@ -24,12 +24,12 @@ var (
 	addressRegexp *regexp.Regexp
 )
 
-// These constants indicate the situation in which the contract is executed. BlockFactory refers to execution by a block producer to create a block, from which BlockFactory class calls, and ChainService refers to execution to verify and reflect blocks created by other producers. Depending on the mode, the operations or policies may be different, and currently timeout policy is different.
-// TODO These values are also used to select slots for internal parallel processing. They have multiple roles or meanings so that mit make harder to understand the source code.
+// These constants indicate the situation in which the contract is executed. BlockFactory refers to execution by a block producer to create a block, from which BlockFactory class calls, and ChainService refers to execution to verify and apply blocks created by other producers. Depending on the mode, the operations or policies may be different, and currently timeout policy is different.
+// TODO These values are also used to select slots for internal parallel processing. They have multiple roles or meanings, so it make harder to understand the source code.
 const (
 	BlockFactory = iota
 	ChainService
-	MaxVmService // MaxVmService
+	MaxVmService
 )
 
 func init() {
