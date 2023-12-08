@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/v2/fee"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/state/ethdb"
 	"github.com/aergoio/aergo/v2/types"
@@ -46,34 +47,38 @@ func NewEVMQuery(chainAccessor ChainAccessor, queryStateRoot []byte, blockState 
 	}
 }
 
-func (e *EVM) Query(address []byte, contractAddress []byte, payload []byte) ([]byte, uint64, error) {
-	// create evmCfg
+func (e *EVM) Query(address []byte, contractAddress []byte, payload []byte) ([]byte, *big.Int, error) {
 
+	// create evmCfg
 	ethOriginAddress := common.BytesToAddress(address)
 	contractEthAddress := common.BytesToAddress(contractAddress)
 	queryState := e.bs.EvmStateDB.GetStateDB().Copy()
-	evmCfg := NewConfig(
+	cfg := NewConfig(
 		e.bs.Block().ChainID,
 		ethOriginAddress,
 		ethdb.GetAddressEth(e.bs.Block().CoinbaseAccount),
 		e.bs.Block().BlockNo,
 		uint64(e.bs.Block().Timestamp),
-		1000000, e.bs.GasPrice(), big.NewInt(0), queryState,
+		e.txContext.Body.GasLimit,
+		e.bs.GasPrice(),
+		big.NewInt(0),
+		queryState,
 	)
 
 	// create call cfg
-	ret, leftOverGas, err := e.call(contractEthAddress, payload, evmCfg)
-	gasUsed := evmCfg.GasLimit - leftOverGas
-	if err != nil {
-		return ret, gasUsed, err
-	}
+	ret, leftOverGas, err := e.call(contractEthAddress, payload, cfg)
+	gasUsed := cfg.GasLimit - leftOverGas
+	feeUsed := fee.CalcFee(cfg.GasPrice, gasUsed)
 
-	return ret, gasUsed, nil
+	if err != nil {
+		return ret, feeUsed, err
+	}
+	return ret, feeUsed, nil
 }
 
-func (e *EVM) Call(address common.Address, contract, payload []byte) ([]byte, uint64, error) {
+func (e *EVM) Call(address common.Address, contract, payload []byte) ([]byte, *big.Int, error) {
 	if e.readonly {
-		return nil, 0, errors.New("cannot call on readonly")
+		return nil, nil, errors.New("cannot call on readonly")
 	}
 
 	// create evmCfg
@@ -85,21 +90,25 @@ func (e *EVM) Call(address common.Address, contract, payload []byte) ([]byte, ui
 		ethdb.GetAddressEth(e.bs.Block().CoinbaseAccount),
 		e.bs.Block().BlockNo,
 		uint64(e.bs.Block().Timestamp),
-		1000000, e.bs.GasPrice(), big.NewInt(0), queryState,
+		e.txContext.Body.GasLimit,
+		e.bs.GasPrice(),
+		big.NewInt(0),
+		queryState,
 	)
 
 	ret, leftOverGas, err := e.call(contractEth, payload, cfg)
 	gasUsed := cfg.GasLimit - leftOverGas
-	if err != nil {
-		return ret, gasUsed, err
-	}
+	feeUsed := fee.CalcFee(cfg.GasPrice, gasUsed)
 
-	return ret, gasUsed, nil
+	if err != nil {
+		return ret, feeUsed, err
+	}
+	return ret, feeUsed, nil
 }
 
-func (e *EVM) Create(sender common.Address, payload []byte) ([]byte, []byte, uint64, error) {
+func (e *EVM) Create(sender common.Address, payload []byte) ([]byte, []byte, *big.Int, error) {
 	if e.readonly {
-		return nil, nil, 0, errors.New("cannot create on readonly")
+		return nil, nil, nil, errors.New("cannot create on readonly")
 	}
 
 	// create evmCfg
@@ -110,16 +119,20 @@ func (e *EVM) Create(sender common.Address, payload []byte) ([]byte, []byte, uin
 		ethdb.GetAddressEth(e.bs.Block().CoinbaseAccount),
 		e.bs.Block().BlockNo,
 		uint64(e.bs.Block().Timestamp),
-		1000000, e.bs.GasPrice(), big.NewInt(0), queryState,
+		e.txContext.Body.GasLimit,
+		e.bs.GasPrice(),
+		big.NewInt(0),
+		queryState,
 	)
 
 	ret, ethContractAddress, leftOverGas, err := e.create(payload, cfg)
 	gasUsed := cfg.GasLimit - leftOverGas
+	feeUsed := fee.CalcFee(cfg.GasPrice, gasUsed)
 	if err != nil {
-		return nil, nil, gasUsed, err
+		return nil, nil, feeUsed, err
 	}
 
-	return ret, ethContractAddress.Bytes(), gasUsed, nil
+	return ret, ethContractAddress.Bytes(), feeUsed, nil
 }
 
 func (e *EVM) GetHashFn() vm.GetHashFunc {
