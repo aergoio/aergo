@@ -19,9 +19,9 @@ func TestExcuteNameTx(t *testing.T) {
 	name := "AB1234567890"
 	txBody.Payload = buildNamePayload(name, types.NameCreate, "")
 
-	sender, _ := sdb.GetStateDB().GetAccountStateV(txBody.Account)
+	sender, _ := state.GetAccountState(txBody.Account, sdb.GetStateDB())
 	sender.AddBalance(types.MaxAER)
-	receiver, _ := sdb.GetStateDB().GetAccountStateV(txBody.Recipient)
+	receiver, _ := state.GetAccountState(txBody.Recipient, sdb.GetStateDB())
 	bs := sdb.NewBlockState(sdb.GetRoot())
 	scs := openContractState(t, bs)
 
@@ -103,8 +103,8 @@ func TestExcuteFailNameTx(t *testing.T) {
 	name := "AB1234567890"
 	txBody.Payload = buildNamePayload(name, types.NameCreate+"Broken", "")
 
-	sender, _ := sdb.GetStateDB().GetAccountStateV(txBody.Account)
-	receiver, _ := sdb.GetStateDB().GetAccountStateV(txBody.Recipient)
+	sender, _ := state.GetAccountState(txBody.Account, sdb.GetStateDB())
+	receiver, _ := state.GetAccountState(txBody.Recipient, sdb.GetStateDB())
 	bs := sdb.NewBlockState(sdb.GetRoot())
 	scs := openContractState(t, bs)
 	blockInfo := &types.BlockHeaderInfo{No: uint64(0), ForkVersion: 0}
@@ -113,19 +113,19 @@ func TestExcuteFailNameTx(t *testing.T) {
 }
 
 func openContractState(t *testing.T, bs *state.BlockState) *state.ContractState {
-	scs, err := bs.GetNameAccountState()
+	scs, err := state.GetNameAccountState(bs.StateDB)
 	assert.NoError(t, err, "could not open contract state")
 	return scs
 }
 
 func openSystemContractState(t *testing.T, bs *state.BlockState) *state.ContractState {
-	scs, err := bs.GetSystemAccountState()
+	scs, err := state.GetSystemAccountState(bs.StateDB)
 	assert.NoError(t, err, "could not open contract state")
 	return scs
 }
 
 func commitContractState(t *testing.T, bs *state.BlockState, scs *state.ContractState) {
-	bs.StageContractState(scs)
+	state.StageContractState(scs, bs.StateDB)
 	bs.Update()
 	bs.Commit()
 	sdb.UpdateRoot(bs)

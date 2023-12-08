@@ -8,12 +8,8 @@ import (
 	"github.com/aergoio/aergo/v2/types/dbkey"
 )
 
-func GetAdmin(r AccountStateReader) (*types.EnterpriseConfig, error) {
-	scs, err := r.GetEnterpriseAccountState()
-	if err != nil {
-		return nil, err
-	}
-	admins, err := getAdmins(scs)
+func GetAdmin(ecs *state.ContractState) (*types.EnterpriseConfig, error) {
+	admins, err := getAdmins(ecs)
 	if err != nil {
 		return nil, err
 	}

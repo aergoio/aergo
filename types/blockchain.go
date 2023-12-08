@@ -559,15 +559,15 @@ func (tx *Tx) Clone() *Tx {
 	}
 	body := &TxBody{
 		Nonce:       tx.Body.Nonce,
-		Account:     Clone(tx.Body.Account).([]byte),
-		Recipient:   Clone(tx.Body.Recipient).([]byte),
-		Amount:      Clone(tx.Body.Amount).([]byte),
-		Payload:     Clone(tx.Body.Payload).([]byte),
+		Account:     tx.Body.Account,
+		Recipient:   tx.Body.Recipient,
+		Amount:      tx.Body.Amount,
+		Payload:     tx.Body.Payload,
 		GasLimit:    tx.Body.GasLimit,
-		GasPrice:    Clone(tx.Body.GasPrice).([]byte),
+		GasPrice:    tx.Body.GasPrice,
 		Type:        tx.Body.Type,
-		ChainIdHash: Clone(tx.Body.ChainIdHash).([]byte),
-		Sign:        Clone(tx.Body.Sign).([]byte),
+		ChainIdHash: tx.Body.ChainIdHash,
+		Sign:        tx.Body.Sign,
 	}
 	res := &Tx{
 		Body: body,

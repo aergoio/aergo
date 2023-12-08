@@ -8,10 +8,10 @@ import (
 	"github.com/aergoio/aergo/v2/account/key"
 	cfg "github.com/aergoio/aergo/v2/config"
 	"github.com/aergoio/aergo/v2/contract/name"
-	"github.com/aergoio/aergo/v2/message"
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/message"
 )
 
 type AccountService struct {
@@ -63,7 +63,7 @@ func (as *AccountService) Statistics() *map[string]interface{} {
 	}
 }
 func (as *AccountService) resolveName(namedAddress []byte) ([]byte, error) {
-	scs, err := as.sdb.GetStateDB().GetNameAccountState()
+	scs, err := state.GetNameAccountState(as.sdb.GetStateDB())
 	if err != nil {
 		return nil, err
 	}
