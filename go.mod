@@ -7,7 +7,6 @@ require (
 	github.com/aergoio/aergo-lib v1.1.0
 	github.com/aergoio/etcd v0.0.0-20190429013412-e8b3f96f6399
 	github.com/anaskhan96/base58check v0.0.0-20181220122047-b05365d494c4
-	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2
 	github.com/bluele/gcache v0.0.0-20190518031135-bc40bd653833
 	github.com/btcsuite/btcd v0.0.0-20190824003749-130ea5bddde3
 	github.com/c-bata/go-prompt v0.2.3
