@@ -38,8 +38,8 @@ type networkTransport struct {
 	bindAddress string
 	bindPort    uint32
 
-	// hostInited is
-	hostInited *sync.WaitGroup
+	// hostInitialized works as lock for thread-safe
+	hostInitialized *sync.WaitGroup
 
 	conf   *cfg.P2PConfig
 	logger *log.Logger
@@ -56,7 +56,7 @@ func NewNetworkTransport(conf *cfg.P2PConfig, logger *log.Logger, internalServic
 		conf:   conf,
 		logger: logger,
 
-		hostInited: &sync.WaitGroup{},
+		hostInitialized: &sync.WaitGroup{},
 	}
 	nt.initNT(internalService)
 
@@ -73,7 +73,7 @@ func (sl *networkTransport) initNT(internalService p2pcommon.InternalService) {
 	// if not set, it look up ip addresses of machine and choose suitable one (but not so smart) and default port 7845
 	sl.initServiceBindAddress()
 
-	sl.hostInited.Add(1)
+	sl.hostInitialized.Add(1)
 
 	// set meta info
 	// TODO more survey libp2p NAT configuration
@@ -103,22 +103,31 @@ func (sl *networkTransport) initServiceBindAddress() {
 func (sl *networkTransport) Start() error {
 	sl.logger.Debug().Msg("Starting network transport")
 	sl.startListener()
-	sl.hostInited.Done()
+	sl.hostInitialized.Done()
 	return nil
 }
 
 func (sl *networkTransport) AddStreamHandler(pid core.ProtocolID, handler network.StreamHandler) {
-	sl.hostInited.Wait()
+	sl.hostInitialized.Wait()
 	sl.SetStreamHandler(pid, handler)
 }
 
-// GetOrCreateStream try to connect and handshake to remote peer. it can be called after peermanager is inited.
-// It return true if peer is added or return false if failed to add peer or more suitable connection already exists.
+// GetOrCreateStreamWithTTL try to connect and handshake to remote peer. it can be called after peermanager is inited.
+// It returns true if peer is added or return false if failed to add peer or more suitable connection already exists.
 func (sl *networkTransport) GetOrCreateStreamWithTTL(meta p2pcommon.PeerMeta, ttl time.Duration, protocolIDs ...core.ProtocolID) (core.Stream, error) {
 	var peerAddr = meta.Addresses[0]
+	// resolve dns name to ip address because connecting with tcp is disallowed since libp2p-v0.7.0
+	resolved, err2 := p2putil.ResolveToBestIp4Address(peerAddr)
+	if err2 != nil {
+		return nil, err2
+	}
+	if resolved != peerAddr {
+		sl.logger.Debug().Stringer("original", peerAddr).Stringer("resolved", resolved).Msg("peer address is resolved to different address")
+	}
+
 	var peerID = meta.ID
 	sl.logger.Debug().Str("peerAddr", peerAddr.String()).Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Msg("connecting to peer")
-	sl.Peerstore().AddAddr(peerID, peerAddr, ttl)
+	sl.Peerstore().AddAddr(peerID, resolved, ttl)
 	ctx := context.Background()
 	s, err := sl.NewStream(ctx, peerID, protocolIDs...)
 	if err != nil {
