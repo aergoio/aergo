@@ -54,7 +54,8 @@ func (api *Web3APIv1) NewHandler() {
 		"/getConsensusInfo":            api.GetConsensusInfo,
 		"/getAccountVotes":             api.GetAccountVotes,
 		"/getNodeInfo":                 api.NodeState,
-		"/getChainId":                  api.GetPeers,
+		"/getChainId":                  api.GetChainId,
+		"/getPeers":                    api.GetPeers,
 		"/getServerInfo":               api.GetServerInfo,
 		"/getStaking":                  api.GetStaking,
 		"/getVotes":                    api.GetVotes,
@@ -845,9 +846,9 @@ func (api *Web3APIv1) GetAccountVotes() (handler http.Handler, ok bool) {
 	}
 
 	request := &types.AccountAddress{}
-	address := values.Get("address")
-	if address != "" {
-		hashBytes, err := types.DecodeAddress(address)
+	account := values.Get("account")
+	if account != "" {
+		hashBytes, err := types.DecodeAddress(account)
 		if err != nil {
 			return commonResponseHandler(&types.Empty{}, err), true
 		}
@@ -860,7 +861,7 @@ func (api *Web3APIv1) GetAccountVotes() (handler http.Handler, ok bool) {
 	}
 
 	output := jsonrpc.ConvInOutAccountVoteInfo(result)
-	return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
+	return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true	
 }
 
 func (api *Web3APIv1) QueryContractState() (handler http.Handler, ok bool) {
@@ -976,6 +977,17 @@ func (api *Web3APIv1) GetPeers() (handler http.Handler, ok bool) {
 
 	output := jsonrpc.ConvPeerList(result)
 	return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
+}
+
+func (api *Web3APIv1) GetChainId() (handler http.Handler, ok bool) {
+	chainInfo, err := api.rpc.GetChainInfo(api.request.Context(), &types.Empty{})
+	if err != nil {
+		logger.Warn().Err(err).Msg("failed to get chain info in blockchain")
+		chainInfo = nil
+	}
+	
+	output := jsonrpc.ConvChainInfo(chainInfo)
+	return stringResponseHandler(jsonrpc.MarshalJSON(output.Id), nil), true
 }
 
 func (api *Web3APIv1) GetServerInfo() (handler http.Handler, ok bool) {
