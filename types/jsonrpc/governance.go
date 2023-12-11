@@ -8,8 +8,15 @@ import (
 )
 
 func ConvInOutAccountVoteInfo(msg *types.AccountVoteInfo) *InOutAccountVoteInfo {
-	avi := &InOutAccountVoteInfo{}
-	avi.Staking = *ConvStaking(msg.Staking)
+	if msg == nil {
+		return nil
+	}
+
+	avi := &InOutAccountVoteInfo{}	
+	staking := ConvStaking(msg.Staking)
+	if staking != nil {		
+		avi.Staking = *staking		
+	}	
 	avi.Voting = make([]*InOutVoteInfo, len(msg.Voting))
 	for i, v := range msg.Voting {
 		avi.Voting[i] = ConvVoteInfo(v)
