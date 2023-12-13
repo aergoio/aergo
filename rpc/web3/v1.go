@@ -31,10 +31,8 @@ type Web3APIv1 struct {
 
 func (api *Web3APIv1) NewHandler() {
 	handlerGet := map[string]APIHandler{
-		"/getAccounts":                 api.GetAccounts,
 		"/getState":                    api.GetState,
 		"/getProof":                    api.GetStateAndProof,
-		"/getNameInfo":                 api.GetNameInfo,
 		"/getBalance":                  api.GetBalance,
 		"/getBlock":                    api.GetBlock,
 		"/getBlockNumber":              api.Blockchain,
@@ -52,17 +50,26 @@ func (api *Web3APIv1) NewHandler() {
 		"/getBlockTransactionCount":    api.GetBlockTransactionCount,
 		"/getChainInfo":                api.GetChainInfo,
 		"/getConsensusInfo":            api.GetConsensusInfo,
-		"/getAccountVotes":             api.GetAccountVotes,
 		"/getNodeInfo":                 api.NodeState,
 		"/getChainId":                  api.GetChainId,
 		"/getPeers":                    api.GetPeers,
 		"/getServerInfo":               api.GetServerInfo,
-		"/getStaking":                  api.GetStaking,
-		"/getVotes":                    api.GetVotes,
 		"/metric":                      api.Metric,
-		"/getEnterpriseConfig":         api.GetEnterpriseConfig,
-		"/getConfChangeProgress":       api.GetConfChangeProgress,
 		"/chainStat":                   api.ChainStat,
+	}
+
+	ca := api.rpc.GetActorHelper().GetChainAccessor()
+	consensus := &jsonrpc.InOutConsensusInfo{}
+	json.Unmarshal([]byte(ca.GetConsensusInfo()), consensus)
+	
+	if consensus.Type == "raft" {
+		handlerGet["/getEnterpriseConfig"] = api.GetEnterpriseConfig
+		handlerGet["/getConfChangeProgress"] = api.GetConfChangeProgress
+	} else if consensus.Type == "dpos" {
+		handlerGet["/getStaking"] = api.GetStaking
+		handlerGet["/getVotes"] = api.GetVotes
+		handlerGet["/getAccountVotes"] = api.GetAccountVotes
+		handlerGet["/getNameInfo"] = api.GetNameInfo
 	}
 
 	handlerPost := map[string]APIHandler{
@@ -95,19 +102,6 @@ func (api *Web3APIv1) restAPIHandler(r *http.Request) (handler http.Handler, ok 
 	}
 
 	return nil, false
-}
-
-func (api *Web3APIv1) GetAccounts() (handler http.Handler, ok bool) {
-	request := &types.Empty{}
-
-	result, err := api.rpc.GetAccounts(api.request.Context(), request)
-
-	if err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
-	}
-
-	output := jsonrpc.ConvAccounts(result)
-	return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 }
 
 func (api *Web3APIv1) GetState() (handler http.Handler, ok bool) {

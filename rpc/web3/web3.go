@@ -15,8 +15,9 @@ import (
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/rpc"
 	"github.com/aergoio/aergo/v2/types/message"
-	"github.com/didip/tollbooth"
+
 	"github.com/rs/cors"
+	"golang.org/x/time/rate"
 )
 
 type Status string
@@ -47,9 +48,6 @@ var (
 func NewWeb3(cfg *config.Config, rpc *rpc.AergoRPCService) *Web3 {
 	mux := http.NewServeMux()
 
-	limiter := tollbooth.NewLimiter(float64(cfg.Web3.MaxLimit), nil)
-	limiter.SetIPLookups([]string{"RemoteAddr", "X-Forwarded-For", "X-Real-IP"})
-
 	// swagger
 	mux.HandleFunc("/swagger.yaml", serveSwaggerYAML(cfg))
 	mux.HandleFunc("/swagger", serveSwaggerUI(cfg))
@@ -63,9 +61,24 @@ func NewWeb3(cfg *config.Config, rpc *rpc.AergoRPCService) *Web3 {
 
 	// API v1
 	web3svc := &Web3APIv1{rpc: rpc}
-	web3svc.NewHandler()
-	mux.Handle("/v1/", tollbooth.LimitHandler(limiter, c.Handler(http.HandlerFunc(web3svc.handler))))
+	
+	var liminter *rate.Limiter
+	if cfg.Web3.MaxLimit > 0 {
+		liminter = rate.NewLimiter(rate.Limit(cfg.Web3.MaxLimit), 1)
+	} else {
+		liminter = rate.NewLimiter(rate.Inf, 0)
+	}
 
+	limitedHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !liminter.Allow() {
+			http.Error(w, "Rate limit exceeded", http.StatusTooManyRequests)
+			return
+		}
+		web3svc.handler(w,r);
+	})
+	mux.Handle("/v1/", c.Handler(limitedHandler))
+
+	
 	web3svr := &Web3{
 		cfg:     cfg,
 		web3svc: web3svc,
@@ -107,6 +120,7 @@ func (web3 *Web3) BeforeStart() {
 
 func (web3 *Web3) AfterStart() {
 	fmt.Println("Web3 Server Start")
+	web3.web3svc.NewHandler()	
 	go web3.run()	
 }
 
@@ -179,12 +193,6 @@ func stringResponseHandler(response string, err error) http.Handler {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-
-		// jsonResponse, err := json.Marshal(response)
-		// if err != nil {
-		// 	http.Error(w, err.Error(), http.StatusInternalServerError)
-		// 	return
-		// }
 
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(response))
