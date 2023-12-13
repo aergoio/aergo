@@ -30,10 +30,11 @@ import (
 	"github.com/aergoio/aergo/v2/internal/common"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/internal/enc/proto"
-	"github.com/aergoio/aergo/v2/message"
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/message"
 )
 
 const (
@@ -59,7 +60,7 @@ type MemPool struct {
 	sdb           *state.ChainStateDB
 	bestBlockID   types.BlockID
 	bestBlockInfo *types.BlockHeaderInfo
-	stateDB       *state.StateDB
+	stateDB       *statedb.StateDB
 	verifier      *actor.PID
 	orphan        int
 	//cache       map[types.TxID]types.Transaction
@@ -442,7 +443,11 @@ func (mp *MemPool) setStateDB(block *types.Block) (bool, bool) {
 			} else {
 				mp.isPublic = cid.PublicNet
 				if !mp.isPublic {
-					conf, err := enterprise.GetConf(mp.stateDB, enterprise.AccountWhite)
+					ecs, err := state.GetEnterpriseAccountState(mp.stateDB)
+					if err != nil {
+						mp.Warn().Err(err).Msg("failed to get whitelist")
+					}
+					conf, err := enterprise.GetConf(ecs, enterprise.AccountWhite)
 					if err != nil {
 						mp.Warn().Err(err).Msg("failed to init whitelist")
 					}
@@ -586,7 +591,7 @@ func (mp *MemPool) getNameDest(account []byte, owner bool) []byte {
 		return account
 	}
 
-	scs, err := mp.stateDB.GetNameAccountState()
+	scs, err := state.GetNameAccountState(mp.stateDB)
 	if err != nil {
 		mp.Error().Str("for name", string(account)).Msgf("failed to open contract %s", types.AergoName)
 		return nil
@@ -658,13 +663,13 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 			return err
 		}
 		aid := types.ToAccountID(tx.GetBody().GetRecipient())
-		scs, err := mp.stateDB.OpenContractState(aid, aergoState)
+		scs, err := state.OpenContractState(aid, aergoState, mp.stateDB)
 		if err != nil {
 			return err
 		}
 		switch string(tx.GetBody().GetRecipient()) {
 		case types.AergoSystem:
-			sender, err := mp.stateDB.GetAccountStateV(account)
+			sender, err := state.GetAccountState(account, mp.stateDB)
 			if err != nil {
 				return err
 			}
@@ -676,7 +681,7 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 				return err
 			}
 		case types.AergoName:
-			sender, err := mp.stateDB.GetAccountStateV(account)
+			sender, err := state.GetAccountState(account, mp.stateDB)
 			if err != nil {
 				return err
 			}
@@ -684,11 +689,11 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 				return err
 			}
 		case types.AergoEnterprise:
-			enterprisecs, err := mp.stateDB.GetEnterpriseAccountState()
+			enterprisecs, err := state.GetEnterpriseAccountState(mp.stateDB)
 			if err != nil {
 				return err
 			}
-			sender, err := mp.stateDB.GetAccountStateV(account)
+			sender, err := state.GetAccountState(account, mp.stateDB)
 			if err != nil {
 				return err
 			}

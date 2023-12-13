@@ -72,7 +72,7 @@ func Execute(
 	bs *state.BlockState,
 	cdb ChainAccessor,
 	tx *types.Tx,
-	sender, receiver *state.V,
+	sender, receiver *state.AccountState,
 	bi *types.BlockHeaderInfo,
 	preloadService int,
 	isFeeDelegation bool,
@@ -120,7 +120,7 @@ func Execute(
 	if isMultiCall {
 		contractState = bs.GetMultiCallState(sender.AccountID(), sender.State())
 	} else {
-		contractState, err = bs.OpenContractState(receiver.AccountID(), receiver.State())
+		contractState, err := state.OpenContractState(receiver.AccountID(), receiver.State(), bs.StateDB)
 	}
 	if err != nil {
 		return
@@ -210,7 +210,7 @@ func Execute(
 
 	if !isMultiCall {
 		// save the contract state
-		err = bs.StageContractState(contractState)
+		err = state.StageContractState(contractState, bs.StateDB)
 		if err != nil {
 			return "", events, usedFee, err
 		}
@@ -271,7 +271,7 @@ func preloadWorker() {
 		}
 
 		// get the state of the recipient
-		receiver, err := bs.GetAccountStateV(recipient)
+		receiver, err := state.GetAccountState(recipient, bs.StateDB)
 		if err != nil {
 			replyCh <- &preloadReply{tx, nil, err}
 			continue
@@ -285,7 +285,7 @@ func preloadWorker() {
 		}
 
 		// open the contract state
-		contractState, err := bs.OpenContractState(receiver.AccountID(), receiver.State())
+		contractState, err := state.OpenContractState(receiver.AccountID(), receiver.State(), bs.StateDB)
 		if err != nil {
 			replyCh <- &preloadReply{tx, nil, err}
 			continue
@@ -333,7 +333,7 @@ func checkExecution(txType types.TxType, amount *big.Int, payloadSize int, versi
 	return true, nil
 }
 
-func checkRedeploy(sender, receiver *state.V, contractState *state.ContractState) error {
+func checkRedeploy(sender, receiver *state.AccountState, contractState *state.ContractState) error {
 	// check if the contract exists
 	if !receiver.IsContract() || receiver.IsNew() {
 		receiverAddr := types.EncodeAddress(receiver.ID())

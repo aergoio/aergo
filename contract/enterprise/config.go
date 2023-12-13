@@ -70,23 +70,14 @@ func (c *Conf) Validate(key []byte, context *EnterpriseContext) error {
 	}
 }
 
-// AccountStateReader is an interface for getting a enterprise account state.
-type AccountStateReader interface {
-	GetEnterpriseAccountState() (*state.ContractState, error)
-}
-
-func GetConf(r AccountStateReader, key string) (*types.EnterpriseConfig, error) {
-	scs, err := r.GetEnterpriseAccountState()
-	if err != nil {
-		return nil, err
-	}
+func GetConf(ecs *state.ContractState, key string) (*types.EnterpriseConfig, error) {
 	ret := &types.EnterpriseConfig{Key: key}
 	if strings.ToUpper(key) == "PERMISSIONS" {
 		for k := range enterpriseKeyDict {
 			ret.Values = append(ret.Values, k)
 		}
 	} else {
-		conf, err := getConf(scs, []byte(key))
+		conf, err := getConf(ecs, []byte(key))
 		if err != nil {
 			return nil, err
 		}

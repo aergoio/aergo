@@ -23,6 +23,7 @@ import (
 	"github.com/aergoio/aergo/v2/p2p/p2pkey"
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 )
 
@@ -98,7 +99,7 @@ func GetConstructor(cfg *config.Config, hub *component.ComponentHub, cdb consens
 	}
 }
 
-func getStateDB(cfg *config.Config, cdb consensus.ChainDB, sdb *state.ChainStateDB) (*state.StateDB, error) {
+func getStateDB(cfg *config.Config, cdb consensus.ChainDB, sdb *state.ChainStateDB) (*statedb.StateDB, error) {
 	if cfg.Blockchain.VerifyOnly {
 		vprInitBlockNo := func(blockNo types.BlockNo) types.BlockNo {
 			if blockNo == 0 {
@@ -128,7 +129,7 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
 		return nil, err
 	}
 
-	var state *state.StateDB
+	var state *statedb.StateDB
 	if state, err = getStateDB(cfg, cdb, sdb); err != nil {
 		return nil, err
 	}
@@ -156,64 +157,57 @@ func sendVotingReward(bState *state.BlockState, dummy []byte) error {
 		return int64(binary.LittleEndian.Uint64(stateRoot))
 	}
 
-	vaultID := types.ToAccountID([]byte(types.AergoVault))
-	vs, err := bState.GetAccountState(vaultID)
+	// calc reward
+	vaultAccountState, err := state.GetAccountState([]byte(types.AergoVault), bState.StateDB)
 	if err != nil {
 		logger.Info().Err(err).Msg("skip voting reward")
 		return nil
 	}
-
-	vaultBalance := vs.GetBalanceBigInt()
-
-	if vaultBalance.Cmp(new(big.Int).SetUint64(0)) == 0 {
+	vaultBalance := vaultAccountState.Balance()
+	if vaultBalance.Cmp(types.NewZeroAmount()) == 0 {
 		return nil
 	}
-
 	reward := system.GetVotingRewardAmount()
 	if vaultBalance.Cmp(reward) < 0 {
 		reward = new(big.Int).Set(vaultBalance)
 	}
 
-	addr, err := system.PickVotingRewardWinner(vrSeed(bState.PrevBlockHash()))
+	// pick winner
+	winner, err := system.PickVotingRewardWinner(vrSeed(bState.PrevBlockHash()))
 	if err != nil {
 		logger.Debug().Err(err).Msg("no voting reward winner")
 		return nil
 	}
-
-	ID := types.ToAccountID(addr)
-	s, err := bState.GetAccountState(ID)
+	winnerAccountState, err := state.GetAccountState(winner, bState.StateDB)
 	if err != nil {
 		logger.Info().Err(err).Msg("skip voting reward")
 		return nil
 	}
 
-	newBalance := new(big.Int).Add(s.GetBalanceBigInt(), reward)
-	s.Balance = newBalance.Bytes()
-
-	err = bState.PutState(ID, s)
-	if err != nil {
+	// send reward ( vault -> winner )
+	winnerAccountState.AddBalance(reward)
+	if err = winnerAccountState.PutState(); err != nil {
+		return err
+	}
+	vaultAccountState.SubBalance(reward)
+	if err = vaultAccountState.PutState(); err != nil {
 		return err
 	}
 
-	vs.Balance = vaultBalance.Sub(vaultBalance, reward).Bytes()
-	if err = bState.PutState(vaultID, vs); err != nil {
-		return err
-	}
-
-	bState.SetConsensus(addr)
+	bState.SetConsensus(winner)
 
 	logger.Debug().
-		Str("address", types.EncodeAddress(addr)).
+		Str("address", types.EncodeAddress(winner)).
 		Str("amount", reward.String()).
-		Str("new balance", newBalance.String()).
+		Str("new balance", winnerAccountState.Balance().String()).
 		Str("vault balance", vaultBalance.String()).
 		Msg("voting reward winner appointed")
 
 	return nil
 }
 
-func InitVPR(sdb *state.StateDB) error {
-	s, err := sdb.GetSystemAccountState()
+func InitVPR(sdb *statedb.StateDB) error {
+	s, err := state.GetSystemAccountState(sdb)
 	if err != nil {
 		return err
 	}

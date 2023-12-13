@@ -3,8 +3,8 @@ package main
 import (
 	"testing"
 
+	"github.com/aergoio/aergo/v2/cmd/polaris/common"
 	"github.com/aergoio/aergo/v2/config"
-	"github.com/aergoio/aergo/v2/polaris/common"
 )
 
 func Test_arrangeDefaultCfgForPolaris(t *testing.T) {

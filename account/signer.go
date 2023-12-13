@@ -3,7 +3,7 @@ package account
 import (
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo/v2/account/key"
-	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/types/message"
 )
 
 type Signer struct {
