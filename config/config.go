@@ -80,7 +80,9 @@ func (ctx *ServerContext) GetDefaultRPCConfig() *RPCConfig {
 func (ctx *ServerContext) GetDefaultWeb3Config() *Web3Config {
 	return &Web3Config{
 		NetServicePort: 7847,
-		MaxLimit:       0,
+		MaxLimit:       10,
+		SwaggerPath: 	"./",
+		Enable: 		true,
 	}
 }
 

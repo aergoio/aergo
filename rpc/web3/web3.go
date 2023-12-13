@@ -33,7 +33,6 @@ type Web3 struct {
 	web3svc *Web3APIv1
 	mux     *http.ServeMux
 
-	port   int
 	status Status
 }
 
@@ -48,18 +47,12 @@ var (
 func NewWeb3(cfg *config.Config, rpc *rpc.AergoRPCService) *Web3 {
 	mux := http.NewServeMux()
 
-	// set limit per second
-	maxLimit := float64(10)
-	if cfg.Web3.MaxLimit != 0 {
-		maxLimit = float64(cfg.Web3.MaxLimit)
-	}
-
-	limiter := tollbooth.NewLimiter(maxLimit, nil)
+	limiter := tollbooth.NewLimiter(float64(cfg.Web3.MaxLimit), nil)
 	limiter.SetIPLookups([]string{"RemoteAddr", "X-Forwarded-For", "X-Real-IP"})
 
 	// swagger
-	mux.HandleFunc("/swagger.yaml", serveSwaggerYAML)
-	mux.HandleFunc("/swagger", serveSwaggerUI)
+	mux.HandleFunc("/swagger.yaml", serveSwaggerYAML(cfg))
+	mux.HandleFunc("/swagger", serveSwaggerUI(cfg))
 
 	c := cors.New(cors.Options{
 		AllowedOrigins:   []string{"*"},
@@ -79,35 +72,45 @@ func NewWeb3(cfg *config.Config, rpc *rpc.AergoRPCService) *Web3 {
 		mux:     mux,
 		status:  CLOSE,
 	}
-	web3svr.BaseComponent = component.NewBaseComponent(message.Web3Svc, web3svr, logger)
+	web3svr.BaseComponent = component.NewBaseComponent(message.Web3Svc, web3svr, logger)	
 
 	return web3svr
 }
 
-func (web3 *Web3) Start() {
-	go web3.run()
-}
 
 func (web3 *Web3) run() {
 	port := getPortFromConfig(web3.cfg)
+	web3.status = OPEN
+
 	err := http.ListenAndServe(":"+strconv.Itoa(port), web3.mux)
 
 	if err != nil {
 		fmt.Println("Web3 Server running fail:", err)
+		web3.status = CLOSE
 	} else {
 		fmt.Println("Web3 Server is listening on port " + strconv.Itoa(port) + "...")
-		web3.port = port
-		web3.status = OPEN
+		
 	}
 }
 
 func (web3 *Web3) Statistics() *map[string]interface{} {
 	ret := map[string]interface{}{
-		"status": web3.status,
-		"port":   web3.port,
+		"config": web3.cfg.Web3,
+		"status": web3.status,		
 	}
 
 	return &ret
+}
+
+func (web3 *Web3) BeforeStart() {
+}
+
+func (web3 *Web3) AfterStart() {
+	fmt.Println("Web3 Server Start")
+	go web3.run()	
+}
+
+func (web3 *Web3) BeforeStop() {
 }
 
 func (web3 *Web3) Receive(context actor.Context) {
@@ -126,26 +129,30 @@ func getPortFromConfig(cfg *config.Config) int {
 	return cfg.Web3.NetServicePort
 }
 
-func serveSwaggerYAML(w http.ResponseWriter, r *http.Request) {
-	yamlContent, err := os.ReadFile("./rpc/swagger/swagger.yaml")
-	if err != nil {
-		http.Error(w, "Failed to read YAML file", http.StatusInternalServerError)
-		return
-	}
+func serveSwaggerYAML(cfg *config.Config) func (w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		yamlContent, err := os.ReadFile(cfg.Web3.SwaggerPath + "swagger.yaml")
+		if err != nil {
+			http.Error(w, "Failed to read YAML file", http.StatusInternalServerError)
+			return
+		}
 
-	w.Header().Set("Content-Type", "application/x-yaml")
-	w.Write(yamlContent)
+		w.Header().Set("Content-Type", "application/x-yaml")
+		w.Write(yamlContent)
+	}
 }
 
-func serveSwaggerUI(w http.ResponseWriter, r *http.Request) {
-	htmlContent, err := os.ReadFile("./rpc/swagger/swagger-ui.html")
-	if err != nil {
-		http.Error(w, "Failed to read HTML file", http.StatusInternalServerError)
-		return
-	}
+func serveSwaggerUI(cfg *config.Config) func (w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		htmlContent, err := os.ReadFile(cfg.Web3.SwaggerPath + "swagger-ui.html")
+		if err != nil {
+			http.Error(w, "Failed to read HTML file", http.StatusInternalServerError)
+			return
+		}
 
-	w.Header().Set("Content-Type", "text/html")
-	w.Write(htmlContent)
+		w.Header().Set("Content-Type", "text/html")
+		w.Write(htmlContent)
+	}
 }
 
 func commonResponseHandler(response interface{}, err error) http.Handler {

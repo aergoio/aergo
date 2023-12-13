@@ -114,20 +114,24 @@ func rootRun(cmd *cobra.Command, args []string) {
 	syncSvc := syncer.NewSyncer(cfg, chainSvc, nil)
 	p2pSvc := p2p.NewP2P(cfg, chainSvc)
 	pmapSvc := polarisclient.NewPolarisConnectSvc(cfg.P2P, p2pSvc)
-	web3Svr := web3.NewWeb3(cfg, rpcSvc.GetActualServer())
-
+	
 	var accountSvc component.IComponent
 	if cfg.Personal {
 		accountSvc = account.NewAccountService(cfg, chainSvc.SDB())
+	}
+
+	var web3Svr component.IComponent
+	if cfg.Web3.Enable {
+		web3Svr = web3.NewWeb3(cfg, rpcSvc.GetActualServer())
 	}
 
 	// Register services to Hub. Don't need to do nil-check since Register
 	// function skips nil parameters.
 	var verifyOnly = cfg.Blockchain.VerifyOnly || cfg.Blockchain.VerifyBlock != 0
 	if !verifyOnly {
-		compMng.Register(chainSvc, mpoolSvc, rpcSvc, syncSvc, p2pSvc, accountSvc, pmapSvc)
+		compMng.Register(chainSvc, mpoolSvc, rpcSvc, web3Svr, syncSvc, p2pSvc, accountSvc, pmapSvc)
 	} else {
-		compMng.Register(chainSvc, mpoolSvc, rpcSvc)
+		compMng.Register(chainSvc, mpoolSvc, rpcSvc, web3Svr)
 	}
 
 	consensusSvc, err := impl.New(cfg, compMng, chainSvc, p2pSvc, rpcSvc)
@@ -142,8 +146,6 @@ func rootRun(cmd *cobra.Command, args []string) {
 	// actors are started.
 	compMng.Start()
 	
-	web3Svr.Start()
-
 	if cfg.Consensus.EnableBp {
 		// Warning: The consensus service must start after all the other
 		// services.
