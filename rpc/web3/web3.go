@@ -49,7 +49,7 @@ func NewWeb3(cfg *config.Config, rpc *rpc.AergoRPCService) *Web3 {
 	mux := http.NewServeMux()
 
 	// set limit per second
-	maxLimit := float64(1)
+	maxLimit := float64(10)
 	if cfg.Web3.MaxLimit != 0 {
 		maxLimit = float64(cfg.Web3.MaxLimit)
 	}
