@@ -11,14 +11,6 @@ import (
 	"github.com/aergoio/aergo/v2/types"
 )
 
-func (states *StateDB) GetMultiCallState(aid types.AccountID, st *types.State) (*ContractState) {
-	res := &ContractState{
-		State:   st,
-		account: aid,
-	}
-	return res
-}
-
 type ContractState struct {
 	*types.State
 	account types.AccountID
@@ -171,6 +163,14 @@ func (cs *ContractState) cache() *statedb.StateBuffer {
 
 //---------------------------------------------------------------//
 // global functions
+
+func GetMultiCallState(aid types.AccountID, st *types.State) (*ContractState) {
+	res := &ContractState{
+		State:   st,
+		account: aid,
+	}
+	return res
+}
 
 func OpenContractStateAccount(aid types.AccountID, states *statedb.StateDB) (*ContractState, error) {
 	st, err := states.GetAccountState(aid)

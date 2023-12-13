@@ -118,9 +118,9 @@ func Execute(
 	// open the contract state
 	var contractState *state.ContractState
 	if isMultiCall {
-		contractState = bs.GetMultiCallState(sender.AccountID(), sender.State())
+		contractState = state.GetMultiCallState(sender.AccountID(), sender.State())
 	} else {
-		contractState, err := state.OpenContractState(receiver.AccountID(), receiver.State(), bs.StateDB)
+		contractState, err = state.OpenContractState(receiver.AccountID(), receiver.State(), bs.StateDB)
 	}
 	if err != nil {
 		return

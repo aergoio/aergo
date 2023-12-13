@@ -463,11 +463,11 @@ func contractFrame(l luaTxContract, bs *state.BlockState, cdb contract.ChainAcce
 
 	contractId := types.ToAccountID(l.recipient())
 
-	var contractState *state.V
+	var contractState *state.AccountState
 	if l.isMultiCall() {
 		contractState = creatorState
 	} else {
-		contractState, err := state.GetAccountState(l.recipient(), bs.StateDB)
+		contractState, err = state.GetAccountState(l.recipient(), bs.StateDB)
 	}
 	if err != nil {
 		return err
@@ -475,9 +475,9 @@ func contractFrame(l luaTxContract, bs *state.BlockState, cdb contract.ChainAcce
 
 	var eContractState *state.ContractState
 	if l.isMultiCall() {
-		eContractState = bs.GetMultiCallState(creatorId, creatorState.State())
+		eContractState = state.GetMultiCallState(creatorId, creatorState.State())
 	} else {
-		eContractState, err := state.OpenContractState(contractId, contractState.State(), bs.StateDB)
+		eContractState, err = state.OpenContractState(contractId, contractState.State(), bs.StateDB)
 	}
 	if err != nil {
 		return err
