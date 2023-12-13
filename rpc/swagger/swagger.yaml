@@ -48,7 +48,7 @@ paths:
                 account: "AmNdzAYv3dYKFtPRgfUMGppGwBJS2JvZLRTF9gRruF49vppEepgj"
                 balance: "100000000 aergo"
                 nonce: 0
-  /getProof:
+  /getStateAndProof:
     get:
       summary: 계정의 상태와 Merkle Proof를 포함하여 조회
       tags: [Account]
@@ -150,7 +150,7 @@ paths:
                   pubKey: "CAISIQNmmKv+inhXk+dWY2XdX8MxkZk7SCxlBoXSrAaYKsweFQ=="
                   sign: "MEQCIAu7xj6QIBKM+IfSLQho+b1l3fHXhxWYbpxC9ZnfLT2pAiAEbSmG7oeRGSfkWW96xAuaAZri9tlx4LD/eZNS9mQzlw=="
                 body: {}
-  /getBlockNumber:
+  /blockchain:
     get:
       summary: 가장 최근 블록의 번호를 조회
       tags: [Block]
@@ -309,7 +309,7 @@ paths:
                   pubKey: "CAISIQNmmKv+inhXk+dWY2XdX8MxkZk7SCxlBoXSrAaYKsweFQ=="
                   sign: "MEUCIQC1ZOHY2Yi1tMl6zi4uvM5Rd2Mo+JAmlzYBNFd9hC7aRQIgbR+b5bhz06OBElZaiMt60gQK6KakgQjDZvomSRPIWEM="
                 size: 324
-  /getTransaction:
+  /getTx:
     get:
       summary: 트랜잭션의 정보 조회
       tags: [Transaction]
@@ -345,7 +345,7 @@ paths:
                         },
                     },
                 }
-  /getTransactionReceipt:
+  /getReceipt:
     get:
       summary: 트랜잭션의 영수증 정보를 조회
       tags: [Transaction]
@@ -372,7 +372,7 @@ paths:
                   "from": "AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R",
                   "to": "AmM1M4jAxeTxfh9CHUmKXJwTLxGJ6Qe5urEeFXqbqkKnZ73Uvx4y",
                 }
-  /getBlockTransactionReceipts:
+  /getReceipts:
     get:
       summary: 블록에 포함된 트랜잭션 영수증(Receipt)들을 조회
       tags: [Transaction]
@@ -409,7 +409,7 @@ paths:
                     ],
                   "blockNo": 8,
                 }
-  /getBlockTX:
+  /getBlockTx:
     get:
       summary: 트랜잭션 해시로 조회한 블록 내의 트랜잭션에 대한 정보 조회
       tags: [Transaction]
@@ -488,7 +488,7 @@ paths:
                       },
                     ],
                 }
-  /call:
+  /queryContract:
     get:
       summary: 스마트 컨트랙트의 상태 조회
       tags: [Transaction]
@@ -527,7 +527,7 @@ paths:
                       "Sign": "AN1rKvtDAYfLhSXNHCXLzi36a7ZjNbp7jhsJoM5ZdyLNZbGLgqDaDRPoNYFwUCVwpCVMqf3kLotB1jmiYMBzjmGeWN7pmsSDs",
                     },
                 }
-  /getPastEvents:
+  /listEvents:
     get:
       summary: 지난 이벤트를 조회
       tags: [Transaction]
@@ -617,7 +617,7 @@ paths:
                     ],
                   "state_variables": [{ "name": "values", "type": "map" }],
                 }
-  /queryContractState:
+  /queryContractStateProof:
     get:
       summary: 스마트컨트랙트 상태 조회
       tags: [Transaction]
@@ -654,7 +654,7 @@ paths:
                         ["bTxu9o0zPDGZdyb3Lyvd2R5FSmDVtnIKA92I6IrL+Ws="],
                     },
                 }
-  /getBlockTransactionCount:
+  /getTxCount:
     get:
       summary: 블록안의 트랜잭션 개수를 조회
       tags: [Transaction]
