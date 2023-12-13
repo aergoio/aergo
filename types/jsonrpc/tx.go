@@ -67,6 +67,7 @@ func ConvTx(msg *types.Tx, payloadType EncodingType) (tx *InOutTx) {
 	if msg.Body != nil {
 		tx.Body = ConvTxBody(msg.Body, payloadType)
 	}
+
 	return tx
 }
 
@@ -107,6 +108,7 @@ func ConvTxBody(msg *types.TxBody, payloadType EncodingType) *InOutTxBody {
 	return tb
 }
 
+
 func ParseTxBody(tb *InOutTxBody) (msg *types.TxBody, err error) {
 	if tb == nil {
 		return nil, errors.New("tx body is empty")
@@ -140,7 +142,7 @@ func ParseTxBody(tb *InOutTxBody) (msg *types.TxBody, err error) {
 		}
 	}
 
-	if tb.PayloadJson.Name != "" {
+	if tb.PayloadJson != nil && tb.PayloadJson.Name != "" {
 		payload, err := json.Marshal(tb.PayloadJson)
 
 		if err != nil {
@@ -185,7 +187,7 @@ type InOutTxBody struct {
 	Recipient   string         `json:"recipient,omitempty"`
 	Amount      string         `json:"amount,omitempty"`
 	Payload     string         `json:"payload,omitempty"`
-	PayloadJson types.CallInfo `json:"payloadJson,omitempty"`
+	PayloadJson *types.CallInfo `json:"payloadJson,omitempty"`
 	GasLimit    uint64         `json:"gasLimit,omitempty"`
 	GasPrice    string         `json:"gasPrice,omitempty"`
 	Type        types.TxType   `json:"type,omitempty"`
@@ -228,4 +230,14 @@ type InOutTxIdx struct {
 
 func (t *InOutTxInBlock) String() string {
 	return MarshalJSON(t)
+}
+
+func CovPayloadJson(tx *InOutTx) {
+	if tx.Body.Payload != "" {
+		payload, err := base58.Decode(tx.Body.Payload)
+		if err == nil {
+			tx.Body.PayloadJson = &types.CallInfo{}
+			_ = json.Unmarshal(payload, tx.Body.PayloadJson)		
+		}	
+	}
 }

@@ -650,6 +650,7 @@ func (api *Web3APIv1) GetTX() (handler http.Handler, ok bool) {
 	result, err := api.rpc.GetTX(api.request.Context(), request)
 	if err == nil {
 		output := jsonrpc.ConvTx(result, jsonrpc.Base58)
+		jsonrpc.CovPayloadJson(output)
 		return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 	} else {
 		resultblock, err := api.rpc.GetBlockTX(api.request.Context(), request)
@@ -659,6 +660,7 @@ func (api *Web3APIv1) GetTX() (handler http.Handler, ok bool) {
 		}
 
 		output := jsonrpc.ConvTxInBlock(resultblock, jsonrpc.Base58)
+		jsonrpc.CovPayloadJson(&output.Tx)
 		return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 	}
 }
@@ -682,6 +684,7 @@ func (api *Web3APIv1) GetBlockTX() (handler http.Handler, ok bool) {
 	result, err := api.rpc.GetTX(api.request.Context(), request)
 	if err == nil {
 		output := jsonrpc.ConvTx(result, jsonrpc.Base58)
+		jsonrpc.CovPayloadJson(output)
 		return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 	} else {
 		outputblock, err := api.rpc.GetBlockTX(api.request.Context(), request)
@@ -689,6 +692,7 @@ func (api *Web3APIv1) GetBlockTX() (handler http.Handler, ok bool) {
 			return commonResponseHandler(&types.Empty{}, err), true
 		}
 		output := jsonrpc.ConvTxInBlock(outputblock, jsonrpc.Base58)
+		jsonrpc.CovPayloadJson(&output.Tx)		
 		return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 	}
 }
@@ -757,12 +761,12 @@ func (api *Web3APIv1) ListEvents() (handler http.Handler, ok bool) {
 		request.ContractAddress = hashBytes
 	}
 
-	EventName := values.Get("EventName")
+	EventName := values.Get("eventName")
 	if EventName != "" {
 		request.EventName = EventName
 	}
 
-	Blockfrom := values.Get("Blockfrom")
+	Blockfrom := values.Get("blockfrom")
 	if Blockfrom != "" {
 		BlockfromValue, err := strconv.ParseUint(Blockfrom, 10, 64)
 		if err != nil {
@@ -771,7 +775,7 @@ func (api *Web3APIv1) ListEvents() (handler http.Handler, ok bool) {
 		request.Blockfrom = uint64(BlockfromValue)
 	}
 
-	Blockto := values.Get("Blockto")
+	Blockto := values.Get("blockto")
 	if Blockto != "" {
 		BlocktoValue, err := strconv.ParseUint(Blockto, 10, 64)
 		if err != nil {
