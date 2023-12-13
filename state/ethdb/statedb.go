@@ -1,7 +1,6 @@
 package ethdb
 
 import (
-	"bytes"
 	"math/big"
 
 	"github.com/aergoio/aergo/v2/types"
@@ -16,7 +15,7 @@ const (
 
 type StateDB struct {
 	trieDB     *trie.Database
-	evmStateDB *state.StateDB
+	ethStateDB *state.StateDB
 }
 
 func NewStateDB(root []byte, db *DB) (*StateDB, error) {
@@ -30,68 +29,65 @@ func NewStateDB(root []byte, db *DB) (*StateDB, error) {
 
 	return &StateDB{
 		trieDB:     triedb,
-		evmStateDB: sdb,
+		ethStateDB: sdb,
 	}, nil
 }
 
 func (sdb *StateDB) Copy() *StateDB {
 	return &StateDB{
 		trieDB:     sdb.trieDB,
-		evmStateDB: sdb.evmStateDB.Copy(),
+		ethStateDB: sdb.ethStateDB.Copy(),
 	}
 }
 
 func (sdb *StateDB) GetStateDB() *state.StateDB {
-	return sdb.evmStateDB
+	return sdb.ethStateDB
 }
 
 func (sdb *StateDB) PutState(id []byte, addr common.Address, balance *big.Int, nonce uint64, code []byte) {
-	sdb.evmStateDB.SetNonce(addr, nonce)
-	sdb.evmStateDB.SetBalance(addr, balance)
+	sdb.ethStateDB.SetNonce(addr, nonce)
+	sdb.ethStateDB.SetBalance(addr, balance)
 
 	// id must be 33 bytes
 	idWithCode := make([]byte, types.AddressLength+len(code))
 	copy(idWithCode, id)
 	copy(idWithCode[types.AddressLength:], code)
 
-	sdb.evmStateDB.SetCode(addr, idWithCode)
+	sdb.ethStateDB.SetCode(addr, idWithCode)
 }
 
 func (sdb *StateDB) GetState(addr common.Address) (id []byte, balance *big.Int, nonce uint64, code []byte) {
-	idWithCode := sdb.evmStateDB.GetCode(addr)
-	id = idWithCode[:types.AddressLength]
-	if bytes.Contains(idWithCode, []byte("aergo.")) { // FIXME : check governance id
-		id = bytes.TrimRight(idWithCode, "\x00")
-	}
-	balance = sdb.evmStateDB.GetBalance(addr)
-	nonce = sdb.evmStateDB.GetNonce(addr)
+	idWithCode := sdb.ethStateDB.GetCode(addr)
+	id = sdb.GetId(addr)
+	balance = sdb.ethStateDB.GetBalance(addr)
+	nonce = sdb.ethStateDB.GetNonce(addr)
 	code = idWithCode[types.AddressLength:]
 	return id, balance, nonce, code
 }
 
-func (sdb *StateDB) GetId(addr common.Address) (id []byte) {
-	idWithCode := sdb.evmStateDB.GetCode(addr)
-	id = idWithCode[:types.AddressLength]
-	if bytes.Contains(idWithCode, []byte("aergo.")) { // FIXME : check governance id
-		id = bytes.TrimRight(idWithCode, "\x00")
+func (sdb *StateDB) GetId(addr common.Address) []byte {
+	if id := types.GetSpecialAccountEthReverse(addr); id != "" {
+		return []byte(id)
 	}
-	return id
+
+	idWithCode := sdb.ethStateDB.GetCode(addr)
+	return idWithCode[:types.AddressLength]
 }
 
 func (sdb *StateDB) Root() []byte {
-	return sdb.evmStateDB.IntermediateRoot(false).Bytes()
+	return sdb.ethStateDB.IntermediateRoot(false).Bytes()
 }
 
 func (sdb *StateDB) Snapshot() int {
-	return sdb.evmStateDB.Snapshot()
+	return sdb.ethStateDB.Snapshot()
 }
 
 func (sdb *StateDB) Rollback(snapshot int) {
-	sdb.evmStateDB.RevertToSnapshot(snapshot)
+	sdb.ethStateDB.RevertToSnapshot(snapshot)
 }
 
 func (sdb *StateDB) Commit(blockNo uint64) (root []byte, err error) {
-	newRoot, err := sdb.evmStateDB.Commit(blockNo, false)
+	newRoot, err := sdb.ethStateDB.Commit(blockNo, false)
 	if err != nil {
 		return nil, err
 	}

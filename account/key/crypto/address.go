@@ -11,7 +11,6 @@ import (
 	"encoding/binary"
 
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/btcsuite/btcd/btcec"
 )
 
 // GenerateAddress calculates the raw (not-encoded) address for a private key.
@@ -32,15 +31,4 @@ func GenerateAddress(pubkey *ecdsa.PublicKey) []byte {
 	}
 	binary.Write(addr, binary.LittleEndian, pubkey.X.Bytes())
 	return addr.Bytes() // 33 bytes
-}
-
-func ConvAddressUncompressed(compressedPubKey []byte) []byte {
-	if !btcec.IsCompressedPubKey(compressedPubKey) {
-		return nil
-	}
-	pubKey, err := btcec.ParsePubKey(compressedPubKey, btcec.S256())
-	if err != nil {
-		return nil
-	}
-	return pubKey.SerializeUncompressed()
 }

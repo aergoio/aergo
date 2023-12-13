@@ -1,16 +1,20 @@
 package key
 
 import (
+	"github.com/btcsuite/btcd/btcec"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-func NewAddressEth(pubkey []byte) common.Address {
-	unCompressedPubkey := ConvAddressUncompressed(pubkey)
-	if unCompressedPubkey == nil {
+func NewAddressEth(pubKey []byte) common.Address {
+	if !btcec.IsCompressedPubKey(pubKey) {
 		return common.Address{}
 	}
-	return common.BytesToAddress(unCompressedPubkey)
+	ecdsaPubKey, err := btcec.ParsePubKey(pubKey, btcec.S256())
+	if err != nil {
+		return common.Address{}
+	}
+	return crypto.PubkeyToAddress(*ecdsaPubKey.ToECDSA())
 }
 
 func NewContractEth(from common.Address, nonce uint64) common.Address {

@@ -1,7 +1,6 @@
 package ethdb
 
 import (
-	"fmt"
 	"math/big"
 	"testing"
 
@@ -18,8 +17,8 @@ func TestState(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, sdbOld.Root(), types.EmptyRootHash.Bytes(), "root mismatch with expect")
-	require.Equal(t, sdbOld.Root(), sdbOld.evmStateDB.IntermediateRoot(false).Bytes(), "root mismatch with IntermediateRoot(false)")
-	require.Equal(t, sdbOld.Root(), sdbOld.evmStateDB.IntermediateRoot(true).Bytes(), "root mismatch with IntermediateRoot(true)")
+	require.Equal(t, sdbOld.Root(), sdbOld.ethStateDB.IntermediateRoot(false).Bytes(), "root mismatch with IntermediateRoot(false)")
+	require.Equal(t, sdbOld.Root(), sdbOld.ethStateDB.IntermediateRoot(true).Bytes(), "root mismatch with IntermediateRoot(true)")
 
 	// put and commit
 	addr := common.BigToAddress(big.NewInt(1))
@@ -28,22 +27,7 @@ func TestState(t *testing.T) {
 	code := []byte("code")
 	sdbOld.PutState(nil, addr, balance, nonce, code)
 
-	newRoot, err := sdbOld.Commit(0)
-	require.NoError(t, err)
-	fmt.Println("newRoot", newRoot)
-
-	sdbNew, err := NewStateDB(newRoot, db)
+	_, err = sdbOld.Commit(0)
 	require.NoError(t, err)
 
-	fmt.Println("blaance :", sdbNew.evmStateDB.GetBalance(addr).String())
-	fmt.Println("code :", sdbNew.evmStateDB.GetCode(addr))
-	fmt.Println("nonde :", sdbNew.evmStateDB.GetNonce(addr))
-
-	iter := db.Store.NewIterator(nil, nil)
-	for {
-		fmt.Println("key", iter.Key(), "value", iter.Value())
-		if !iter.Next() {
-			break
-		}
-	}
 }

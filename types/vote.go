@@ -19,8 +19,9 @@ const (
 
 // too few accounts to use map
 var (
-	specialAccounts   [][]byte
-	specialAccountEth map[string]common.Address
+	specialAccounts          [][]byte
+	specialAccountEth        map[string]common.Address
+	specialAccountEthReverse map[common.Address]string
 )
 
 func init() {
@@ -35,10 +36,21 @@ func init() {
 	specialAccountEth[AergoName] = common.BigToAddress(big.NewInt(2))       // 0x0000000000000000000000000000000000000002
 	specialAccountEth[AergoEnterprise] = common.BigToAddress(big.NewInt(3)) // 0x0000000000000000000000000000000000000003
 	specialAccountEth[AergoVault] = common.BigToAddress(big.NewInt(4))      // 0x0000000000000000000000000000000000000004
+
+	specialAccountEthReverse = make(map[common.Address]string)
+	specialAccountEthReverse[specialAccountEth[AergoSystem]] = AergoSystem
+	specialAccountEthReverse[specialAccountEth[AergoName]] = AergoName
+	specialAccountEthReverse[specialAccountEth[AergoEnterprise]] = AergoEnterprise
+	specialAccountEthReverse[specialAccountEth[AergoVault]] = AergoVault
+
 }
 
 func GetSpecialAccountEth(name []byte) common.Address {
 	return specialAccountEth[string(name)]
+}
+
+func GetSpecialAccountEthReverse(addr common.Address) string {
+	return specialAccountEthReverse[addr]
 }
 
 // IsSpecialAccount check if name is the one of special account names.
