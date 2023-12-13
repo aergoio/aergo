@@ -57,9 +57,9 @@ func TestParseBase58TxBody(t *testing.T) {
 func TestParseTx(t *testing.T) {
 	testTx := &types.Tx{Body: &types.TxBody{Payload: []byte(`{"Name":"v1createName","Args":["honggildong3"]}`)}}
 	result := MarshalJSON(ConvTx(testTx, Base58))
-	assert.Equal(t, "{\n \"body\": {\n  \"payload\": \"22MZAFWvxtVWehpgwEVxrvoqGL5xmcPmyLBiwraDfxRwKUNrV9tmhuB7Uu6ZeJWvp\",\n  \"payloadJson\": {}\n }\n}", result, "")
+	assert.Equal(t, "{\n \"body\": {\n  \"payload\": \"22MZAFWvxtVWehpgwEVxrvoqGL5xmcPmyLBiwraDfxRwKUNrV9tmhuB7Uu6ZeJWvp\"\n }\n}", result, "")
 	result = MarshalJSON(ConvTx(testTx, Raw))
-	assert.Equal(t, "{\n \"body\": {\n  \"payload\": \"{\\\"Name\\\":\\\"v1createName\\\",\\\"Args\\\":[\\\"honggildong3\\\"]}\",\n  \"payloadJson\": {}\n }\n}", result, "")
+	assert.Equal(t, "{\n \"body\": {\n  \"payload\": \"{\\\"Name\\\":\\\"v1createName\\\",\\\"Args\\\":[\\\"honggildong3\\\"]}\"\n }\n}", result, "")
 }
 
 func TestConvTxBody(t *testing.T) {

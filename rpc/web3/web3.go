@@ -61,7 +61,7 @@ func NewWeb3(cfg *config.Config, rpc *rpc.AergoRPCService) *Web3 {
 
 	// API v1
 	web3svc := &Web3APIv1{rpc: rpc}
-	
+
 	var liminter *rate.Limiter
 	if cfg.Web3.MaxLimit > 0 {
 		liminter = rate.NewLimiter(rate.Limit(cfg.Web3.MaxLimit), 1)
@@ -74,22 +74,20 @@ func NewWeb3(cfg *config.Config, rpc *rpc.AergoRPCService) *Web3 {
 			http.Error(w, "Rate limit exceeded", http.StatusTooManyRequests)
 			return
 		}
-		web3svc.handler(w,r);
+		web3svc.handler(w, r)
 	})
 	mux.Handle("/v1/", c.Handler(limitedHandler))
 
-	
 	web3svr := &Web3{
 		cfg:     cfg,
 		web3svc: web3svc,
 		mux:     mux,
 		status:  CLOSE,
 	}
-	web3svr.BaseComponent = component.NewBaseComponent(message.Web3Svc, web3svr, logger)	
+	web3svr.BaseComponent = component.NewBaseComponent(message.Web3Svc, web3svr, logger)
 
 	return web3svr
 }
-
 
 func (web3 *Web3) run() {
 	port := getPortFromConfig(web3.cfg)
@@ -102,14 +100,14 @@ func (web3 *Web3) run() {
 		web3.status = CLOSE
 	} else {
 		fmt.Println("Web3 Server is listening on port " + strconv.Itoa(port) + "...")
-		
+
 	}
 }
 
 func (web3 *Web3) Statistics() *map[string]interface{} {
 	ret := map[string]interface{}{
 		"config": web3.cfg.Web3,
-		"status": web3.status,		
+		"status": web3.status,
 	}
 
 	return &ret
@@ -120,8 +118,8 @@ func (web3 *Web3) BeforeStart() {
 
 func (web3 *Web3) AfterStart() {
 	fmt.Println("Web3 Server Start")
-	web3.web3svc.NewHandler()	
-	go web3.run()	
+	web3.web3svc.NewHandler()
+	go web3.run()
 }
 
 func (web3 *Web3) BeforeStop() {
@@ -143,7 +141,7 @@ func getPortFromConfig(cfg *config.Config) int {
 	return cfg.Web3.NetServicePort
 }
 
-func serveSwaggerYAML(cfg *config.Config) func (w http.ResponseWriter, r *http.Request) {
+func serveSwaggerYAML(cfg *config.Config) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		yamlContent, err := os.ReadFile(cfg.Web3.SwaggerPath + "swagger.yaml")
 		if err != nil {
@@ -156,7 +154,7 @@ func serveSwaggerYAML(cfg *config.Config) func (w http.ResponseWriter, r *http.R
 	}
 }
 
-func serveSwaggerUI(cfg *config.Config) func (w http.ResponseWriter, r *http.Request) {
+func serveSwaggerUI(cfg *config.Config) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		htmlContent, err := os.ReadFile(cfg.Web3.SwaggerPath + "swagger-ui.html")
 		if err != nil {

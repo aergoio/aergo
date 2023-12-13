@@ -108,7 +108,6 @@ func ConvTxBody(msg *types.TxBody, payloadType EncodingType) *InOutTxBody {
 	return tb
 }
 
-
 func ParseTxBody(tb *InOutTxBody) (msg *types.TxBody, err error) {
 	if tb == nil {
 		return nil, errors.New("tx body is empty")
@@ -182,17 +181,17 @@ type InOutPayload struct {
 }
 
 type InOutTxBody struct {
-	Nonce       uint64         `json:"nonce,omitempty"`
-	Account     string         `json:"account,omitempty"`
-	Recipient   string         `json:"recipient,omitempty"`
-	Amount      string         `json:"amount,omitempty"`
-	Payload     string         `json:"payload,omitempty"`
+	Nonce       uint64          `json:"nonce,omitempty"`
+	Account     string          `json:"account,omitempty"`
+	Recipient   string          `json:"recipient,omitempty"`
+	Amount      string          `json:"amount,omitempty"`
+	Payload     string          `json:"payload,omitempty"`
 	PayloadJson *types.CallInfo `json:"payloadJson,omitempty"`
-	GasLimit    uint64         `json:"gasLimit,omitempty"`
-	GasPrice    string         `json:"gasPrice,omitempty"`
-	Type        types.TxType   `json:"type,omitempty"`
-	ChainIdHash string         `json:"chainIdHash,omitempty"`
-	Sign        string         `json:"sign,omitempty"`
+	GasLimit    uint64          `json:"gasLimit,omitempty"`
+	GasPrice    string          `json:"gasPrice,omitempty"`
+	Type        types.TxType    `json:"type,omitempty"`
+	ChainIdHash string          `json:"chainIdHash,omitempty"`
+	Sign        string          `json:"sign,omitempty"`
 }
 
 func (b *InOutTxBody) String() string {
@@ -237,7 +236,7 @@ func CovPayloadJson(tx *InOutTx) {
 		payload, err := base58.Decode(tx.Body.Payload)
 		if err == nil {
 			tx.Body.PayloadJson = &types.CallInfo{}
-			_ = json.Unmarshal(payload, tx.Body.PayloadJson)		
-		}	
+			_ = json.Unmarshal(payload, tx.Body.PayloadJson)
+		}
 	}
 }

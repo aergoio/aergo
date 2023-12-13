@@ -114,7 +114,7 @@ func rootRun(cmd *cobra.Command, args []string) {
 	syncSvc := syncer.NewSyncer(cfg, chainSvc, nil)
 	p2pSvc := p2p.NewP2P(cfg, chainSvc)
 	pmapSvc := polarisclient.NewPolarisConnectSvc(cfg.P2P, p2pSvc)
-	
+
 	var accountSvc component.IComponent
 	if cfg.Personal {
 		accountSvc = account.NewAccountService(cfg, chainSvc.SDB())
@@ -145,7 +145,7 @@ func rootRun(cmd *cobra.Command, args []string) {
 	// All the services objects including Consensus must be created before the
 	// actors are started.
 	compMng.Start()
-	
+
 	if cfg.Consensus.EnableBp {
 		// Warning: The consensus service must start after all the other
 		// services.

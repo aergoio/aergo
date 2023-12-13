@@ -85,7 +85,7 @@ type GetReceipts struct {
 }
 type GetReceiptsRsp struct {
 	Receipts *types.Receipts
-	Err     error
+	Err      error
 }
 
 type GetReceiptsByNo struct {
