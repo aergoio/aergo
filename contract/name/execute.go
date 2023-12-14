@@ -26,7 +26,7 @@ func ExecuteNameTx(bs *state.BlockState, scs *statedb.ContractState, txBody *typ
 		if bytes.Equal(sender.ID(), owner) {
 			nameState = sender
 		} else {
-			if nameState, err = state.GetAccountState(owner, bs.LuaStateDB, bs.EvmStateDB); err != nil {
+			if nameState, err = state.GetAccountState(owner, bs.LuaStateDB, bs.EthStateDB); err != nil {
 				return nil, err
 			}
 		}
@@ -131,7 +131,7 @@ func SetContractOwner(bs *state.BlockState, scs *statedb.ContractState,
 		return nil, err
 	}
 
-	ownerState, err := state.GetAccountState(rawaddr, bs.LuaStateDB, bs.EvmStateDB)
+	ownerState, err := state.GetAccountState(rawaddr, bs.LuaStateDB, bs.EthStateDB)
 	if err != nil {
 		return nil, err
 	}

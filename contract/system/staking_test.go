@@ -153,9 +153,9 @@ func TestUnstakingError(t *testing.T) {
 			Payload: []byte(`{"Name":"v1unstake"}`),
 		},
 	}
-	sender, err := state.GetAccountState(tx.Body.Account, bs.LuaStateDB, bs.EvmStateDB)
+	sender, err := state.GetAccountState(tx.Body.Account, bs.LuaStateDB, bs.EthStateDB)
 	assert.NoError(t, err, "could not get test address state")
-	receiver, err := state.GetAccountState(tx.Body.Recipient, bs.LuaStateDB, bs.EvmStateDB)
+	receiver, err := state.GetAccountState(tx.Body.Recipient, bs.LuaStateDB, bs.EthStateDB)
 	assert.NoError(t, err, "could not get test address state")
 	sender.AddBalance(types.MaxAER)
 

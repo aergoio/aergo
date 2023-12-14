@@ -592,7 +592,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 
 		bState = state.NewBlockState(
 			cs.sdb.GetStateDB(),
-			cs.sdb.OpenEvmStateDB(block.GetHeader().GetEvmRootHash()),
+			cs.sdb.OpenEthStateDB(block.GetHeader().GetEvmRootHash()),
 			state.SetBlock(block.GetHeader()),
 		)
 		bi = types.NewBlockHeaderInfo(block)
@@ -618,7 +618,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 		txs:             block.GetBody().GetTxs(),
 		coinbaseAccount: block.GetHeader().GetCoinbaseAccount(),
 		validatePost: func() error {
-			return cs.validator.ValidatePost(bState.GetLuaRoot(), bState.GetEvmRoot(), bState.Receipts(), block)
+			return cs.validator.ValidatePost(bState.GetLuaRoot(), bState.GetEthRoot(), bState.Receipts(), block)
 		},
 		commitOnly:       commitOnly,
 		verifyOnly:       verifyOnly,
@@ -915,7 +915,7 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 		return err
 	}
 
-	sender, err := state.GetAccountState(account, bs.LuaStateDB, bs.EvmStateDB)
+	sender, err := state.GetAccountState(account, bs.LuaStateDB, bs.EthStateDB)
 	if err != nil {
 		return err
 	}
@@ -931,13 +931,13 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 	var receiver *state.AccountState
 	status := "SUCCESS"
 	if len(recipient) > 0 {
-		receiver, err = state.GetAccountState(recipient, bs.LuaStateDB, bs.EvmStateDB)
+		receiver, err = state.GetAccountState(recipient, bs.LuaStateDB, bs.EthStateDB)
 		if receiver != nil && txBody.Type == types.TxType_REDEPLOY {
 			status = "RECREATED"
 			receiver.SetRedeploy()
 		}
 	} else {
-		receiver, err = state.CreateAccountState(contract.CreateContractID(txBody.Account, txBody.Nonce), bs.LuaStateDB, bs.EvmStateDB)
+		receiver, err = state.CreateAccountState(contract.CreateContractID(txBody.Account, txBody.Nonce), bs.LuaStateDB, bs.EthStateDB)
 		status = "CREATED"
 	}
 	if err != nil {
@@ -1084,7 +1084,7 @@ func sendRewardCoinbase(bState *state.BlockState, coinbaseAccount []byte) error 
 	}
 
 	// add bp reward to coinbase account
-	coinbaseAccountState, err := state.GetAccountState(coinbaseAccount, bState.LuaStateDB, bState.EvmStateDB)
+	coinbaseAccountState, err := state.GetAccountState(coinbaseAccount, bState.LuaStateDB, bState.EthStateDB)
 	if err != nil {
 		return err
 	}

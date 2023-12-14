@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	StateName = "state_evm"
+	StateName = "state_eth"
 )
 
 type StateDB struct {

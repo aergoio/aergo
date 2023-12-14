@@ -52,7 +52,7 @@ func (e *EVM) Query(address []byte, contractAddress []byte, payload []byte) ([]b
 	// create evmCfg
 	ethOriginAddress := common.BytesToAddress(address)
 	contractEthAddress := common.BytesToAddress(contractAddress)
-	queryState := e.bs.EvmStateDB.GetStateDB().Copy()
+	queryState := e.bs.EthStateDB.GetStateDB().Copy()
 	cfg := NewConfig(
 		e.bs.Block().ChainID,
 		ethOriginAddress,
@@ -83,7 +83,7 @@ func (e *EVM) Call(address common.Address, contract, payload []byte) ([]byte, *b
 
 	// create evmCfg
 	contractEth := common.BytesToAddress(contract)
-	queryState := e.bs.EvmStateDB.GetStateDB().Copy()
+	queryState := e.bs.EthStateDB.GetStateDB().Copy()
 	cfg := NewConfig(
 		e.bs.Block().ChainID,
 		address,
@@ -112,7 +112,7 @@ func (e *EVM) Create(sender common.Address, payload []byte) ([]byte, []byte, *bi
 	}
 
 	// create evmCfg
-	queryState := e.bs.EvmStateDB.GetStateDB().Copy()
+	queryState := e.bs.EthStateDB.GetStateDB().Copy()
 	cfg := NewConfig(
 		e.bs.Block().ChainID,
 		sender,
@@ -147,13 +147,13 @@ func (e *EVM) GetHashFn() vm.GetHashFunc {
 
 func (e *EVM) TransferFn() vm.TransferFunc {
 	return func(db vm.StateDB, sender, recipient common.Address, amount *big.Int) {
-		senderId := e.bs.EvmStateDB.GetId(sender)
-		senderAccState, err := state.GetAccountState(senderId, e.bs.LuaStateDB, e.bs.EvmStateDB)
+		senderId := e.bs.EthStateDB.GetId(sender)
+		senderAccState, err := state.GetAccountState(senderId, e.bs.LuaStateDB, e.bs.EthStateDB)
 		if err != nil {
 			panic("impossible") // FIXME
 		}
-		receipientId := e.bs.EvmStateDB.GetId(sender)
-		receipientAccState, err := state.GetAccountState(receipientId, e.bs.LuaStateDB, e.bs.EvmStateDB)
+		receipientId := e.bs.EthStateDB.GetId(sender)
+		receipientAccState, err := state.GetAccountState(receipientId, e.bs.LuaStateDB, e.bs.EthStateDB)
 		if err != nil {
 			panic("impossible") // FIXME
 		}
@@ -166,8 +166,8 @@ func (e *EVM) TransferFn() vm.TransferFunc {
 
 func (e *EVM) CanTransferFn() vm.CanTransferFunc {
 	return func(sdb vm.StateDB, addr common.Address, amount *big.Int) bool {
-		addrId := e.bs.EvmStateDB.GetId(addr)
-		accState, err := state.GetAccountState(addrId, e.bs.LuaStateDB, e.bs.EvmStateDB)
+		addrId := e.bs.EthStateDB.GetId(addr)
+		accState, err := state.GetAccountState(addrId, e.bs.LuaStateDB, e.bs.EthStateDB)
 		if err != nil {
 			panic("impossible") // FIXME
 		}

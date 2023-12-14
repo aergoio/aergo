@@ -14,7 +14,7 @@ import (
 // BlockState contains BlockInfo and statedb for block
 type BlockState struct {
 	LuaStateDB *statedb.StateDB
-	EvmStateDB *ethdb.StateDB
+	EthStateDB *ethdb.StateDB
 
 	block      *types.BlockHeader
 	BpReward   big.Int // final bp reward, increment when tx executes
@@ -43,10 +43,10 @@ func SetGasPrice(gasPrice *big.Int) BlockStateOptFn {
 }
 
 // NewBlockState create new blockState contains blockInfo, account states and undo states
-func NewBlockState(luaStates *statedb.StateDB, evmStates *ethdb.StateDB, options ...BlockStateOptFn) *BlockState {
+func NewBlockState(luaStates *statedb.StateDB, ethStates *ethdb.StateDB, options ...BlockStateOptFn) *BlockState {
 	b := &BlockState{
 		LuaStateDB: luaStates,
-		EvmStateDB: evmStates,
+		EthStateDB: ethStates,
 		codeCache:  gcache.New(100).LRU().Build(),
 		abiCache:   gcache.New(100).LRU().Build(),
 	}
@@ -59,7 +59,7 @@ func NewBlockState(luaStates *statedb.StateDB, evmStates *ethdb.StateDB, options
 type BlockSnapshot struct {
 	LuaVersion statedb.Snapshot
 	luaStorage map[types.AccountID]int
-	EvmVersion int
+	EthVersion int
 }
 
 func (bs *BlockState) Snapshot() *BlockSnapshot {
@@ -67,8 +67,8 @@ func (bs *BlockState) Snapshot() *BlockSnapshot {
 		LuaVersion: bs.LuaStateDB.Snapshot(),
 		luaStorage: bs.LuaStateDB.Cache.Snapshot(),
 	}
-	if bs.EvmStateDB != nil {
-		result.EvmVersion = bs.EvmStateDB.Snapshot()
+	if bs.EthStateDB != nil {
+		result.EthVersion = bs.EthStateDB.Snapshot()
 	}
 	return result
 }
@@ -80,8 +80,8 @@ func (bs *BlockState) Rollback(bSnap *BlockSnapshot) error {
 	if err := bs.LuaStateDB.Rollback(bSnap.LuaVersion); err != nil {
 		return err
 	}
-	if bs.EvmStateDB != nil {
-		bs.EvmStateDB.Rollback(bSnap.EvmVersion)
+	if bs.EthStateDB != nil {
+		bs.EthStateDB.Rollback(bSnap.EthVersion)
 	}
 
 	return nil
@@ -91,11 +91,11 @@ func (bs *BlockState) GetLuaRoot() []byte {
 	return bs.LuaStateDB.GetRoot()
 }
 
-func (bs *BlockState) GetEvmRoot() []byte {
-	if bs.EvmStateDB == nil {
+func (bs *BlockState) GetEthRoot() []byte {
+	if bs.EthStateDB == nil {
 		return nil
 	}
-	return bs.EvmStateDB.Root()
+	return bs.EthStateDB.Root()
 }
 
 func (bs *BlockState) Update() error {
@@ -114,8 +114,8 @@ func (bs *BlockState) Commit() error {
 			return err
 		}
 	}
-	if bs.EvmStateDB != nil {
-		_, err := bs.EvmStateDB.Commit(bs.block.BlockNo)
+	if bs.EthStateDB != nil {
+		_, err := bs.EthStateDB.Commit(bs.block.BlockNo)
 		if err != nil {
 			return err
 		}

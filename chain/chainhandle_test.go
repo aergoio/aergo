@@ -73,7 +73,7 @@ func newTestBlockInfo(chainID []byte) *types.BlockHeaderInfo {
 func TestErrorInExecuteTx(t *testing.T) {
 	initTest(t, true)
 	defer deinitTest()
-	bs := state.NewBlockState(sdb.GetStateDB(), sdb.OpenEvmStateDB(nil))
+	bs := state.NewBlockState(sdb.GetStateDB(), sdb.OpenEthStateDB(nil))
 	evmService := evm.NewEVM(nil, nil, bs)
 
 	tx := &types.Tx{}
@@ -110,7 +110,7 @@ func TestErrorInExecuteTx(t *testing.T) {
 func TestBasicExecuteTx(t *testing.T) {
 	initTest(t, true)
 	defer deinitTest()
-	bs := state.NewBlockState(sdb.GetStateDB(), sdb.OpenEvmStateDB(nil))
+	bs := state.NewBlockState(sdb.GetStateDB(), sdb.OpenEthStateDB(nil))
 	evmService := evm.NewEVM(nil, nil, bs)
 
 	tx := &types.Tx{Body: &types.TxBody{}}

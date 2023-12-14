@@ -177,7 +177,7 @@ func NewVmContextQuery(
 ) (*vmContext, error) {
 	cs := &callState{
 		ctrState: contractState,
-		accState: state.InitAccountState(contractState.GetID(), blockState.LuaStateDB, blockState.EvmStateDB, contractState.State, contractState.State),
+		accState: state.InitAccountState(contractState.GetID(), blockState.LuaStateDB, blockState.EthStateDB, contractState.State, contractState.State),
 	}
 
 	bb, err := cdb.GetBestBlock()
@@ -899,7 +899,7 @@ func PreCall(
 	ctx.bs = bs
 	cs := ctx.curContract.callState
 	cs.ctrState = contractState
-	cs.accState = state.InitAccountState(contractState.GetID(), bs.LuaStateDB, bs.EvmStateDB, contractState.State, contractState.State)
+	cs.accState = state.InitAccountState(contractState.GetID(), bs.LuaStateDB, bs.EthStateDB, contractState.State, contractState.State)
 	ctx.callState[sender.AccountID()] = &callState{accState: sender}
 
 	ctx.curContract.rp = rp

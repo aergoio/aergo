@@ -110,7 +110,7 @@ func (sdb *ChainStateDB) OpenNewStateDB(root []byte) *statedb.StateDB {
 	return statedb.NewStateDB(sdb.luaStore, root, sdb.testmode)
 }
 
-func (sdb *ChainStateDB) OpenEvmStateDB(root []byte) *ethdb.StateDB {
+func (sdb *ChainStateDB) OpenEthStateDB(root []byte) *ethdb.StateDB {
 	if root == nil { // before v4
 		root = sdb.EthRootHash
 	}
@@ -146,7 +146,7 @@ func (sdb *ChainStateDB) SetGenesis(genesis *types.Genesis, bpInit func(*statedb
 
 	for address, balance := range genesis.Balance {
 		if v, ok := new(big.Int).SetString(balance, 10); ok {
-			accountState, err := GetAccountState(types.ToAddress(address), gbState.LuaStateDB, gbState.EvmStateDB)
+			accountState, err := GetAccountState(types.ToAddress(address), gbState.LuaStateDB, gbState.EthStateDB)
 			if err != nil {
 				return err
 			}
@@ -168,7 +168,7 @@ func (sdb *ChainStateDB) SetGenesis(genesis *types.Genesis, bpInit func(*statedb
 
 	block.SetBlocksRootHash(sdb.GetLuaRoot())
 	sdb.ethStore.SetEthRoot(sdb.EthRootHash)
-	// block.SetBlocksRootHash(gbState.GetEvmRoot()) // FIXME : not set before v4 hardfork
+	// block.SetBlocksRootHash(gbState.GetEthRoot()) // FIXME : not set before v4 hardfork
 
 	return nil
 }
@@ -208,13 +208,13 @@ func (sdb *ChainStateDB) UpdateRoot(bstate *BlockState) error {
 	logger.Debug().Str("before", base58.Encode(sdb.luaStates.GetRoot())).
 		Str("luaStateRoot", base58.Encode(bstate.LuaStateDB.GetRoot())).Msg("apply block state")
 	fmt.Println("lua new root :", bstate.GetLuaRoot())
-	fmt.Println("evm new root :", bstate.GetEvmRoot())
+	fmt.Println("eth new root :", bstate.GetEthRoot())
 
 	if err := sdb.luaStates.SetRoot(bstate.LuaStateDB.GetRoot()); err != nil {
 		return err
 	}
 
-	newRootHash := bstate.GetEvmRoot()
+	newRootHash := bstate.GetEthRoot()
 	if !bytes.Equal(newRootHash, sdb.EthRootHash) {
 		sdb.EthRootHash = newRootHash
 		sdb.ethStore.SetEthRoot(newRootHash)
@@ -249,9 +249,9 @@ func (sdb *ChainStateDB) IsExistState(hash []byte) bool {
 	return false
 }
 
-func (sdb *ChainStateDB) NewBlockState(luaRootHash, evmRootHash []byte, options ...BlockStateOptFn) *BlockState {
+func (sdb *ChainStateDB) NewBlockState(luaRootHash, ethRootHash []byte, options ...BlockStateOptFn) *BlockState {
 	ls := sdb.OpenNewStateDB(luaRootHash)
-	es := sdb.OpenEvmStateDB(evmRootHash)
+	es := sdb.OpenEthStateDB(ethRootHash)
 
 	return NewBlockState(ls, es, options...)
 }
