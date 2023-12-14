@@ -115,9 +115,7 @@ func (sdb *ChainStateDB) OpenEvmStateDB(root []byte) *ethdb.StateDB {
 		root = sdb.EthRootHash
 	}
 	var esdb *ethdb.StateDB
-	if root != nil {
-		esdb, _ = ethdb.NewStateDB(root, sdb.ethStore)
-	}
+	esdb, _ = ethdb.NewStateDB(root, sdb.ethStore)
 	return esdb
 }
 
@@ -126,7 +124,7 @@ func (sdb *ChainStateDB) SetGenesis(genesis *types.Genesis, bpInit func(*statedb
 	stateDB := sdb.OpenNewStateDB(sdb.GetLuaRoot())
 
 	// create state of genesis block
-	gbState := sdb.NewBlockState(block.Header.GetBlocksRootHash(), block.Header.GetEvmRootHash())
+	gbState := sdb.NewBlockState(block.Header.GetBlocksRootHash(), block.Header.GetEvmRootHash(), SetBlock(block.Header))
 
 	if len(genesis.BPs) > 0 && bpInit != nil {
 		// To avoid cyclic dedendency, BP initilization is called via function
