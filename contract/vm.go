@@ -1357,13 +1357,23 @@ func getContract(contractState *state.ContractState, bs *state.BlockState) []byt
 }
 
 func getMultiCallContract(contractState *state.ContractState) []byte {
-	code := luacUtil.LuaCode(multicall_payload)
-	if !code.IsValidFormat() {
-		ctrLgr.Warn().Msg("multicall_payload")
+
+	if multicall_payload == nil {
+		var err error
+		multicall_payload, err = Compile(multicall_code, nil)
+		if err != nil {
+			ctrLgr.Error().Err(err).Msg("multicall_payload")
+			return nil
+		}
+	}
+
+	if !multicall_payload.IsValidFormat() {
+		ctrLgr.Error().Msg("multicall_payload: invalid format")
 		return nil
 	}
+
 	contractState.SetMultiCallCode(multicall_payload)
-	return code.ByteCode()
+	return multicall_payload.ByteCode()
 }
 
 func GetABI(contractState *state.ContractState, bs *state.BlockState) (*types.ABI, error) {
