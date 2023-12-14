@@ -199,5 +199,5 @@ func ConvBlockTransactionCount(msg *types.Block) *InOutBlockTransactionCount {
 }
 
 type InOutBlockTransactionCount struct {
-	Count int `json:"count,omitempty"`
+	Count int `json:"count"`
 }

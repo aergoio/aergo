@@ -1043,6 +1043,11 @@ func (api *Web3APIv1) GetVotes() (handler http.Handler, ok bool) {
 	request := &types.VoteParams{}
 	request.Id = types.OpvoteBP.ID()
 
+	id := values.Get("id")
+	if id != "" {
+		request.Id = id
+	}
+
 	count := values.Get("count")
 	if count != "" {
 		sizeValue, parseErr := strconv.ParseUint(count, 10, 32)
