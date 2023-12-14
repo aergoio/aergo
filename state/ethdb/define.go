@@ -10,5 +10,5 @@ func GetAddressEth(id []byte) common.Address {
 	if types.IsSpecialAccount(id) {
 		return types.GetSpecialAccountEth(id)
 	}
-	return key.NewAddressEth(id)
+	return key.NewAccountEth(id)
 }

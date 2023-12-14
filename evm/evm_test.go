@@ -376,6 +376,6 @@ func TestAddressConversion(t *testing.T) {
 	// 02d9cff15387da27a1df7e8144d3e04133b0aabc2cc5b2830dfb9020b33d897bc4
 	// -> 65ab92e68e2f79d4541367184d3c52b9bf733d0f
 	original, _ := hex.DecodeString("02d9cff15387da27a1df7e8144d3e04133b0aabc2cc5b2830dfb9020b33d897bc4")
-	convertedAddress := key.NewAddressEth(original)
+	convertedAddress := key.NewAccountEth(original)
 	t.Log(convertedAddress.Hex())
 }

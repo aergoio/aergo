@@ -6,10 +6,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-func NewAddressEth(pubKey []byte) common.Address {
-	if !btcec.IsCompressedPubKey(pubKey) {
-		return common.Address{}
-	}
+func NewAccountEth(pubKey []byte) common.Address {
 	ecdsaPubKey, err := btcec.ParsePubKey(pubKey, btcec.S256())
 	if err != nil {
 		return common.Address{}
