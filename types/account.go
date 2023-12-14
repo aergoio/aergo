@@ -1,12 +1,15 @@
 package types
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"math/big"
 	"strings"
 
 	"github.com/aergoio/aergo/v2/internal/enc/base58check"
 	"github.com/aergoio/aergo/v2/internal/enc/hex"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 const AddressLength = 33
@@ -114,4 +117,62 @@ func DecodePrivKey(encodedKey string) ([]byte, error) {
 	}
 	decoded := decodedBytes[1:]
 	return decoded, nil
+}
+
+//------------------------------------------------------------------------------------------//
+// special accounts
+
+const (
+	AergoSystem     = "aergo.system"
+	AergoName       = "aergo.name"
+	AergoEnterprise = "aergo.enterprise"
+	AergoVault      = "aergo.vault" // For community reward program (i.e. voting reward)
+
+	MaxCandidates = 30
+)
+
+// too few accounts to use map
+var (
+	specialAccounts          [][]byte
+	specialAccountEth        map[string]common.Address
+	specialAccountEthReverse map[common.Address]string
+)
+
+func init() {
+	specialAccounts = make([][]byte, 0, 4)
+	specialAccounts = append(specialAccounts, []byte(AergoSystem))
+	specialAccounts = append(specialAccounts, []byte(AergoName))
+	specialAccounts = append(specialAccounts, []byte(AergoEnterprise))
+	specialAccounts = append(specialAccounts, []byte(AergoVault))
+
+	specialAccountEth = make(map[string]common.Address)
+	specialAccountEth[AergoSystem] = common.BigToAddress(big.NewInt(1))     // 0x0000000000000000000000000000000000000001
+	specialAccountEth[AergoName] = common.BigToAddress(big.NewInt(2))       // 0x0000000000000000000000000000000000000002
+	specialAccountEth[AergoEnterprise] = common.BigToAddress(big.NewInt(3)) // 0x0000000000000000000000000000000000000003
+	specialAccountEth[AergoVault] = common.BigToAddress(big.NewInt(4))      // 0x0000000000000000000000000000000000000004
+
+	specialAccountEthReverse = make(map[common.Address]string)
+	specialAccountEthReverse[specialAccountEth[AergoSystem]] = AergoSystem
+	specialAccountEthReverse[specialAccountEth[AergoName]] = AergoName
+	specialAccountEthReverse[specialAccountEth[AergoEnterprise]] = AergoEnterprise
+	specialAccountEthReverse[specialAccountEth[AergoVault]] = AergoVault
+
+}
+
+func GetSpecialAccountEth(name []byte) common.Address {
+	return specialAccountEth[string(name)]
+}
+
+func GetSpecialAccountEthReverse(addr common.Address) string {
+	return specialAccountEthReverse[addr]
+}
+
+// IsSpecialAccount check if name is the one of special account names.
+func IsSpecialAccount(name []byte) bool {
+	for _, b := range specialAccounts {
+		if bytes.Compare(name, b) == 0 {
+			return true
+		}
+	}
+	return false
 }
