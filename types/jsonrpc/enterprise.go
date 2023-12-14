@@ -15,14 +15,14 @@ func ConvEnterpriseTxStatus(msg *types.EnterpriseTxStatus) *InOutEnterpriseTxSta
 	ets := &InOutEnterpriseTxStatus{}
 	ets.Status = msg.Status
 	ets.Ret = msg.Ret
-	ets.CCStatus = *ConvChangeClusterStatus(msg.CCStatus)
+	ets.CCStatus = ConvChangeClusterStatus(msg.CCStatus)
 	return ets
 }
 
 type InOutEnterpriseTxStatus struct {
-	Status   string                   `json:"status"`
-	Ret      string                   `json:"ret"`
-	CCStatus InOutChangeClusterStatus `json:"change_cluster,omitempty"`
+	Status   string                    `json:"status"`
+	Ret      string                    `json:"ret"`
+	CCStatus *InOutChangeClusterStatus `json:"change_cluster,omitempty"`
 }
 
 func ConvChangeClusterStatus(msg *types.ChangeClusterStatus) *InOutChangeClusterStatus {
@@ -47,6 +47,9 @@ type InOutChangeClusterStatus struct {
 }
 
 func ConvMemberAttr(msg *types.MemberAttr) *InOutMemberAttr {
+	if msg == nil {
+		return nil
+	}
 	return &InOutMemberAttr{
 		ID:      msg.ID,
 		Name:    msg.Name,
@@ -63,6 +66,9 @@ type InOutMemberAttr struct {
 }
 
 func ConvEnterpriseConfig(msg *types.EnterpriseConfig) *InOutEnterpriseConfig {
+	if msg == nil {
+		return nil
+	}
 	ec := &InOutEnterpriseConfig{}
 	ec.Key = msg.GetKey()
 
@@ -84,6 +90,9 @@ type InOutEnterpriseConfig struct {
 }
 
 func ConvConfChangeProgress(msg *types.ConfChangeProgress) *InOutConfChangeProgress {
+	if msg == nil {
+		return nil
+	}
 	ccp := &InOutConfChangeProgress{}
 
 	ccp.State = int32(msg.GetState())

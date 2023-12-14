@@ -58,6 +58,9 @@ func ParseBase58TxBody(jsonTx []byte) (*types.TxBody, error) {
 //
 
 func ConvTx(msg *types.Tx, payloadType EncodingType) (tx *InOutTx) {
+	if msg == nil {
+		return nil
+	}
 	tx = &InOutTx{}
 	tx.Body = &InOutTxBody{}
 	if msg == nil {
@@ -81,6 +84,10 @@ func (t *InOutTx) String() string {
 }
 
 func ConvTxBody(msg *types.TxBody, payloadType EncodingType) *InOutTxBody {
+	if msg == nil {
+		return nil
+	}
+
 	tb := &InOutTxBody{}
 	tb.Nonce = msg.Nonce
 	if msg.Account != nil {
@@ -199,23 +206,24 @@ func (b *InOutTxBody) String() string {
 }
 
 func ConvTxInBlock(msg *types.TxInBlock, payloadType EncodingType) *InOutTxInBlock {
+	if msg == nil {
+		return nil
+	}
 	tib := &InOutTxInBlock{}
-
-	if msg.GetTxIdx() != nil {
-		tib.TxIdx = *ConvTxIdx(msg.GetTxIdx())
-	}
-	if msg.GetTx() != nil {
-		tib.Tx = *ConvTx(msg.GetTx(), payloadType)
-	}
+	tib.Tx = ConvTx(msg.GetTx(), payloadType)
+	tib.TxIdx = ConvTxIdx(msg.GetTxIdx())
 	return tib
 }
 
 type InOutTxInBlock struct {
-	TxIdx InOutTxIdx `json:"txIdx"`
-	Tx    InOutTx    `json:"tx"`
+	TxIdx *InOutTxIdx `json:"txIdx"`
+	Tx    *InOutTx    `json:"tx"`
 }
 
 func ConvTxIdx(msg *types.TxIdx) *InOutTxIdx {
+	if msg == nil {
+		return nil
+	}
 	return &InOutTxIdx{
 		BlockHash: base58.Encode(msg.GetBlockHash()),
 		Idx:       msg.GetIdx(),

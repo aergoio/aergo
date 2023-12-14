@@ -5,6 +5,9 @@ import (
 )
 
 func ConvQueryContract(msg *types.SingleBytes) *InOutQueryContract {
+	if msg == nil {
+		return nil
+	}
 	q := &InOutQueryContract{}
 	q.Result = string(msg.Value)
 	return q
@@ -15,6 +18,9 @@ type InOutQueryContract struct {
 }
 
 func ConvContractVarProof(msg *types.ContractVarProof) *InOutContractVarProof {
+	if msg == nil {
+		return nil
+	}
 	ap := &InOutContractVarProof{}
 	ap.Value = string(msg.GetValue())
 	ap.Included = msg.GetInclusion()
@@ -32,6 +38,9 @@ type InOutContractVarProof struct {
 }
 
 func ConvQueryContractState(msg *types.StateQueryProof) *InOutQueryContractState {
+	if msg == nil {
+		return nil
+	}
 	qcs := &InOutQueryContractState{}
 	qcs.ContractProof = ConvStateAndPoof(msg.ContractProof)
 

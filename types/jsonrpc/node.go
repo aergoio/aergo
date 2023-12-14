@@ -7,6 +7,9 @@ import (
 )
 
 func ConvNodeState(msg *types.SingleBytes) interface{} {
+	if msg == nil {
+		return nil
+	}
 	var ns interface{}
 	_ = json.Unmarshal(msg.GetValue(), &ns)
 
@@ -24,6 +27,9 @@ type InOutNodeState struct {
 }
 
 func ConvConfigItem(msg *types.ConfigItem) *InOutConfigItem {
+	if msg == nil {
+		return nil
+	}
 	ci := &InOutConfigItem{}
 
 	ci.Props = make(map[string]string)
@@ -38,6 +44,9 @@ type InOutConfigItem struct {
 }
 
 func ConvServerInfo(msg *types.ServerInfo) *InOutServerInfo {
+	if msg == nil {
+		return nil
+	}
 	si := &InOutServerInfo{}
 
 	si.Status = make(map[string]string)

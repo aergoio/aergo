@@ -58,7 +58,7 @@ func TestConvChainInfo(t *testing.T) {
 			Totalvotingpower: totalVotingPower.Bytes(),
 			Votingreward:     votingReward.Bytes(),
 		}, &InOutChainInfo{
-			Id:               InOutChainId{Consensus: "dpos"},
+			Id:               &InOutChainId{Consensus: "dpos"},
 			BpNumber:         13,
 			MaxBlockSize:     uint64(chain.MaxBlockSize()),
 			MaxTokens:        maxAer.String(),

@@ -11,6 +11,10 @@ import (
 )
 
 func ConvPeerList(msg *types.PeerList) *InOutPeerList {
+	if msg == nil {
+		return nil
+	}
+
 	p := &InOutPeerList{}
 	p.Peers = make([]*InOutPeer, len(msg.Peers))
 	for i, peer := range msg.Peers {
@@ -24,14 +28,14 @@ type InOutPeerList struct {
 }
 
 func ConvPeer(msg *types.Peer) *InOutPeer {
+	if msg == nil {
+		return nil
+	}
+
 	p := &InOutPeer{}
 	p.Role = msg.AcceptedRole.String()
-	if msg.GetAddress() != nil {
-		p.Address = *ConvPeerAddress(msg.GetAddress())
-	}
-	if msg.GetBestblock() != nil {
-		p.BestBlock = *ConvBlockIdx(msg.GetBestblock())
-	}
+	p.Address = ConvPeerAddress(msg.GetAddress())
+	p.BestBlock = ConvBlockIdx(msg.GetBestblock())
 	p.LastCheck = time.Unix(0, msg.GetLashCheck())
 	p.State = types.PeerState(msg.State).String()
 	p.Hidden = msg.Hidden
@@ -45,17 +49,20 @@ func ConvPeer(msg *types.Peer) *InOutPeer {
 }
 
 type InOutPeer struct {
-	Role      string           `json:"peerrole,omitempty"`
-	Address   InOutPeerAddress `json:"address,omitempty"`
-	BestBlock InOutBlockIdx    `json:"bestblock,omitempty"`
-	LastCheck time.Time        `json:"lastCheck,omitempty"`
-	State     string           `json:"state,omitempty"`
-	Hidden    bool             `json:"hidden,omitempty"`
-	SelfPeer  bool             `json:"selfpeer,omitempty"`
-	Version   string           `json:"version,omitempty"`
+	Role      string            `json:"peerrole,omitempty"`
+	Address   *InOutPeerAddress `json:"address,omitempty"`
+	BestBlock *InOutBlockIdx    `json:"bestblock,omitempty"`
+	LastCheck time.Time         `json:"lastCheck,omitempty"`
+	State     string            `json:"state,omitempty"`
+	Hidden    bool              `json:"hidden,omitempty"`
+	SelfPeer  bool              `json:"selfpeer,omitempty"`
+	Version   string            `json:"version,omitempty"`
 }
 
 func ConvPeerAddress(msg *types.PeerAddress) *InOutPeerAddress {
+	if msg == nil {
+		return nil
+	}
 	return &InOutPeerAddress{
 		Address: msg.Address,
 		Port:    strconv.Itoa(int(msg.Port)),
@@ -70,6 +77,9 @@ type InOutPeerAddress struct {
 }
 
 func ConvShortPeerList(msg *types.PeerList) *InOutShortPeerList {
+	if msg == nil {
+		return nil
+	}
 	p := &InOutShortPeerList{}
 	p.Peers = make([]string, len(msg.Peers))
 	for i, peer := range msg.Peers {
@@ -84,6 +94,10 @@ type InOutShortPeerList struct {
 }
 
 func ConvLongPeerList(msg *types.PeerList) *InOutLongPeerList {
+	if msg == nil {
+		return nil
+	}
+
 	p := &InOutLongPeerList{}
 	p.Peers = make([]*InOutLongPeer, len(msg.Peers))
 	for i, peer := range msg.Peers {
@@ -97,8 +111,12 @@ type InOutLongPeerList struct {
 }
 
 func ConvLongPeer(msg *types.Peer) *InOutLongPeer {
+	if msg == nil {
+		return nil
+	}
+
 	p := &InOutLongPeer{}
-	p.InOutPeer = *ConvPeer(msg)
+	p.InOutPeer = ConvPeer(msg)
 
 	p.ProducerIDs = make([]string, len(msg.Address.ProducerIDs))
 	for i, pid := range msg.Address.ProducerIDs {
@@ -116,12 +134,16 @@ func ConvLongPeer(msg *types.Peer) *InOutLongPeer {
 }
 
 type InOutLongPeer struct {
-	InOutPeer    `json:",inline"`
+	*InOutPeer   `json:",inline"`
 	ProducerIDs  []string     `json:"producerIDs,omitempty"`
 	Certificates []*InOutCert `json:"certificates,omitempty"`
 }
 
 func ConvCert(msg *types.AgentCertificate) *InOutCert {
+	if msg == nil {
+		return nil
+	}
+
 	c := &InOutCert{}
 	c.CertVersion = msg.CertVersion
 	c.ProducerID = base58.Encode(msg.BPID)
@@ -145,6 +167,10 @@ type InOutCert struct {
 }
 
 func ConvMetrics(msg *types.Metrics) *InOutMetrics {
+	if msg == nil {
+		return nil
+	}
+
 	m := &InOutMetrics{}
 	m.Peers = make([]*InOutPeerMetric, len(msg.Peers))
 	for i, peer := range msg.Peers {
@@ -158,6 +184,10 @@ type InOutMetrics struct {
 }
 
 func ConvPeerMetric(msg *types.PeerMetric) *InOutPeerMetric {
+	if msg == nil {
+		return nil
+	}
+
 	return &InOutPeerMetric{
 		PeerID: base58.Encode(msg.PeerID),
 		SumIn:  msg.SumIn,
@@ -176,6 +206,10 @@ type InOutPeerMetric struct {
 }
 
 func ConvBLConfEntries(msg *types.BLConfEntries) *InOutBLConfEntries {
+	if msg == nil {
+		return nil
+	}
+
 	return &InOutBLConfEntries{
 		Enabled: msg.Enabled,
 		Entries: msg.Entries,

@@ -6,6 +6,9 @@ import (
 )
 
 func ConvConfChange(msg *raftpb.ConfChange) *InOutConfChange {
+	if msg == nil {
+		return nil
+	}
 	return &InOutConfChange{
 		ID:      msg.ID,
 		Type:    msg.Type,
