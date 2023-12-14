@@ -654,7 +654,7 @@ func (api *Web3APIv1) GetTX() (handler http.Handler, ok bool) {
 		}
 
 		output := jsonrpc.ConvTxInBlock(resultblock, jsonrpc.Base58)
-		jsonrpc.CovPayloadJson(&output.Tx)
+		jsonrpc.CovPayloadJson(output.Tx)
 		return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 	}
 }
@@ -686,7 +686,7 @@ func (api *Web3APIv1) GetBlockTX() (handler http.Handler, ok bool) {
 			return commonResponseHandler(&types.Empty{}, err), true
 		}
 		output := jsonrpc.ConvTxInBlock(outputblock, jsonrpc.Base58)
-		jsonrpc.CovPayloadJson(&output.Tx)
+		jsonrpc.CovPayloadJson(output.Tx)
 		return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 	}
 }

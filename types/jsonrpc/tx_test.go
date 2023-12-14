@@ -131,12 +131,9 @@ func TestConvTxInBlock(t *testing.T) {
 		types *types.TxInBlock
 		inout *InOutTxInBlock
 	}{
-		{&types.TxInBlock{}, &InOutTxInBlock{
-			TxIdx: InOutTxIdx{},
-			Tx:    InOutTx{},
-		}},
+		{&types.TxInBlock{}, &InOutTxInBlock{}},
 	} {
-		assert.Equal(t, test.inout, ConvTxInBlock(test.types, Base58))
+		assert.EqualValues(t, test.inout, ConvTxInBlock(test.types, Base58))
 	}
 }
 

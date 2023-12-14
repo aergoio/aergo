@@ -13,10 +13,7 @@ func ConvInOutAccountVoteInfo(msg *types.AccountVoteInfo) *InOutAccountVoteInfo 
 	}
 
 	avi := &InOutAccountVoteInfo{}
-	staking := ConvStaking(msg.Staking)
-	if staking != nil {
-		avi.Staking = *staking
-	}
+	avi.Staking = ConvStaking(msg.Staking)
 	avi.Voting = make([]*InOutVoteInfo, len(msg.Voting))
 	for i, v := range msg.Voting {
 		avi.Voting[i] = ConvVoteInfo(v)
@@ -25,7 +22,7 @@ func ConvInOutAccountVoteInfo(msg *types.AccountVoteInfo) *InOutAccountVoteInfo 
 }
 
 type InOutAccountVoteInfo struct {
-	Staking InOutStaking     `json:"staking,omitempty"`
+	Staking *InOutStaking    `json:"staking,omitempty"`
 	Voting  []*InOutVoteInfo `json:"voting,omitempty"`
 }
 
@@ -46,6 +43,9 @@ type InOutStaking struct {
 }
 
 func ConvVoteInfo(msg *types.VoteInfo) *InOutVoteInfo {
+	if msg == nil {
+		return nil
+	}
 	return &InOutVoteInfo{
 		Id:         msg.Id,
 		Candidates: msg.Candidates,
@@ -60,6 +60,9 @@ type InOutVoteInfo struct {
 }
 
 func ConvVote(msg *types.Vote) *InOutVote {
+	if msg == nil {
+		return nil
+	}
 	return &InOutVote{
 		Candidate: base58.Encode(msg.Candidate),
 		Amount:    msg.GetAmountBigInt().String(),
@@ -72,6 +75,9 @@ type InOutVote struct {
 }
 
 func ConvVotes(msg *types.VoteList) *InOutVotes {
+	if msg == nil {
+		return nil
+	}
 	vs := &InOutVotes{}
 	vs.Id = msg.GetId()
 

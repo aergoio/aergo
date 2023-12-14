@@ -11,14 +11,16 @@ import (
 )
 
 func ConvChainInfo(msg *types.ChainInfo) *InOutChainInfo {
-	ci := &InOutChainInfo{}
-	if msg.Id != nil {
-		ci.Id = *ConvChainId(msg.Id)
+	if msg == nil {
+		return nil
 	}
+
+	ci := &InOutChainInfo{}
+	ci.Id = ConvChainId(msg.Id)
 	ci.BpNumber = msg.BpNumber
 	ci.MaxBlockSize = msg.Maxblocksize
 	ci.MaxTokens = new(big.Int).SetBytes(msg.Maxtokens).String()
-	if consensus.IsDposName(ci.Id.Consensus) {
+	if ci.Id != nil && consensus.IsDposName(ci.Id.Consensus) {
 		ci.StakingMinimum = new(big.Int).SetBytes(msg.Stakingminimum).String()
 		ci.Totalstaking = new(big.Int).SetBytes(msg.Totalstaking).String()
 	}
@@ -30,19 +32,22 @@ func ConvChainInfo(msg *types.ChainInfo) *InOutChainInfo {
 }
 
 type InOutChainInfo struct {
-	Id               InOutChainId `json:"id,omitempty"`
-	BpNumber         uint32       `json:"bpNumber,omitempty"`
-	MaxBlockSize     uint64       `json:"maxblocksize,omitempty"`
-	MaxTokens        string       `json:"maxtokens,omitempty"`
-	StakingMinimum   string       `json:"stakingminimum,omitempty"`
-	Totalstaking     string       `json:"totalstaking,omitempty"`
-	GasPrice         string       `json:"gasprice,omitempty"`
-	NamePrice        string       `json:"nameprice,omitempty"`
-	TotalVotingPower string       `json:"totalvotingpower,omitempty"`
-	VotingReward     string       `json:"votingreward,omitempty"`
+	Id               *InOutChainId `json:"id,omitempty"`
+	BpNumber         uint32        `json:"bpNumber,omitempty"`
+	MaxBlockSize     uint64        `json:"maxblocksize,omitempty"`
+	MaxTokens        string        `json:"maxtokens,omitempty"`
+	StakingMinimum   string        `json:"stakingminimum,omitempty"`
+	Totalstaking     string        `json:"totalstaking,omitempty"`
+	GasPrice         string        `json:"gasprice,omitempty"`
+	NamePrice        string        `json:"nameprice,omitempty"`
+	TotalVotingPower string        `json:"totalvotingpower,omitempty"`
+	VotingReward     string        `json:"votingreward,omitempty"`
 }
 
 func ConvChainId(msg *types.ChainId) *InOutChainId {
+	if msg == nil {
+		return nil
+	}
 	return &InOutChainId{
 		Magic:     msg.Magic,
 		Public:    msg.Public,
@@ -61,6 +66,10 @@ type InOutChainId struct {
 }
 
 func ConvBlockchainStatus(msg *types.BlockchainStatus) *InOutBlockchainStatus {
+	if msg == nil {
+		return nil
+	}
+
 	bs := &InOutBlockchainStatus{}
 	bs.Hash = base58.Encode(msg.BestBlockHash)
 	bs.Height = msg.BestHeight
@@ -81,6 +90,10 @@ func ConvBlockchainStatus(msg *types.BlockchainStatus) *InOutBlockchainStatus {
 }
 
 func ConvHexBlockchainStatus(msg *types.BlockchainStatus) *InOutBlockchainStatus {
+	if msg == nil {
+		return nil
+	}
+
 	bs := &InOutBlockchainStatus{}
 	bs.Hash = hex.Encode(msg.BestBlockHash)
 	bs.Height = msg.BestHeight
@@ -98,6 +111,10 @@ type InOutBlockchainStatus struct {
 }
 
 func ConvChainStat(msg *types.ChainStats) *InOutChainStats {
+	if msg == nil {
+		return nil
+	}
+
 	cs := &InOutChainStats{}
 	_ = json.Unmarshal([]byte(msg.GetReport()), &cs.Report)
 	return cs
@@ -108,6 +125,9 @@ type InOutChainStats struct {
 }
 
 func ConvConsensusInfo(msg *types.ConsensusInfo) *InOutConsensusInfo {
+	if msg == nil {
+		return nil
+	}
 
 	ci := &InOutConsensusInfo{}
 	ci.Type = msg.GetType()

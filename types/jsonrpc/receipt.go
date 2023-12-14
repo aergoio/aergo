@@ -8,6 +8,9 @@ import (
 )
 
 func ConvReceipt(msg *types.Receipt) *InOutReceipt {
+	if msg == nil {
+		return nil
+	}
 	r := &InOutReceipt{}
 	r.ContractAddress = types.EncodeAddress(msg.ContractAddress)
 	r.Status = msg.Status
@@ -51,6 +54,9 @@ type InOutReceipt struct {
 }
 
 func ConvEvent(msg *types.Event) *InOutEvent {
+	if msg == nil {
+		return nil
+	}
 	return &InOutEvent{
 		ContractAddress: types.EncodeAddress(msg.ContractAddress),
 		EventName:       msg.EventName,
@@ -75,6 +81,9 @@ type InOutEvent struct {
 }
 
 func ConvAbi(msg *types.ABI) *InOutAbi {
+	if msg == nil {
+		return nil
+	}
 	abi := &InOutAbi{}
 	abi.Version = msg.Version
 	abi.Language = msg.Language
@@ -97,6 +106,9 @@ type InOutAbi struct {
 }
 
 func ConvFunction(msg *types.Function) *InOutFunction {
+	if msg == nil {
+		return nil
+	}
 	fn := &InOutFunction{}
 	fn.Name = msg.Name
 	fn.Arguments = make([]*InOutFunctionArgument, len(msg.Arguments))
@@ -118,6 +130,9 @@ type InOutFunction struct {
 }
 
 func ConvFunctionArgument(msg *types.FnArgument) *InOutFunctionArgument {
+	if msg == nil {
+		return nil
+	}
 	return &InOutFunctionArgument{
 		Name: msg.Name,
 	}
@@ -128,6 +143,9 @@ type InOutFunctionArgument struct {
 }
 
 func ConvStateVar(msg *types.StateVar) *InOutStateVar {
+	if msg == nil {
+		return nil
+	}
 	return &InOutStateVar{
 		Name: msg.Name,
 		Type: msg.Type,
@@ -142,6 +160,10 @@ type InOutStateVar struct {
 }
 
 func ConvReceipts(msg *types.Receipts) *InOutReceipts {
+	if msg == nil {
+		return nil
+	}
+
 	rs := &InOutReceipts{}
 	rs.BlockNo = msg.BlockNo
 	rs.Receipts = make([]*InOutReceipt, len(msg.Receipts))
@@ -157,6 +179,10 @@ type InOutReceipts struct {
 }
 
 func ConvEvents(msg *types.EventList) *InOutEventList {
+	if msg == nil {
+		return nil
+	}
+
 	rs := &InOutEventList{}
 	rs.Events = make([]*InOutEvent, len(msg.Events))
 	for i, event := range msg.Events {

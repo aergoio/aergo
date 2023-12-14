@@ -6,6 +6,9 @@ import (
 )
 
 func ConvCommitResultList(msg *types.CommitResultList) *InOutCommitResultList {
+	if msg == nil {
+		return nil
+	}
 	c := &InOutCommitResultList{}
 	c.Results = make([]*InOutCommitResult, len(msg.Results))
 	for i, result := range msg.Results {

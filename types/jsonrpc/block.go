@@ -12,19 +12,15 @@ func ConvBlock(msg *types.Block) *InOutBlock {
 
 	b := &InOutBlock{}
 	b.Hash = base58.Encode(msg.Hash)
-	if msg.Header != nil {
-		b.Header = *ConvBlockHeader(msg.Header)
-	}
-	if msg.Body != nil {
-		b.Body = *ConvBlockBody(msg.Body)
-	}
+	b.Header = ConvBlockHeader(msg.Header)
+	b.Body = ConvBlockBody(msg.Body)
 	return b
 }
 
 type InOutBlock struct {
-	Hash   string           `json:"hash,omitempty"`
-	Header InOutBlockHeader `json:"header,omitempty"`
-	Body   InOutBlockBody   `json:"body,omitempty"`
+	Hash   string            `json:"hash,omitempty"`
+	Header *InOutBlockHeader `json:"header,omitempty"`
+	Body   *InOutBlockBody   `json:"body,omitempty"`
 }
 
 func ConvBlockHeader(msg *types.BlockHeader) *InOutBlockHeader {
