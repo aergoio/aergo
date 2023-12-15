@@ -158,7 +158,7 @@ func sendVotingReward(bState *state.BlockState, dummy []byte) error {
 	}
 
 	// calc reward
-	vaultAccountState, err := state.GetAccountState([]byte(types.AergoVault), bState.LuaStateDB, bState.EthStateDB)
+	vaultAccountState, err := state.GetAccountState([]byte(types.AergoVault), bState)
 	if err != nil {
 		logger.Info().Err(err).Msg("skip voting reward")
 		return nil
@@ -178,7 +178,7 @@ func sendVotingReward(bState *state.BlockState, dummy []byte) error {
 		logger.Debug().Err(err).Msg("no voting reward winner")
 		return nil
 	}
-	winnerAccountState, err := state.GetAccountState(winner, bState.LuaStateDB, bState.EthStateDB)
+	winnerAccountState, err := state.GetAccountState(winner, bState)
 	if err != nil {
 		logger.Info().Err(err).Msg("skip voting reward")
 		return nil

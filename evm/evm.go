@@ -148,12 +148,12 @@ func (e *EVM) GetHashFn() vm.GetHashFunc {
 func (e *EVM) TransferFn() vm.TransferFunc {
 	return func(db vm.StateDB, sender, recipient common.Address, amount *big.Int) {
 		senderId := e.bs.EthStateDB.GetId(sender)
-		senderAccState, err := state.GetAccountState(senderId, e.bs.LuaStateDB, e.bs.EthStateDB)
+		senderAccState, err := state.GetAccountState(senderId, e.bs)
 		if err != nil {
 			panic("impossible") // FIXME
 		}
 		receipientId := e.bs.EthStateDB.GetId(sender)
-		receipientAccState, err := state.GetAccountState(receipientId, e.bs.LuaStateDB, e.bs.EthStateDB)
+		receipientAccState, err := state.GetAccountState(receipientId, e.bs)
 		if err != nil {
 			panic("impossible") // FIXME
 		}
@@ -167,7 +167,7 @@ func (e *EVM) TransferFn() vm.TransferFunc {
 func (e *EVM) CanTransferFn() vm.CanTransferFunc {
 	return func(sdb vm.StateDB, addr common.Address, amount *big.Int) bool {
 		addrId := e.bs.EthStateDB.GetId(addr)
-		accState, err := state.GetAccountState(addrId, e.bs.LuaStateDB, e.bs.EthStateDB)
+		accState, err := state.GetAccountState(addrId, e.bs)
 		if err != nil {
 			panic("impossible") // FIXME
 		}

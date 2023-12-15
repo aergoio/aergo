@@ -19,6 +19,7 @@ func initTest(t *testing.T) (*statedb.ContractState, *state.AccountState, *state
 	cdb.Init(string(db.BadgerImpl), "test", nil, false)
 	genesis := types.GetTestGenesis()
 	sdb = cdb.GetStateDB()
+	bs := cdb.NewBlockState(nil, nil)
 	err := cdb.SetGenesis(genesis, nil)
 	if err != nil {
 		t.Fatalf("failed init : %s", err.Error())
@@ -30,9 +31,9 @@ func initTest(t *testing.T) (*statedb.ContractState, *state.AccountState, *state
 
 	account, err := types.DecodeAddress(testSender)
 	assert.NoError(t, err, "could not decode test address")
-	sender, err := state.GetAccountState(account, sdb, nil)
+	sender, err := state.GetAccountState(account, bs)
 	assert.NoError(t, err, "could not get test address state")
-	receiver, err := state.GetAccountState([]byte(types.AergoEnterprise), sdb, nil)
+	receiver, err := state.GetAccountState([]byte(types.AergoEnterprise), bs)
 	assert.NoError(t, err, "could not get test address state")
 	return scs, sender, receiver
 }

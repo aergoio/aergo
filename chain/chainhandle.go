@@ -915,7 +915,7 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 		return err
 	}
 
-	sender, err := state.GetAccountState(account, bs.LuaStateDB, bs.EthStateDB)
+	sender, err := state.GetAccountState(account, bs)
 	if err != nil {
 		return err
 	}
@@ -931,13 +931,13 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 	var receiver *state.AccountState
 	status := "SUCCESS"
 	if len(recipient) > 0 {
-		receiver, err = state.GetAccountState(recipient, bs.LuaStateDB, bs.EthStateDB)
+		receiver, err = state.GetAccountState(recipient, bs)
 		if receiver != nil && txBody.Type == types.TxType_REDEPLOY {
 			status = "RECREATED"
 			receiver.SetRedeploy()
 		}
 	} else {
-		receiver, err = state.CreateAccountState(contract.CreateContractID(txBody.Account, txBody.Nonce), bs.LuaStateDB, bs.EthStateDB)
+		receiver, err = state.CreateAccountState(contract.CreateContractID(txBody.Account, txBody.Nonce), bs)
 		status = "CREATED"
 	}
 	if err != nil {
@@ -1084,7 +1084,7 @@ func sendRewardCoinbase(bState *state.BlockState, coinbaseAccount []byte) error 
 	}
 
 	// add bp reward to coinbase account
-	coinbaseAccountState, err := state.GetAccountState(coinbaseAccount, bState.LuaStateDB, bState.EthStateDB)
+	coinbaseAccountState, err := state.GetAccountState(coinbaseAccount, bState)
 	if err != nil {
 		return err
 	}

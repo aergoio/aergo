@@ -144,8 +144,8 @@ func (as *AccountState) PutState() error {
 //----------------------------------------------------------------------------------------------//
 // global functions
 
-func CreateAccountState(id []byte, states *statedb.StateDB, ethStates *ethdb.StateDB) (*AccountState, error) {
-	v, err := GetAccountState(id, states, ethStates)
+func CreateAccountState(id []byte, bs *BlockState) (*AccountState, error) {
+	v, err := GetAccountState(id, bs)
 	if err != nil {
 		return nil, err
 	}
@@ -157,20 +157,20 @@ func CreateAccountState(id []byte, states *statedb.StateDB, ethStates *ethdb.Sta
 	return v, nil
 }
 
-func GetAccountState(id []byte, states *statedb.StateDB, ethStates *ethdb.StateDB) (*AccountState, error) {
+func GetAccountState(id []byte, bs *BlockState) (*AccountState, error) {
 	aid := types.ToAccountID(id)
-	st, err := states.GetState(aid)
+	st, err := bs.LuaStateDB.GetState(aid)
 	if err != nil {
 		return nil, err
 	}
 	ethAccount := ethdb.GetAddressEth(id)
 
 	if st == nil {
-		if states.Testmode {
+		if bs.LuaStateDB.Testmode {
 			amount := new(big.Int).Add(types.StakingMinimum, types.StakingMinimum)
 			return &AccountState{
-				luaStates: states,
-				ethStates: ethStates,
+				luaStates: bs.LuaStateDB,
+				ethStates: bs.EthStateDB,
 				id:        id,
 				aid:       aid,
 				ethId:     ethAccount,
@@ -180,8 +180,8 @@ func GetAccountState(id []byte, states *statedb.StateDB, ethStates *ethdb.StateD
 			}, nil
 		}
 		return &AccountState{
-			luaStates: states,
-			ethStates: ethStates,
+			luaStates: bs.LuaStateDB,
+			ethStates: bs.EthStateDB,
 			id:        id,
 			aid:       aid,
 			ethId:     ethAccount,
@@ -191,8 +191,8 @@ func GetAccountState(id []byte, states *statedb.StateDB, ethStates *ethdb.StateD
 		}, nil
 	}
 	return &AccountState{
-		luaStates: states,
-		ethStates: ethStates,
+		luaStates: bs.LuaStateDB,
+		ethStates: bs.EthStateDB,
 		id:        id,
 		aid:       aid,
 		ethId:     ethAccount,

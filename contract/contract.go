@@ -248,7 +248,7 @@ func preloadWorker() {
 		}
 
 		// get the state of the recipient
-		receiver, err := state.GetAccountState(recipient, bs.LuaStateDB, bs.EthStateDB)
+		receiver, err := state.GetAccountState(recipient, bs)
 		if err != nil {
 			replyCh <- &preloadReply{tx, nil, err}
 			continue

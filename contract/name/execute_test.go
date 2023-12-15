@@ -20,10 +20,10 @@ func TestExcuteNameTx(t *testing.T) {
 	name := "AB1234567890"
 	txBody.Payload = buildNamePayload(name, types.NameCreate, "")
 
-	sender, _ := state.GetAccountState(txBody.Account, sdb.GetStateDB(), nil)
+	bs := sdb.NewBlockState(nil, nil)
+	sender, _ := state.GetAccountState(txBody.Account, bs)
 	sender.AddBalance(types.MaxAER)
-	receiver, _ := state.GetAccountState(txBody.Recipient, sdb.GetStateDB(), nil)
-	bs := sdb.NewBlockState(sdb.GetLuaRoot(), nil)
+	receiver, _ := state.GetAccountState(txBody.Recipient, bs)
 	scs := openContractState(t, bs)
 
 	blockInfo := &types.BlockHeaderInfo{No: uint64(0), ForkVersion: 0}
@@ -103,10 +103,9 @@ func TestExcuteFailNameTx(t *testing.T) {
 
 	name := "AB1234567890"
 	txBody.Payload = buildNamePayload(name, types.NameCreate+"Broken", "")
-
-	sender, _ := state.GetAccountState(txBody.Account, sdb.GetStateDB(), nil)
-	receiver, _ := state.GetAccountState(txBody.Recipient, sdb.GetStateDB(), nil)
-	bs := sdb.NewBlockState(sdb.GetLuaRoot(), nil)
+	bs := sdb.NewBlockState(nil, nil)
+	sender, _ := state.GetAccountState(txBody.Account, bs)
+	receiver, _ := state.GetAccountState(txBody.Recipient, bs)
 	scs := openContractState(t, bs)
 	blockInfo := &types.BlockHeaderInfo{No: uint64(0), ForkVersion: 0}
 	_, err := ExecuteNameTx(bs, scs, txBody, sender, receiver, blockInfo)

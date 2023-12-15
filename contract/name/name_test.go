@@ -42,9 +42,9 @@ func TestName(t *testing.T) {
 	tx := &types.TxBody{Account: owner, Payload: buildNamePayload(name, types.NameCreate, "")}
 	tx.Recipient = []byte(types.AergoName)
 
-	sender, _ := state.GetAccountState(tx.Account, sdb.GetStateDB(), nil)
-	receiver, _ := state.GetAccountState(tx.Recipient, sdb.GetStateDB(), nil)
 	bs := sdb.NewBlockState(sdb.GetLuaRoot(), nil)
+	sender, _ := state.GetAccountState(tx.Account, bs)
+	receiver, _ := state.GetAccountState(tx.Recipient, bs)
 	scs := openContractState(t, bs)
 
 	err := CreateName(scs, tx, sender, receiver, name)
@@ -77,9 +77,9 @@ func TestNameRecursive(t *testing.T) {
 
 	tx := &types.TxBody{Account: owner, Recipient: []byte(types.AergoName), Payload: buildNamePayload(name1, types.NameCreate, "")}
 
-	sender, _ := state.GetAccountState(tx.Account, sdb.GetStateDB(), nil)
-	receiver, _ := state.GetAccountState(tx.Recipient, sdb.GetStateDB(), nil)
 	bs := sdb.NewBlockState(sdb.GetLuaRoot(), nil)
+	sender, _ := state.GetAccountState(tx.Account, bs)
+	receiver, _ := state.GetAccountState(tx.Recipient, bs)
 	scs := openContractState(t, bs)
 	err := CreateName(scs, tx, sender, receiver, name1)
 	assert.NoError(t, err, "create name")
@@ -120,8 +120,9 @@ func TestNameNil(t *testing.T) {
 	scs, err := statedb.GetSystemAccountState(sdb.GetStateDB())
 	assert.NoError(t, err, "could not open contract state")
 	tx := &types.TxBody{Account: []byte(name1), Payload: buildNamePayload(name2, types.NameCreate, "")}
-	sender, _ := state.GetAccountState(tx.Account, sdb.GetStateDB(), nil)
-	receiver, _ := state.GetAccountState(tx.Recipient, sdb.GetStateDB(), nil)
+	bs := sdb.NewBlockState(sdb.GetLuaRoot(), nil)
+	sender, _ := state.GetAccountState(tx.Account, bs)
+	receiver, _ := state.GetAccountState(tx.Recipient, bs)
 
 	err = CreateName(scs, tx, sender, receiver, name2)
 	assert.NoError(t, err, "create name")
@@ -139,13 +140,12 @@ func TestNameSetContractOwner(t *testing.T) {
 	}
 	tx.Recipient = []byte(types.AergoName)
 
-	sender, _ := state.GetAccountState(tx.Account, sdb.GetStateDB(), nil)
-	receiver, _ := state.GetAccountState(tx.Recipient, sdb.GetStateDB(), nil)
+	bs := sdb.NewBlockState(sdb.GetLuaRoot(), nil)
+	sender, _ := state.GetAccountState(tx.Account, bs)
+	receiver, _ := state.GetAccountState(tx.Recipient, bs)
 	//owner, _ := sdb.GetStateDB().GetAccountStateV(ownerAddr)
 
 	receiver.AddBalance(big.NewInt(1000))
-
-	bs := sdb.NewBlockState(sdb.GetLuaRoot(), nil)
 	scs := openContractState(t, bs)
 	//systemcs := openSystemContractState(t, bs)
 

@@ -25,7 +25,7 @@ func getCallState(ctx *vmContext, id []byte) (*callState, error) {
 	cs := ctx.callState[aid]
 	if cs == nil {
 		bs := ctx.bs
-		accState, err := state.GetAccountState(id, bs.LuaStateDB, bs.EthStateDB)
+		accState, err := state.GetAccountState(id, bs)
 		if err != nil {
 			return nil, err
 		}
