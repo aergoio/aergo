@@ -75,8 +75,8 @@ func (as *AccountState) CodeHash() []byte {
 	return as.newState.CodeHash
 }
 
-func (as *AccountState) SetRP() uint64 {
-	return as.newState.SqlRecoveryPoint
+func (as *AccountState) SetRP(sqlRecoveryPoint uint64) {
+	as.newState.SqlRecoveryPoint = sqlRecoveryPoint
 }
 
 func (as *AccountState) RP() uint64 {
