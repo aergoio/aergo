@@ -265,14 +265,6 @@ func runCallCmd(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("could not decode sender address: %v", err.Error())
 	}
 
-	if nonce == 0 {
-		state, err := client.GetState(context.Background(), &types.SingleBytes{Value: caller})
-		if err != nil {
-			return fmt.Errorf("failed to get creator account's state: %v", err.Error())
-		}
-		nonce = state.GetNonce() + 1
-	}
-
 	contract, err := types.DecodeAddress(args[1])
 	if err != nil {
 		return fmt.Errorf("could not decode contract address: %v", err.Error())
@@ -338,14 +330,6 @@ func runMulticallCmd(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("could not decode sender address: %v", err.Error())
 	}
 
-	if nonce == 0 {
-		state, err := client.GetState(context.Background(), &types.SingleBytes{Value: caller})
-		if err != nil {
-			return fmt.Errorf("failed to get creator account's state: %v", err.Error())
-		}
-		nonce = state.GetNonce() + 1
-	}
-
 	script := args[1]
 
 	tx := &types.Tx{
@@ -365,6 +349,14 @@ func runMulticallCmd(cmd *cobra.Command, args []string) error {
 
 func sendCallTx(cmd *cobra.Command, tx *types.Tx, sender []byte) error {
 	var err error
+
+	if tx.GetBody().GetNonce() == 0 {
+		state, err := client.GetState(context.Background(), &types.SingleBytes{Value: sender})
+		if err != nil {
+			return fmt.Errorf("failed to get sender account's state: %v", err.Error())
+		}
+		tx.GetBody().Nonce = state.GetNonce() + 1
+	}
 
 	if chainIdHash != "" {
 		rawCidHash, err := base58.Decode(chainIdHash)
