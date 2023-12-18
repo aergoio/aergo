@@ -49,7 +49,7 @@ func getContractState(ctx *vmContext, id []byte) (*callState, error) {
 func getOnlyContractState(ctx *vmContext, id []byte) (*statedb.ContractState, error) {
 	cs := ctx.callState[types.ToAccountID(id)]
 	if cs == nil || cs.ctrState == nil {
-		return statedb.OpenContractStateAccount(id, ctx.bs.StateDB)
+		return statedb.OpenContractStateAccount(id, ctx.bs.LuaStateDB)
 	}
 	return cs.ctrState, nil
 }
