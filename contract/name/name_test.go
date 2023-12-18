@@ -8,6 +8,7 @@ import (
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -116,7 +117,7 @@ func TestNameNil(t *testing.T) {
 	name1 := "AB1234567890"
 	name2 := "1234567890CD"
 
-	scs, err := state.GetSystemAccountState(sdb.GetStateDB())
+	scs, err := statedb.GetSystemAccountState(sdb.GetStateDB())
 	assert.NoError(t, err, "could not open contract state")
 	tx := &types.TxBody{Account: []byte(name1), Payload: buildNamePayload(name2, types.NameCreate, "")}
 	sender, _ := state.GetAccountState(tx.Account, sdb.GetStateDB())

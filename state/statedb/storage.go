@@ -17,12 +17,12 @@ var (
 
 type storageCache struct {
 	lock     sync.RWMutex
-	storages map[types.AccountID]*BufferedStorage
+	storages map[types.AccountID]*bufferedStorage
 }
 
 func newStorageCache() *storageCache {
 	return &storageCache{
-		storages: map[types.AccountID]*BufferedStorage{},
+		storages: map[types.AccountID]*bufferedStorage{},
 	}
 }
 
@@ -31,7 +31,7 @@ func (cache *storageCache) Snapshot() map[types.AccountID]int {
 	defer cache.lock.RUnlock()
 	result := make(map[types.AccountID]int)
 	for aid, bs := range cache.storages {
-		result[aid] = bs.Buffer.Snapshot()
+		result[aid] = bs.Buffer.snapshot()
 	}
 	return result
 }
@@ -41,7 +41,7 @@ func (cache *storageCache) Rollback(snap map[types.AccountID]int) error {
 	defer cache.lock.Unlock()
 	for aid, bs := range cache.storages {
 		if rev, ok := snap[aid]; ok {
-			if err := bs.Buffer.Rollback(rev); err != nil {
+			if err := bs.Buffer.rollback(rev); err != nil {
 				return err
 			}
 		} else {
@@ -51,7 +51,7 @@ func (cache *storageCache) Rollback(snap map[types.AccountID]int) error {
 	return nil
 }
 
-func (cache *storageCache) Get(key types.AccountID) *BufferedStorage {
+func (cache *storageCache) get(key types.AccountID) *bufferedStorage {
 	cache.lock.RLock()
 	defer cache.lock.RUnlock()
 	if storage, ok := cache.storages[key]; ok && storage != nil {
@@ -59,28 +59,28 @@ func (cache *storageCache) Get(key types.AccountID) *BufferedStorage {
 	}
 	return nil
 }
-func (cache *storageCache) Put(key types.AccountID, storage *BufferedStorage) {
+func (cache *storageCache) put(key types.AccountID, storage *bufferedStorage) {
 	cache.lock.Lock()
 	defer cache.lock.Unlock()
 	cache.storages[key] = storage
 }
 
-type BufferedStorage struct {
-	Buffer *StateBuffer
+type bufferedStorage struct {
+	Buffer *stateBuffer
 	Trie   *trie.Trie
 	dirty  bool
 }
 
-func NewBufferedStorage(root []byte, store db.DB) *BufferedStorage {
-	return &BufferedStorage{
-		Buffer: NewStateBuffer(),
+func newBufferedStorage(root []byte, store db.DB) *bufferedStorage {
+	return &bufferedStorage{
+		Buffer: newStateBuffer(),
 		Trie:   trie.NewTrie(root, common.Hasher, store),
 		dirty:  false,
 	}
 }
 
-func (storage *BufferedStorage) Has(key types.HashID, lookupTrie bool) bool {
-	if storage.Buffer.Has(key) {
+func (storage *bufferedStorage) has(key types.HashID, lookupTrie bool) bool {
+	if storage.Buffer.has(key) {
 		return true
 	}
 	if lookupTrie {
@@ -90,18 +90,18 @@ func (storage *BufferedStorage) Has(key types.HashID, lookupTrie bool) bool {
 	}
 	return false
 }
-func (storage *BufferedStorage) Get(key types.HashID) entry {
-	return storage.Buffer.Get(key)
+func (storage *bufferedStorage) get(key types.HashID) entry {
+	return storage.Buffer.get(key)
 }
-func (storage *BufferedStorage) Put(et entry) {
-	storage.Buffer.Put(et)
-}
-
-func (storage *BufferedStorage) Checkpoint(revision int) {
-	storage.Buffer.Put(newMetaEntry(checkpointKey, revision))
+func (storage *bufferedStorage) put(et entry) {
+	storage.Buffer.put(et)
 }
 
-func (storage *BufferedStorage) Rollback(revision int) {
+func (storage *bufferedStorage) checkpoint(revision int) {
+	storage.Buffer.put(newMetaEntry(checkpointKey, revision))
+}
+
+func (storage *bufferedStorage) rollback(revision int) {
 	checkpoints, ok := storage.Buffer.indexes[checkpointKey]
 	if !ok {
 		// do nothing
@@ -124,13 +124,13 @@ func (storage *BufferedStorage) Rollback(revision int) {
 		if val < revision {
 			break
 		}
-		storage.Buffer.Rollback(rev)
+		storage.Buffer.rollback(rev)
 	}
 }
 
-func (storage *BufferedStorage) Update() error {
+func (storage *bufferedStorage) update() error {
 	before := storage.Trie.Root
-	if err := storage.Buffer.UpdateTrie(storage.Trie); err != nil {
+	if err := storage.Buffer.updateTrie(storage.Trie); err != nil {
 		return err
 	}
 	if !bytes.Equal(before, storage.Trie.Root) {
@@ -141,16 +141,16 @@ func (storage *BufferedStorage) Update() error {
 	return nil
 }
 
-func (storage *BufferedStorage) IsDirty() bool {
+func (storage *bufferedStorage) isDirty() bool {
 	return storage.dirty
 }
 
-func (storage *BufferedStorage) Stage(txn trie.DbTx) error {
+func (storage *bufferedStorage) stage(txn trie.DbTx) error {
 	storage.Trie.StageUpdates(txn)
-	if err := storage.Buffer.Stage(txn); err != nil {
+	if err := storage.Buffer.stage(txn); err != nil {
 		return err
 	}
-	if err := storage.Buffer.Reset(); err != nil {
+	if err := storage.Buffer.reset(); err != nil {
 		return err
 	}
 	return nil

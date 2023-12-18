@@ -12,6 +12,7 @@ import (
 
 	"github.com/aergoio/aergo/v2/fee"
 	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/dbkey"
 )
@@ -50,16 +51,9 @@ func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, t
 	// compute the base fee
 	usedFee = fee.TxBaseFee(bi.ForkVersion, bs.GasPrice, len(txPayload))
 
-	// check if sender and receiver are not the same
-	if sender.AccountID() != receiver.AccountID() {
-		// check if sender has enough balance
-		if sender.Balance().Cmp(txBody.GetAmountBigInt()) < 0 {
-			err = types.ErrInsufficientBalance
-			return
-		}
-		// transfer the amount from the sender to the receiver
-		sender.SubBalance(txBody.GetAmountBigInt())
-		receiver.AddBalance(txBody.GetAmountBigInt())
+	// transfer the amount from the sender to the receiver
+	if err = state.SendBalance(sender, receiver, txBody.GetAmountBigInt()); err != nil {
+		return
 	}
 
 	// check if the tx is valid and if the code should be executed
@@ -76,7 +70,7 @@ func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, t
 	}
 
 	// open the contract state
-	contractState, err := state.OpenContractState(receiver.AccountID(), receiver.State(), bs.StateDB)
+	contractState, err := statedb.OpenContractState(receiver.ID(), receiver.State(), bs.StateDB)
 	if err != nil {
 		return
 	}
@@ -134,7 +128,7 @@ func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, t
 	}
 
 	// save the contract state
-	err = state.StageContractState(contractState, bs.StateDB)
+	err = statedb.StageContractState(contractState, bs.StateDB)
 	if err != nil {
 		return "", events, usedFee, err
 	}
@@ -174,7 +168,7 @@ func CreateContractID(account []byte, nonce uint64) []byte {
 	return append([]byte{0x0C}, recipientHash...) // prepend 0x0C to make it same length as account addresses
 }
 
-func checkRedeploy(sender, receiver *state.AccountState, contractState *state.ContractState) error {
+func checkRedeploy(sender, receiver *state.AccountState, contractState *statedb.ContractState) error {
 	// check if the contract exists
 	if !receiver.IsContract() || receiver.IsNew() {
 		receiverAddr := types.EncodeAddress(receiver.ID())

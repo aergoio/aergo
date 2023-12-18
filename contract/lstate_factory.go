@@ -65,3 +65,47 @@ func FlushLStates() {
 		FreeLState(s)
 	}
 }
+
+//--------------------------------------------------------------------//
+// LState type
+
+type LState = C.struct_lua_State
+
+func newLState() *LState {
+	ctrLgr.Debug().Msg("LState created")
+	return C.vm_newstate(C.int(currentForkVersion))
+}
+
+func (L *LState) close() {
+	if L != nil {
+		C.lua_close(L)
+	}
+}
+
+type lStatesBuffer struct {
+	s     []*LState
+	limit int
+}
+
+func newLStatesBuffer(limit int) *lStatesBuffer {
+	return &lStatesBuffer{
+		s:     make([]*LState, 0),
+		limit: limit,
+	}
+}
+
+func (Ls *lStatesBuffer) len() int {
+	return len(Ls.s)
+}
+
+func (Ls *lStatesBuffer) append(s *LState) {
+	Ls.s = append(Ls.s, s)
+	if Ls.len() == Ls.limit {
+		Ls.close()
+	}
+}
+
+func (Ls *lStatesBuffer) close() {
+	C.vm_closestates(&Ls.s[0], C.int(len(Ls.s)))
+	Ls.s = Ls.s[:0]
+}

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/dbkey"
 )
@@ -70,7 +70,7 @@ func (c *Conf) Validate(key []byte, context *EnterpriseContext) error {
 	}
 }
 
-func GetConf(ecs *state.ContractState, key string) (*types.EnterpriseConfig, error) {
+func GetConf(ecs *statedb.ContractState, key string) (*types.EnterpriseConfig, error) {
 	ret := &types.EnterpriseConfig{Key: key}
 	if strings.ToUpper(key) == "PERMISSIONS" {
 		for k := range enterpriseKeyDict {
@@ -89,7 +89,7 @@ func GetConf(ecs *state.ContractState, key string) (*types.EnterpriseConfig, err
 	return ret, nil
 }
 
-func enableConf(scs *state.ContractState, key []byte, value bool) (*Conf, error) {
+func enableConf(scs *statedb.ContractState, key []byte, value bool) (*Conf, error) {
 	conf, err := getConf(scs, key)
 	if err != nil {
 		return nil, err
@@ -102,7 +102,7 @@ func enableConf(scs *state.ContractState, key []byte, value bool) (*Conf, error)
 	return conf, nil
 }
 
-func getConf(scs *state.ContractState, key []byte) (*Conf, error) {
+func getConf(scs *statedb.ContractState, key []byte) (*Conf, error) {
 	data, err := scs.GetData(dbkey.EnterpriseConf(key))
 	if err != nil || data == nil {
 		return nil, err
@@ -110,7 +110,7 @@ func getConf(scs *state.ContractState, key []byte) (*Conf, error) {
 	return deserializeConf(data), err
 }
 
-func setConfValues(scs *state.ContractState, key []byte, values []string) (*Conf, error) {
+func setConfValues(scs *statedb.ContractState, key []byte, values []string) (*Conf, error) {
 	conf, err := getConf(scs, key)
 	if err != nil {
 		return nil, err
@@ -123,7 +123,7 @@ func setConfValues(scs *state.ContractState, key []byte, values []string) (*Conf
 	return conf, nil
 }
 
-func setConf(scs *state.ContractState, key []byte, conf *Conf) error {
+func setConf(scs *statedb.ContractState, key []byte, conf *Conf) error {
 	return scs.SetData(dbkey.EnterpriseConf(key), serializeConf(conf))
 }
 
