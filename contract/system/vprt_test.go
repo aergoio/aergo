@@ -83,8 +83,8 @@ func defaultVpr() *vpr {
 	return votingPowerRank
 }
 
-func store(t *testing.T, s *state.ContractState) {
-	err := state.StageContractState(s, vprStateDB)
+func store(t *testing.T, s *statedb.ContractState) {
+	err := statedb.StageContractState(s, vprStateDB)
 	assert.NoError(t, err, "fail to stage")
 	err = vprStateDB.Update()
 	assert.NoError(t, err, "fail to update")
@@ -123,10 +123,10 @@ func initVprtTest(t *testing.T, initTable func()) {
 	initTable()
 }
 
-func initVprtTestWithSc(t *testing.T, initTable func(*state.ContractState)) {
+func initVprtTestWithSc(t *testing.T, initTable func(*statedb.ContractState)) {
 	initDB(t)
 
-	s, err := state.GetSystemAccountState(vprStateDB)
+	s, err := statedb.GetSystemAccountState(vprStateDB)
 	assert.NoError(t, err, "fail to open the system contract state")
 
 	initTable(s)
@@ -148,8 +148,8 @@ func getStateRoot() []byte {
 	return vprStateDB.GetRoot()
 }
 
-func openSystemAccountWith(root []byte) *state.ContractState {
-	s, err := state.GetSystemAccountState(vprChainStateDB.OpenNewStateDB(root))
+func openSystemAccountWith(root []byte) *statedb.ContractState {
+	s, err := statedb.GetSystemAccountState(vprChainStateDB.OpenNewStateDB(root))
 	if err != nil {
 		return nil
 	}
@@ -157,7 +157,7 @@ func openSystemAccountWith(root []byte) *state.ContractState {
 	return s
 }
 
-func initRankTableRandSc(rankMax uint32, s *state.ContractState) {
+func initRankTableRandSc(rankMax uint32, s *statedb.ContractState) {
 	votingPowerRank = newVpr()
 	max := new(big.Int).Mul(binSize, new(big.Int).SetUint64(5))
 	src := rand.New(rand.NewSource(0))
@@ -172,8 +172,8 @@ func initRankTableRand(rankMax uint32) {
 	initRankTableRandSc(rankMax, nil)
 }
 
-func openSystemAccount(t *testing.T) *state.ContractState {
-	s, err := state.GetSystemAccountState(vprStateDB)
+func openSystemAccount(t *testing.T) *statedb.ContractState {
+	s, err := statedb.GetSystemAccountState(vprStateDB)
 	assert.NoError(t, err, "fail to open the system contract state")
 	logger.Debug().Msgf(
 		"(after) state, contract: %s, %s\n",
@@ -335,7 +335,7 @@ func TestVotingPowerCodec(t *testing.T) {
 func TestVprLoader(t *testing.T) {
 	const nVoters = 100
 
-	initVprtTestWithSc(t, func(s *state.ContractState) { initRankTableRandSc(nVoters, s) })
+	initVprtTestWithSc(t, func(s *statedb.ContractState) { initRankTableRandSc(nVoters, s) })
 	defer finalizeVprtTest()
 	assert.Equal(t, nVoters, votingPowerRank.voters.Count(), "size mismatch: voting powers")
 	assert.Equal(t, nVoters,
@@ -361,7 +361,7 @@ func TestVprLoader(t *testing.T) {
 func TestVprTotalPower(t *testing.T) {
 	const nVoters = 1000
 
-	initVprtTestWithSc(t, func(s *state.ContractState) { initRankTableRandSc(nVoters, s) })
+	initVprtTestWithSc(t, func(s *statedb.ContractState) { initRankTableRandSc(nVoters, s) })
 	defer finalizeVprtTest()
 
 	testCases := []vprTC{
@@ -411,7 +411,7 @@ func TestVprTotalPower(t *testing.T) {
 func TestVprSingleWinner(t *testing.T) {
 	const nVoters = 1
 
-	initVprtTestWithSc(t, func(s *state.ContractState) { initRankTableRandSc(nVoters, s) })
+	initVprtTestWithSc(t, func(s *statedb.ContractState) { initRankTableRandSc(nVoters, s) })
 	defer finalizeVprtTest()
 
 	stat := make(map[types.AccountID]uint16)
@@ -433,7 +433,7 @@ func TestVprSingleWinner(t *testing.T) {
 func TestVprPickWinner(t *testing.T) {
 	const nVoters = 1000
 
-	initVprtTestWithSc(t, func(s *state.ContractState) { initRankTableRandSc(nVoters, s) })
+	initVprtTestWithSc(t, func(s *statedb.ContractState) { initRankTableRandSc(nVoters, s) })
 	defer finalizeVprtTest()
 
 	stat := make(map[types.AccountID]uint16)
@@ -483,7 +483,7 @@ func TestVprZeroPowerVoter(t *testing.T) {
 		},
 	}
 
-	initVprtTestWithSc(t, func(s *state.ContractState) {
+	initVprtTestWithSc(t, func(s *statedb.ContractState) {
 		votingPowerRank = newVpr()
 		for i, tc := range testCases {
 			fmt.Printf("idx: %v, pwd: %v\n", i, tc.pwr)
@@ -521,7 +521,7 @@ func TestVprReorg(t *testing.T) {
 		chk func(*testing.T)
 	}
 
-	doTest := func(i int, tc testCase, s *state.ContractState) {
+	doTest := func(i int, tc testCase, s *statedb.ContractState) {
 		fmt.Printf("idx: %v, pwd: %v\n", i, tc.pwr)
 		id, addr := genAddr(uint32(i))
 		votingPowerRank.add(id, addr, tc.pwr)
@@ -530,7 +530,7 @@ func TestVprReorg(t *testing.T) {
 		tc.chk(t)
 	}
 
-	initVprtTestWithSc(t, func(s *state.ContractState) {
+	initVprtTestWithSc(t, func(s *statedb.ContractState) {
 		initVpr()
 	})
 	defer finalizeVprtTest()

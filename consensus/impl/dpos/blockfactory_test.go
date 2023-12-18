@@ -2,9 +2,10 @@ package dpos
 
 import (
 	"context"
-	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestBlockFactory_context(t *testing.T) {

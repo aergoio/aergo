@@ -20,13 +20,13 @@ type valueEntry struct {
 	value interface{}
 }
 
-func NewValueEntry(key types.HashID, value interface{}) entry {
+func newValueEntry(key types.HashID, value interface{}) entry {
 	return &valueEntry{
 		key:   key,
 		value: value,
 	}
 }
-func NewValueEntryDelete(key types.HashID) entry {
+func newValueEntryDelete(key types.HashID) entry {
 	return &valueEntry{
 		key:   key,
 		value: nil,
@@ -36,7 +36,7 @@ func (et *valueEntry) KeyID() types.HashID {
 	return et.key
 }
 func (et *valueEntry) Hash() []byte {
-	if hash := GetHashBytes(et.value); hash != nil {
+	if hash := getHashBytes(et.value); hash != nil {
 		return hash
 	}
 	return []byte{0}
@@ -80,47 +80,47 @@ func (idxs *bufferIndex) rollback(snapshot int) {
 	}
 }
 
-type StateBuffer struct {
+type stateBuffer struct {
 	entries []entry
 	indexes bufferIndex
 	nextIdx int
 }
 
-func NewStateBuffer() *StateBuffer {
-	return &StateBuffer{
+func newStateBuffer() *stateBuffer {
+	return &stateBuffer{
 		entries: []entry{},
 		indexes: bufferIndex{},
 		nextIdx: 0,
 	}
 }
 
-func (buffer *StateBuffer) Reset() error {
-	return buffer.Rollback(0)
+func (buffer *stateBuffer) reset() error {
+	return buffer.rollback(0)
 }
 
-func (buffer *StateBuffer) Get(key types.HashID) entry {
+func (buffer *stateBuffer) get(key types.HashID) entry {
 	if index, ok := buffer.indexes[key]; ok {
 		return buffer.entries[index.peek()]
 	}
 	return nil
 }
-func (buffer *StateBuffer) Has(key types.HashID) bool {
+func (buffer *stateBuffer) has(key types.HashID) bool {
 	_, ok := buffer.indexes[key]
 	return ok
 }
 
-func (buffer *StateBuffer) Put(et entry) {
-	snapshot := buffer.Snapshot()
+func (buffer *stateBuffer) put(et entry) {
+	snapshot := buffer.snapshot()
 	buffer.entries = append(buffer.entries, et)
 	buffer.indexes[et.KeyID()] = buffer.indexes[et.KeyID()].push(snapshot)
 	buffer.nextIdx++
 }
 
-func (buffer *StateBuffer) Snapshot() int {
+func (buffer *stateBuffer) snapshot() int {
 	return buffer.nextIdx
 }
 
-func (buffer *StateBuffer) Rollback(snapshot int) error {
+func (buffer *stateBuffer) rollback(snapshot int) error {
 	for i := buffer.nextIdx - 1; i >= snapshot; i-- {
 		et := buffer.entries[i]
 		buffer.indexes.pop(et.KeyID())
@@ -136,11 +136,11 @@ func (buffer *StateBuffer) Rollback(snapshot int) error {
 	return nil
 }
 
-func (buffer *StateBuffer) IsEmpty() bool {
+func (buffer *stateBuffer) isEmpty() bool {
 	return len(buffer.entries) == 0
 }
 
-func (buffer *StateBuffer) Export() ([][]byte, [][]byte) {
+func (buffer *stateBuffer) export() ([][]byte, [][]byte) {
 	bufs := make([]entry, 0, len(buffer.indexes))
 	for _, v := range buffer.indexes {
 		idx := v.peek()
@@ -167,8 +167,8 @@ func (buffer *StateBuffer) Export() ([][]byte, [][]byte) {
 	return keys, vals
 }
 
-func (buffer *StateBuffer) UpdateTrie(tr *trie.Trie) error {
-	keys, vals := buffer.Export()
+func (buffer *stateBuffer) updateTrie(tr *trie.Trie) error {
+	keys, vals := buffer.export()
 	if len(keys) == 0 || len(vals) == 0 {
 		// nothing to update
 		return nil
@@ -179,7 +179,7 @@ func (buffer *StateBuffer) UpdateTrie(tr *trie.Trie) error {
 	return nil
 }
 
-func (buffer *StateBuffer) Stage(txn trie.DbTx) error {
+func (buffer *stateBuffer) stage(txn trie.DbTx) error {
 	for _, v := range buffer.indexes {
 		et := buffer.entries[v.peek()]
 		buf, err := Marshal(et.Value())
@@ -205,7 +205,7 @@ func Marshal(data interface{}) ([]byte, error) {
 	return nil, nil
 }
 
-func GetHashBytes(data interface{}) []byte {
+func getHashBytes(data interface{}) []byte {
 	if data == nil {
 		return nil
 	}

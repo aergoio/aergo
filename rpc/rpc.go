@@ -261,7 +261,7 @@ func (ns *RPC) grpcWebHandlerFunc(grpcWebServer *grpcweb.WrappedGrpcServer, othe
 		if grpcWebServer.IsAcceptableGrpcCorsRequest(r) || grpcWebServer.IsGrpcWebRequest(r) || grpcWebServer.IsGrpcWebSocketRequest(r) {
 			grpcWebServer.ServeHTTP(w, r)
 		} else {
-			ns.Info().Msg("Request handled by other hanlder. is this correct?")
+			ns.Info().Str("proto", r.Proto).Str("host", r.Host).Stringer("uri", r.URL).Str("content_type", r.Header.Get("content-type")).Str("remote_addr", r.RemoteAddr).Msg("Request handled by other handler. is this correct?")
 			otherHandler.ServeHTTP(w, r)
 		}
 	})

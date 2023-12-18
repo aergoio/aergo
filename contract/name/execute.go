@@ -8,10 +8,11 @@ import (
 
 	"github.com/aergoio/aergo/v2/contract/system"
 	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 )
 
-func ExecuteNameTx(bs *state.BlockState, scs *state.ContractState, txBody *types.TxBody,
+func ExecuteNameTx(bs *state.BlockState, scs *statedb.ContractState, txBody *types.TxBody,
 	sender, receiver *state.AccountState, blockInfo *types.BlockHeaderInfo) ([]*types.Event, error) {
 
 	ci, err := ValidateNameTx(txBody, sender, scs)
@@ -84,7 +85,7 @@ func ExecuteNameTx(bs *state.BlockState, scs *state.ContractState, txBody *types
 	return events, nil
 }
 
-func ValidateNameTx(tx *types.TxBody, sender *state.AccountState, scs *state.ContractState) (*types.CallInfo, error) {
+func ValidateNameTx(tx *types.TxBody, sender *state.AccountState, scs *statedb.ContractState) (*types.CallInfo, error) {
 	if sender != nil && sender.Balance().Cmp(tx.GetAmountBigInt()) < 0 {
 		return nil, types.ErrInsufficientBalance
 	}
@@ -122,7 +123,7 @@ func ValidateNameTx(tx *types.TxBody, sender *state.AccountState, scs *state.Con
 	return &ci, nil
 }
 
-func SetContractOwner(bs *state.BlockState, scs *state.ContractState,
+func SetContractOwner(bs *state.BlockState, scs *statedb.ContractState,
 	address string, nameState *state.AccountState) (*state.AccountState, error) {
 
 	rawaddr, err := types.DecodeAddress(address)
@@ -135,8 +136,9 @@ func SetContractOwner(bs *state.BlockState, scs *state.ContractState,
 		return nil, err
 	}
 
-	ownerState.AddBalance(nameState.Balance())
-	nameState.SubBalance(nameState.Balance())
+	if err = state.SendBalance(nameState, ownerState, nameState.Balance()); err != nil {
+		return nil, err
+	}
 
 	name := []byte(types.AergoName)
 	if err = registerOwner(scs, name, rawaddr, name); err != nil {

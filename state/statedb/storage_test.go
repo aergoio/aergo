@@ -12,111 +12,111 @@ import (
 // }
 
 func TestStorageBasic(t *testing.T) {
-	storage := NewBufferedStorage(nil, nil)
+	storage := newBufferedStorage(nil, nil)
 	v1 := types.GetHashID([]byte("v1"))
 	v2 := types.GetHashID([]byte("v2"))
 
-	storage.Checkpoint(0)
-	storage.Put(NewValueEntry(v1, []byte{1})) // rev 1
+	storage.checkpoint(0)
+	storage.put(newValueEntry(v1, []byte{1})) // rev 1
 
-	storage.Checkpoint(1)
-	storage.Put(NewValueEntry(v2, []byte{2})) // rev 3
+	storage.checkpoint(1)
+	storage.put(newValueEntry(v2, []byte{2})) // rev 3
 
-	storage.Checkpoint(2)
-	storage.Put(NewValueEntry(v1, []byte{3})) // rev 5
-	storage.Put(NewValueEntry(v2, []byte{4})) // rev 6
-	storage.Put(NewValueEntry(v2, []byte{5})) // rev 7
+	storage.checkpoint(2)
+	storage.put(newValueEntry(v1, []byte{3})) // rev 5
+	storage.put(newValueEntry(v2, []byte{4})) // rev 6
+	storage.put(newValueEntry(v2, []byte{5})) // rev 7
 
-	storage.Checkpoint(3)
-	storage.Put(NewValueEntry(v1, []byte{6})) // rev 9
-	storage.Put(NewValueEntry(v2, []byte{7})) // rev 10
+	storage.checkpoint(3)
+	storage.put(newValueEntry(v1, []byte{6})) // rev 9
+	storage.put(newValueEntry(v2, []byte{7})) // rev 10
 
-	t.Log("v1", storage.Get(v1).Value(), "v2", storage.Get(v2).Value())
-	assert.Equal(t, []byte{6}, storage.Get(v1).Value())
-	assert.Equal(t, []byte{7}, storage.Get(v2).Value())
+	t.Log("v1", storage.get(v1).Value(), "v2", storage.get(v2).Value())
+	assert.Equal(t, []byte{6}, storage.get(v1).Value())
+	assert.Equal(t, []byte{7}, storage.get(v2).Value())
 
-	storage.Rollback(3)
-	t.Log("v1", storage.Get(v1).Value(), "v2", storage.Get(v2).Value())
-	assert.Equal(t, []byte{3}, storage.Get(v1).Value())
-	assert.Equal(t, []byte{5}, storage.Get(v2).Value())
+	storage.rollback(3)
+	t.Log("v1", storage.get(v1).Value(), "v2", storage.get(v2).Value())
+	assert.Equal(t, []byte{3}, storage.get(v1).Value())
+	assert.Equal(t, []byte{5}, storage.get(v2).Value())
 
-	storage.Rollback(1)
-	t.Log("v1", storage.Get(v1).Value(), "v2", storage.Get(v2))
-	assert.Equal(t, []byte{1}, storage.Get(v1).Value())
-	assert.Nil(t, storage.Get(v2))
+	storage.rollback(1)
+	t.Log("v1", storage.get(v1).Value(), "v2", storage.get(v2))
+	assert.Equal(t, []byte{1}, storage.get(v1).Value())
+	assert.Nil(t, storage.get(v2))
 
-	storage.Rollback(0)
-	t.Log("v1", storage.Get(v1), "v2", storage.Get(v2))
-	assert.Nil(t, storage.Get(v1))
-	assert.Nil(t, storage.Get(v2))
+	storage.rollback(0)
+	t.Log("v1", storage.get(v1), "v2", storage.get(v2))
+	assert.Nil(t, storage.get(v1))
+	assert.Nil(t, storage.get(v2))
 }
 
 func TestStorageDelete(t *testing.T) {
-	storage := NewBufferedStorage(nil, nil)
+	storage := newBufferedStorage(nil, nil)
 	v1 := types.GetHashID([]byte("v1"))
 	v2 := types.GetHashID([]byte("v2"))
 
-	storage.Put(NewValueEntry(v1, []byte{1}))
-	storage.Put(NewValueEntry(v2, []byte{2}))
+	storage.put(newValueEntry(v1, []byte{1}))
+	storage.put(newValueEntry(v2, []byte{2}))
 
-	storage.Checkpoint(0)
-	storage.Put(NewValueEntry(v1, []byte{3}))
-	storage.Put(NewValueEntry(v2, []byte{4}))
-	storage.Put(NewValueEntry(v2, []byte{5}))
+	storage.checkpoint(0)
+	storage.put(newValueEntry(v1, []byte{3}))
+	storage.put(newValueEntry(v2, []byte{4}))
+	storage.put(newValueEntry(v2, []byte{5}))
 
-	storage.Checkpoint(1)
-	storage.Put(NewValueEntry(v1, []byte{6}))
-	storage.Put(NewValueEntry(v2, []byte{7}))
-	storage.Put(NewValueEntryDelete(v2))
-	t.Log("v1", storage.Get(v1).Value(), "v2", storage.Get(v2).Value())
-	assert.Equal(t, []byte{6}, storage.Get(v1).Value())
-	assert.Equal(t, []byte{0}, storage.Get(v2).Hash())
-	assert.Nil(t, storage.Get(v2).Value())
+	storage.checkpoint(1)
+	storage.put(newValueEntry(v1, []byte{6}))
+	storage.put(newValueEntry(v2, []byte{7}))
+	storage.put(newValueEntryDelete(v2))
+	t.Log("v1", storage.get(v1).Value(), "v2", storage.get(v2).Value())
+	assert.Equal(t, []byte{6}, storage.get(v1).Value())
+	assert.Equal(t, []byte{0}, storage.get(v2).Hash())
+	assert.Nil(t, storage.get(v2).Value())
 
-	storage.Rollback(1)
-	t.Log("v1", storage.Get(v1).Value(), "v2", storage.Get(v2).Value())
-	assert.Equal(t, []byte{3}, storage.Get(v1).Value())
-	assert.Equal(t, []byte{5}, storage.Get(v2).Value())
+	storage.rollback(1)
+	t.Log("v1", storage.get(v1).Value(), "v2", storage.get(v2).Value())
+	assert.Equal(t, []byte{3}, storage.get(v1).Value())
+	assert.Equal(t, []byte{5}, storage.get(v2).Value())
 
-	storage.Put(NewValueEntryDelete(v2))
-	t.Log("v1", storage.Get(v1).Value(), "v2", storage.Get(v2).Value())
-	assert.Equal(t, []byte{3}, storage.Get(v1).Value())
-	assert.Equal(t, []byte{0}, storage.Get(v2).Hash())
-	assert.Nil(t, storage.Get(v2).Value())
+	storage.put(newValueEntryDelete(v2))
+	t.Log("v1", storage.get(v1).Value(), "v2", storage.get(v2).Value())
+	assert.Equal(t, []byte{3}, storage.get(v1).Value())
+	assert.Equal(t, []byte{0}, storage.get(v2).Hash())
+	assert.Nil(t, storage.get(v2).Value())
 }
 
 func TestStorageHasKey(t *testing.T) {
-	storage := NewBufferedStorage(nil, nil)
+	storage := newBufferedStorage(nil, nil)
 	v1 := types.GetHashID([]byte("v1"))
 
-	assert.False(t, storage.Has(v1, false)) // check buffer only
-	assert.False(t, storage.Has(v1, true))  // check buffer and trie
+	assert.False(t, storage.has(v1, false)) // check buffer only
+	assert.False(t, storage.has(v1, true))  // check buffer and trie
 
 	// put entry
-	storage.Put(NewValueEntry(v1, []byte{1}))
-	assert.True(t, storage.Has(v1, false)) // buffer has key
-	assert.True(t, storage.Has(v1, true))  // buffer has key
+	storage.put(newValueEntry(v1, []byte{1}))
+	assert.True(t, storage.has(v1, false)) // buffer has key
+	assert.True(t, storage.has(v1, true))  // buffer has key
 
 	// update storage and reset buffer
-	err := storage.Update()
+	err := storage.update()
 	assert.NoError(t, err, "failed to update storage")
-	err = storage.Buffer.Reset()
+	err = storage.Buffer.reset()
 	assert.NoError(t, err, "failed to reset buffer")
 	// after update and reset
-	assert.False(t, storage.Has(v1, false)) // buffer doesn't have key
-	assert.True(t, storage.Has(v1, true))   // buffer doesn't have, but trie has key
+	assert.False(t, storage.has(v1, false)) // buffer doesn't have key
+	assert.True(t, storage.has(v1, true))   // buffer doesn't have, but trie has key
 
 	// delete entry
-	storage.Put(NewValueEntryDelete(v1))
-	assert.True(t, storage.Has(v1, false)) // buffer has key
-	assert.True(t, storage.Has(v1, true))  // buffer has key
+	storage.put(newValueEntryDelete(v1))
+	assert.True(t, storage.has(v1, false)) // buffer has key
+	assert.True(t, storage.has(v1, true))  // buffer has key
 
 	// update storage and reset buffer
-	err = storage.Update()
+	err = storage.update()
 	assert.NoError(t, err, "failed to update storage")
-	err = storage.Buffer.Reset()
+	err = storage.Buffer.reset()
 	assert.NoError(t, err, "failed to reset buffer")
 	// after update and reset
-	assert.False(t, storage.Has(v1, false)) // buffer doesn't have key
-	assert.False(t, storage.Has(v1, true))  // buffer and trie don't have key
+	assert.False(t, storage.has(v1, false)) // buffer doesn't have key
+	assert.False(t, storage.has(v1, true))  // buffer and trie don't have key
 }
