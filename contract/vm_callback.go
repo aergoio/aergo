@@ -26,6 +26,7 @@ struct rlp_obj {
 import "C"
 import (
 	"bytes"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"math/big"
@@ -45,7 +46,6 @@ import (
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/dbkey"
 	"github.com/btcsuite/btcd/btcec"
-	"github.com/minio/sha256-simd"
 )
 
 var (

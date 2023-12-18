@@ -276,7 +276,7 @@ func newBlockExecutor(bc *DummyChain, txs []*types.Tx) (*blockExecutor, error) {
 
 }
 
-func NewTxExecutor(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb contract.ChainAccessor, bi *types.BlockHeaderInfo, preloadService int) TxExecFn {
+func NewTxExecutor(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb contract.ChainAccessor, bi *types.BlockHeaderInfo, executionMode int) TxExecFn {
 
 	return func(blockState *state.BlockState, tx types.Transaction) error {
 
@@ -289,7 +289,7 @@ func NewTxExecutor(execCtx context.Context, ccc consensus.ChainConsensusCluster,
 
 		blockSnap := blockState.Snapshot()
 
-		err := executeTx(execCtx, ccc, cdb, blockState, tx, bi, preloadService)
+		err := executeTx(execCtx, ccc, cdb, blockState, tx, bi, executionMode)
 		if err != nil {
 			logger.Error().Err(err).Str("hash", base58.Encode(tx.GetHash())).Msg("tx failed")
 			if err2 := blockState.Rollback(blockSnap); err2 != nil {
@@ -308,22 +308,11 @@ func (e *blockExecutor) execute() error {
 
 	defer contract.CloseDatabase()
 
-	var preloadTx *types.Tx
-
-	numTxs := len(e.txs)
-
-	for i, tx := range e.txs {
-		// if tx is not the last one, preload the next tx
-		if i != numTxs-1 {
-			preloadTx = e.txs[i+1]
-			contract.RequestPreload(e.BlockState, e.bi, preloadTx, tx, contract.ChainService)
-		}
+	for _, tx := range e.txs {
 		// execute the transaction
 		if err := e.execTx(e.BlockState, types.NewTransaction(tx)); err != nil {
 			return err
 		}
-		// mark the next preload tx to be executed
-		contract.SetPreloadTx(preloadTx, contract.ChainService)
 	}
 
 	if err := SendBlockReward(e.BlockState, e.coinbaseAcccount); err != nil {
@@ -393,7 +382,7 @@ func executeTx(
 	bs *state.BlockState,
 	tx types.Transaction,
 	bi *types.BlockHeaderInfo,
-	preloadService int,
+	executionMode int,
 ) error {
 
 	var (
@@ -496,7 +485,7 @@ func executeTx(
 	var events []*types.Event
 	switch txBody.Type {
 	case types.TxType_NORMAL, types.TxType_REDEPLOY, types.TxType_TRANSFER, types.TxType_CALL, types.TxType_DEPLOY:
-		rv, events, txFee, err = contract.Execute(execCtx, bs, cdb, tx.GetTx(), sender, receiver, bi, preloadService, false)
+		rv, events, txFee, err = contract.Execute(execCtx, bs, cdb, tx.GetTx(), sender, receiver, bi, executionMode, false)
 		sender.SubBalance(txFee)
 	case types.TxType_GOVERNANCE:
 		txFee = new(big.Int).SetUint64(0)
@@ -523,7 +512,7 @@ func executeTx(
 			}
 			return types.ErrNotAllowedFeeDelegation
 		}
-		rv, events, txFee, err = contract.Execute(execCtx, bs, cdb, tx.GetTx(), sender, receiver, bi, preloadService, true)
+		rv, events, txFee, err = contract.Execute(execCtx, bs, cdb, tx.GetTx(), sender, receiver, bi, executionMode, true)
 		receiver.SubBalance(txFee)
 	}
 
