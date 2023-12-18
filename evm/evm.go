@@ -26,14 +26,15 @@ type EVM struct {
 	readonly      bool
 	chainAccessor ChainAccessor
 
-	txContext *types.Tx
-	bs        *state.BlockState
+	gasLimit uint64
+
+	bs *state.BlockState
 }
 
-func NewEVM(chainAccessor ChainAccessor, txContext *types.Tx, blockState *state.BlockState) *EVM {
+func NewEVM(chainAccessor ChainAccessor, gasLimit uint64, blockState *state.BlockState) *EVM {
 	return &EVM{
 		readonly:      false,
-		txContext:     txContext,
+		gasLimit:      gasLimit,
 		chainAccessor: chainAccessor,
 		bs:            blockState,
 	}
@@ -59,7 +60,7 @@ func (e *EVM) Query(address []byte, contractAddress []byte, payload []byte) ([]b
 		ethdb.GetAddressEth(e.bs.Block().CoinbaseAccount),
 		e.bs.Block().BlockNo,
 		uint64(e.bs.Block().Timestamp),
-		e.txContext.Body.GasLimit,
+		e.gasLimit,
 		e.bs.GasPrice(),
 		big.NewInt(0),
 		queryState,
@@ -90,7 +91,7 @@ func (e *EVM) Call(address common.Address, contract, payload []byte) ([]byte, *b
 		ethdb.GetAddressEth(e.bs.Block().CoinbaseAccount),
 		e.bs.Block().BlockNo,
 		uint64(e.bs.Block().Timestamp),
-		e.txContext.Body.GasLimit,
+		e.gasLimit,
 		e.bs.GasPrice(),
 		big.NewInt(0),
 		queryState,
@@ -119,8 +120,8 @@ func (e *EVM) Create(sender common.Address, payload []byte) ([]byte, []byte, *bi
 		ethdb.GetAddressEth(e.bs.Block().CoinbaseAccount),
 		e.bs.Block().BlockNo,
 		uint64(e.bs.Block().Timestamp),
-		e.txContext.Body.GasLimit,
-		e.bs.GasPrice(),
+		e.gasLimit,
+		big.NewInt(1000),
 		big.NewInt(0),
 		queryState,
 	)
