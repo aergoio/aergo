@@ -55,7 +55,7 @@ func Execute(
 		txPayload  = txBody.GetPayload()
 		txAmount   = txBody.GetAmountBigInt()
 		txGasLimit = txBody.GetGasLimit()
-		isMultiCall= (txBody.Type == types.TxType_MULTICALL)
+		isMultiCall= (txType == types.TxType_MULTICALL)
 	)
 
 	// compute the base fee

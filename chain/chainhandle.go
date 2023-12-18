@@ -924,7 +924,7 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 	var receiver *state.AccountState
 	status := "SUCCESS"
 	if isMultiCall {
-		// no receiver
+		receiver = sender
 	} else if len(recipient) > 0 {
 		receiver, err = state.GetAccountState(recipient, bs.StateDB)
 		if receiver != nil && txBody.Type == types.TxType_REDEPLOY {
