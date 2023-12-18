@@ -20,9 +20,8 @@ import (
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/gofrs/uuid"
 	lru "github.com/hashicorp/golang-lru"
-	addrutil "github.com/libp2p/go-addr-util"
 	ma "github.com/multiformats/go-multiaddr"
-	mnet "github.com/multiformats/go-multiaddr-net"
+	mnet "github.com/multiformats/go-multiaddr/net"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -59,7 +58,7 @@ func TestLookupAddress(t *testing.T) {
 }
 
 func TestAddrUtil(t *testing.T) {
-	addrs, err := addrutil.InterfaceAddresses()
+	addrs, err := mnet.InterfaceMultiaddrs()
 	if err != nil {
 		t.Errorf("Test Error: %s", err.Error())
 	}

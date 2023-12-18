@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo/v2/types"
-	core "github.com/libp2p/go-libp2p-core"
+	core "github.com/libp2p/go-libp2p/core"
 )
 
 // constants of p2p protocol since v0.3

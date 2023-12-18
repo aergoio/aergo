@@ -335,7 +335,7 @@ func (ns *RPC) CollectServerInfo(categories []string) *types.ServerInfo {
 		statusInfo["id"] = p2pkey.NodeSID()
 	} else {
 		meta := rsp.(p2pcommon.PeerMeta)
-		statusInfo["id"] = meta.ID.Pretty()
+		statusInfo["id"] = meta.ID.String()
 		statusInfo["addr"] = meta.PrimaryAddress()
 		statusInfo["port"] = strconv.Itoa(int(meta.PrimaryPort()))
 	}

@@ -5,36 +5,37 @@
 package p2pmock
 
 import (
-	types "github.com/aergoio/aergo/v2/types"
-	gomock "github.com/golang/mock/gomock"
 	big "math/big"
 	reflect "reflect"
+
+	types "github.com/aergoio/aergo/v2/types"
+	gomock "github.com/golang/mock/gomock"
 )
 
-// MockChainAccessor is a mock of ChainAccessor interface
+// MockChainAccessor is a mock of ChainAccessor interface.
 type MockChainAccessor struct {
 	ctrl     *gomock.Controller
 	recorder *MockChainAccessorMockRecorder
 }
 
-// MockChainAccessorMockRecorder is the mock recorder for MockChainAccessor
+// MockChainAccessorMockRecorder is the mock recorder for MockChainAccessor.
 type MockChainAccessorMockRecorder struct {
 	mock *MockChainAccessor
 }
 
-// NewMockChainAccessor creates a new mock instance
+// NewMockChainAccessor creates a new mock instance.
 func NewMockChainAccessor(ctrl *gomock.Controller) *MockChainAccessor {
 	mock := &MockChainAccessor{ctrl: ctrl}
 	mock.recorder = &MockChainAccessorMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockChainAccessor) EXPECT() *MockChainAccessorMockRecorder {
 	return m.recorder
 }
 
-// ChainID mocks base method
+// ChainID mocks base method.
 func (m *MockChainAccessor) ChainID(arg0 uint64) *types.ChainID {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ChainID", arg0)
@@ -42,13 +43,13 @@ func (m *MockChainAccessor) ChainID(arg0 uint64) *types.ChainID {
 	return ret0
 }
 
-// ChainID indicates an expected call of ChainID
+// ChainID indicates an expected call of ChainID.
 func (mr *MockChainAccessorMockRecorder) ChainID(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ChainID", reflect.TypeOf((*MockChainAccessor)(nil).ChainID), arg0)
 }
 
-// GetBestBlock mocks base method
+// GetBestBlock mocks base method.
 func (m *MockChainAccessor) GetBestBlock() (*types.Block, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetBestBlock")
@@ -57,13 +58,13 @@ func (m *MockChainAccessor) GetBestBlock() (*types.Block, error) {
 	return ret0, ret1
 }
 
-// GetBestBlock indicates an expected call of GetBestBlock
+// GetBestBlock indicates an expected call of GetBestBlock.
 func (mr *MockChainAccessorMockRecorder) GetBestBlock() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBestBlock", reflect.TypeOf((*MockChainAccessor)(nil).GetBestBlock))
 }
 
-// GetBlock mocks base method
+// GetBlock mocks base method.
 func (m *MockChainAccessor) GetBlock(arg0 []byte) (*types.Block, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetBlock", arg0)
@@ -72,13 +73,13 @@ func (m *MockChainAccessor) GetBlock(arg0 []byte) (*types.Block, error) {
 	return ret0, ret1
 }
 
-// GetBlock indicates an expected call of GetBlock
+// GetBlock indicates an expected call of GetBlock.
 func (mr *MockChainAccessorMockRecorder) GetBlock(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBlock", reflect.TypeOf((*MockChainAccessor)(nil).GetBlock), arg0)
 }
 
-// GetChainStats mocks base method
+// GetChainStats mocks base method.
 func (m *MockChainAccessor) GetChainStats() string {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetChainStats")
@@ -86,13 +87,13 @@ func (m *MockChainAccessor) GetChainStats() string {
 	return ret0
 }
 
-// GetChainStats indicates an expected call of GetChainStats
+// GetChainStats indicates an expected call of GetChainStats.
 func (mr *MockChainAccessorMockRecorder) GetChainStats() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetChainStats", reflect.TypeOf((*MockChainAccessor)(nil).GetChainStats))
 }
 
-// GetConsensusInfo mocks base method
+// GetConsensusInfo mocks base method.
 func (m *MockChainAccessor) GetConsensusInfo() string {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetConsensusInfo")
@@ -100,13 +101,13 @@ func (m *MockChainAccessor) GetConsensusInfo() string {
 	return ret0
 }
 
-// GetConsensusInfo indicates an expected call of GetConsensusInfo
+// GetConsensusInfo indicates an expected call of GetConsensusInfo.
 func (mr *MockChainAccessorMockRecorder) GetConsensusInfo() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConsensusInfo", reflect.TypeOf((*MockChainAccessor)(nil).GetConsensusInfo))
 }
 
-// GetEnterpriseConfig mocks base method
+// GetEnterpriseConfig mocks base method.
 func (m *MockChainAccessor) GetEnterpriseConfig(arg0 string) (*types.EnterpriseConfig, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetEnterpriseConfig", arg0)
@@ -115,13 +116,13 @@ func (m *MockChainAccessor) GetEnterpriseConfig(arg0 string) (*types.EnterpriseC
 	return ret0, ret1
 }
 
-// GetEnterpriseConfig indicates an expected call of GetEnterpriseConfig
+// GetEnterpriseConfig indicates an expected call of GetEnterpriseConfig.
 func (mr *MockChainAccessorMockRecorder) GetEnterpriseConfig(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEnterpriseConfig", reflect.TypeOf((*MockChainAccessor)(nil).GetEnterpriseConfig), arg0)
 }
 
-// GetGenesisInfo mocks base method
+// GetGenesisInfo mocks base method.
 func (m *MockChainAccessor) GetGenesisInfo() *types.Genesis {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetGenesisInfo")
@@ -129,13 +130,13 @@ func (m *MockChainAccessor) GetGenesisInfo() *types.Genesis {
 	return ret0
 }
 
-// GetGenesisInfo indicates an expected call of GetGenesisInfo
+// GetGenesisInfo indicates an expected call of GetGenesisInfo.
 func (mr *MockChainAccessorMockRecorder) GetGenesisInfo() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetGenesisInfo", reflect.TypeOf((*MockChainAccessor)(nil).GetGenesisInfo))
 }
 
-// GetHashByNo mocks base method
+// GetHashByNo mocks base method.
 func (m *MockChainAccessor) GetHashByNo(arg0 uint64) ([]byte, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetHashByNo", arg0)
@@ -144,13 +145,13 @@ func (m *MockChainAccessor) GetHashByNo(arg0 uint64) ([]byte, error) {
 	return ret0, ret1
 }
 
-// GetHashByNo indicates an expected call of GetHashByNo
+// GetHashByNo indicates an expected call of GetHashByNo.
 func (mr *MockChainAccessorMockRecorder) GetHashByNo(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetHashByNo", reflect.TypeOf((*MockChainAccessor)(nil).GetHashByNo), arg0)
 }
 
-// GetSystemValue mocks base method
+// GetSystemValue mocks base method.
 func (m *MockChainAccessor) GetSystemValue(arg0 types.SystemValue) (*big.Int, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetSystemValue", arg0)
@@ -159,7 +160,7 @@ func (m *MockChainAccessor) GetSystemValue(arg0 types.SystemValue) (*big.Int, er
 	return ret0, ret1
 }
 
-// GetSystemValue indicates an expected call of GetSystemValue
+// GetSystemValue indicates an expected call of GetSystemValue.
 func (mr *MockChainAccessorMockRecorder) GetSystemValue(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSystemValue", reflect.TypeOf((*MockChainAccessor)(nil).GetSystemValue), arg0)

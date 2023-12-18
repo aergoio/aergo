@@ -510,7 +510,7 @@ func (p *remotePeerImpl) pruneRequests() {
 	}
 	p.logger.Info().Int("count", deletedCnt).Str(p2putil.LogPeerName, p.Name()).
 		Time("until", expireTime).Msg("Pruned requests which response was not came")
-	//.Msg("Pruned %d requests but no response to peer %s until %v", deletedCnt, p.remoteInfo.ID.Pretty(), time.Unix(expireTime, 0))
+	//.Msg("Pruned %d requests but no response to peer %s until %v", deletedCnt, p.remoteInfo.ID.String(), time.Unix(expireTime, 0))
 	if debugLog {
 		p.logger.Debug().Strs("reqs", deletedReqs).Msg("Pruned")
 	}

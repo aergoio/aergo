@@ -6,6 +6,7 @@
 package p2p
 
 import (
+	"github.com/libp2p/go-libp2p/core/crypto"
 	"testing"
 
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
@@ -54,8 +55,8 @@ func Test_defaultMsgSigner_signMsg(t *testing.T) {
 }
 
 func Test_defaultMsgSigner_verifyMsg(t *testing.T) {
-	pubkey1bytes, _ := sampleKey1Pub.Bytes()
-	pubkey2bytes, _ := sampleKey2Pub.Bytes()
+	pubkey1bytes, _ := crypto.MarshalPublicKey(sampleKey1Pub)
+	pubkey2bytes, _ := crypto.MarshalPublicKey(sampleKey2Pub)
 	t.Run("TSucc", func(t *testing.T) {
 		// msg and msg2 is same at first
 		sampleMsg1 := &types.P2PMessage{Header: &types.MsgHeader{Subprotocol: p2pcommon.PingResponse.Uint32(), Length: 5, NodePubKey: pubkey1bytes}, Data: []byte{0, 1, 2, 3, 4}}

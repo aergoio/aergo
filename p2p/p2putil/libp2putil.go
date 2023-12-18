@@ -14,15 +14,15 @@ import (
 
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/aergoio/aergo/v2/types"
-	core "github.com/libp2p/go-libp2p-core"
-	"github.com/libp2p/go-libp2p-core/crypto"
+	core "github.com/libp2p/go-libp2p/core"
+	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/multiformats/go-multiaddr"
 )
 
 // PeerMetaToMultiAddr make libp2p compatible Multiaddr object from peermeta
 // @Deprecated
 func PeerMetaToMultiAddr(m p2pcommon.PeerMeta) (types.Multiaddr, error) {
-	idPart, err := multiaddr.NewComponent("p2p", m.ID.Pretty())
+	idPart, err := multiaddr.NewComponent("p2p", m.ID.String())
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,7 @@ func FromMultiAddrStringWithPID(str string, id types.PeerID) (p2pcommon.PeerMeta
 	if err != nil {
 		return p2pcommon.PeerMeta{}, err
 	}
-	pidAddr, err := multiaddr.NewComponent(multiaddr.ProtocolWithCode(multiaddr.P_P2P).Name, id.Pretty())
+	pidAddr, err := multiaddr.NewComponent(multiaddr.ProtocolWithCode(multiaddr.P_P2P).Name, id.String())
 	if err != nil {
 		return p2pcommon.PeerMeta{}, err
 	}
@@ -132,7 +132,7 @@ func writeToKeyFiles(priv crypto.PrivKey, pub crypto.PubKey, dir, prefix string)
 	if err != nil {
 		return err
 	}
-	pkBytes, err := priv.Bytes()
+	pkBytes, err := crypto.MarshalPrivateKey(priv)
 	if err != nil {
 		return err
 	}

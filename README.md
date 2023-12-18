@@ -114,7 +114,7 @@ MVP based, Forward compatibility, Iteration
 
 ### Prerequisites
 
-* Go1.19.1+ - https://golang.org/dl
+* Go1.20 - https://golang.org/dl
 * Proto Buffers - https://github.com/google/protobuf
 * CMake 3.0.0 or higher - https://cmake.org
 

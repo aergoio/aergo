@@ -22,7 +22,7 @@ import (
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/message"
-	"github.com/libp2p/go-libp2p-core/network"
+	"github.com/libp2p/go-libp2p/core/network"
 )
 
 var ErrTooLowVersion = errors.New("aergosvr version is too low")
@@ -167,7 +167,7 @@ func (pcs *PolarisConnectSvc) connectAndQuery(mapServerMeta p2pcommon.PeerMeta, 
 
 	peerID := s.Conn().RemotePeer()
 	if peerID != mapServerMeta.ID {
-		return nil, fmt.Errorf("internal error peerid mismatch, exp %s, actual %s", mapServerMeta.ID.Pretty(), peerID.Pretty())
+		return nil, fmt.Errorf("internal error peerid mismatch, exp %s, actual %s", mapServerMeta.ID.String(), peerID.String())
 	}
 	pcs.Logger.Debug().Str("polarisID", peerID.String()).Msg("Sending map query")
 

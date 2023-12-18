@@ -13,7 +13,7 @@ import (
 	"github.com/aergoio/aergo/v2/p2p/p2putil"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/btcsuite/btcd/btcec"
-	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/spf13/cobra"
 )
 
@@ -105,7 +105,7 @@ func generateKeyFiles(prefix string) error {
 	pkFile := prefix + ".key"
 
 	// Write private key file
-	err := saveKeyFile(pkFile, priv)
+	err := savePrivKeyFile(pkFile, priv)
 	if err != nil {
 		return err
 	}
@@ -117,7 +117,7 @@ func saveFilesFromKeys(priv crypto.PrivKey, pub crypto.PubKey, prefix string) er
 	pubFile := prefix + ".pub"
 	idFile := prefix + ".id"
 	// Write public key file
-	err := saveKeyFile(pubFile, pub)
+	err := savePubKeyFile(pubFile, pub)
 	if err != nil {
 		return err
 	}
@@ -128,7 +128,7 @@ func saveFilesFromKeys(priv crypto.PrivKey, pub crypto.PubKey, prefix string) er
 	saveBytesToFile(idFile, idBytes)
 
 	if genAddress {
-		pkBytes, err := priv.Bytes()
+		pkBytes, err := crypto.MarshalPrivateKey(priv)
 		if err != nil {
 			return err
 		}
@@ -149,12 +149,28 @@ func saveFilesFromKeys(priv crypto.PrivKey, pub crypto.PubKey, prefix string) er
 	return nil
 }
 
-func saveKeyFile(pkFile string, priv crypto.Key) error {
+func savePrivKeyFile(pkFile string, priv crypto.PrivKey) error {
 	pkf, err := os.Create(pkFile)
 	if err != nil {
 		return err
 	}
-	pkBytes, err := priv.Bytes()
+	pkBytes, err := crypto.MarshalPrivateKey(priv)
+	if err != nil {
+		return err
+	}
+	_, err = pkf.Write(pkBytes)
+	if err != nil {
+		return err
+	}
+	return pkf.Sync()
+}
+
+func savePubKeyFile(pkFile string, pub crypto.PubKey) error {
+	pkf, err := os.Create(pkFile)
+	if err != nil {
+		return err
+	}
+	pkBytes, err := crypto.MarshalPublicKey(pub)
 	if err != nil {
 		return err
 	}
@@ -179,7 +195,7 @@ func saveBytesToFile(fileName string, bytes []byte) error {
 func generateKeyJson(priv crypto.PrivKey, pub crypto.PubKey) error {
 	btcPK := p2putil.ConvertPKToBTCEC(priv)
 	pkBytes := btcPK.Serialize()
-	pubBytes, err := pub.Bytes()
+	pubBytes, err := crypto.MarshalPublicKey(pub)
 	pid, _ := types.IDFromPublicKey(pub)
 	if err != nil {
 		return err

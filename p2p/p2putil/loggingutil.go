@@ -202,6 +202,6 @@ type AgentCertMarshaller struct {
 }
 
 func (a AgentCertMarshaller) MarshalZerologObject(e *zerolog.Event) {
-	e.Str("issuer", a.BPID.Pretty()).Str("agent", a.AgentID.Pretty()).Array("addrs", NewLogStringsMarshaller(a.AgentAddress, 10)).
+	e.Str("issuer", a.BPID.String()).Str("agent", a.AgentID.String()).Array("addrs", NewLogStringsMarshaller(a.AgentAddress, 10)).
 		Time("created", a.CreateTime).Time("expire", a.ExpireTime).Uint32("version", a.Version)
 }

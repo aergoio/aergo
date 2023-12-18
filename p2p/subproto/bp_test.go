@@ -17,7 +17,7 @@ import (
 	"github.com/aergoio/aergo/v2/p2p/p2putil"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/golang/mock/gomock"
-	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p/core/crypto"
 )
 
 func TestNewBlockProducedNoticeHandlerOfBP(t *testing.T) {
@@ -69,7 +69,7 @@ func Test_blockProducedNoticeHandler_handle_FromBP(t *testing.T) {
 	dummyBlockID := types.MustParseBlockID(dummyBlockHash)
 	bpKey, bpPub, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
 	bpID, _ := types.IDFromPrivateKey(bpKey)
-	pubKeyBytes, _ := bpPub.Bytes()
+	pubKeyBytes, _ := crypto.MarshalPublicKey(bpPub)
 
 	dummyBlock := &types.Block{Hash: dummyBlockHash,
 		Header: &types.BlockHeader{PubKey: pubKeyBytes}, Body: &types.BlockBody{}}

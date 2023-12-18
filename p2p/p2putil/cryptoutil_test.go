@@ -6,7 +6,7 @@ import (
 
 	"github.com/aergoio/aergo/v2/internal/enc/hex"
 	"github.com/btcsuite/btcd/btcec"
-	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p/core/crypto"
 )
 
 func TestConvertPKToLibP2P(t *testing.T) {
@@ -38,7 +38,7 @@ func TestConvertPKToLibP2P(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to create test input pk: %v", err.Error())
 			}
-			bs, err := got.Bytes()
+			bs, err := crypto.MarshalPrivateKey(got)
 			if err != nil {
 				t.Fatalf("Failed to create test input pk: %v", err.Error())
 			}

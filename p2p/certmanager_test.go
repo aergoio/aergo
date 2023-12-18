@@ -1,6 +1,7 @@
 package p2p
 
 import (
+	"github.com/libp2p/go-libp2p/core/crypto"
 	"reflect"
 	"testing"
 	"time"
@@ -12,8 +13,7 @@ import (
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/message"
 	"github.com/golang/mock/gomock"
-	"github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/libp2p/go-libp2p-peerstore/test"
+	"github.com/libp2p/go-libp2p/p2p/host/peerstore/test"
 )
 
 func Test_newCertificateManager(t *testing.T) {

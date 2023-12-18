@@ -7,7 +7,7 @@ package p2pmock
 import (
 	p2pcommon "github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	gomock "github.com/golang/mock/gomock"
-	peer "github.com/libp2p/go-libp2p-core/peer"
+	peer "github.com/libp2p/go-libp2p/core/peer"
 	reflect "reflect"
 )
 

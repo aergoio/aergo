@@ -20,7 +20,7 @@ import (
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/internal/enc/proto"
 	"github.com/aergoio/aergo/v2/internal/merkle"
-	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/minio/sha256-simd"
 )
 
@@ -481,7 +481,7 @@ func (block *Block) PrevID() string {
 func (block *Block) setPubKey(pubKey crypto.PubKey) error {
 	var pk []byte
 	var err error
-	if pk, err = pubKey.Bytes(); err != nil {
+	if pk, err = crypto.MarshalPublicKey(pubKey); err != nil {
 		return err
 	}
 	block.Header.PubKey = pk

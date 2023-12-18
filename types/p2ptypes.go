@@ -6,15 +6,16 @@
 package types
 
 import (
+	"github.com/mr-tron/base58"
 	"net"
 	"strconv"
 	"strings"
 
 	"github.com/aergoio/aergo/v2/internal/network"
-	core "github.com/libp2p/go-libp2p-core"
-	"github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/libp2p/go-libp2p-core/test"
+	"github.com/libp2p/go-libp2p/core"
+	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/core/test"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/pkg/errors"
 )
@@ -32,10 +33,10 @@ func RandomPeerID() PeerID {
 }
 
 func IDB58Decode(b58 string) (PeerID, error) {
-	return peer.IDB58Decode(b58)
+	return peer.Decode(b58)
 }
 func IDB58Encode(pid PeerID) string {
-	return peer.IDB58Encode(pid)
+	return base58.Encode([]byte(pid))
 }
 
 func IDFromBytes(b []byte) (PeerID, error) {
@@ -72,7 +73,7 @@ func PeerToMultiAddr(address string, port uint32, pid PeerID) (Multiaddr, error)
 	if err != nil {
 		return nil, err
 	}
-	mid, err := multiaddr.NewComponent(protoP2P, pid.Pretty())
+	mid, err := multiaddr.NewComponent(protoP2P, pid.String())
 	if err != nil {
 		return nil, err
 	}

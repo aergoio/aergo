@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo/v2/internal/enc/proto"
-	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/minio/sha256-simd"
 	"github.com/stretchr/testify/assert"
 )

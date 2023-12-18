@@ -5,7 +5,7 @@ import (
 
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -42,7 +42,7 @@ func newTestChain(clusterSize uint16) (*testChain, error) {
 		}
 	}
 
-	b, err := bpKey[0].GetPublic().Bytes()
+	b, err := crypto.MarshalPublicKey(bpKey[0].GetPublic())
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +74,7 @@ func (tc *testChain) setGenesis(block *types.Block) {
 
 func (tc *testChain) addBlock(i types.BlockNo) error {
 	pk := tc.getBpKey(i % types.BlockNo(tc.bpClusterSize))
-	b, err := pk.Bytes()
+	b, err := crypto.MarshalPrivateKey(pk)
 	if err != nil {
 		return err
 	}

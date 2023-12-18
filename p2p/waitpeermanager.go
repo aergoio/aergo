@@ -15,7 +15,7 @@ import (
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/aergoio/aergo/v2/p2p/p2putil"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/libp2p/go-libp2p-core/network"
+	"github.com/libp2p/go-libp2p/core/network"
 )
 
 // connPeerResult is result of connection work of the waitingPeerManager.
@@ -61,7 +61,7 @@ func (dpm *basePeerManager) OnInboundConn(s network.Stream) {
 	conn := p2pcommon.RemoteConn{Outbound: false, IP: ip, Port: port}
 	tempMeta := p2pcommon.PeerMeta{ID: peerID, Addresses: []types.Multiaddr{addr}}
 
-	dpm.logger.Info().Str(p2putil.LogFullID, peerID.Pretty()).Str("multiaddr", addr.String()).Msg("new inbound peer arrived")
+	dpm.logger.Info().Str(p2putil.LogFullID, peerID.String()).Str("multiaddr", addr.String()).Msg("new inbound peer arrived")
 	if banned, _ := dpm.lm.IsBanned(ip.String(), peerID); banned {
 		dpm.logger.Info().Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Str("multiaddr", addr.String()).Msg("inbound peer is banned by list manager")
 		s.Close()
