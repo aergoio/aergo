@@ -1236,23 +1236,18 @@ func getContract(contractState *statedb.ContractState, bs *state.BlockState) []b
 }
 
 func getMultiCallContract(contractState *statedb.ContractState) []byte {
-
-	if multicall_payload == nil {
+	if multicall_compiled == nil {
+		// compile the Lua code used to execute multicall txns
 		var err error
-		multicall_payload, err = Compile(multicall_code, nil)
+		multicall_compiled, err = Compile(multicall_code, nil)
 		if err != nil {
-			ctrLgr.Error().Err(err).Msg("multicall_payload")
+			ctrLgr.Error().Err(err).Msg("multicall compile")
 			return nil
 		}
 	}
-
-	if !multicall_payload.IsValidFormat() {
-		ctrLgr.Error().Msg("multicall_payload: invalid format")
-		return nil
-	}
-
-	contractState.SetMultiCallCode(multicall_payload)
-	return multicall_payload.ByteCode()
+	// set and return the compiled code
+	contractState.SetMultiCallCode(multicall_compiled)
+	return multicall_compiled.ByteCode()
 }
 
 func GetABI(contractState *statedb.ContractState, bs *state.BlockState) (*types.ABI, error) {

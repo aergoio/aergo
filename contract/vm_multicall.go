@@ -4,7 +4,7 @@ import (
 	luacUtil "github.com/aergoio/aergo/v2/cmd/aergoluac/util"
 )
 
-var multicall_payload luacUtil.LuaCode
+var multicall_compiled luacUtil.LuaCode
 
 const multicall_code = `
 vars = {}
