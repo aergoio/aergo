@@ -133,7 +133,9 @@ func InitContext(numCtx int) {
 	contexts = make([]*vmContext, maxContext)
 }
 
-func NewVmContext(execCtx context.Context, blockState *state.BlockState, cdb ChainAccessor, sender, receiver *state.AccountState, contractState *statedb.ContractState, senderID, txHash []byte, bi *types.BlockHeaderInfo, node string, confirmed, query bool, rp uint64, executionMode int, amount *big.Int, gasLimit uint64, feeDelegation bool) *vmContext {
+func NewVmContext(execCtx context.Context, blockState *state.BlockState, cdb ChainAccessor, sender, receiver *state.AccountState,
+	contractState *statedb.ContractState, senderID, txHash []byte, bi *types.BlockHeaderInfo, node string, confirmed,
+	query bool, rp uint64, executionMode int, amount *big.Int, gasLimit uint64, feeDelegation bool) *vmContext {
 
 	csReceiver := &callState{ctrState: contractState, accState: receiver}
 	csSender := &callState{accState: sender}
@@ -753,9 +755,7 @@ func (ce *executor) vmLoadCode(id []byte) {
 }
 
 func (ce *executor) vmLoadCall() {
-	if cErrMsg := C.vm_loadcall(
-		ce.L,
-	); cErrMsg != nil {
+	if cErrMsg := C.vm_loadcall(ce.L); cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
 		ce.err = errors.New(errMsg)
 	}
