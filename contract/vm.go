@@ -133,25 +133,7 @@ func InitContext(numCtx int) {
 	contexts = make([]*vmContext, maxContext)
 }
 
-func newContractInfo(cs *callState, sender, contractId []byte, rp uint64, amount *big.Int) *contractInfo {
-	return &contractInfo{
-		cs,
-		sender,
-		contractId,
-		rp,
-		amount,
-	}
-}
-
-func getTraceFile(blkno uint64, tx []byte) *os.File {
-	f, _ := os.OpenFile(fmt.Sprintf("%s%s%d.trace", os.TempDir(), string(os.PathSeparator), blkno), os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
-	if f != nil {
-		_, _ = f.WriteString(fmt.Sprintf("[START TX]: %s\n", base58.Encode(tx)))
-	}
-	return f
-}
-
-func NewVmContext(execCtx context.Context, blockState *state.BlockState, cdb ChainAccessor, sender, reciever *state.AccountState, contractState *state.ContractState, senderID, txHash []byte, bi *types.BlockHeaderInfo, node string, confirmed, query bool, rp uint64, executionMode int, amount *big.Int, gasLimit uint64, feeDelegation bool) *vmContext {
+func NewVmContext(execCtx context.Context, blockState *state.BlockState, cdb ChainAccessor, sender, receiver *state.AccountState, contractState *statedb.ContractState, senderID, txHash []byte, bi *types.BlockHeaderInfo, node string, confirmed, query bool, rp uint64, executionMode int, amount *big.Int, gasLimit uint64, feeDelegation bool) *vmContext {
 
 	csReceiver := &callState{ctrState: contractState, accState: receiver}
 	csSender := &callState{accState: sender}
