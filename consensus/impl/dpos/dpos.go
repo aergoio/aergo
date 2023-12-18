@@ -185,11 +185,15 @@ func sendVotingReward(bState *state.BlockState, dummy []byte) error {
 	}
 
 	// send reward ( vault -> winner )
-	winnerAccountState.AddBalance(reward)
+	err = state.SendBalance(vaultAccountState, winnerAccountState, reward)
+	if err != nil {
+		logger.Info().Err(err).Msg("send voting reward failed")
+		return nil
+	}
+
 	if err = winnerAccountState.PutState(); err != nil {
 		return err
 	}
-	vaultAccountState.SubBalance(reward)
 	if err = vaultAccountState.PutState(); err != nil {
 		return err
 	}
@@ -207,7 +211,7 @@ func sendVotingReward(bState *state.BlockState, dummy []byte) error {
 }
 
 func InitVPR(sdb *statedb.StateDB) error {
-	s, err := state.GetSystemAccountState(sdb)
+	s, err := statedb.GetSystemAccountState(sdb)
 	if err != nil {
 		return err
 	}

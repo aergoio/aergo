@@ -1,36 +1,21 @@
-package state
+package statedb
 
 import (
 	"bytes"
-	"math/big"
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/v2/internal/common"
 	"github.com/aergoio/aergo/v2/internal/enc/proto"
-	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 )
 
 type ContractState struct {
 	*types.State
+	id      []byte
 	account types.AccountID
 	code    []byte
-	storage *statedb.BufferedStorage
+	storage *bufferedStorage
 	store   db.DB
-}
-
-func (cs *ContractState) SetNonce(nonce uint64) {
-	cs.State.Nonce = nonce
-}
-func (st *ContractState) GetNonce() uint64 {
-	return st.State.GetNonce()
-}
-
-func (cs *ContractState) SetBalance(balance *big.Int) {
-	cs.State.Balance = balance.Bytes()
-}
-func (cs *ContractState) GetBalance() *big.Int {
-	return new(big.Int).SetBytes(cs.State.GetBalance())
 }
 
 func (cs *ContractState) SetCode(code []byte) error {
@@ -57,12 +42,12 @@ func (cs *ContractState) GetCode() ([]byte, error) {
 		// already loaded.
 		return cs.code, nil
 	}
-	codeHash := cs.State.GetCodeHash()
+	codeHash := cs.GetCodeHash()
 	if codeHash == nil {
 		// not defined. do nothing.
 		return nil, nil
 	}
-	err := statedb.LoadData(cs.store, cs.State.CodeHash, &cs.code)
+	err := loadData(cs.store, cs.State.GetCodeHash(), &cs.code)
 	if err != nil {
 		return nil, err
 	}
@@ -73,15 +58,19 @@ func (cs *ContractState) GetAccountID() types.AccountID {
 	return cs.account
 }
 
+func (cs *ContractState) GetID() []byte {
+	return cs.id
+}
+
 // SetRawKV saves (key, value) to st.store without any kind of encoding.
 func (cs *ContractState) SetRawKV(key []byte, value []byte) error {
-	return statedb.SaveData(cs.store, key, value)
+	return saveData(cs.store, key, value)
 }
 
 // GetRawKV loads (key, value) from st.store.
 func (cs *ContractState) GetRawKV(key []byte) ([]byte, error) {
 	var b []byte
-	if err := statedb.LoadData(cs.store, key, &b); err != nil {
+	if err := loadData(cs.store, key, &b); err != nil {
 		return nil, err
 	}
 	return b, nil
@@ -89,19 +78,19 @@ func (cs *ContractState) GetRawKV(key []byte) ([]byte, error) {
 
 // HasKey returns existence of the key
 func (cs *ContractState) HasKey(key []byte) bool {
-	return cs.storage.Has(types.GetHashID(key), true)
+	return cs.storage.has(types.GetHashID(key), true)
 }
 
 // SetData store key and value pair to the storage.
 func (cs *ContractState) SetData(key, value []byte) error {
-	cs.storage.Put(statedb.NewValueEntry(types.GetHashID(key), value))
+	cs.storage.put(newValueEntry(types.GetHashID(key), value))
 	return nil
 }
 
 // GetData returns the value corresponding to the key from the buffered storage.
 func (cs *ContractState) GetData(key []byte) ([]byte, error) {
 	id := types.GetHashID(key)
-	if entry := cs.storage.Get(id); entry != nil {
+	if entry := cs.storage.get(id); entry != nil {
 		if value := entry.Value(); value != nil {
 			return value.([]byte), nil
 		}
@@ -119,7 +108,7 @@ func (cs *ContractState) getInitialData(id []byte) ([]byte, error) {
 		return nil, nil
 	}
 	value := []byte{}
-	if err := statedb.LoadData(cs.store, dkey, &value); err != nil {
+	if err := loadData(cs.store, dkey, &value); err != nil {
 		return nil, err
 	}
 	return value, nil
@@ -133,23 +122,23 @@ func (cs *ContractState) GetInitialData(key []byte) ([]byte, error) {
 
 // DeleteData remove key and value pair from the storage.
 func (cs *ContractState) DeleteData(key []byte) error {
-	cs.storage.Put(statedb.NewValueEntryDelete(types.GetHashID(key)))
+	cs.storage.put(newValueEntryDelete(types.GetHashID(key)))
 	return nil
 }
 
 // Snapshot returns revision number of storage buffer
-func (cs *ContractState) Snapshot() statedb.Snapshot {
-	return statedb.Snapshot(cs.storage.Buffer.Snapshot())
+func (cs *ContractState) Snapshot() Snapshot {
+	return Snapshot(cs.storage.Buffer.snapshot())
 }
 
 // Rollback discards changes of storage buffer to revision number
-func (cs *ContractState) Rollback(revision statedb.Snapshot) error {
-	return cs.storage.Buffer.Rollback(int(revision))
+func (cs *ContractState) Rollback(revision Snapshot) error {
+	return cs.storage.Buffer.rollback(int(revision))
 }
 
 // Hash implements types.ImplHashBytes
 func (cs *ContractState) Hash() []byte {
-	return statedb.GetHashBytes(cs.State)
+	return getHashBytes(cs.State)
 }
 
 // Marshal implements types.ImplMarshal
@@ -157,14 +146,15 @@ func (cs *ContractState) Marshal() ([]byte, error) {
 	return proto.Encode(cs.State)
 }
 
-func (cs *ContractState) cache() *statedb.StateBuffer {
+func (cs *ContractState) cache() *stateBuffer {
 	return cs.storage.Buffer
 }
 
 //---------------------------------------------------------------//
 // global functions
 
-func GetMultiCallState(aid types.AccountID, st *types.State) (*ContractState) {
+func GetMultiCallState(id []byte, st *types.State) (*ContractState) {
+	aid := types.ToAccountID(id)
 	res := &ContractState{
 		State:   st,
 		account: aid,
@@ -172,22 +162,25 @@ func GetMultiCallState(aid types.AccountID, st *types.State) (*ContractState) {
 	return res
 }
 
-func OpenContractStateAccount(aid types.AccountID, states *statedb.StateDB) (*ContractState, error) {
+func OpenContractStateAccount(id []byte, states *StateDB) (*ContractState, error) {
+	aid := types.ToAccountID(id)
 	st, err := states.GetAccountState(aid)
 	if err != nil {
 		return nil, err
 	}
-	return OpenContractState(aid, st, states)
+	return OpenContractState(id, st, states)
 }
 
-func OpenContractState(aid types.AccountID, st *types.State, states *statedb.StateDB) (*ContractState, error) {
-	storage := states.Cache.Get(aid)
+func OpenContractState(id []byte, st *types.State, states *StateDB) (*ContractState, error) {
+	aid := types.ToAccountID(id)
+	storage := states.Cache.get(aid)
 	if storage == nil {
 		root := common.Compactz(st.StorageRoot)
-		storage = statedb.NewBufferedStorage(root, states.Store)
+		storage = newBufferedStorage(root, states.Store)
 	}
 	res := &ContractState{
 		State:   st,
+		id:      id,
 		account: aid,
 		storage: storage,
 		store:   states.Store,
@@ -195,23 +188,23 @@ func OpenContractState(aid types.AccountID, st *types.State, states *statedb.Sta
 	return res, nil
 }
 
-func StageContractState(st *ContractState, states *statedb.StateDB) error {
-	states.Cache.Put(st.account, st.storage)
+func StageContractState(st *ContractState, states *StateDB) error {
+	states.Cache.put(st.account, st.storage)
 	st.storage = nil
 	return nil
 }
 
 // GetSystemAccountState returns the ContractState of the AERGO system account.
-func GetSystemAccountState(states *statedb.StateDB) (*ContractState, error) {
-	return OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)), states)
+func GetSystemAccountState(states *StateDB) (*ContractState, error) {
+	return OpenContractStateAccount([]byte(types.AergoSystem), states)
 }
 
 // GetNameAccountState returns the ContractState of the AERGO name account.
-func GetNameAccountState(states *statedb.StateDB) (*ContractState, error) {
-	return OpenContractStateAccount(types.ToAccountID([]byte(types.AergoName)), states)
+func GetNameAccountState(states *StateDB) (*ContractState, error) {
+	return OpenContractStateAccount([]byte(types.AergoName), states)
 }
 
 // GetEnterpriseAccountState returns the ContractState of the AERGO enterprise account.
-func GetEnterpriseAccountState(states *statedb.StateDB) (*ContractState, error) {
-	return OpenContractStateAccount(types.ToAccountID([]byte(types.AergoEnterprise)), states)
+func GetEnterpriseAccountState(states *StateDB) (*ContractState, error) {
+	return OpenContractStateAccount([]byte(types.AergoEnterprise), states)
 }

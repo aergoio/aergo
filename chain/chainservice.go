@@ -295,7 +295,7 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	types.InitGovernance(cs.ConsensusType(), cs.IsPublic())
 
 	//reset parameter of aergo.system
-	systemState, err := cs.SDB().GetSystemAccountState()
+	systemState, err := statedb.GetSystemAccountState(cs.SDB().GetStateDB())
 	if err != nil {
 		logger.Panic().Err(err).Msg("failed to read aergo.system state")
 	}
@@ -496,7 +496,7 @@ func (cs *ChainService) getVotes(id string, n uint32) (*types.VoteList, error) {
 	switch ConsensusName() {
 	case consensus.ConsensusName[consensus.ConsensusDPOS]:
 		sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
-		scs, err := state.GetSystemAccountState(sdb)
+		scs, err := statedb.GetSystemAccountState(sdb)
 		if err != nil {
 			return nil, err
 		}
@@ -518,11 +518,11 @@ func (cs *ChainService) getAccountVote(addr []byte) (*types.AccountVoteInfo, err
 	}
 
 	sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
-	scs, err := state.GetSystemAccountState(sdb)
+	scs, err := statedb.GetSystemAccountState(sdb)
 	if err != nil {
 		return nil, err
 	}
-	namescs, err := state.GetNameAccountState(sdb)
+	namescs, err := statedb.GetNameAccountState(sdb)
 	if err != nil {
 		return nil, err
 	}
@@ -540,11 +540,11 @@ func (cs *ChainService) getStaking(addr []byte) (*types.Staking, error) {
 	}
 
 	sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
-	scs, err := state.GetSystemAccountState(sdb)
+	scs, err := statedb.GetSystemAccountState(sdb)
 	if err != nil {
 		return nil, err
 	}
-	namescs, err := state.GetNameAccountState(sdb)
+	namescs, err := statedb.GetNameAccountState(sdb)
 	if err != nil {
 		return nil, err
 	}
@@ -567,7 +567,7 @@ func (cs *ChainService) getNameInfo(qname string, blockNo types.BlockNo) (*types
 		stateDB = cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
 	}
 
-	ncs, err := state.GetNameAccountState(stateDB)
+	ncs, err := statedb.GetNameAccountState(stateDB)
 	if err != nil {
 		return nil, err
 	}
@@ -576,7 +576,7 @@ func (cs *ChainService) getNameInfo(qname string, blockNo types.BlockNo) (*types
 
 func (cs *ChainService) getEnterpriseConf(key string) (*types.EnterpriseConfig, error) {
 	sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
-	ecs, err := state.GetEnterpriseAccountState(sdb)
+	ecs, err := statedb.GetEnterpriseAccountState(sdb)
 	if err != nil {
 		return nil, err
 	}
@@ -589,7 +589,7 @@ func (cs *ChainService) getEnterpriseConf(key string) (*types.EnterpriseConfig, 
 func (cs *ChainService) getSystemValue(key types.SystemValue) (*big.Int, error) {
 	switch key {
 	case types.StakingTotal:
-		scs, err := state.GetSystemAccountState(cs.sdb.GetStateDB())
+		scs, err := statedb.GetSystemAccountState(cs.sdb.GetStateDB())
 		if err != nil {
 			return nil, err
 		}
@@ -701,7 +701,7 @@ func (cm *ChainManager) Receive(context actor.Context) {
 
 func getAddressNameResolved(sdb *statedb.StateDB, account []byte) ([]byte, error) {
 	if len(account) == types.NameLength {
-		scs, err := state.GetNameAccountState(sdb)
+		scs, err := statedb.GetNameAccountState(sdb)
 		if err != nil {
 			logger.Error().Str("hash", base58.Encode(account)).Err(err).Msg("failed to get state for account")
 			return nil, err
@@ -800,7 +800,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			})
 			break
 		}
-		contractState, err := state.OpenContractStateAccount(types.ToAccountID(address), sdb)
+		contractState, err := statedb.OpenContractStateAccount(address, sdb)
 		if err == nil {
 			abi, err := contract.GetABI(contractState, nil)
 			context.Respond(message.GetABIRsp{
@@ -822,7 +822,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
 			break
 		}
-		ctrState, err := state.OpenContractStateAccount(types.ToAccountID(address), sdb)
+		ctrState, err := statedb.OpenContractStateAccount(address, sdb)
 		if err != nil {
 			logger.Error().Str("hash", base58.Encode(address)).Err(err).Msg("failed to get state for contract")
 			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
@@ -910,7 +910,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		defer runtime.UnlockOSThread()
 
 		sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetRoot())
-		ctrState, err := state.OpenContractStateAccount(types.ToAccountID(msg.Contract), sdb)
+		ctrState, err := statedb.OpenContractStateAccount(msg.Contract, sdb)
 		if err != nil {
 			logger.Error().Str("hash", base58.Encode(msg.Contract)).Err(err).Msg("failed to get state for contract")
 			context.Respond(message.CheckFeeDelegationRsp{Err: err})
