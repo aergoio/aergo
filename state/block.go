@@ -115,7 +115,11 @@ func (bs *BlockState) Commit() error {
 		}
 	}
 	if bs.EthStateDB != nil {
-		_, err := bs.EthStateDB.Commit(bs.block.BlockNo)
+		var blockNo uint64
+		if bs.block != nil {
+			blockNo = bs.block.BlockNo
+		}
+		_, err := bs.EthStateDB.Commit(blockNo)
 		if err != nil {
 			return err
 		}
