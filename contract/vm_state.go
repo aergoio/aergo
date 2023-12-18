@@ -35,7 +35,7 @@ func getCallState(ctx *vmContext, id []byte) (*callState, error) {
 	return cs, nil
 }
 
-func getCtrState(ctx *vmContext, id []byte) (*callState, error) {
+func getContractState(ctx *vmContext, id []byte) (*callState, error) {
 	cs, err := getCallState(ctx, id)
 	if err != nil {
 		return nil, err
@@ -44,6 +44,14 @@ func getCtrState(ctx *vmContext, id []byte) (*callState, error) {
 		cs.ctrState, err = statedb.OpenContractState(id, cs.accState.State(), ctx.bs.LuaStateDB)
 	}
 	return cs, err
+}
+
+func getOnlyContractState(ctx *vmContext, id []byte) (*statedb.ContractState, error) {
+	cs := ctx.callState[types.ToAccountID(id)]
+	if cs == nil || cs.ctrState == nil {
+		return statedb.OpenContractStateAccount(id, ctx.bs.StateDB)
+	}
+	return cs.ctrState, nil
 }
 
 type contractInfo struct {
@@ -62,14 +70,6 @@ func newContractInfo(cs *callState, sender, contractId []byte, rp uint64, amount
 		rp,
 		amount,
 	}
-}
-
-func getOnlyContractState(ctx *vmContext, id []byte) (*statedb.ContractState, error) {
-	cs := ctx.callState[types.ToAccountID(id)]
-	if cs == nil || cs.ctrState == nil {
-		return statedb.OpenContractStateAccount(id, ctx.bs.LuaStateDB)
-	}
-	return cs.ctrState, nil
 }
 
 type recoveryEntry struct {

@@ -26,6 +26,7 @@ struct rlp_obj {
 import "C"
 import (
 	"bytes"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"math/big"
@@ -45,7 +46,6 @@ import (
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/dbkey"
 	"github.com/btcsuite/btcd/btcec"
-	"github.com/minio/sha256-simd"
 )
 
 var (
@@ -223,7 +223,7 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 	}
 
 	// get the contract state
-	cs, err := getCtrState(ctx, cid)
+	cs, err := getContractState(ctx, cid)
 	if err != nil {
 		return -1, C.CString("[Contract.LuaCallContract] getAccount error: " + err.Error())
 	}
@@ -1109,10 +1109,9 @@ func luaDeployContract(
 	senderState := prevContractInfo.callState.accState
 	receiverState := cs.accState
 	if amountBig.Cmp(zeroBig) > 0 {
-		if err := state.SendBalance(senderState, receiverState, amountBig); err != nil {
-			return -1, C.CString("[Contract.sendBalance] insufficient balance: " + senderState.Balance().String() + " : " + amountBig.String())
+		if rv := sendBalance(senderState, receiverState, amountBig); rv != nil {
+			return -1, rv
 		}
-
 	}
 
 	// create a recovery point
@@ -1315,7 +1314,7 @@ func luaGovernance(L *LState, service C.int, gType C.char, arg *C.char) *C.char 
 
 	cid := []byte(types.AergoSystem)
 	aid := types.ToAccountID(cid)
-	scsState, err := getCtrState(ctx, cid)
+	scsState, err := getContractState(ctx, cid)
 	if err != nil {
 		return C.CString("[Contract.LuaGovernance] getAccount error: " + err.Error())
 	}

@@ -75,11 +75,11 @@ func newVprCmd(ctx *SystemContext, vr *VoteResult) *vprCmd {
 		}
 	} else {
 		cmd.add = func(v *types.Vote) error {
-			cmd.addVprWithHandleException(v) // calculate voting power rank with handle exception
+			cmd.addVpr(v) // calculate voting power rank with exception handling
 			return cmd.voteResult.AddVote(v)
 		}
 		cmd.sub = func(v *types.Vote) error {
-			cmd.subVprWithHandleException(v) // calculate voting power rank with handle exception
+			cmd.subVpr(v) // calculate voting power rank with exception handling
 			return cmd.voteResult.SubVote(v)
 		}
 	}
@@ -87,7 +87,7 @@ func newVprCmd(ctx *SystemContext, vr *VoteResult) *vprCmd {
 	return cmd
 }
 
-func (c *vprCmd) subVprWithHandleException(v *types.Vote) {
+func (c *vprCmd) subVpr(v *types.Vote) {
 	no := c.BlockInfo.No
 	aid := c.Sender.AccountID()
 
@@ -110,7 +110,7 @@ func (c *vprCmd) subVprWithHandleException(v *types.Vote) {
 	votingPowerRank.sub(aid, c.Sender.ID(), v.GetAmountBigInt())
 }
 
-func (c *vprCmd) addVprWithHandleException(v *types.Vote) {
+func (c *vprCmd) addVpr(v *types.Vote) {
 	no := c.BlockInfo.No
 	aid := c.Sender.AccountID()
 

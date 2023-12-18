@@ -133,7 +133,9 @@ func InitContext(numCtx int) {
 	contexts = make([]*vmContext, maxContext)
 }
 
-func NewVmContext(execCtx context.Context, blockState *state.BlockState, cdb ChainAccessor, sender, receiver *state.AccountState, contractState *statedb.ContractState, senderID, txHash []byte, bi *types.BlockHeaderInfo, node string, confirmed, query bool, rp uint64, service int, amount *big.Int, gasLimit uint64, feeDelegation bool) *vmContext {
+func NewVmContext(execCtx context.Context, blockState *state.BlockState, cdb ChainAccessor, sender, receiver *state.AccountState,
+	contractState *statedb.ContractState, senderID, txHash []byte, bi *types.BlockHeaderInfo, node string, confirmed,
+	query bool, rp uint64, executionMode int, amount *big.Int, gasLimit uint64, feeDelegation bool) *vmContext {
 
 	csReceiver := &callState{ctrState: contractState, accState: receiver}
 	csSender := &callState{accState: sender}
@@ -148,7 +150,7 @@ func NewVmContext(execCtx context.Context, blockState *state.BlockState, cdb Cha
 		confirmed:       confirmed,
 		isQuery:         query,
 		blockInfo:       bi,
-		service:         C.int(service),
+		service:         C.int(executionMode),
 		gasLimit:        gasLimit,
 		remainedGas:     gasLimit,
 		isFeeDelegation: feeDelegation,
@@ -753,9 +755,7 @@ func (ce *executor) vmLoadCode(id []byte) {
 }
 
 func (ce *executor) vmLoadCall() {
-	if cErrMsg := C.vm_loadcall(
-		ce.L,
-	); cErrMsg != nil {
+	if cErrMsg := C.vm_loadcall(ce.L); cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
 		ce.err = errors.New(errMsg)
 	}
@@ -882,113 +882,6 @@ func setRandomSeed(ctx *vmContext) {
 		randSrc = rand.NewSource(b.Int64())
 	}
 	ctx.seed = rand.New(randSrc)
-}
-
-func PreCall(
-	ce *executor,
-	bs *state.BlockState,
-	sender *state.AccountState,
-	contractState *statedb.ContractState,
-	rp, gasLimit uint64,
-) (string, []*types.Event, *big.Int, error) {
-	var err error
-
-	defer ce.close()
-
-	ctx := ce.ctx
-	ctx.bs = bs
-	cs := ctx.curContract.callState
-	cs.ctrState = contractState
-	cs.accState = state.InitAccountState(contractState.GetID(), bs.LuaStateDB, bs.EthStateDB, contractState.State, contractState.State)
-	ctx.callState[sender.AccountID()] = &callState{accState: sender}
-
-	ctx.curContract.rp = rp
-
-	ctx.gasLimit = gasLimit
-	ctx.remainedGas = gasLimit
-	if ctx.IsGasSystem() {
-		ce.setGas()
-	}
-
-	contexts[ctx.service] = ctx
-
-	// execute the contract call
-	ce.call(callMaxInstLimit, nil)
-
-	err = ce.err
-	if err == nil {
-		// save the state of the contract
-		err = ce.commitCalledContract()
-		if err != nil {
-			ctrLgr.Error().Err(err).Str(
-				"contract",
-				types.EncodeAddress(ctx.curContract.contractId),
-			).Msg("pre-call")
-		}
-	} else {
-		// rollback the state of the contract
-		if dbErr := ce.rollbackToSavepoint(); dbErr != nil {
-			ctrLgr.Error().Err(dbErr).Str(
-				"contract",
-				types.EncodeAddress(ctx.curContract.contractId),
-			).Msg("pre-call")
-		}
-	}
-
-	if ctx.traceFile != nil {
-		contractId := ctx.curContract.contractId
-		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[ret] : %s\n", ce.jsonRet))
-		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[usedFee] : %s\n", ctx.usedFee().String()))
-		events := ce.getEvents()
-		if events != nil {
-			_, _ = ctx.traceFile.WriteString("[Event]\n")
-			for _, event := range events {
-				eventJson, _ := event.MarshalJSON()
-				_, _ = ctx.traceFile.Write(eventJson)
-				_, _ = ctx.traceFile.WriteString("\n")
-			}
-		}
-		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[PRECALL END] : %s(%s)\n",
-			types.EncodeAddress(contractId), types.ToAccountID(contractId)))
-	}
-
-	return ce.jsonRet, ce.getEvents(), ctx.usedFee(), err
-}
-
-// loads a contract and prepares it for execution
-func PreloadExecutor(bs *state.BlockState, contractState *statedb.ContractState, payload, contractAddress []byte,
-	ctx *vmContext) (*executor, error) {
-
-	var err error
-	var ci types.CallInfo
-
-	// read contract code
-	contractCode := getContract(contractState, bs)
-
-	// get the arguments for the call
-	if contractCode != nil {
-		if len(payload) > 0 {
-			err = getCallInfo(&ci, payload, contractAddress)
-		}
-	} else {
-		addr := types.EncodeAddress(contractAddress)
-		ctrLgr.Warn().Str("error", "not found contract").Str("contract", addr).Msg("preload")
-		err = fmt.Errorf("not found contract %s", addr)
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	// log some information
-	if ctrLgr.IsDebugEnabled() {
-		ctrLgr.Debug().Str("abi", string(payload)).Str("contract", types.EncodeAddress(contractAddress)).Msg("preload")
-	}
-
-	// create a new executor for the call
-	ce := newExecutor(contractCode, contractAddress, ctx, &ci, ctx.curContract.amount, false, false, contractState)
-
-	// return the executor
-	return ce, ce.err
 }
 
 func setContract(contractState *statedb.ContractState, contractAddress, payload []byte) ([]byte, []byte, error) {
