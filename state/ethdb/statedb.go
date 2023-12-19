@@ -71,6 +71,9 @@ func (sdb *StateDB) GetId(addr common.Address) []byte {
 	}
 
 	idWithCode := sdb.ethStateDB.GetCode(addr)
+	if len(idWithCode) <= types.AddressLength { // FIXME
+		return nil
+	}
 	return idWithCode[:types.AddressLength]
 }
 

@@ -1,7 +1,9 @@
 package evm
 
 import (
+	"encoding/json"
 	"fmt"
+	"math/big"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -9,6 +11,7 @@ import (
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/v2/contract/system"
+	"github.com/aergoio/aergo/v2/evm/compiled"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/state/ethdb"
 	"github.com/aergoio/aergo/v2/state/statedb"
@@ -43,19 +46,41 @@ func deinitTest(t *testing.T) {
 	os.RemoveAll("test_db")
 }
 
-// id 가 정의되지 않은 address 로 aergo 를 보냈을 경우, address 를 통해 id 를 가져올 수가 없는데, 그럴 때는 어떡하지?
 func TestHello(t *testing.T) {
-	t.Skip()
-
 	initTest(t)
 	defer deinitTest(t)
 
 	sender := types.GetSpecialAccountEth([]byte("aergo.system"))
-	// payload :=
+	contract := compiled.CompiledContract{}
+	err := json.Unmarshal(compiled.HelloWorldJSON, &contract)
+	require.NoError(t, err)
 
+	payload, err := contract.Data()
+	require.NoError(t, err)
+
+	evm := NewEVM(nil, 10000000, testBlockState)
+	ret, contractAddr, gasPrice, err := evm.Create(sender, payload)
+	fmt.Println("contract :", contractAddr)
+	fmt.Println("ret :", string(ret))
+	fmt.Println("gas price :", gasPrice.String())
+	fmt.Println("error :", err)
+
+	_ = evm
+}
+
+// id 가 정의되지 않은 address 로 aergo 를 보냈을 경우, address 를 통해 id 를 가져올 수가 없는데, 그럴 때는 어떡하지?
+func TestErc20(t *testing.T) {
+	initTest(t)
+	defer deinitTest(t)
+
+	sender := types.GetSpecialAccountEth([]byte("aergo.system"))
+
+	data, err := compiled.ERC20Contract.Data(sender, big.NewInt(0))
+	require.NoError(t, err)
 	// ethtypes.NewTransaction()
-	evm := NewEVM(nil, 1000000, testBlockState)
-	ret, _, gasPrice, err := evm.Create(sender, []byte("608060405234801561000f575f80fd5b5060043610610029575f3560e01c8063cfae32171461002d575b5f80fd5b61003561004b565b60405161004291906100d6565b60405180910390f35b5f805461005790610122565b80601f016020809104026020016040519081016040528092919081815260200182805461008390610122565b80156100ce5780601f106100a5576101008083540402835291602001916100ce565b820191905f5260205f20905b8154815290600101906020018083116100b157829003601f168201915b505050505081565b5f602080835283518060208501525f5b81811015610102578581018301518582016040015282016100e6565b505f604082860101526040601f19601f8301168501019250505092915050565b600181811c9082168061013657607f821691505b60208210810361015457634e487b7160e01b5f52602260045260245ffd5b5091905056fea2646970667358221220f5cf3d077ae43a818b9ce2fe81f238857611699e988d432db068008c8f7b337c64736f6c63430008170033"))
+	evm := NewEVM(nil, 10000000, testBlockState)
+	ret, contractAddr, gasPrice, err := evm.Create(sender, data)
+	fmt.Println("contract :", contractAddr)
 	fmt.Println("ret :", string(ret))
 	fmt.Println("gas price :", gasPrice.String())
 	fmt.Println("error :", err)

@@ -121,7 +121,7 @@ func (e *EVM) Create(sender common.Address, payload []byte) ([]byte, []byte, *bi
 		e.bs.Block().BlockNo,
 		uint64(e.bs.Block().Timestamp),
 		e.gasLimit,
-		big.NewInt(1000),
+		e.bs.GasPrice(),
 		big.NewInt(0),
 		queryState,
 	)
