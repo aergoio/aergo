@@ -52,9 +52,12 @@ func ConvState(msg *types.State) *InOutState {
 }
 
 type InOutState struct {
-	Nonce   uint64 `json:"nonce"`
-	Balance string `json:"balance"`
-	Account string `json:"account,omitempty"`
+	Nonce       uint64 `json:"nonce"`
+	Balance     string `json:"balance"`
+	Account     string `json:"account,omitempty"`
+	Stake       string `json:"stake,omitempty"`
+	VotingPower string `json:"votingpower,omitempty"`
+	NextAction  uint64 `json:"nextaction,omitempty"`
 }
 
 func ConvStateAndPoof(msg *types.AccountProof) *InOutStateAndPoof {

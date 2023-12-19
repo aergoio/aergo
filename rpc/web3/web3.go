@@ -168,9 +168,13 @@ func serveSwaggerUI(cfg *config.Config) func(w http.ResponseWriter, r *http.Requ
 }
 
 func commonResponseHandler(response interface{}, err error) http.Handler {
+	return commonResponseHandlerWithCode(response, err, http.StatusInternalServerError)
+}
+
+func commonResponseHandlerWithCode(response interface{}, err error, code int) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, err.Error(), code)
 			return
 		}
 

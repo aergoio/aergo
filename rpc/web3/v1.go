@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"math/big"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -118,15 +119,40 @@ func (api *Web3APIv1) GetState() (handler http.Handler, ok bool) {
 			return commonResponseHandler(&types.Empty{}, err), true
 		}
 		request.Value = accountBytes
+	} else {
+		return commonResponseHandlerWithCode(&types.Empty{}, errors.New("Missing required parameter: account"), http.StatusBadRequest), true
 	}
 
 	result, err := api.rpc.GetState(api.request.Context(), request)
 	if err != nil {
 		return commonResponseHandler(&types.Empty{}, err), true
 	}
-
 	output := jsonrpc.ConvState(result)
 	output.Account = account
+
+	// Staking, NextAction
+	resultStaking, err := api.rpc.GetStaking(api.request.Context(), &types.AccountAddress{Value: request.Value})
+	if err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+	output.Stake = string(resultStaking.GetAmount())
+	if resultStaking.GetWhen() != 0 {
+		output.NextAction = resultStaking.GetWhen() + 86400
+	}
+
+	// VotingPower
+	resultVotingPower, err := api.rpc.GetAccountVotes(api.request.Context(), &types.AccountAddress{Value: request.Value})
+	if err == nil && resultVotingPower.Voting != nil {
+		sum := new(big.Int)
+		for _, vote := range resultVotingPower.Voting {
+			m, ok := new(big.Int).SetString(vote.GetAmount(), 10)
+			if ok {
+				sum.Add(sum, m)
+			}
+		}
+		output.VotingPower = sum.String()
+	}
+
 	return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 }
 
@@ -144,6 +170,8 @@ func (api *Web3APIv1) GetStateAndProof() (handler http.Handler, ok bool) {
 			return commonResponseHandler(&types.Empty{}, err), true
 		}
 		request.Account = accountBytes
+	} else {
+		return commonResponseHandlerWithCode(&types.Empty{}, errors.New("Missing required parameter: account"), http.StatusBadRequest), true
 	}
 
 	compressed := values.Get("compressed")
@@ -176,7 +204,14 @@ func (api *Web3APIv1) GetNameInfo() (handler http.Handler, ok bool) {
 	name := values.Get("name")
 	if name != "" {
 		request.Name = name
+
+		if len(name) > types.NameLength {
+			return commonResponseHandler(&types.Empty{}, errors.New("name is not in format 12 digits")), true
+		}
+	} else {
+		return commonResponseHandlerWithCode(&types.Empty{}, errors.New("Missing required parameter: name"), http.StatusBadRequest), true
 	}
+
 	number := values.Get("number")
 	if number != "" {
 		numberValue, parseErr := strconv.ParseUint(number, 10, 64)
@@ -209,6 +244,8 @@ func (api *Web3APIv1) GetBalance() (handler http.Handler, ok bool) {
 			return commonResponseHandler(&types.Empty{}, err), true
 		}
 		request.Value = accountBytes
+	} else {
+		return commonResponseHandlerWithCode(&types.Empty{}, errors.New("Missing required parameter: account"), http.StatusBadRequest), true
 	}
 
 	result, err := api.rpc.GetState(api.request.Context(), request)
@@ -364,6 +401,9 @@ func (api *Web3APIv1) GetBlockBody() (handler http.Handler, ok bool) {
 
 		}
 		request.Paging.Size = uint32(sizeValue)
+		if request.Paging.Size > 100 {
+			request.Paging.Size = 100
+		}
 	}
 
 	offset := values.Get("offset")
@@ -399,6 +439,8 @@ func (api *Web3APIv1) ListBlockHeaders() (handler http.Handler, ok bool) {
 			return commonResponseHandler(&types.Empty{}, parseErr), true
 		}
 		request.Height = heightValue
+	} else {
+		return commonResponseHandlerWithCode(&types.Empty{}, errors.New("Missing required parameter: height"), http.StatusBadRequest), true
 	}
 
 	size := values.Get("size")
@@ -408,6 +450,11 @@ func (api *Web3APIv1) ListBlockHeaders() (handler http.Handler, ok bool) {
 			return commonResponseHandler(&types.Empty{}, parseErr), true
 		}
 		request.Size = uint32(sizeValue)
+		if request.Size > 100 {
+			request.Size = 100
+		}
+	} else {
+		request.Size = 1
 	}
 
 	offset := values.Get("offset")
@@ -498,6 +545,9 @@ func (api *Web3APIv1) ListBlockMetadata() (handler http.Handler, ok bool) {
 			return commonResponseHandler(&types.Empty{}, parseErr), true
 		}
 		request.Size = uint32(sizeValue)
+		if request.Size > 100 {
+			request.Size = 100
+		}
 	}
 
 	offset := values.Get("offset")
@@ -577,6 +627,8 @@ func (api *Web3APIv1) GetReceipt() (handler http.Handler, ok bool) {
 			return commonResponseHandler(&types.Empty{}, err), true
 		}
 		request.Value = hashBytes
+	} else {
+		return commonResponseHandlerWithCode(&types.Empty{}, errors.New("Missing required parameter: hash"), http.StatusBadRequest), true
 	}
 
 	result, err := api.rpc.GetReceipt(api.request.Context(), request)
@@ -639,6 +691,8 @@ func (api *Web3APIv1) GetTX() (handler http.Handler, ok bool) {
 			return commonResponseHandler(&types.Empty{}, err), true
 		}
 		request.Value = hashBytes
+	} else {
+		return commonResponseHandlerWithCode(&types.Empty{}, errors.New("Missing required parameter: hash"), http.StatusBadRequest), true
 	}
 
 	result, err := api.rpc.GetTX(api.request.Context(), request)
@@ -673,6 +727,8 @@ func (api *Web3APIv1) GetBlockTX() (handler http.Handler, ok bool) {
 			return commonResponseHandler(&types.Empty{}, err), true
 		}
 		request.Value = hashBytes
+	} else {
+		return commonResponseHandlerWithCode(&types.Empty{}, errors.New("Missing required parameter: hash"), http.StatusBadRequest), true
 	}
 
 	result, err := api.rpc.GetTX(api.request.Context(), request)
@@ -799,8 +855,11 @@ func (api *Web3APIv1) ListEvents() (handler http.Handler, ok bool) {
 			return commonResponseHandler(&types.Empty{}, parseErr), true
 		}
 		request.RecentBlockCnt = int32(recentBlockCntValue)
-	} else {
-		request.RecentBlockCnt = 0
+		if request.RecentBlockCnt > 10000 {
+			request.RecentBlockCnt = 10000
+		}
+	} else if Blockfrom == "" && Blockto == "" {
+		request.RecentBlockCnt = 100000
 	}
 
 	result, err := api.rpc.ListEvents(api.request.Context(), request)
@@ -851,6 +910,8 @@ func (api *Web3APIv1) GetAccountVotes() (handler http.Handler, ok bool) {
 			return commonResponseHandler(&types.Empty{}, err), true
 		}
 		request.Value = hashBytes
+	} else {
+		return commonResponseHandlerWithCode(&types.Empty{}, errors.New("Missing required parameter: account"), http.StatusBadRequest), true
 	}
 
 	result, err := api.rpc.GetAccountVotes(api.request.Context(), request)
@@ -876,6 +937,8 @@ func (api *Web3APIv1) QueryContractState() (handler http.Handler, ok bool) {
 			return commonResponseHandler(&types.Empty{}, err), true
 		}
 		request.ContractAddress = addressBytes
+	} else {
+		return commonResponseHandlerWithCode(&types.Empty{}, errors.New("Missing required parameter: address"), http.StatusBadRequest), true
 	}
 
 	storageKeyPlain := bytes.NewBufferString("_sv_")
@@ -923,16 +986,18 @@ func (api *Web3APIv1) NodeState() (handler http.Handler, ok bool) {
 	}
 
 	timeout := values.Get("timeout")
+	byteValue := make([]byte, 8)
 	if timeout != "" {
 		timeoutValue, err := strconv.ParseUint(timeout, 10, 64)
 		if err != nil {
 			return commonResponseHandler(&types.Empty{}, err), true
 		}
-		timeout := uint64(timeoutValue) // Replace with your actual value
-		byteValue := make([]byte, 8)
+		timeout := uint64(timeoutValue)
 		binary.LittleEndian.PutUint64(byteValue, timeout)
-		request.Timeout = byteValue
+	} else {
+		binary.LittleEndian.PutUint64(byteValue, 3)
 	}
+	request.Timeout = byteValue
 
 	result, err := api.rpc.NodeState(api.request.Context(), request)
 	if err != nil {
@@ -1077,6 +1142,8 @@ func (api *Web3APIv1) Metric() (handler http.Handler, ok bool) {
 	metricType := values.Get("type")
 	if metricType != "" {
 		request.Types = append(request.Types, types.MetricType(types.MetricType_value[metricType]))
+	} else {
+		request.Types = append(request.Types, types.MetricType(types.MetricType_value["P2P_NETWORK"]))
 	}
 
 	result, err := api.rpc.Metric(api.request.Context(), request)
