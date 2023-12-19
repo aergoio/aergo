@@ -162,3 +162,7 @@ require (
 )
 
 replace github.com/Sirupsen/logrus => github.com/sirupsen/logrus v1.8.1
+
+replace sourcegraph.com/sourcegraph/go-diff => github.com/sourcegraph/go-diff v0.5.3
+
+replace sourcegraph.com/sourcegraph/appdash => github.com/sourcegraph/appdash v0.0.0-20190731080439-ebfcffb1b5c0

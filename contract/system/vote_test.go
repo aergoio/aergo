@@ -16,6 +16,7 @@ import (
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/stretchr/testify/assert"
@@ -24,7 +25,7 @@ import (
 var cdb *state.ChainStateDB
 var bs *state.BlockState
 
-func initTest(t *testing.T) (*state.ContractState, *state.V, *state.V) {
+func initTest(t *testing.T) (*statedb.ContractState, *state.AccountState, *state.AccountState) {
 	cdb = state.NewChainStateDB()
 	cdb.Init(string(db.BadgerImpl), "test", nil, false)
 	genesis := types.GetTestGenesis()
@@ -37,33 +38,33 @@ func initTest(t *testing.T) (*state.ContractState, *state.V, *state.V) {
 	// Need to pass the
 	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
 
-	scs, err := bs.GetSystemAccountState()
+	scs, err := statedb.GetSystemAccountState(bs.StateDB)
 	assert.NoError(t, err, "could not open contract state")
 	InitSystemParams(scs, 3)
 
 	account, err := types.DecodeAddress(testSender)
 	assert.NoError(t, err, "could not decode test address")
-	sender, err := bs.GetAccountStateV(account)
+	sender, err := state.GetAccountState(account, bs.StateDB)
 	assert.NoError(t, err, "could not get test address state")
-	receiver, err := bs.GetAccountStateV([]byte(types.AergoSystem))
+	receiver, err := state.GetAccountState([]byte(types.AergoSystem), bs.StateDB)
 	assert.NoError(t, err, "could not get test address state")
 	return scs, sender, receiver
 }
 
-func getSender(t *testing.T, addr string) *state.V {
+func getSender(t *testing.T, addr string) *state.AccountState {
 	account, err := types.DecodeAddress(addr)
 	assert.NoError(t, err, "could not decode test address")
-	sender, err := bs.GetAccountStateV(account)
+	sender, err := state.GetAccountState(account, bs.StateDB)
 	assert.NoError(t, err, "could not get test address state")
 	return sender
 }
 
-func commitNextBlock(t *testing.T, scs *state.ContractState) *state.ContractState {
-	bs.StageContractState(scs)
+func commitNextBlock(t *testing.T, scs *statedb.ContractState) *statedb.ContractState {
+	statedb.StageContractState(scs, bs.StateDB)
 	bs.Update()
 	bs.Commit()
 	cdb.UpdateRoot(bs)
-	ret, err := bs.GetSystemAccountState()
+	ret, err := statedb.GetSystemAccountState(bs.StateDB)
 	assert.NoError(t, err, "could not open contract state")
 	return ret
 }
@@ -77,7 +78,7 @@ func TestVoteResult(t *testing.T) {
 	const testSize = 64
 	initTest(t)
 	defer deinitTest()
-	scs, err := cdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("testUpdateVoteResult")))
+	scs, err := statedb.OpenContractStateAccount([]byte("testUpdateVoteResult"), cdb.GetStateDB())
 	assert.NoError(t, err, "could not open contract state")
 	testResult := map[string]*big.Int{}
 	for i := 0; i < testSize; i++ {
@@ -106,7 +107,7 @@ func TestVoteData(t *testing.T) {
 	const testSize = 64
 	initTest(t)
 	defer deinitTest()
-	scs, err := cdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("testSetGetVoteDate")))
+	scs, err := statedb.OpenContractStateAccount([]byte("testSetGetVoteDate"), cdb.GetStateDB())
 	assert.NoError(t, err, "could not open contract state")
 
 	for i := 0; i < testSize; i++ {

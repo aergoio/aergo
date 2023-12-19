@@ -7,8 +7,8 @@
 package p2pcommon
 
 import (
-	"github.com/aergoio/aergo/v2/message"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/message"
 )
 
 // PeerManager is internal service that provide peer management
