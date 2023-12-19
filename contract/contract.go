@@ -4,6 +4,7 @@ import "C"
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"math/big"
 	"regexp"
@@ -11,34 +12,12 @@ import (
 
 	"github.com/aergoio/aergo/v2/fee"
 	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/dbkey"
-	"github.com/minio/sha256-simd"
 )
 
-/* The preloadWorker optimizes the execution time by preloading the next transaction while executing the current transaction */
-type preloadRequest struct {
-	preloadService int
-	bs             *state.BlockState
-	bi             *types.BlockHeaderInfo
-	next           *types.Tx // the tx to preload the executor for, the next to be executed
-	current        *types.Tx // the tx currently being executed
-}
-
-type preloadReply struct {
-	tx  *types.Tx
-	ex  *executor
-	err error
-}
-
-type preloader struct {
-	requestedTx *types.Tx // the next preload tx to be executed
-	replyCh     chan *preloadReply
-}
-
 var (
-	loadReqCh     chan *preloadRequest
-	preloaders    [2]preloader
 	PubNet        bool
 	TraceBlockNo  uint64
 	bpTimeout     <-chan struct{}
@@ -46,6 +25,8 @@ var (
 	addressRegexp *regexp.Regexp
 )
 
+// These constants indicate the situation in which the contract is executed. BlockFactory refers to execution by a block producer to create a block, from which BlockFactory class calls, and ChainService refers to execution to verify and apply blocks created by other producers. Depending on the mode, the operations or policies may be different, and currently timeout policy is different.
+// TODO These values are also used to select slots for internal parallel processing. They have multiple roles or meanings, so it make harder to understand the source code.
 const (
 	BlockFactory = iota
 	ChainService
@@ -53,21 +34,11 @@ const (
 )
 
 func init() {
-	loadReqCh = make(chan *preloadRequest, 10)
-	preloaders[BlockFactory].replyCh = make(chan *preloadReply, 4)
-	preloaders[ChainService].replyCh = make(chan *preloadReply, 4)
 	addressRegexp, _ = regexp.Compile("^[a-zA-Z0-9]+$")
-
-	go preloadWorker()
-}
-
-// mark the next preload tx to be executed
-func SetPreloadTx(tx *types.Tx, service int) {
-	preloaders[service].requestedTx = tx
 }
 
 // Execute executes a normal transaction which is possibly executing smart contract.
-func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, tx *types.Tx, sender, receiver *state.V, bi *types.BlockHeaderInfo, preloadService int, isFeeDelegation bool) (rv string, events []*types.Event, usedFee *big.Int, err error) {
+func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, tx *types.Tx, sender, receiver *state.AccountState, bi *types.BlockHeaderInfo, executionMode int, isFeeDelegation bool) (rv string, events []*types.Event, usedFee *big.Int, err error) {
 
 	var (
 		txBody     = tx.GetBody()
@@ -78,18 +49,11 @@ func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, t
 	)
 
 	// compute the base fee
-	usedFee = TxFee(len(txPayload), bs.GasPrice, bi.ForkVersion)
+	usedFee = fee.TxBaseFee(bi.ForkVersion, bs.GasPrice, len(txPayload))
 
-	// check if sender and receiver are not the same
-	if sender.AccountID() != receiver.AccountID() {
-		// check if sender has enough balance
-		if sender.Balance().Cmp(txAmount) < 0 {
-			err = types.ErrInsufficientBalance
-			return
-		}
-		// transfer the amount from the sender to the receiver
-		sender.SubBalance(txAmount)
-		receiver.AddBalance(txAmount)
+	// transfer the amount from the sender to the receiver
+	if err = state.SendBalance(sender, receiver, txAmount); err != nil {
+		return
 	}
 
 	// check if the tx is valid and if the code should be executed
@@ -100,12 +64,13 @@ func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, t
 
 	// compute gas limit
 	var gasLimit uint64
-	if gasLimit, err = GasLimit(bi.ForkVersion, isFeeDelegation, txGasLimit, len(txPayload), bs.GasPrice, usedFee, sender.Balance(), receiver.Balance()); err != nil {
+	if gasLimit, err = fee.GasLimit(bi.ForkVersion, isFeeDelegation, txGasLimit, len(txPayload), bs.GasPrice, usedFee, sender.Balance(), receiver.Balance()); err != nil {
+		err = newVmError(types.ErrNotEnoughGas)
 		return
 	}
 
 	// open the contract state
-	contractState, err := bs.OpenContractState(receiver.AccountID(), receiver.State())
+	contractState, err := statedb.OpenContractState(receiver.ID(), receiver.State(), bs.StateDB)
 	if err != nil {
 		return
 	}
@@ -119,51 +84,21 @@ func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, t
 		// remove the contract from the cache
 		bs.RemoveCache(receiver.AccountID())
 	}
-
-	var ex *executor
-
-	// is there a request to preload an executor for this tx?
-	if !receiver.IsDeploy() && preloaders[preloadService].requestedTx == tx {
-		// get the reply channel
-		replyCh := preloaders[preloadService].replyCh
-		// wait for the reply
-		for {
-			preload := <-replyCh
-			if preload.tx != tx {
-				preload.ex.close()
-				continue
-			}
-			// get the executor and error from the reply
-			ex = preload.ex
-			err = preload.err
-			break
-		}
-		if err != nil {
-			return
-		}
-	}
-
 	var ctrFee *big.Int
 
-	// is there a preloaded executor?
-	if ex != nil {
-		// execute the transaction
-		rv, events, ctrFee, err = PreCall(ex, bs, sender, contractState, receiver.RP(), gasLimit)
+	// create a new context
+	ctx := NewVmContext(execCtx, bs, cdb, sender, receiver, contractState, sender.ID(), tx.GetHash(), bi, "", true, false, receiver.RP(), executionMode, txAmount, gasLimit, isFeeDelegation)
+
+	// execute the transaction
+	if receiver.IsDeploy() {
+		rv, events, ctrFee, err = Create(contractState, txPayload, receiver.ID(), ctx)
 	} else {
-		// create a new context
-		ctx := NewVmContext(execCtx, bs, cdb, sender, receiver, contractState, sender.ID(), tx.GetHash(), bi, "", true, false, receiver.RP(), preloadService, txAmount, gasLimit, isFeeDelegation)
+		rv, events, ctrFee, err = Call(contractState, txPayload, receiver.ID(), ctx)
+	}
 
-		// execute the transaction
-		if receiver.IsDeploy() {
-			rv, events, ctrFee, err = Create(contractState, txBody.Payload, receiver.ID(), ctx)
-		} else {
-			rv, events, ctrFee, err = Call(contractState, txBody.Payload, receiver.ID(), ctx)
-		}
-
-		// close the trace file
-		if ctx.traceFile != nil {
-			defer ctx.traceFile.Close()
-		}
+	// close the trace file
+	if ctx.traceFile != nil {
+		defer ctx.traceFile.Close()
 	}
 
 	// check if the execution fee is negative
@@ -193,99 +128,13 @@ func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, t
 	}
 
 	// save the contract state
-	err = bs.StageContractState(contractState)
+	err = statedb.StageContractState(contractState, bs.StateDB)
 	if err != nil {
 		return "", events, usedFee, err
 	}
 
 	// return the result
 	return rv, events, usedFee, nil
-}
-
-// send a request to preload an executor for the next tx
-func RequestPreload(bs *state.BlockState, bi *types.BlockHeaderInfo, next, current *types.Tx, preloadService int) {
-	loadReqCh <- &preloadRequest{preloadService, bs, bi, next, current}
-}
-
-// the preloadWorker preloads an executor for the next tx
-func preloadWorker() {
-	// infinite loop
-	for {
-		var err error
-
-		// wait for a preload request
-		request := <-loadReqCh
-		// get the reply channel for this request
-		replyCh := preloaders[request.preloadService].replyCh
-
-		// if there are more than 2 requests waiting for a reply, close the oldest one
-		if len(replyCh) > 2 {
-			select {
-			case preload := <-replyCh:
-				preload.ex.close()
-			default:
-			}
-		}
-
-		bs := request.bs
-		tx := request.next // the tx to preload the executor for
-		txBody := tx.GetBody()
-		recipient := txBody.Recipient
-
-		// only preload an executor for a normal, transfer, call or fee delegation tx
-		if (txBody.Type != types.TxType_NORMAL &&
-			txBody.Type != types.TxType_TRANSFER &&
-			txBody.Type != types.TxType_CALL &&
-			txBody.Type != types.TxType_FEEDELEGATION) ||
-			len(recipient) == 0 {
-			continue
-		}
-
-		// if the tx currently being executed is a redeploy
-		if request.current.GetBody().Type == types.TxType_REDEPLOY {
-			// if the next tx is a call to the redeployed contract
-			currentTxBody := request.current.GetBody()
-			if bytes.Equal(recipient, currentTxBody.Recipient) {
-				// do not preload an executor for a contract that is being redeployed
-				replyCh <- &preloadReply{tx, nil, nil}
-				continue
-			}
-		}
-
-		// get the state of the recipient
-		receiver, err := bs.GetAccountStateV(recipient)
-		if err != nil {
-			replyCh <- &preloadReply{tx, nil, err}
-			continue
-		}
-
-		// when deploy and call in same block and not deployed yet
-		if receiver.IsNew() || !receiver.IsContract() {
-			// do not preload an executor for a contract that is not deployed yet
-			replyCh <- &preloadReply{tx, nil, nil}
-			continue
-		}
-
-		// open the contract state
-		contractState, err := bs.OpenContractState(receiver.AccountID(), receiver.State())
-		if err != nil {
-			replyCh <- &preloadReply{tx, nil, err}
-			continue
-		}
-
-		// create a new context
-		// FIXME need valid context
-		ctx := NewVmContext(context.Background(), bs, nil, nil, receiver, contractState, txBody.GetAccount(), tx.GetHash(), request.bi, "", false, false, receiver.RP(), request.preloadService, txBody.GetAmountBigInt(), txBody.GetGasLimit(), txBody.Type == types.TxType_FEEDELEGATION)
-
-		// load a new executor
-		ex, err := PreloadExecutor(bs, contractState, txBody.Payload, receiver.ID(), ctx)
-		if ex == nil && ctx.traceFile != nil {
-			ctx.traceFile.Close()
-		}
-
-		// send reply with executor
-		replyCh <- &preloadReply{tx, ex, err}
-	}
 }
 
 // check if the tx is valid and if the code should be executed
@@ -311,7 +160,7 @@ func checkExecution(txType types.TxType, amount *big.Int, payloadSize int, versi
 	return true, nil
 }
 
-func checkRedeploy(sender, receiver *state.V, contractState *state.ContractState) error {
+func checkRedeploy(sender, receiver *state.AccountState, contractState *statedb.ContractState) error {
 	// check if the contract exists
 	if !receiver.IsContract() || receiver.IsNew() {
 		receiverAddr := types.EncodeAddress(receiver.ID())
@@ -331,69 +180,6 @@ func checkRedeploy(sender, receiver *state.V, contractState *state.ContractState
 	return nil
 }
 
-// compute the base fee for a transaction
-func TxFee(payloadSize int, GasPrice *big.Int, version int32) *big.Int {
-	if version < 2 {
-		return fee.PayloadTxFee(payloadSize)
-	}
-	// get the amount of gas needed for the payload
-	txGas := fee.TxGas(payloadSize)
-	// multiply the amount of gas with the gas price
-	return new(big.Int).Mul(new(big.Int).SetUint64(txGas), GasPrice)
-}
-
-func GasLimit(version int32, isFeeDelegation bool, txGasLimit uint64, payloadSize int, gasPrice, usedFee, senderBalance, receiverBalance *big.Int) (gasLimit uint64, err error) {
-	// 1. no gas limit
-	if useGas(version) != true {
-		return
-	}
-
-	// 2. fee delegation
-	if isFeeDelegation {
-		// check if the contract has enough balance for fee
-		balance := new(big.Int).Sub(receiverBalance, usedFee)
-		gasLimit = fee.MaxGasLimit(balance, gasPrice)
-		if gasLimit == 0 {
-			err = newVmError(types.ErrNotEnoughGas)
-		}
-		return
-	}
-
-	// read the gas limit from the tx
-	gasLimit = txGasLimit
-	// 3. no gas limit specified, the limit is the sender's balance
-	if gasLimit == 0 {
-		balance := new(big.Int).Sub(senderBalance, usedFee)
-		gasLimit = fee.MaxGasLimit(balance, gasPrice)
-		if gasLimit == 0 {
-			err = newVmError(types.ErrNotEnoughGas)
-		}
-		return
-	}
-
-	// 4. check if the sender has enough balance for gas
-	usedGas := fee.TxGas(payloadSize)
-	if gasLimit <= usedGas {
-		err = newVmError(types.ErrNotEnoughGas)
-		return
-	}
-	// subtract the used gas from the gas limit
-	gasLimit -= usedGas
-
-	return gasLimit, nil
-}
-
-func useGas(version int32) bool {
-	return version >= 2 && PubNet
-}
-
-func GasUsed(txFee, gasPrice *big.Int, txType types.TxType, version int32) uint64 {
-	if fee.IsZeroFee() || txType == types.TxType_GOVERNANCE || version < 2 {
-		return 0
-	}
-	return new(big.Int).Div(txFee, gasPrice).Uint64()
-}
-
 func CreateContractID(account []byte, nonce uint64) []byte {
 	h := sha256.New()
 	h.Write(account)
@@ -410,7 +196,7 @@ func SetStateSQLMaxDBSize(size uint64) {
 	} else {
 		maxSQLDBSize = size
 	}
-	sqlLgr.Info().Uint64("size", maxSQLDBSize).Msg("set max database size(MB)")
+	//sqlLgr.Info().Uint64("size", maxSQLDBSize).Msg("set max database size(MB)")
 }
 
 func StrHash(d string) []byte {

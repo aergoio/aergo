@@ -8,11 +8,10 @@ import (
 	"math/big"
 	"sort"
 
-	"github.com/aergoio/aergo/v2/internal/enc"
-	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/dbkey"
-	"github.com/mr-tron/base58"
 )
 
 type VoteResult struct {
@@ -21,7 +20,7 @@ type VoteResult struct {
 	ex    bool
 	total *big.Int
 
-	scs *state.ContractState
+	scs *statedb.ContractState
 }
 
 func newVoteResult(key []byte, total *big.Int) *VoteResult {
@@ -99,7 +98,7 @@ func (vr *VoteResult) buildVoteList() *types.VoteList {
 		if vr.ex {
 			vote.Candidate = []byte(k)
 		} else {
-			vote.Candidate, _ = enc.ToBytes(k)
+			vote.Candidate, _ = base58.Decode(k)
 		}
 		voteList.Votes = append(voteList.Votes, vote)
 	}
@@ -143,7 +142,7 @@ func (vr *VoteResult) threshold(power *big.Int) bool {
 	return false
 }
 
-func loadVoteResult(scs *state.ContractState, key []byte) (*VoteResult, error) {
+func loadVoteResult(scs *statedb.ContractState, key []byte) (*VoteResult, error) {
 	data, err := scs.GetData(dbkey.SystemVoteSort(key))
 	if err != nil {
 		return nil, err
@@ -170,7 +169,7 @@ func loadVoteResult(scs *state.ContractState, key []byte) (*VoteResult, error) {
 	return voteResult, nil
 }
 
-func InitVoteResult(scs *state.ContractState, voteResult map[string]*big.Int) error {
+func InitVoteResult(scs *statedb.ContractState, voteResult map[string]*big.Int) error {
 	if voteResult == nil {
 		return errors.New("Invalid argument : voteReult should not nil")
 	}
@@ -181,7 +180,7 @@ func InitVoteResult(scs *state.ContractState, voteResult map[string]*big.Int) er
 	return res.Sync()
 }
 
-func getVoteResult(scs *state.ContractState, key []byte, n int) (*types.VoteList, error) {
+func getVoteResult(scs *statedb.ContractState, key []byte, n int) (*types.VoteList, error) {
 	data, err := scs.GetData(dbkey.SystemVoteSort(key))
 	if err != nil {
 		return nil, err
@@ -197,12 +196,4 @@ func getVoteResult(scs *state.ContractState, key []byte, n int) (*types.VoteList
 		voteList.Votes = voteList.Votes[:n]
 	}
 	return voteList, nil
-}
-
-func GetVoteResultEx(ar AccountStateReader, key []byte, n int) (*types.VoteList, error) {
-	scs, err := ar.GetSystemAccountState()
-	if err != nil {
-		return nil, err
-	}
-	return getVoteResult(scs, key, n)
 }

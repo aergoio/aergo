@@ -232,7 +232,7 @@ func TestRemotePeer_handleMsg(t *testing.T) {
 				msg.On("Subprotocol").Return(PingRequest)
 			}
 			bodyStub := &types.Ping{}
-			bytes, _ := proto.Marshal(bodyStub)
+			bytes, _ := proto.Encode(bodyStub)
 			msg.On("ID").Return(sampleMsgID)
 			msg.On("Payload").Return(bytes)
 			mockMsgHandler.On("parsePayload", mock.AnythingOfType("[]uint8")).Return(bodyStub, tt.args.parerr)

@@ -12,12 +12,12 @@ import (
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/internal/enc/proto"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/aergoio/aergo/v2/p2p/p2putil"
 	"github.com/aergoio/aergo/v2/types"
 	rtypes "github.com/aergoio/etcd/pkg/types"
 	"github.com/aergoio/etcd/raft/raftpb"
-	"github.com/golang/protobuf/proto"
 )
 
 const (
@@ -106,7 +106,7 @@ func (s *snapshotReceiver) Receive() {
 }
 
 func (s *snapshotReceiver) sendResp(w io.Writer, resp *types.SnapshotResponse) {
-	b, err := proto.Marshal(resp)
+	b, err := proto.Encode(resp)
 	if err == nil {
 		bytebuf := make([]byte, SnapRespHeaderLength)
 		binary.BigEndian.PutUint32(bytebuf, uint32(len(b)))

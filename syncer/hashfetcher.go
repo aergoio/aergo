@@ -4,10 +4,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aergoio/aergo/v2/internal/enc"
-	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/message"
 	"github.com/pkg/errors"
 )
 
@@ -171,7 +171,7 @@ func (hf *HashFetcher) requestHashSet() {
 	hf.reqTime = time.Now()
 	hf.isRequesting = true
 
-	logger.Debug().Uint64("prev", hf.lastBlockInfo.No).Str("prevhash", enc.ToString(hf.lastBlockInfo.Hash)).Uint64("count", count).Msg("request hashset to peer")
+	logger.Debug().Uint64("prev", hf.lastBlockInfo.No).Str("prevhash", base58.Encode(hf.lastBlockInfo.Hash)).Uint64("count", count).Msg("request hashset to peer")
 
 	hf.compRequester.TellTo(message.P2PSvc, &message.GetHashes{Seq: hf.GetSeq(), ToWhom: hf.ctx.PeerID, PrevInfo: hf.lastBlockInfo, Count: count})
 }
@@ -241,8 +241,8 @@ func (hf *HashFetcher) isValidResponse(msg *message.GetHashesRsp) (bool, error) 
 	}
 
 	if !isValid {
-		logger.Error().Str("req prev", enc.ToString(hf.lastBlockInfo.Hash)).
-			Str("msg prev", enc.ToString(msg.PrevInfo.Hash)).
+		logger.Error().Str("req prev", base58.Encode(hf.lastBlockInfo.Hash)).
+			Str("msg prev", base58.Encode(msg.PrevInfo.Hash)).
 			Uint64("req count", hf.reqCount).
 			Uint64("msg count", msg.Count).
 			Msg("invalid GetHashesRsp")
@@ -267,8 +267,8 @@ func (hf *HashFetcher) GetHahsesRsp(msg *message.GetHashesRsp) {
 
 	logger.Debug().Int("count", count).
 		Uint64("prev", msg.PrevInfo.No).
-		Str("start", enc.ToString(msg.Hashes[0])).
-		Str("end", enc.ToString(msg.Hashes[count-1])).Msg("receive GetHashesRsp")
+		Str("start", base58.Encode(msg.Hashes[0])).
+		Str("end", base58.Encode(msg.Hashes[count-1])).Msg("receive GetHashesRsp")
 
 	hf.responseCh <- msg
 	return

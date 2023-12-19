@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-actor/actor"
-	"github.com/aergoio/aergo/v2/internal/enc"
-	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/message"
 )
 
 type ChainVerifier struct {
@@ -189,14 +189,14 @@ func (cv *ChainVerifier) report(prevBlock *types.Block, targetBlock *types.Block
 	switch cv.stage {
 	case TestPrevBlock:
 		report += fmt.Sprintf("[description] prev block hash=%s, prev stage root=%s", prevBlock.ID(),
-			enc.ToString(prevBlock.GetHeader().GetBlocksRootHash()))
+			base58.Encode(prevBlock.GetHeader().GetBlocksRootHash()))
 
 	case TestCurBlock:
 		report += fmt.Sprintf("[description] target block hash=%s", targetBlock.ID())
 
 	case TestBlockExecute:
-		report += fmt.Sprintf("[description] tx Merkle = %s", enc.ToString(targetBlock.GetHeader().GetTxsRootHash()))
-		report += fmt.Sprintf(", state Root = %s", enc.ToString(targetBlock.GetHeader().GetBlocksRootHash()))
+		report += fmt.Sprintf("[description] tx Merkle = %s", base58.Encode(targetBlock.GetHeader().GetTxsRootHash()))
+		report += fmt.Sprintf(", state Root = %s", base58.Encode(targetBlock.GetHeader().GetBlocksRootHash()))
 		report += fmt.Sprintf(", all transaction passed")
 	}
 

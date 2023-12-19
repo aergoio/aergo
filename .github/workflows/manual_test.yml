@@ -20,7 +20,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v3
       with:
-        go-version: 1.19
+        go-version: '1.19'
 
     - name: Install dependencies
       run: |
@@ -30,4 +30,4 @@ jobs:
       run: make
 
     - name: Unit Tests
-      run: go test -timeout 999s -v ./...
+      run: go test -timeout 999s ./...

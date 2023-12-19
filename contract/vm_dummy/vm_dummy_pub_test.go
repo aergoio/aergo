@@ -646,7 +646,7 @@ func TestGasBF(t *testing.T) {
 func TestGasLuaCryptoVerifyProof(t *testing.T) {
 	skipNotOnAmd64(t)
 
-	code := readLuaCode(t, "feature_luacryptoverifyproof.lua")
+	code := readLuaCode(t, "feature_crypto_verify_proof.lua")
 
 	// v2 raw
 	err := expectGas(string(code), 0, `"verifyProofRaw"`, ``, 154137, SetHardForkVersion(2))

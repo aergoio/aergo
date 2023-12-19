@@ -24,12 +24,12 @@ import (
 	"github.com/aergoio/aergo/v2/consensus"
 	"github.com/aergoio/aergo/v2/contract/enterprise"
 	"github.com/aergoio/aergo/v2/internal/network"
-	"github.com/aergoio/aergo/v2/message"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/aergoio/aergo/v2/p2p/p2pkey"
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/types"
 	aergorpc "github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/message"
 	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"github.com/opentracing/opentracing-go"
@@ -261,7 +261,7 @@ func (ns *RPC) grpcWebHandlerFunc(grpcWebServer *grpcweb.WrappedGrpcServer, othe
 		if grpcWebServer.IsAcceptableGrpcCorsRequest(r) || grpcWebServer.IsGrpcWebRequest(r) || grpcWebServer.IsGrpcWebSocketRequest(r) {
 			grpcWebServer.ServeHTTP(w, r)
 		} else {
-			ns.Info().Msg("Request handled by other hanlder. is this correct?")
+			ns.Info().Str("proto", r.Proto).Str("host", r.Host).Stringer("uri", r.URL).Str("content_type", r.Header.Get("content-type")).Str("remote_addr", r.RemoteAddr).Msg("Request handled by other handler. is this correct?")
 			otherHandler.ServeHTTP(w, r)
 		}
 	})

@@ -10,11 +10,11 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/v2/internal/enc/proto"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/aergoio/aergo/v2/p2p/p2pmock"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/golang/mock/gomock"
-	"github.com/golang/protobuf/proto"
 )
 
 var samplePeers []p2pcommon.RemotePeer

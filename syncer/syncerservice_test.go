@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo/v2/chain"
-	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/types/message"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -13,11 +13,11 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/v2/chain"
 	"github.com/aergoio/aergo/v2/contract"
-	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/internal/enc/proto"
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/golang/protobuf/proto"
+	"github.com/aergoio/aergo/v2/types/message"
 )
 
 var (
@@ -159,17 +159,9 @@ func (g *BlockGenerator) GatherTXs() ([]types.Transaction, error) {
 	if nCand > 0 {
 		op := NewCompTxOp(checkBGTimeout, g.txOp)
 
-		var preloadTx *types.Tx
 		for i, tx := range txIn {
-			// if not last tx, preload next tx
-			if i != nCand-1 {
-				preloadTx = txIn[i+1].GetTx()
-				contract.RequestPreload(bState, g.bi, preloadTx, tx.GetTx(), contract.BlockFactory)
-			}
 			// process the transaction
 			err := op.Apply(bState, tx)
-			// mark the next preload tx to be executed
-			contract.SetPreloadTx(preloadTx, contract.BlockFactory)
 
 			//don't include tx that error is occurred
 			if e, ok := err.(ErrTimeout); ok {
