@@ -153,7 +153,7 @@ func (e *EVM) TransferFn() vm.TransferFunc {
 		if err != nil {
 			panic("impossible") // FIXME
 		}
-		receipientId := e.bs.EthStateDB.GetId(sender)
+		receipientId := e.bs.EthStateDB.GetId(recipient)
 		receipientAccState, err := state.GetAccountState(receipientId, e.bs)
 		if err != nil {
 			panic("impossible") // FIXME

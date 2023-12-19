@@ -85,7 +85,6 @@ func TestErc20(t *testing.T) {
 	fmt.Println("gas price :", gasPrice.String())
 	fmt.Println("error :", err)
 
-	_ = evm
 }
 
 // utility function for tests
