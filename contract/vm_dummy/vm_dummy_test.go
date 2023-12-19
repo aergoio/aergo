@@ -2644,7 +2644,7 @@ func TestFeatureGovernance(t *testing.T) {
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		defer bc.Release()
 
-		err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo), NewLuaTxDeploy("user1", "gov", 0, code))
+		err = bc.ConnectBlock(NewLuaTxAccount("user1", 40000, types.Aergo), NewLuaTxDeploy("user1", "gov", 0, code))
 		require.NoErrorf(t, err, "failed to deploy")
 
 		amount := types.NewAmount(40000, types.Aergo) // 40,000 aergo
@@ -2777,7 +2777,7 @@ func TestFeaturePcallNested(t *testing.T) {
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
-			NewLuaTxAccount("user1", 1, types.Aergo),
+			NewLuaTxAccount("user1", 10, types.Aergo),
 			NewLuaTxAccount("bong", 0, 0),
 			NewLuaTxDeploy("user1", "pcall", uint64(types.Aergo)*10, code),
 		)

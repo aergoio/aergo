@@ -149,9 +149,9 @@ func SaveRecoveryPoint(bs *state.BlockState) error {
 				if err != nil {
 					return err
 				}
-				receiverChange := types.State(*receiverState)
+				receiverChange := receiverState.Clone()
 				receiverChange.SqlRecoveryPoint = uint64(rp)
-				err = bs.PutState(db.accountID, &receiverChange)
+				err = bs.PutState(db.accountID, receiverChange)
 				if err != nil {
 					return err
 				}

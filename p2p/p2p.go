@@ -17,7 +17,6 @@ import (
 	"github.com/aergoio/aergo/v2/config"
 	"github.com/aergoio/aergo/v2/consensus"
 	"github.com/aergoio/aergo/v2/internal/network"
-	"github.com/aergoio/aergo/v2/message"
 	"github.com/aergoio/aergo/v2/p2p/list"
 	"github.com/aergoio/aergo/v2/p2p/metric"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
@@ -28,6 +27,7 @@ import (
 	"github.com/aergoio/aergo/v2/p2p/transport"
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/message"
 	"github.com/rs/zerolog"
 )
 
