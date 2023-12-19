@@ -93,7 +93,7 @@ func (e *EVM) Call(address common.Address, contract, payload []byte) ([]byte, *b
 		uint64(e.bs.Block().Timestamp),
 		e.gasLimit,
 		e.bs.GasPrice(),
-		big.NewInt(0),
+		big.NewInt(100),
 		queryState,
 	)
 
@@ -159,6 +159,14 @@ func (e *EVM) TransferFn() vm.TransferFunc {
 			panic("impossible") // FIXME
 		}
 		err = state.SendBalance(senderAccState, receipientAccState, amount)
+		if err != nil {
+			panic("impossible") // FIXME
+		}
+		err = senderAccState.PutState()
+		if err != nil {
+			panic("impossible") // FIXME
+		}
+		err = receipientAccState.PutState()
 		if err != nil {
 			panic("impossible") // FIXME
 		}
