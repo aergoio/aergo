@@ -45,7 +45,6 @@ func (sdb *StateDB) GetStateDB() *state.StateDB {
 }
 
 func (sdb *StateDB) PutState(id []byte, addr common.Address, balance *big.Int, nonce uint64, code []byte) {
-	sdb.ethStateDB.SetNonce(addr, nonce)
 	sdb.ethStateDB.SetBalance(addr, balance)
 
 	// id must be 33 bytes
@@ -53,15 +52,19 @@ func (sdb *StateDB) PutState(id []byte, addr common.Address, balance *big.Int, n
 	copy(idWithCode, id)
 	copy(idWithCode[types.AddressLength:], code)
 
-	sdb.ethStateDB.SetCode(addr, idWithCode)
+	if nonce != 0 {
+		sdb.ethStateDB.SetNonce(addr, nonce)
+	}
+	if code != nil {
+		sdb.ethStateDB.SetCode(addr, code)
+	}
 }
 
 func (sdb *StateDB) GetState(addr common.Address) (id []byte, balance *big.Int, nonce uint64, code []byte) {
-	idWithCode := sdb.ethStateDB.GetCode(addr)
+	code = sdb.ethStateDB.GetCode(addr)
 	id = sdb.GetId(addr)
 	balance = sdb.ethStateDB.GetBalance(addr)
 	nonce = sdb.ethStateDB.GetNonce(addr)
-	code = idWithCode[types.AddressLength:]
 	return id, balance, nonce, code
 }
 

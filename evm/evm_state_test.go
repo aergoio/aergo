@@ -8,19 +8,18 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/aergoio/aergo-lib/db"
-	"github.com/aergoio/aergo/v2/contract/system"
 	"github.com/aergoio/aergo/v2/evm/compiled"
 	"github.com/aergoio/aergo/v2/state"
-	"github.com/aergoio/aergo/v2/state/ethdb"
-	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/ethereum/go-ethereum/common"
+	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/require"
 )
 
 var (
-	testBlockState *state.BlockState
+	// testBlockState *state.BlockState
 	blockContext   *types.BlockHeader
+	testChainState *state.ChainStateDB
 )
 
 func initTest(t *testing.T) {
@@ -29,19 +28,15 @@ func initTest(t *testing.T) {
 	}
 
 	os.MkdirAll("test_db/lua", os.ModePerm)
-	luaStore := db.NewDB(db.ImplType(db.BadgerImpl), "test_db/lua")
-	os.MkdirAll("test_db/eth", os.ModePerm)
-	ethStore, _ := ethdb.NewDB("test_db/eth", string(db.BadgerImpl))
 
-	luaState := statedb.NewStateDB(luaStore, nil, false)
-	ethState, _ := ethdb.NewStateDB(nil, ethStore)
-	testBlockState = state.NewBlockState(luaState, ethState, state.SetGasPrice(system.GetGasPrice()), state.SetBlock(blockContext))
+	testChainState = state.NewChainStateDB()
+	testChainState.Init("badgerdb", "test_db", nil, false)
+
 }
 
 func deinitTest(t *testing.T) {
-	testBlockState.LuaStateDB.Store.Close()
-	testBlockState.EthStateDB.GetStateDB().Database().DiskDB().Close()
-	testBlockState = nil
+	testChainState.Close()
+	testChainState = nil
 	os.RemoveAll("test_db")
 }
 
@@ -52,100 +47,186 @@ func TestSendAergo(t *testing.T) {
 	senderId := []byte(types.AergoSystem)
 	receiverId := []byte(types.AergoName)
 
-	accStateSender, err := state.GetAccountState(senderId, testBlockState)
-	require.NoError(t, err)
-	accStateSender.AddBalance(types.NewAmount(100, types.Aergo))
-	err = accStateSender.PutState()
-	require.NoError(t, err)
-
-	accStateReceiver, err := state.GetAccountState(receiverId, testBlockState)
-	require.NoError(t, err)
-
-	bytecode, err := getPayloadDeploy("Send.json")
-	require.NoError(t, err)
-
 	// deploy
-	evm := NewEVM(nil, 10000000, testBlockState)
-	ret, contractAddr, gasPrice, err := evm.Create(accStateSender.EthID(), bytecode)
-	require.NoError(t, err)
-	fmt.Println("contract :", contractAddr)
-	fmt.Println("ret :", string(ret))
-	fmt.Println("gas price :", gasPrice.String())
-	testBlockState.Commit()
+	var contractAddr []byte
+	{
+		bs := testChainState.NewBlockState(nil, nil, state.SetBlock(blockContext))
+		// set sender state
+		accStateSender, err := state.GetAccountState(senderId, bs)
+		require.NoError(t, err)
+		accStateSender.AddBalance(types.NewAmount(100, types.Aergo))
+		err = accStateSender.PutState()
+		require.NoError(t, err)
+		accStateReceiver, err := state.GetAccountState(receiverId, bs)
+		require.NoError(t, err)
+		accStateReceiver.AddBalance(types.NewAmount(100, types.Aergo))
+		err = accStateReceiver.PutState()
+		require.NoError(t, err)
 
-	accStateSender.AddBalance(types.NewAmount(100, types.Aergo))
-	err = accStateSender.PutState()
+		bytecode, err := GetPayloadDeploy("Send.json")
+		require.NoError(t, err)
+		evm := NewEVM(nil, 10000000, bs)
+
+		var ret []byte
+		var gasPrice *big.Int
+		fmt.Println("id :", accStateSender.EthID().Hex())
+		ret, contractAddr, gasPrice, err = evm.Create(accStateSender.EthID(), bytecode)
+		require.NoError(t, err)
+		_ = ret
+		_ = gasPrice
+		var contract common.Address
+		contract.SetBytes(contractAddr)
+
+		// apply
+		err = testChainState.Apply(bs)
+		require.NoError(t, err)
+
+	}
 
 	// call
-	bytecodeCall, err := getPayloadCall("Send.json", "transferEther", accStateReceiver.EthID(), types.NewAmount(1, types.Aergo))
-	require.NoError(t, err)
+	{
+		blockContext.BlockNo = 2
+		bs := testChainState.NewBlockState(nil, nil, state.SetBlock(blockContext))
+		accStateSender, err := state.GetAccountState(senderId, bs)
+		require.NoError(t, err)
+		accStateReceiver, err := state.GetAccountState(receiverId, bs)
+		require.NoError(t, err)
+		fmt.Println("id :", accStateReceiver.EthID().Hex())
 
-	evmCall := NewEVM(nil, 10000000, testBlockState)
-	ret, gasPrice, err = evmCall.Call(accStateSender.EthID(), contractAddr, bytecodeCall)
-	require.NoError(t, err)
-	fmt.Println("ret :", string(ret))
-	fmt.Println("gas price :", gasPrice.String())
+		bytecodeCall, err := GetPayloadCall("Send.json", "transferEther", accStateReceiver.EthID(), types.NewAmount(1, types.Aergo))
+		require.NoError(t, err)
 
-	fmt.Println("new balance sender :", accStateSender.Balance())
-	fmt.Println("new balance receiver :", accStateReceiver.Balance())
+		evmCall := NewEVM(nil, 10000000, bs)
+		ret, gasPrice, err := evmCall.Call(accStateSender.EthID(), contractAddr, bytecodeCall)
+		fmt.Println("err :", err)
+		fmt.Println("ret :", string(ret))
+		fmt.Println("gas price :", gasPrice.String())
+		fmt.Println("new balance sender :", accStateSender.Balance())
+		fmt.Println("new balance receiver :", accStateReceiver.Balance())
 
-	newSenderState, err := state.GetAccountState(senderId, testBlockState)
-	require.NoError(t, err)
-	fmt.Println("\nsender balance :", newSenderState.Balance().String())
+		newSenderState, err := state.GetAccountState(senderId, bs)
+		require.NoError(t, err)
+		fmt.Println("\nsender balance :", newSenderState.Balance().String())
+	}
 }
 
+// id 가 정의되지 않은 address 로 aergo 를 보냈을 경우, address 를 통해 id 를 가져올 수가 없는데, 그럴 때는 어떡하지?
+// 아마 evm 내부에서 code 를 가져올 때 id 를 합쳐서 가져와서 오류가 나는듯. id 를 지워야 함
 func TestHello(t *testing.T) {
 	initTest(t)
 	defer deinitTest(t)
 
 	sender := types.GetSpecialAccountEth([]byte("aergo.system"))
-	data, err := compiled.HelloWorldContract.Data()
+	data, err := GetPayloadDeploy("HelloWorld.json")
 	require.NoError(t, err)
+	fmt.Println("empty :", ethtypes.EmptyRootHash.Bytes())
 
-	evm := NewEVM(nil, 10000000, testBlockState)
+	bs := testChainState.NewBlockState(nil, nil)
+	evm := NewEVM(nil, 10000000, bs)
 	ret, contractAddr, gasPrice, err := evm.Create(sender, data)
 	fmt.Println("contract :", contractAddr)
 	fmt.Println("ret :", string(ret))
 	fmt.Println("gas price :", gasPrice.String())
 	fmt.Println("error :", err)
+
 }
 
-// id 가 정의되지 않은 address 로 aergo 를 보냈을 경우, address 를 통해 id 를 가져올 수가 없는데, 그럴 때는 어떡하지?
+func TestHello2(t *testing.T) {
+	initTest(t)
+	defer deinitTest(t)
+
+	senderId := []byte(types.AergoSystem)
+	receiverId := []byte(types.AergoName)
+
+	// deploy
+	var contractAddr []byte
+	{
+		bs := testChainState.NewBlockState(nil, nil, state.SetBlock(blockContext))
+		// set sender state
+		accStateSender, err := state.GetAccountState(senderId, bs)
+		require.NoError(t, err)
+		accStateSender.AddBalance(types.NewAmount(100, types.Aergo))
+		err = accStateSender.PutState()
+		require.NoError(t, err)
+		accStateReceiver, err := state.GetAccountState(receiverId, bs)
+		require.NoError(t, err)
+		accStateReceiver.AddBalance(types.NewAmount(100, types.Aergo))
+		err = accStateReceiver.PutState()
+		require.NoError(t, err)
+
+		bytecode, err := GetPayloadDeploy("HelloWorld.json")
+		require.NoError(t, err)
+		evm := NewEVM(nil, 1000000, bs)
+
+		var ret []byte
+		var gasPrice *big.Int
+		ret, contractAddr, gasPrice, err = evm.Create(accStateSender.EthID(), bytecode)
+		require.NoError(t, err)
+		_ = ret
+		_ = gasPrice
+		var contract common.Address
+		contract.SetBytes(contractAddr)
+
+		fmt.Println("exist:", bs.EthStateDB.GetStateDB().Exist(accStateSender.EthID()))
+		fmt.Println("bal:", bs.EthStateDB.GetStateDB().GetBalance(accStateSender.EthID()))
+		fmt.Println("nonce:", bs.EthStateDB.GetStateDB().GetNonce(accStateSender.EthID()))
+		fmt.Println("code:", bs.EthStateDB.GetStateDB().GetCode(accStateSender.EthID()))
+
+		fmt.Println("contract code:", bs.EthStateDB.GetStateDB().GetCode(contract))
+		fmt.Println("contract nonce:", bs.EthStateDB.GetStateDB().GetNonce(contract))
+
+		// apply
+		err = testChainState.Apply(bs)
+		require.NoError(t, err)
+	}
+
+	// call
+	{
+		blockContext.BlockNo = 2
+		bs := testChainState.NewBlockState(nil, nil, state.SetBlock(blockContext))
+		accStateSender, err := state.GetAccountState(senderId, bs)
+		require.NoError(t, err)
+		fmt.Println("exist:", bs.EthStateDB.GetStateDB().Exist(accStateSender.EthID()))
+		fmt.Println("nonce:", bs.EthStateDB.GetStateDB().GetNonce(accStateSender.EthID()))
+
+		bytecodeCall, err := GetPayloadCall("HelloWorld.json", "")
+		require.NoError(t, err)
+
+		evmCall := NewEVM(nil, 1000000, bs)
+		ret, gasPrice, err := evmCall.Call(accStateSender.EthID(), contractAddr, bytecodeCall)
+		fmt.Println("err :", err)
+		fmt.Println("ret :", string(ret))
+		fmt.Println("gas price :", gasPrice.String())
+		fmt.Println("new balance sender :", accStateSender.Balance())
+
+	}
+}
+
 func TestErc20(t *testing.T) {
 	initTest(t)
 	defer deinitTest(t)
 
 	sender := types.GetSpecialAccountEth([]byte("aergo.system"))
-
-	data, err := compiled.ERC20Contract.Data(sender, big.NewInt(0))
+	data, err := GetPayloadDeploy("ERC20.json", sender, big.NewInt(0))
 	require.NoError(t, err)
-	// ethtypes.NewTransaction()
-	evm := NewEVM(nil, 10000000, testBlockState)
+
+	bs := testChainState.NewBlockState(nil, nil, state.SetBlock(blockContext))
+	evm := NewEVM(nil, 10000000, bs)
 	ret, contractAddr, gasPrice, err := evm.Create(sender, data)
 	fmt.Println("contract :", contractAddr)
 	fmt.Println("ret :", string(ret))
 	fmt.Println("gas price :", gasPrice.String())
 	fmt.Println("error :", err)
-}
 
-func TestDeploy(t *testing.T) {
-	initTest(t)
-	defer deinitTest(t)
-
-	sender := types.GetSpecialAccountEth([]byte("aergo.system"))
-	data, err := getPayloadDeploy("ERC20.json", sender, big.NewInt(0))
+	err = testChainState.Apply(bs)
 	require.NoError(t, err)
 
-	evm := NewEVM(nil, 10000000, testBlockState)
-	ret, contractAddr, gasPrice, err := evm.Create(sender, data)
-	fmt.Println("contract :", contractAddr)
-	fmt.Println("ret :", string(ret))
-	fmt.Println("gas price :", gasPrice.String())
-	fmt.Println("error :", err)
 }
 
+//---------------------------------------------------------------------------//
 // utility function for tests
-func getPayloadDeploy(fileName string, args ...interface{}) ([]byte, error) {
+
+func GetPayloadDeploy(fileName string, args ...interface{}) ([]byte, error) {
 	_, filename, _, ok := runtime.Caller(0)
 	if ok != true {
 		return nil, fmt.Errorf("failed to get caller info")
@@ -160,10 +241,10 @@ func getPayloadDeploy(fileName string, args ...interface{}) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return contract.Data(args...)
+	return contract.DeployData(args...)
 }
 
-func getPayloadCall(fileName string, funcName string, args ...interface{}) ([]byte, error) {
+func GetPayloadCall(fileName string, funcName string, args ...interface{}) ([]byte, error) {
 	_, filename, _, ok := runtime.Caller(0)
 	if ok != true {
 		return nil, fmt.Errorf("failed to get caller info")

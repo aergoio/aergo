@@ -53,7 +53,6 @@ func (e *EVM) Query(address []byte, contractAddress []byte, payload []byte) ([]b
 	// create evmCfg
 	ethOriginAddress := common.BytesToAddress(address)
 	contractEthAddress := common.BytesToAddress(contractAddress)
-	queryState := e.bs.EthStateDB.GetStateDB().Copy()
 	cfg := NewConfig(
 		e.bs.Block().ChainID,
 		ethOriginAddress,
@@ -63,7 +62,7 @@ func (e *EVM) Query(address []byte, contractAddress []byte, payload []byte) ([]b
 		e.gasLimit,
 		e.bs.GasPrice(),
 		big.NewInt(0),
-		queryState,
+		e.bs.EthStateDB.GetStateDB(),
 	)
 
 	// create call cfg
@@ -84,7 +83,6 @@ func (e *EVM) Call(address common.Address, contract, payload []byte) ([]byte, *b
 
 	// create evmCfg
 	contractEth := common.BytesToAddress(contract)
-	queryState := e.bs.EthStateDB.GetStateDB().Copy()
 	cfg := NewConfig(
 		e.bs.Block().ChainID,
 		address,
@@ -93,8 +91,8 @@ func (e *EVM) Call(address common.Address, contract, payload []byte) ([]byte, *b
 		uint64(e.bs.Block().Timestamp),
 		e.gasLimit,
 		e.bs.GasPrice(),
-		big.NewInt(100),
-		queryState,
+		big.NewInt(0),
+		e.bs.EthStateDB.GetStateDB(),
 	)
 
 	ret, leftOverGas, err := e.call(contractEth, payload, cfg)
@@ -113,7 +111,6 @@ func (e *EVM) Create(sender common.Address, payload []byte) ([]byte, []byte, *bi
 	}
 
 	// create evmCfg
-	queryState := e.bs.EthStateDB.GetStateDB().Copy()
 	cfg := NewConfig(
 		e.bs.Block().ChainID,
 		sender,
@@ -123,7 +120,7 @@ func (e *EVM) Create(sender common.Address, payload []byte) ([]byte, []byte, *bi
 		e.gasLimit,
 		e.bs.GasPrice(),
 		big.NewInt(0),
-		queryState,
+		e.bs.EthStateDB.GetStateDB(),
 	)
 
 	ret, ethContractAddress, leftOverGas, err := e.create(payload, cfg)
@@ -153,11 +150,13 @@ func (e *EVM) TransferFn() vm.TransferFunc {
 		if err != nil {
 			panic("impossible") // FIXME
 		}
+
 		receipientId := e.bs.EthStateDB.GetId(recipient)
 		receipientAccState, err := state.GetAccountState(receipientId, e.bs)
 		if err != nil {
 			panic("impossible") // FIXME
 		}
+
 		err = state.SendBalance(senderAccState, receipientAccState, amount)
 		if err != nil {
 			panic("impossible") // FIXME
