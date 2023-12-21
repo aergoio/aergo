@@ -7,11 +7,11 @@ package subproto
 
 import (
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/v2/internal/enc"
-	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/aergoio/aergo/v2/p2p/p2putil"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/message"
 )
 
 type txRequestHandler struct {
@@ -107,7 +107,7 @@ func (th *newTxNoticeHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.Me
 	hashes := make([]types.TxID, len(data.TxHashes))
 	for i, hash := range data.TxHashes {
 		if tid, err := types.ParseToTxID(hash); err != nil {
-			th.logger.Info().Str(p2putil.LogPeerName, remotePeer.Name()).Str("hash", enc.ToString(hash)).Msg("malformed txhash found")
+			th.logger.Info().Str(p2putil.LogPeerName, remotePeer.Name()).Str("hash", base58.Encode(hash)).Msg("malformed txhash found")
 			// TODO Add penalty score and break
 			break
 		} else {

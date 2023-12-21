@@ -8,10 +8,11 @@ import (
 
 	"github.com/aergoio/aergo/v2/consensus"
 	"github.com/aergoio/aergo/v2/contract/system"
-	"github.com/aergoio/aergo/v2/internal/enc"
-	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/message"
 )
 
 const (
@@ -52,7 +53,7 @@ type ErrReorgBlock struct {
 
 func (ec *ErrReorgBlock) Error() string {
 	if ec.blockHash != nil {
-		return fmt.Sprintf("%s, block:%d,%s", ec.msg, ec.blockNo, enc.ToString(ec.blockHash))
+		return fmt.Sprintf("%s, block:%d,%s", ec.msg, ec.blockNo, base58.Encode(ec.blockHash))
 	} else if ec.blockNo != 0 {
 		return fmt.Sprintf("%s, block:%d", ec.msg, ec.blockNo)
 	} else {
@@ -168,7 +169,7 @@ func (cs *ChainService) reorg(topBlock *types.Block, marker *ReorgMarker) error 
 	}
 
 	cs.stat.updateEvent(ReorgStat, time.Since(begT), reorg.oldBlocks[0], reorg.newBlocks[0], reorg.brStartBlock)
-	systemStateDB, err := cs.SDB().GetSystemAccountState()
+	systemStateDB, err := statedb.GetSystemAccountState(cs.SDB().GetStateDB())
 	system.InitSystemParams(systemStateDB, system.RESET)
 	logger.Info().Msg("reorg end")
 

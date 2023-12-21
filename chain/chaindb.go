@@ -7,7 +7,6 @@ package chain
 
 import (
 	"bytes"
-	"encoding/gob"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,10 +16,11 @@ import (
 	"github.com/aergoio/aergo/v2/config"
 	"github.com/aergoio/aergo/v2/consensus"
 	"github.com/aergoio/aergo/v2/internal/common"
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/internal/enc/gob"
+	"github.com/aergoio/aergo/v2/internal/enc/proto"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/dbkey"
-	"github.com/golang/protobuf/proto"
 )
 
 var (
@@ -45,7 +45,7 @@ func (e ErrNoBlock) Error() string {
 
 	switch id := e.id.(type) {
 	case []byte:
-		idStr = fmt.Sprintf("blockHash=%v", enc.ToString(id))
+		idStr = fmt.Sprintf("blockHash=%v", base58.Encode(id))
 	default:
 		idStr = fmt.Sprintf("blockNo=%v", id)
 	}
@@ -274,7 +274,7 @@ func (cdb *ChainDB) loadData(key []byte, pb proto.Message) error {
 		return fmt.Errorf("failed to load data: key=%v", key)
 	}
 	//logger.Debugf("  loadData: key=%d, len=%d, val=%s\n", Btoi(key), len(buf), enc.ToString(buf))
-	err := proto.Unmarshal(buf, pb)
+	err := proto.Decode(buf, pb)
 	if err != nil {
 		return fmt.Errorf("failed to unmarshal: key=%v, len=%d", key, len(buf))
 	}
@@ -445,7 +445,7 @@ func (cdb *ChainDB) addTxsOfBlock(dbTx *db.Transaction, txs []*types.Tx, blockHa
 
 	for i, txEntry := range txs {
 		if err := cdb.addTx(dbTx, txEntry, blockHash, i); err != nil {
-			logger.Error().Err(err).Str("hash", enc.ToString(blockHash)).Int("txidx", i).
+			logger.Error().Err(err).Str("hash", base58.Encode(blockHash)).Int("txidx", i).
 				Msg("failed to add tx")
 
 			return err
@@ -461,7 +461,7 @@ func (cdb *ChainDB) addTx(dbtx *db.Transaction, tx *types.Tx, blockHash []byte, 
 		BlockHash: blockHash,
 		Idx:       int32(idx),
 	}
-	txidxbytes, err := proto.Marshal(&txidx)
+	txidxbytes, err := proto.Encode(&txidx)
 	if err != nil {
 		return err
 	}
@@ -486,7 +486,7 @@ func (cdb *ChainDB) addBlock(dbtx db.Transaction, block *types.Block) error {
 	// assumption: not an orphan
 	// fork can be here
 	logger.Debug().Uint64("blockNo", blockNo).Msg("add block to db")
-	blockBytes, err := proto.Marshal(block)
+	blockBytes, err := proto.Encode(block)
 	if err != nil {
 		logger.Error().Err(err).Uint64("no", blockNo).Str("hash", block.ID()).Msg("failed to add block")
 		return err
@@ -611,7 +611,7 @@ func (cdb *ChainDB) getTx(txHash []byte) (*types.Tx, *types.TxIdx, error) {
 
 	err := cdb.loadData(txHash, txIdx)
 	if err != nil {
-		return nil, nil, fmt.Errorf("tx not found: txHash=%v", enc.ToString(txHash))
+		return nil, nil, fmt.Errorf("tx not found: txHash=%v", base58.Encode(txHash))
 	}
 	block, err := cdb.getBlock(txIdx.BlockHash)
 	if err != nil {
@@ -622,7 +622,7 @@ func (cdb *ChainDB) getTx(txHash []byte) (*types.Tx, *types.TxIdx, error) {
 		return nil, nil, fmt.Errorf("wrong tx idx: %d", txIdx.Idx)
 	}
 	tx := txs[txIdx.Idx]
-	logger.Debug().Str("hash", enc.ToString(txHash)).Msg("getTx")
+	logger.Debug().Str("hash", base58.Encode(txHash)).Msg("getTx")
 
 	return tx, txIdx, nil
 }
@@ -649,13 +649,10 @@ func (cdb *ChainDB) getReceipts(blockHash []byte, blockNo types.BlockNo,
 	if len(data) == 0 {
 		return nil, errors.New("cannot find a receipt")
 	}
-	var b bytes.Buffer
-	b.Write(data)
 	var receipts types.Receipts
 
 	receipts.SetHardFork(hardForkConfig, blockNo)
-	decoder := gob.NewDecoder(&b)
-	err := decoder.Decode(&receipts)
+	err := gob.Decode(data, &receipts)
 
 	return &receipts, err
 }
@@ -683,9 +680,9 @@ func (cdb *ChainDB) GetChainTree() ([]byte, error) {
 		hash, _ := cdb.getHashByNo(i)
 		tree = append(tree, ChainInfo{
 			Height: i,
-			Hash:   enc.ToString(hash),
+			Hash:   base58.Encode(hash),
 		})
-		logger.Info().Str("hash", enc.ToString(hash)).Msg("GetChainTree")
+		logger.Info().Str("hash", base58.Encode(hash)).Msg("GetChainTree")
 	}
 	jsonBytes, err := json.Marshal(tree)
 	if err != nil {
@@ -698,11 +695,8 @@ func (cdb *ChainDB) writeReceipts(blockHash []byte, blockNo types.BlockNo, recei
 	dbTx := cdb.store.NewTx()
 	defer dbTx.Discard()
 
-	var val bytes.Buffer
-	gobEncoder := gob.NewEncoder(&val)
-	gobEncoder.Encode(receipts)
-
-	dbTx.Set(dbkey.Receipts(blockHash, blockNo), val.Bytes())
+	val, _ := gob.Encode(receipts)
+	dbTx.Set(dbkey.Receipts(blockHash, blockNo), val)
 
 	dbTx.Commit()
 }
@@ -743,10 +737,7 @@ func (cdb *ChainDB) getReorgMarker() (*ReorgMarker, error) {
 	}
 
 	var marker ReorgMarker
-	var b bytes.Buffer
-	b.Write(data)
-	decoder := gob.NewDecoder(&b)
-	err := decoder.Decode(&marker)
+	err := gob.Decode(data, &marker)
 
 	return &marker, err
 }

@@ -3,7 +3,7 @@ package dpos
 import (
 	"testing"
 
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/stretchr/testify/assert"
@@ -50,7 +50,7 @@ func newTestChain(clusterSize uint16) (*testChain, error) {
 	tc := &testChain{
 		chain:         make([]*types.Block, 0),
 		status:        NewStatus(&testCluster{size: clusterSize}, nil, nil, 0),
-		bpid:          enc.ToString(b),
+		bpid:          base58.Encode(b),
 		lpb:           make(map[string]types.BlockNo),
 		bpKey:         bpKey,
 		bpClusterSize: clusterSize,
@@ -74,11 +74,11 @@ func (tc *testChain) setGenesis(block *types.Block) {
 
 func (tc *testChain) addBlock(i types.BlockNo) error {
 	pk := tc.getBpKey(i % types.BlockNo(tc.bpClusterSize))
-	b, err := pk.Bytes()
+	b, err := crypto.MarshalPrivateKey(pk)
 	if err != nil {
 		return err
 	}
-	spk := enc.ToString(b)
+	spk := base58.Encode(b)
 
 	prevBlock := tc.chain[len(tc.chain)-1]
 	block := newBlockFromPrev(prevBlock, 0, types.DummyBlockVersionner(0))

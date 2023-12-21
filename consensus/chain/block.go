@@ -7,11 +7,11 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo/v2/chain"
-	"github.com/aergoio/aergo/v2/internal/enc"
-	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/message"
 )
 
 var (
@@ -124,7 +124,7 @@ func (g *BlockGenerator) Rejected() *RejTxInfo {
 
 // SetTimeoutTx set bState.timeoutTx to tx.
 func (g *BlockGenerator) SetTimeoutTx(tx types.Transaction) {
-	logger.Warn().Str("hash", enc.ToString(tx.GetHash())).Msg("timeout tx marked for eviction")
+	logger.Warn().Str("hash", base58.Encode(tx.GetHash())).Msg("timeout tx marked for eviction")
 	g.bState.SetTimeoutTx(tx)
 }
 
@@ -211,7 +211,7 @@ func ConnectBlock(hs component.ICompSyncRequester, block *types.Block, blockStat
 
 func SyncChain(hs *component.ComponentHub, targetHash []byte, targetNo types.BlockNo, peerID types.PeerID) error {
 	logger.Info().Stringer("peer", types.LogPeerShort(peerID)).Uint64("no", targetNo).
-		Str("hash", enc.ToString(targetHash)).Msg("request to sync for consensus")
+		Str("hash", base58.Encode(targetHash)).Msg("request to sync for consensus")
 
 	notiC := make(chan error)
 	hs.Tell(message.SyncerSvc, &message.SyncStart{PeerID: peerID, TargetNo: targetNo, NotifyC: notiC})
@@ -221,7 +221,7 @@ func SyncChain(hs *component.ComponentHub, targetHash []byte, targetNo types.Blo
 	case err := <-notiC:
 		if err != nil {
 			logger.Error().Err(err).Uint64("no", targetNo).
-				Str("hash", enc.ToString(targetHash)).
+				Str("hash", base58.Encode(targetHash)).
 				Msg("failed to sync")
 
 			return err

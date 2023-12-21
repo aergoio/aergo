@@ -17,9 +17,9 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo/v2/internal/common"
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/internal/enc/proto"
 	"github.com/aergoio/aergo/v2/internal/merkle"
-	"github.com/golang/protobuf/proto"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/minio/sha256-simd"
 )
@@ -452,14 +452,14 @@ func (block *Block) BPID2Str() string {
 		return ""
 	}
 
-	return enc.ToString([]byte(id))
+	return base58.Encode([]byte(id))
 }
 
 // ID returns the base64 encoded formated ID (hash) of block.
 func (block *Block) ID() string {
 	hash := block.BlockHash()
 	if hash != nil {
-		return enc.ToString(hash)
+		return base58.Encode(hash)
 	}
 
 	return ""
@@ -470,7 +470,7 @@ func (block *Block) ID() string {
 func (block *Block) PrevID() string {
 	hash := block.GetHeader().GetPrevBlockHash()
 	if hash != nil {
-		return enc.ToString(hash)
+		return base58.Encode(hash)
 	}
 
 	return ""
@@ -481,7 +481,7 @@ func (block *Block) PrevID() string {
 func (block *Block) setPubKey(pubKey crypto.PubKey) error {
 	var pk []byte
 	var err error
-	if pk, err = pubKey.Bytes(); err != nil {
+	if pk, err = crypto.MarshalPublicKey(pubKey); err != nil {
 		return err
 	}
 	block.Header.PubKey = pk
@@ -559,15 +559,15 @@ func (tx *Tx) Clone() *Tx {
 	}
 	body := &TxBody{
 		Nonce:       tx.Body.Nonce,
-		Account:     Clone(tx.Body.Account).([]byte),
-		Recipient:   Clone(tx.Body.Recipient).([]byte),
-		Amount:      Clone(tx.Body.Amount).([]byte),
-		Payload:     Clone(tx.Body.Payload).([]byte),
+		Account:     tx.Body.Account,
+		Recipient:   tx.Body.Recipient,
+		Amount:      tx.Body.Amount,
+		Payload:     tx.Body.Payload,
 		GasLimit:    tx.Body.GasLimit,
-		GasPrice:    Clone(tx.Body.GasPrice).([]byte),
+		GasPrice:    tx.Body.GasPrice,
 		Type:        tx.Body.Type,
-		ChainIdHash: Clone(tx.Body.ChainIdHash).([]byte),
-		Sign:        Clone(tx.Body.Sign).([]byte),
+		ChainIdHash: tx.Body.ChainIdHash,
+		Sign:        tx.Body.Sign,
 	}
 	res := &Tx{
 		Body: body,

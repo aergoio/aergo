@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-actor/actor"
-	"github.com/aergoio/aergo/v2/message"
 	"github.com/aergoio/aergo/v2/p2p/p2putil"
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/message"
 )
 
 func Test_txPutter_Commit(t *testing.T) {

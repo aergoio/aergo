@@ -18,11 +18,13 @@ import (
 	"github.com/aergoio/aergo/v2/contract"
 	"github.com/aergoio/aergo/v2/contract/name"
 	"github.com/aergoio/aergo/v2/contract/system"
-	"github.com/aergoio/aergo/v2/internal/enc"
-	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/fee"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/internal/enc/proto"
 	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/golang/protobuf/proto"
+	"github.com/aergoio/aergo/v2/types/message"
 )
 
 var (
@@ -55,7 +57,7 @@ type ErrBlock struct {
 }
 
 func (ec *ErrBlock) Error() string {
-	return fmt.Sprintf("Error: %s. block(%s, %d)", ec.err.Error(), enc.ToString(ec.block.Hash), ec.block.No)
+	return fmt.Sprintf("Error: %s. block(%s, %d)", ec.err.Error(), base58.Encode(ec.block.Hash), ec.block.No)
 }
 
 type ErrTx struct {
@@ -64,7 +66,7 @@ type ErrTx struct {
 }
 
 func (ec *ErrTx) Error() string {
-	return fmt.Sprintf("error executing tx:%s, tx=%s", ec.err.Error(), enc.ToString(ec.tx.GetHash()))
+	return fmt.Sprintf("error executing tx:%s, tx=%s", ec.err.Error(), base58.Encode(ec.tx.GetHash()))
 }
 
 func (cs *ChainService) getBestBlockNo() types.BlockNo {
@@ -288,7 +290,7 @@ func (cp *chainProcessor) addBlock(blk *types.Block) error {
 			Uint64("latest", cp.cdb.getBestBlockNo()).
 			Uint64("blockNo", blk.BlockNo()).
 			Str("hash", blk.ID()).
-			Str("prev_hash", enc.ToString(blk.GetHeader().GetPrevBlockHash())).
+			Str("prev_hash", base58.Encode(blk.GetHeader().GetPrevBlockHash())).
 			Msg("block added to the block indices")
 	}
 	cp.lastBlock = blk
@@ -623,7 +625,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 }
 
 // NewTxExecutor returns a new TxExecFn.
-func NewTxExecutor(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb contract.ChainAccessor, bi *types.BlockHeaderInfo, preloadService int) TxExecFn {
+func NewTxExecutor(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb contract.ChainAccessor, bi *types.BlockHeaderInfo, executionMode int) TxExecFn {
 	return func(bState *state.BlockState, tx types.Transaction) error {
 		if bState == nil {
 			logger.Error().Msg("bstate is nil in txExec")
@@ -635,9 +637,9 @@ func NewTxExecutor(execCtx context.Context, ccc consensus.ChainConsensusCluster,
 		}
 		blockSnap := bState.Snapshot()
 
-		err := executeTx(execCtx, ccc, cdb, bState, tx, bi, preloadService)
+		err := executeTx(execCtx, ccc, cdb, bState, tx, bi, executionMode)
 		if err != nil {
-			logger.Error().Err(err).Str("hash", enc.ToString(tx.GetHash())).Msg("tx failed")
+			logger.Error().Err(err).Str("hash", base58.Encode(tx.GetHash())).Msg("tx failed")
 			if err2 := bState.Rollback(blockSnap); err2 != nil {
 				logger.Panic().Err(err).Msg("failed to rollback block state")
 			}
@@ -652,22 +654,14 @@ func (e *blockExecutor) execute() error {
 	// Receipt must be committed unconditionally.
 	if !e.commitOnly {
 		defer contract.CloseDatabase()
-		var preloadTx *types.Tx
-		numTxs := len(e.txs)
-		for i, tx := range e.txs {
-			// if tx is not the last one, preload the next tx
-			if i != numTxs-1 {
-				preloadTx = e.txs[i+1]
-				contract.RequestPreload(e.BlockState, e.bi, preloadTx, tx, contract.ChainService)
-			}
+		logger.Trace().Int("txCount", len(e.txs)).Msg("executing txs")
+		for _, tx := range e.txs {
 			// execute the transaction
 			if err := e.execTx(e.BlockState, types.NewTransaction(tx)); err != nil {
 				//FIXME maybe system error. restart or panic
 				// all txs have executed successfully in BP node
 				return err
 			}
-			// mark the next preload tx to be executed
-			contract.SetPreloadTx(preloadTx, contract.ChainService)
 		}
 
 		if e.validateSignWait != nil {
@@ -869,7 +863,7 @@ func adjustRv(ret string) string {
 	return ret
 }
 
-func resetAccount(account *state.V, fee *big.Int, nonce *uint64) error {
+func resetAccount(account *state.AccountState, fee *big.Int, nonce *uint64) error {
 	account.Reset()
 	if fee != nil {
 		if account.Balance().Cmp(fee) < 0 {
@@ -883,7 +877,7 @@ func resetAccount(account *state.V, fee *big.Int, nonce *uint64) error {
 	return account.PutState()
 }
 
-func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb contract.ChainAccessor, bs *state.BlockState, tx types.Transaction, bi *types.BlockHeaderInfo, preloadService int) error {
+func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb contract.ChainAccessor, bs *state.BlockState, tx types.Transaction, bi *types.BlockHeaderInfo, executionMode int) error {
 	var (
 		txBody    = tx.GetBody()
 		isQuirkTx = types.IsQuirkTx(tx.GetHash())
@@ -909,7 +903,7 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 		return err
 	}
 
-	sender, err := bs.GetAccountStateV(account)
+	sender, err := state.GetAccountState(account, bs.StateDB)
 	if err != nil {
 		return err
 	}
@@ -922,16 +916,16 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 	if recipient, err = name.Resolve(bs, txBody.Recipient, isQuirkTx); err != nil {
 		return err
 	}
-	var receiver *state.V
+	var receiver *state.AccountState
 	status := "SUCCESS"
 	if len(recipient) > 0 {
-		receiver, err = bs.GetAccountStateV(recipient)
+		receiver, err = state.GetAccountState(recipient, bs.StateDB)
 		if receiver != nil && txBody.Type == types.TxType_REDEPLOY {
 			status = "RECREATED"
 			receiver.SetRedeploy()
 		}
 	} else {
-		receiver, err = bs.CreateAccountStateV(contract.CreateContractID(txBody.Account, txBody.Nonce))
+		receiver, err = state.CreateAccountState(contract.CreateContractID(txBody.Account, txBody.Nonce), bs.StateDB)
 		status = "CREATED"
 	}
 	if err != nil {
@@ -943,26 +937,22 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 	var events []*types.Event
 	switch txBody.Type {
 	case types.TxType_NORMAL, types.TxType_REDEPLOY, types.TxType_TRANSFER, types.TxType_CALL, types.TxType_DEPLOY:
-		rv, events, txFee, err = contract.Execute(execCtx, bs, cdb, tx.GetTx(), sender, receiver, bi, preloadService, false)
+		rv, events, txFee, err = contract.Execute(execCtx, bs, cdb, tx.GetTx(), sender, receiver, bi, executionMode, false)
 		sender.SubBalance(txFee)
 	case types.TxType_GOVERNANCE:
 		txFee = new(big.Int).SetUint64(0)
 		events, err = executeGovernanceTx(ccc, bs, txBody, sender, receiver, bi)
 		if err != nil {
-			logger.Warn().Err(err).Str("txhash", enc.ToString(tx.GetHash())).Msg("governance tx Error")
+			logger.Warn().Err(err).Str("txhash", base58.Encode(tx.GetHash())).Msg("governance tx Error")
 		}
 	case types.TxType_FEEDELEGATION:
-		balance := receiver.Balance()
-		var fee *big.Int
-		fee, err = tx.GetMaxFee(balance, bs.GasPrice, bi.ForkVersion)
+		err = tx.ValidateMaxFee(receiver.Balance(), bs.GasPrice, bi.ForkVersion)
 		if err != nil {
 			return err
 		}
-		if fee.Cmp(balance) > 0 {
-			return types.ErrInsufficientBalance
-		}
-		var contractState *state.ContractState
-		contractState, err = bs.OpenContractState(receiver.AccountID(), receiver.State())
+
+		var contractState *statedb.ContractState
+		contractState, err = statedb.OpenContractState(receiver.ID(), receiver.State(), bs.StateDB)
 		if err != nil {
 			return err
 		}
@@ -970,12 +960,12 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 			tx.GetHash(), txBody.GetAccount(), txBody.GetAmount())
 		if err != nil {
 			if err != types.ErrNotAllowedFeeDelegation {
-				logger.Warn().Err(err).Str("txhash", enc.ToString(tx.GetHash())).Msg("checkFeeDelegation Error")
+				logger.Warn().Err(err).Str("txhash", base58.Encode(tx.GetHash())).Msg("checkFeeDelegation Error")
 				return err
 			}
 			return types.ErrNotAllowedFeeDelegation
 		}
-		rv, events, txFee, err = contract.Execute(execCtx, bs, cdb, tx.GetTx(), sender, receiver, bi, preloadService, true)
+		rv, events, txFee, err = contract.Execute(execCtx, bs, cdb, tx.GetTx(), sender, receiver, bi, executionMode, true)
 		receiver.SubBalance(txFee)
 	}
 
@@ -1035,7 +1025,8 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 	receipt.TxHash = tx.GetHash()
 	receipt.Events = events
 	receipt.FeeDelegation = txBody.Type == types.TxType_FEEDELEGATION
-	receipt.GasUsed = contract.GasUsed(txFee, bs.GasPrice, txBody.Type, bi.ForkVersion)
+	isGovernance := txBody.Type == types.TxType_GOVERNANCE
+	receipt.GasUsed = fee.ReceiptGasUsed(bi.ForkVersion, isGovernance, txFee, bs.GasPrice)
 
 	return bs.AddReceipt(receipt)
 }
@@ -1057,22 +1048,19 @@ func sendRewardCoinbase(bState *state.BlockState, coinbaseAccount []byte) error 
 		return nil
 	}
 
-	receiverID := types.ToAccountID(coinbaseAccount)
-	receiverState, err := bState.GetAccountState(receiverID)
+	// add bp reward to coinbase account
+	coinbaseAccountState, err := state.GetAccountState(coinbaseAccount, bState.StateDB)
 	if err != nil {
 		return err
 	}
-
-	receiverChange := types.State(*receiverState)
-	receiverChange.Balance = new(big.Int).Add(receiverChange.GetBalanceBigInt(), bpReward).Bytes()
-
-	err = bState.PutState(receiverID, &receiverChange)
+	coinbaseAccountState.AddBalance(bpReward)
+	err = coinbaseAccountState.PutState()
 	if err != nil {
 		return err
 	}
 
 	logger.Debug().Str("reward", bpReward.String()).
-		Str("newbalance", receiverChange.GetBalanceBigInt().String()).Msg("send reward to coinbase account")
+		Str("newbalance", coinbaseAccountState.Balance().String()).Msg("send reward to coinbase account")
 
 	return nil
 }

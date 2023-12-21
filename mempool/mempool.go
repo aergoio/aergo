@@ -28,12 +28,13 @@ import (
 	"github.com/aergoio/aergo/v2/contract/system"
 	"github.com/aergoio/aergo/v2/fee"
 	"github.com/aergoio/aergo/v2/internal/common"
-	"github.com/aergoio/aergo/v2/internal/enc"
-	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/internal/enc/proto"
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/golang/protobuf/proto"
+	"github.com/aergoio/aergo/v2/types/message"
 )
 
 const (
@@ -59,7 +60,7 @@ type MemPool struct {
 	sdb           *state.ChainStateDB
 	bestBlockID   types.BlockID
 	bestBlockInfo *types.BlockHeaderInfo
-	stateDB       *state.StateDB
+	stateDB       *statedb.StateDB
 	verifier      *actor.PID
 	orphan        int
 	//cache       map[types.TxID]types.Transaction
@@ -252,7 +253,7 @@ func (mp *MemPool) Receive(context actor.Context) {
 			Err: errs,
 		})
 	case *message.MemPoolDelTx:
-		mp.Info().Str("txhash", enc.ToString(msg.Tx.GetHash())).Msg("remove tx in mempool")
+		mp.Info().Str("txhash", base58.Encode(msg.Tx.GetHash())).Msg("remove tx in mempool")
 		err := mp.removeTx(msg.Tx)
 		context.Respond(&message.MemPoolDelTxRsp{
 			Err: err,
@@ -442,7 +443,11 @@ func (mp *MemPool) setStateDB(block *types.Block) (bool, bool) {
 			} else {
 				mp.isPublic = cid.PublicNet
 				if !mp.isPublic {
-					conf, err := enterprise.GetConf(mp.stateDB, enterprise.AccountWhite)
+					ecs, err := statedb.GetEnterpriseAccountState(mp.stateDB)
+					if err != nil {
+						mp.Warn().Err(err).Msg("failed to get whitelist")
+					}
+					conf, err := enterprise.GetConf(ecs, enterprise.AccountWhite)
 					if err != nil {
 						mp.Warn().Err(err).Msg("failed to init whitelist")
 					}
@@ -451,8 +456,8 @@ func (mp *MemPool) setStateDB(block *types.Block) (bool, bool) {
 			}
 			mp.Debug().Str("Hash", newBlockID.String()).
 				Str("StateRoot", types.ToHashID(stateRoot).String()).
-				Str("chainidhash", enc.ToString(mp.bestChainIdHash)).
-				Str("next chainidhash", enc.ToString(mp.acceptChainIdHash)).
+				Str("chainidhash", base58.Encode(mp.bestChainIdHash)).
+				Str("next chainidhash", base58.Encode(mp.acceptChainIdHash)).
 				Msg("new StateDB opened")
 		} else if !bytes.Equal(mp.stateDB.GetRoot(), stateRoot) {
 			if err := mp.stateDB.SetRoot(stateRoot); err != nil {
@@ -586,7 +591,7 @@ func (mp *MemPool) getNameDest(account []byte, owner bool) []byte {
 		return account
 	}
 
-	scs, err := mp.stateDB.GetNameAccountState()
+	scs, err := statedb.GetNameAccountState(mp.stateDB)
 	if err != nil {
 		mp.Error().Str("for name", string(account)).Msgf("failed to open contract %s", types.AergoName)
 		return nil
@@ -653,18 +658,18 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 			return types.ErrTxInvalidRecipient
 		}
 	case types.TxType_GOVERNANCE:
-		aergoState, err := mp.getAccountState(tx.GetBody().GetRecipient())
+		id := tx.GetBody().GetRecipient()
+		aergoState, err := mp.getAccountState(id)
 		if err != nil {
 			return err
 		}
-		aid := types.ToAccountID(tx.GetBody().GetRecipient())
-		scs, err := mp.stateDB.OpenContractState(aid, aergoState)
+		scs, err := statedb.OpenContractState(id, aergoState, mp.stateDB)
 		if err != nil {
 			return err
 		}
 		switch string(tx.GetBody().GetRecipient()) {
 		case types.AergoSystem:
-			sender, err := mp.stateDB.GetAccountStateV(account)
+			sender, err := state.GetAccountState(account, mp.stateDB)
 			if err != nil {
 				return err
 			}
@@ -676,7 +681,7 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 				return err
 			}
 		case types.AergoName:
-			sender, err := mp.stateDB.GetAccountStateV(account)
+			sender, err := state.GetAccountState(account, mp.stateDB)
 			if err != nil {
 				return err
 			}
@@ -684,11 +689,11 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 				return err
 			}
 		case types.AergoEnterprise:
-			enterprisecs, err := mp.stateDB.GetEnterpriseAccountState()
+			enterprisecs, err := statedb.GetEnterpriseAccountState(mp.stateDB)
 			if err != nil {
 				return err
 			}
-			sender, err := mp.stateDB.GetAccountStateV(account)
+			sender, err := state.GetAccountState(account, mp.stateDB)
 			if err != nil {
 				return err
 			}
@@ -713,13 +718,9 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 		if err != nil {
 			return err
 		}
-		bal := aergoState.GetBalanceBigInt()
-		fee, err := tx.GetMaxFee(bal, system.GetGasPrice(), mp.nextBlockVersion())
+		err = tx.ValidateMaxFee(aergoState.GetBalanceBigInt(), system.GetGasPrice(), mp.nextBlockVersion())
 		if err != nil {
 			return err
-		}
-		if fee.Cmp(bal) > 0 {
-			return types.ErrInsufficientBalance
 		}
 		txBody := tx.GetBody()
 		rsp, err := mp.RequestToFuture(message.ChainSvc,
@@ -794,26 +795,14 @@ func (mp *MemPool) getAccountState(acc []byte) (*types.State, error) {
 		strAcc := aid.String()
 		bal := getBalanceByAccMock(strAcc)
 		nonce := getNonceByAccMock(strAcc)
-		//mp.Error().Str("acc:", strAcc).Int("nonce", int(nonce)).Msg("")
 		return &types.State{Balance: new(big.Int).SetUint64(bal).Bytes(), Nonce: nonce}, nil
 	}
 
 	state, err := mp.stateDB.GetAccountState(types.ToAccountID(acc))
-
 	if err != nil {
-		mp.Fatal().Err(err).Str("sroot", enc.ToString(mp.stateDB.GetRoot())).Msg("failed to get state")
-
-		//FIXME PANIC?
-		//mp.Fatal().Err(err).Msg("failed to get state")
+		mp.Fatal().Err(err).Str("sroot", base58.Encode(mp.stateDB.GetRoot())).Msg("failed to get state")
 		return nil, err
 	}
-	/*
-		if state.Balance == 0 {
-			strAcc := types.EncodeAddress(acc)
-			mp.Info().Str("address", strAcc).Msg("w t f")
-
-		}
-	*/
 	return state, nil
 }
 
@@ -873,7 +862,7 @@ func (mp *MemPool) loadTxs() {
 			break
 		}
 
-		err = proto.Unmarshal(buffer, &buf)
+		err = proto.Decode(buffer, &buf)
 		if err != nil {
 			mp.Error().Err(err).Msg("errr on unmarshalling tx during loading")
 			continue
@@ -916,7 +905,7 @@ Dump:
 
 			var total_data []byte
 			start := time.Now()
-			data, err := proto.Marshal(v.GetTx())
+			data, err := proto.Encode(v.GetTx())
 			if err != nil {
 				mp.Error().Err(err).Msg("Marshal failed")
 				continue
@@ -959,7 +948,7 @@ func (mp *MemPool) removeTx(tx *types.Tx) error {
 	defer mp.Unlock()
 
 	if mp.exist(tx.GetHash()) == nil {
-		mp.Warn().Str("txhash", enc.ToString(tx.GetHash())).Msg("could not find tx to remove")
+		mp.Warn().Str("txhash", base58.Encode(tx.GetHash())).Msg("could not find tx to remove")
 		return types.ErrTxNotFound
 	}
 	acc := tx.GetBody().GetAccount()
@@ -969,7 +958,7 @@ func (mp *MemPool) removeTx(tx *types.Tx) error {
 	}
 	newOrphan, removed := list.RemoveTx(tx)
 	if removed == nil {
-		mp.Error().Str("txhash", enc.ToString(tx.GetHash())).Msg("already removed tx")
+		mp.Error().Str("txhash", base58.Encode(tx.GetHash())).Msg("already removed tx")
 	}
 	mp.orphan += newOrphan
 	mp.releaseMemPoolList(list)

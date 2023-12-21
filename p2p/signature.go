@@ -8,9 +8,9 @@ package p2p
 import (
 	"fmt"
 
+	"github.com/aergoio/aergo/v2/internal/enc/proto"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/golang/protobuf/proto"
 	"github.com/libp2p/go-libp2p-core/crypto"
 )
 
@@ -25,7 +25,7 @@ type defaultMsgSigner struct {
 
 func newDefaultMsgSigner(privKey crypto.PrivKey, pubKey crypto.PubKey, peerID types.PeerID) p2pcommon.MsgSigner {
 	pidBytes := []byte(peerID)
-	pubKeyBytes, _ := pubKey.Bytes()
+	pubKeyBytes, _ := crypto.MarshalPublicKey(pubKey)
 	return &defaultMsgSigner{selfPeerID: peerID, privateKey: privKey, pubKey: pubKey, pidBytes: pidBytes, pubKeyBytes: pubKeyBytes}
 }
 
@@ -33,7 +33,7 @@ func newDefaultMsgSigner(privKey crypto.PrivKey, pubKey crypto.PubKey, peerID ty
 func (pm *defaultMsgSigner) SignMsg(message *types.P2PMessage) error {
 	message.Header.PeerID = pm.pidBytes
 	message.Header.NodePubKey = pm.pubKeyBytes
-	data, err := proto.Marshal(&types.P2PMessage{Header: canonicalizeHeader(message.Header), Data: message.Data})
+	data, err := proto.Encode(&types.P2PMessage{Header: canonicalizeHeader(message.Header), Data: message.Data})
 	if err != nil {
 		return err
 	}
@@ -82,7 +82,7 @@ func (pm *defaultMsgSigner) VerifyMsg(msg *types.P2PMessage, senderID types.Peer
 		}
 	}
 
-	data, _ := proto.Marshal(&types.P2PMessage{Header: canonicalizeHeader(msg.Header), Data: msg.Data})
+	data, _ := proto.Encode(&types.P2PMessage{Header: canonicalizeHeader(msg.Header), Data: msg.Data})
 	return verifyBytes(data, signature, pubKey)
 }
 

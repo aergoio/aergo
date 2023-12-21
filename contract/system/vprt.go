@@ -12,8 +12,8 @@ import (
 	"reflect"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/v2/internal/enc"
-	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/dbkey"
 	rb "github.com/emirpasic/gods/trees/redblacktree"
@@ -611,7 +611,7 @@ func (v *vpr) add(id types.AccountID, addr []byte, power *big.Int) {
 			if vprLogger.IsDebugEnabled() {
 				vprLogger.Debug().
 					Str("op", "add").
-					Str("addr", enc.ToString(addr)).
+					Str("addr", base58.Encode(addr)).
 					Str("orig", lhs.String()).
 					Str("delta", power.String()).
 					Msg("prepare voting power change")
@@ -631,7 +631,7 @@ func (v *vpr) sub(id types.AccountID, addr []byte, power *big.Int) {
 			if vprLogger.IsDebugEnabled() {
 				vprLogger.Debug().
 					Str("op", "sub").
-					Str("addr", enc.ToString(addr)).
+					Str("addr", base58.Encode(addr)).
 					Str("orig", lhs.String()).
 					Str("delta", power.String()).
 					Msg("prepare voting power change")
@@ -641,7 +641,7 @@ func (v *vpr) sub(id types.AccountID, addr []byte, power *big.Int) {
 	)
 }
 
-func (v *vpr) apply(s *state.ContractState) (int, error) {
+func (v *vpr) apply(s *statedb.ContractState) (int, error) {
 	if v == nil || len(v.changes) == 0 {
 		return 0, nil
 	}
@@ -710,7 +710,7 @@ func (v *vpr) pickVotingRewardWinner(seed int64) (types.Address, error) {
 					if vprLogger.IsDebugEnabled() {
 						vprLogger.Debug().
 							Str("total voting power", totalVp.String()).
-							Str("addr", enc.ToString(winner)).
+							Str("addr", base58.Encode(winner)).
 							Msg("pick voting reward winner")
 					}
 

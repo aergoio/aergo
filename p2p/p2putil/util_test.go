@@ -16,13 +16,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/gofrs/uuid"
 	lru "github.com/hashicorp/golang-lru"
-	addrutil "github.com/libp2p/go-addr-util"
 	ma "github.com/multiformats/go-multiaddr"
-	mnet "github.com/multiformats/go-multiaddr-net"
+	mnet "github.com/multiformats/go-multiaddr/net"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -59,7 +58,7 @@ func TestLookupAddress(t *testing.T) {
 }
 
 func TestAddrUtil(t *testing.T) {
-	addrs, err := addrutil.InterfaceAddresses()
+	addrs, err := mnet.InterfaceMultiaddrs()
 	if err != nil {
 		t.Errorf("Test Error: %s", err.Error())
 	}
@@ -111,10 +110,10 @@ func Test_Encode(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			got := enc.ToString(test.in)
+			got := base58.Encode(test.in)
 			assert.Equal(t, test.out, got)
 			if len(test.out) > 0 {
-				gotBytes, err := enc.ToBytes(test.out)
+				gotBytes, err := base58.Decode(test.out)
 				assert.Nil(t, err)
 				assert.Equal(t, test.in, gotBytes)
 			}

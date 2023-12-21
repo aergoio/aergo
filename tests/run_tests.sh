@@ -65,9 +65,8 @@ fi
 echo ""
 echo "starting nodes..."
 start_nodes
-
-# get the current hardfork version
-version=$(../bin/aergocli blockchain | jq .ChainInfo.Chainid.Version | sed 's/"//g')
+# wait the node(s) to be ready, expecting hardfork version 2
+wait_version 2
 
 function set_version() {
   # stop on errors
@@ -87,16 +86,11 @@ function set_version() {
   for config_file in "${config_files[@]}"; do
     sed -i "s/^v$version = \"10000\"$/v$version = \"${block_no}\"/" $config_file
   done
-  # restart the aergo server
+  # restart the aergo nodes
   echo "restarting the aergo nodes..."
   start_nodes
-  # check if it worked
-  new_version=$(../bin/aergocli blockchain | jq .ChainInfo.Chainid.Version | sed 's/"//g')
-  if [ $new_version -ne $version ]; then
-    echo "Failed to change the blockchain version on the server"
-    echo "Desired: $version, Actual: $new_version"
-    exit 1
-  fi
+  # wait the node(s) to be ready, expecting the new hardfork version
+  wait_version $version
   echo "---------------------------------"
   # do not stop on errors
   set +e
