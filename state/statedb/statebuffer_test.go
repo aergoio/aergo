@@ -81,71 +81,71 @@ func TestBufferIndexRollback(t *testing.T) {
 }
 
 func TestBufferRollback(t *testing.T) {
-	stb := NewStateBuffer()
+	stb := newStateBuffer()
 
-	assert.Equal(t, 0, stb.Snapshot())
-	stb.Put(NewValueEntry(k0, []byte{1})) // rev 1: k0=1
-	stb.Put(NewValueEntry(k0, []byte{2})) // rev 2: k0=2
-	stb.Put(NewValueEntry(k0, []byte{3})) // rev 3: k0=3
-	stb.Put(NewValueEntry(k0, []byte{4})) // rev 4: k0=4
-	stb.Put(NewValueEntry(k1, []byte{1})) // rev 5: k0=4, k1=1
-	stb.Put(NewValueEntry(k1, []byte{2})) // rev 6: k0=4, k1=2
-	stb.Put(NewValueEntry(k1, []byte{3})) // rev 7: k0=4, k1=3
+	assert.Equal(t, 0, stb.snapshot())
+	stb.put(newValueEntry(k0, []byte{1})) // rev 1: k0=1
+	stb.put(newValueEntry(k0, []byte{2})) // rev 2: k0=2
+	stb.put(newValueEntry(k0, []byte{3})) // rev 3: k0=3
+	stb.put(newValueEntry(k0, []byte{4})) // rev 4: k0=4
+	stb.put(newValueEntry(k1, []byte{1})) // rev 5: k0=4, k1=1
+	stb.put(newValueEntry(k1, []byte{2})) // rev 6: k0=4, k1=2
+	stb.put(newValueEntry(k1, []byte{3})) // rev 7: k0=4, k1=3
 
 	// snapshot revision 7
-	revision := stb.Snapshot() // 7
-	assert.Equal(t, 7, stb.Snapshot())
+	revision := stb.snapshot() // 7
+	assert.Equal(t, 7, stb.snapshot())
 
-	stb.Put(NewValueEntry(k0, []byte{5})) // rev 8: k0=5, k1=3
-	stb.Put(NewValueEntry(k0, []byte{6})) // rev 9: k0=6, k1=3
-	assert.Equal(t, []byte{6}, stb.Get(k0).Value())
-	assert.Equal(t, []byte{3}, stb.Get(k1).Value())
-	t.Logf("k0: %v, k1: %v", stb.Get(k0).Value(), stb.Get(k1).Value())
+	stb.put(newValueEntry(k0, []byte{5})) // rev 8: k0=5, k1=3
+	stb.put(newValueEntry(k0, []byte{6})) // rev 9: k0=6, k1=3
+	assert.Equal(t, []byte{6}, stb.get(k0).Value())
+	assert.Equal(t, []byte{3}, stb.get(k1).Value())
+	t.Logf("k0: %v, k1: %v", stb.get(k0).Value(), stb.get(k1).Value())
 
 	// rollback to revision 7
-	stb.Rollback(revision)
-	assert.Equal(t, 7, stb.Snapshot())
+	stb.rollback(revision)
+	assert.Equal(t, 7, stb.snapshot())
 
-	assert.Equal(t, []byte{4}, stb.Get(k0).Value())
-	assert.Equal(t, []byte{3}, stb.Get(k1).Value())
-	t.Logf("k0: %v, k1: %v", stb.Get(k0).Value(), stb.Get(k1).Value())
+	assert.Equal(t, []byte{4}, stb.get(k0).Value())
+	assert.Equal(t, []byte{3}, stb.get(k1).Value())
+	t.Logf("k0: %v, k1: %v", stb.get(k0).Value(), stb.get(k1).Value())
 
-	stb.Put(NewValueEntry(k1, []byte{4})) // rev 8: k0=4, k1=4
-	stb.Put(NewValueEntry(k1, []byte{5})) // rev 9: k0=4, k1=5
-	stb.Put(NewValueEntry(k0, []byte{7})) // rev 10: k0=7, k1=5
+	stb.put(newValueEntry(k1, []byte{4})) // rev 8: k0=4, k1=4
+	stb.put(newValueEntry(k1, []byte{5})) // rev 9: k0=4, k1=5
+	stb.put(newValueEntry(k0, []byte{7})) // rev 10: k0=7, k1=5
 
 	// snapshot revision 10
-	revision = stb.Snapshot() // 10
-	assert.Equal(t, 10, stb.Snapshot())
+	revision = stb.snapshot() // 10
+	assert.Equal(t, 10, stb.snapshot())
 
-	stb.Put(NewValueEntry(k0, []byte{8})) // rev 11: k0=8, k1=5
-	stb.Put(NewValueEntry(k1, []byte{6})) // rev 12: k0=8, k1=6
-	assert.Equal(t, []byte{8}, stb.Get(k0).Value())
-	assert.Equal(t, []byte{6}, stb.Get(k1).Value())
-	t.Logf("k0: %v, k1: %v", stb.Get(k0).Value(), stb.Get(k1).Value())
+	stb.put(newValueEntry(k0, []byte{8})) // rev 11: k0=8, k1=5
+	stb.put(newValueEntry(k1, []byte{6})) // rev 12: k0=8, k1=6
+	assert.Equal(t, []byte{8}, stb.get(k0).Value())
+	assert.Equal(t, []byte{6}, stb.get(k1).Value())
+	t.Logf("k0: %v, k1: %v", stb.get(k0).Value(), stb.get(k1).Value())
 
 	// rollback to revision 10
-	stb.Rollback(revision) // 10
-	assert.Equal(t, 10, stb.Snapshot())
+	stb.rollback(revision) // 10
+	assert.Equal(t, 10, stb.snapshot())
 
-	assert.Equal(t, []byte{7}, stb.Get(k0).Value())
-	assert.Equal(t, []byte{5}, stb.Get(k1).Value())
-	t.Logf("k0: %v, k1: %v", stb.Get(k0).Value(), stb.Get(k1).Value())
+	assert.Equal(t, []byte{7}, stb.get(k0).Value())
+	assert.Equal(t, []byte{5}, stb.get(k1).Value())
+	t.Logf("k0: %v, k1: %v", stb.get(k0).Value(), stb.get(k1).Value())
 }
 
 func TestBufferHasKey(t *testing.T) {
-	stb := NewStateBuffer()
-	assert.False(t, stb.Has(k0))
+	stb := newStateBuffer()
+	assert.False(t, stb.has(k0))
 
-	stb.Put(NewValueEntry(k0, []byte{1}))
-	assert.True(t, stb.Has(k0)) // buffer has key
+	stb.put(newValueEntry(k0, []byte{1}))
+	assert.True(t, stb.has(k0)) // buffer has key
 
-	stb.Put(NewValueEntryDelete(k0))
-	assert.True(t, stb.Has(k0)) // buffer has key for ValueEntryDelete
+	stb.put(newValueEntryDelete(k0))
+	assert.True(t, stb.has(k0)) // buffer has key for ValueEntryDelete
 
-	stb.Put(NewValueEntry(k0, []byte{2}))
-	assert.True(t, stb.Has(k0)) // buffer has key
+	stb.put(newValueEntry(k0, []byte{2}))
+	assert.True(t, stb.has(k0)) // buffer has key
 
-	stb.Reset()
-	assert.False(t, stb.Has(k0)) // buffer doesn't have key
+	stb.reset()
+	assert.False(t, stb.has(k0)) // buffer doesn't have key
 }

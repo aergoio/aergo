@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -112,26 +113,26 @@ func TestExcuteFailNameTx(t *testing.T) {
 	assert.Error(t, err, "execute name tx")
 }
 
-func openContractState(t *testing.T, bs *state.BlockState) *state.ContractState {
-	scs, err := state.GetNameAccountState(bs.StateDB)
+func openContractState(t *testing.T, bs *state.BlockState) *statedb.ContractState {
+	scs, err := statedb.GetNameAccountState(bs.StateDB)
 	assert.NoError(t, err, "could not open contract state")
 	return scs
 }
 
-func openSystemContractState(t *testing.T, bs *state.BlockState) *state.ContractState {
-	scs, err := state.GetSystemAccountState(bs.StateDB)
+func openSystemContractState(t *testing.T, bs *state.BlockState) *statedb.ContractState {
+	scs, err := statedb.GetSystemAccountState(bs.StateDB)
 	assert.NoError(t, err, "could not open contract state")
 	return scs
 }
 
-func commitContractState(t *testing.T, bs *state.BlockState, scs *state.ContractState) {
-	state.StageContractState(scs, bs.StateDB)
+func commitContractState(t *testing.T, bs *state.BlockState, scs *statedb.ContractState) {
+	statedb.StageContractState(scs, bs.StateDB)
 	bs.Update()
 	bs.Commit()
 	sdb.UpdateRoot(bs)
 }
 
-func nextBlockContractState(t *testing.T, bs *state.BlockState, scs *state.ContractState) *state.ContractState {
+func nextBlockContractState(t *testing.T, bs *state.BlockState, scs *statedb.ContractState) *statedb.ContractState {
 	commitContractState(t, bs, scs)
 	return openContractState(t, bs)
 }

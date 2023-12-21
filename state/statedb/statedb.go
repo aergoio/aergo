@@ -57,7 +57,7 @@ var (
 // StateDB manages trie of states
 type StateDB struct {
 	lock     sync.RWMutex
-	Buffer   *StateBuffer
+	Buffer   *stateBuffer
 	Cache    *storageCache
 	Trie     *trie.Trie
 	Store    db.DB
@@ -67,7 +67,7 @@ type StateDB struct {
 // NewStateDB craete StateDB instance
 func NewStateDB(dbstore db.DB, root []byte, test bool) *StateDB {
 	sdb := StateDB{
-		Buffer:   NewStateBuffer(),
+		Buffer:   newStateBuffer(),
 		Cache:    newStorageCache(),
 		Trie:     trie.NewTrie(root, common.Hasher, dbstore),
 		Store:    dbstore,
@@ -98,7 +98,7 @@ func (states *StateDB) SetRoot(root []byte) error {
 	// update root node
 	states.Trie.Root = root
 	// reset buffer
-	return states.Buffer.Reset()
+	return states.Buffer.reset()
 }
 
 // LoadCache reads first layer of trie given root hash
@@ -112,7 +112,7 @@ func (states *StateDB) LoadCache(root []byte) error {
 		return err
 	}
 	// reset buffer
-	return states.Buffer.Reset()
+	return states.Buffer.reset()
 }
 
 // Revert rollbacks trie to previous root hash
@@ -134,7 +134,7 @@ func (states *StateDB) Revert(root types.HashID) error {
 	states.Trie.Root = root.Bytes()
 
 	// reset buffer
-	return states.Buffer.Reset()
+	return states.Buffer.reset()
 }
 
 // PutState puts account id and its state into state buffer.
@@ -144,7 +144,7 @@ func (states *StateDB) PutState(id types.AccountID, state *types.State) error {
 	if id == EmptyAccountID {
 		return errPutState
 	}
-	states.Buffer.Put(NewValueEntry(types.HashID(id), state))
+	states.Buffer.put(newValueEntry(types.HashID(id), state))
 	return nil
 }
 
@@ -180,7 +180,7 @@ func (states *StateDB) GetState(id types.AccountID) (*types.State, error) {
 // nil value is returned when there is no state corresponding to account id.
 func (states *StateDB) getState(id types.AccountID) (*types.State, error) {
 	// get state from buffer
-	if entry := states.Buffer.Get(types.HashID(id)); entry != nil {
+	if entry := states.Buffer.get(types.HashID(id)); entry != nil {
 		return entry.Value().(*types.State), nil
 	}
 	// get state from trie
@@ -238,7 +238,7 @@ func (states *StateDB) GetVarAndProof(id []byte, root []byte, compressed bool) (
 	}
 	if isIncluded {
 		value = []byte{}
-		if err := LoadData(states.Store, dbKey, &value); err != nil {
+		if err := loadData(states.Store, dbKey, &value); err != nil {
 			return nil, err
 		}
 		// proofKey and proofVal are only not nil for prooving exclusion with another leaf on the path
@@ -294,14 +294,14 @@ type Snapshot int
 func (states *StateDB) Snapshot() Snapshot {
 	states.lock.RLock()
 	defer states.lock.RUnlock()
-	return Snapshot(states.Buffer.Snapshot())
+	return Snapshot(states.Buffer.snapshot())
 }
 
 // Rollback discards changes of state buffer to revision number
 func (states *StateDB) Rollback(revision Snapshot) error {
 	states.lock.Lock()
 	defer states.lock.Unlock()
-	return states.Buffer.Rollback(int(revision))
+	return states.Buffer.rollback(int(revision))
 }
 
 // Update applies changes of state buffer to trie
@@ -321,25 +321,25 @@ func (states *StateDB) update() error {
 		return err
 	}
 	// export buffer and update to trie
-	if err := states.Buffer.UpdateTrie(states.Trie); err != nil {
+	if err := states.Buffer.updateTrie(states.Trie); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (states *StateDB) updateStorage() error {
-	before := states.Buffer.Snapshot()
+	before := states.Buffer.snapshot()
 	for id, storage := range states.Cache.storages {
 		// update storage
-		if err := storage.Update(); err != nil {
-			states.Buffer.Rollback(before)
+		if err := storage.update(); err != nil {
+			states.Buffer.rollback(before)
 			return err
 		}
 		// update state if storage root changed
-		if storage.IsDirty() {
+		if storage.isDirty() {
 			st, err := states.getState(id)
 			if err != nil {
-				states.Buffer.Rollback(before)
+				states.Buffer.rollback(before)
 				return err
 			}
 			if st == nil {
@@ -347,7 +347,7 @@ func (states *StateDB) updateStorage() error {
 			}
 			// put state with storage root
 			st.StorageRoot = storage.Trie.Root
-			states.Buffer.Put(NewValueEntry(types.HashID(id), st))
+			states.Buffer.put(newValueEntry(types.HashID(id), st))
 		}
 	}
 	return nil
@@ -361,7 +361,7 @@ func (states *StateDB) Commit() error {
 	bulk := states.Store.NewBulk()
 	for _, storage := range states.Cache.storages {
 		// stage changes
-		if err := storage.Stage(bulk); err != nil {
+		if err := storage.stage(bulk); err != nil {
 			bulk.DiscardLast()
 			return err
 		}
@@ -377,13 +377,13 @@ func (states *StateDB) Commit() error {
 func (states *StateDB) stage(txn trie.DbTx) error {
 	// stage trie and buffer
 	states.Trie.StageUpdates(txn)
-	if err := states.Buffer.Stage(txn); err != nil {
+	if err := states.Buffer.stage(txn); err != nil {
 		return err
 	}
 	// set marker
 	states.setMarker(txn)
 	// reset buffer
-	if err := states.Buffer.Reset(); err != nil {
+	if err := states.Buffer.reset(); err != nil {
 		return err
 	}
 	return nil
