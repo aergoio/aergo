@@ -27,90 +27,14 @@ func initTest(t *testing.T) {
 	}
 
 	os.MkdirAll("test_db/lua", os.ModePerm)
-
 	testChainState = state.NewChainStateDB()
 	testChainState.Init("badgerdb", "test_db", nil, false)
-
 }
 
 func deinitTest(t *testing.T) {
 	testChainState.Close()
 	testChainState = nil
 	os.RemoveAll("test_db")
-}
-
-func TestSendAergo(t *testing.T) {
-	initTest(t)
-	defer deinitTest(t)
-
-	senderId := []byte(types.AergoSystem)
-	receiverId := []byte(types.AergoName)
-
-	// deploy
-	var contractAddr []byte
-	{
-		bs := testChainState.NewBlockState(nil, nil, state.SetBlock(blockContext))
-		// set sender state
-		accStateSender, err := state.GetAccountState(senderId, bs)
-		require.NoError(t, err)
-		accStateSender.AddBalance(types.NewAmount(10, types.Aergo))
-		err = accStateSender.PutState()
-		require.NoError(t, err)
-
-		bytecode, err := GetPayloadDeploy("Send.json")
-		require.NoError(t, err)
-		evm := NewEVM(nil, 10000000, bs)
-
-		var ret []byte
-		var gasPrice *big.Int
-		ret, contractAddr, gasPrice, err = evm.Create(accStateSender.EthID(), bytecode)
-		require.NoError(t, err)
-		_ = ret
-		_ = gasPrice
-		var contract common.Address
-		contract.SetBytes(contractAddr)
-
-		// apply
-		err = testChainState.Apply(bs)
-		require.NoError(t, err)
-
-		newSenderState, err := state.GetAccountState(senderId, bs)
-		require.NoError(t, err)
-		fmt.Println("before sender balance   :", newSenderState.Balance().String())
-		newReceiverState, err := state.GetAccountState(receiverId, bs)
-		require.NoError(t, err)
-		fmt.Println("before receiver balance :", newReceiverState.Balance().String())
-		fmt.Println()
-	}
-
-	// call
-	{
-		blockContext.BlockNo = 2
-		bs := testChainState.NewBlockState(nil, nil, state.SetBlock(blockContext))
-		accStateSender, err := state.GetAccountState(senderId, bs)
-		require.NoError(t, err)
-		accStateReceiver, err := state.GetAccountState(receiverId, bs)
-		require.NoError(t, err)
-		bytecodeCall, err := GetPayloadCall("Send.json", "transferAergo", accStateReceiver.EthID(), types.NewAmount(1, types.Aergo))
-		require.NoError(t, err)
-
-		evmCall := NewEVM(nil, 10000000, bs)
-		ret, gasPrice, err := evmCall.Call(accStateSender.EthID(), types.NewAmount(1, types.Aergo), contractAddr, bytecodeCall)
-		require.NoError(t, err)
-		_ = ret
-		_ = gasPrice
-
-		// apply
-		err = testChainState.Apply(bs)
-		require.NoError(t, err)
-
-		newSenderState, err := state.GetAccountState(senderId, bs)
-		require.NoError(t, err)
-		fmt.Println("after sender balance   :", newSenderState.Balance().String())
-		newReceiverState, err := state.GetAccountState(receiverId, bs)
-		require.NoError(t, err)
-		fmt.Println("after receiver balance :", newReceiverState.Balance().String())
-	}
 }
 
 // id 가 정의되지 않은 address 로 aergo 를 보냈을 경우, address 를 통해 id 를 가져올 수가 없는데, 그럴 때는 어떡하지?
@@ -140,11 +64,11 @@ func TestHello(t *testing.T) {
 
 		bytecode, err := GetPayloadDeploy("HelloWorld.json")
 		require.NoError(t, err)
-		evm := NewEVM(nil, 1000000, bs)
+		evm := NewEVM(nil, bs)
 
 		var ret []byte
 		var gasPrice *big.Int
-		ret, contractAddr, gasPrice, err = evm.Create(accStateSender.EthID(), bytecode)
+		ret, contractAddr, gasPrice, err = evm.Create(accStateSender.EthID(), bytecode, 1000000)
 		require.NoError(t, err)
 		_ = ret
 		_ = gasPrice
@@ -166,11 +90,83 @@ func TestHello(t *testing.T) {
 		bytecodeCall, err := GetPayloadCall("HelloWorld.json", "hello")
 		require.NoError(t, err)
 
-		evmCall := NewEVM(nil, 1000000, bs)
-		ret, gasPrice, err := evmCall.Call(accStateSender.EthID(), types.NewAmount(0, types.Aergo), contractAddr, bytecodeCall)
+		evmCall := NewEVM(nil, bs)
+		ret, gasPrice, err := evmCall.Call(accStateSender.EthID(), common.BytesToAddress(contractAddr), bytecodeCall, types.NewAmount(0, types.Aergo), 1000000)
 		require.NoError(t, err)
 		fmt.Println("ret :", string(ret))
 		_ = gasPrice
+	}
+}
+
+func TestSendAergo(t *testing.T) {
+	initTest(t)
+	defer deinitTest(t)
+
+	senderId := []byte(types.AergoSystem)
+	receiverId := []byte(types.AergoName)
+
+	// deploy
+	var contractAddr []byte
+	{
+		bs := testChainState.NewBlockState(nil, nil, state.SetBlock(blockContext))
+		// set sender state
+		accStateSender, err := state.GetAccountState(senderId, bs)
+		require.NoError(t, err)
+		accStateSender.AddBalance(types.NewAmount(10, types.Aergo))
+		err = accStateSender.PutState()
+		require.NoError(t, err)
+
+		bytecode, err := GetPayloadDeploy("Send.json")
+		require.NoError(t, err)
+		evm := NewEVM(nil, bs)
+
+		var ret []byte
+		var gasPrice *big.Int
+		ret, contractAddr, gasPrice, err = evm.Create(accStateSender.EthID(), bytecode, 10000000)
+		require.NoError(t, err)
+		_ = ret
+		_ = gasPrice
+
+		// apply
+		err = testChainState.Apply(bs)
+		require.NoError(t, err)
+
+		newSenderState, err := state.GetAccountState(senderId, bs)
+		require.NoError(t, err)
+		fmt.Println("before sender balance   :", newSenderState.Balance().String())
+		newReceiverState, err := state.GetAccountState(receiverId, bs)
+		require.NoError(t, err)
+		fmt.Println("before receiver balance :", newReceiverState.Balance().String())
+		fmt.Println()
+	}
+
+	// call
+	{
+		blockContext.BlockNo = 2
+		bs := testChainState.NewBlockState(nil, nil, state.SetBlock(blockContext))
+		accStateSender, err := state.GetAccountState(senderId, bs)
+		require.NoError(t, err)
+		accStateReceiver, err := state.GetAccountState(receiverId, bs)
+		require.NoError(t, err)
+		bytecodeCall, err := GetPayloadCall("Send.json", "transferAergo", accStateReceiver.EthID(), types.NewAmount(1, types.Aergo))
+		require.NoError(t, err)
+
+		evmCall := NewEVM(nil, bs)
+		ret, gasPrice, err := evmCall.Call(accStateSender.EthID(), common.BytesToAddress(contractAddr), bytecodeCall, types.NewAmount(1, types.Aergo), 10000000)
+		require.NoError(t, err)
+		_ = ret
+		_ = gasPrice
+
+		// apply
+		err = testChainState.Apply(bs)
+		require.NoError(t, err)
+
+		newSenderState, err := state.GetAccountState(senderId, bs)
+		require.NoError(t, err)
+		fmt.Println("after sender balance    :", newSenderState.Balance().String())
+		newReceiverState, err := state.GetAccountState(receiverId, bs)
+		require.NoError(t, err)
+		fmt.Println("after receiver balance  :", newReceiverState.Balance().String())
 	}
 }
 
@@ -183,8 +179,8 @@ func TestErc20(t *testing.T) {
 	require.NoError(t, err)
 
 	bs := testChainState.NewBlockState(nil, nil, state.SetBlock(blockContext))
-	evm := NewEVM(nil, 10000000, bs)
-	ret, contractAddr, gasPrice, err := evm.Create(sender, data)
+	evm := NewEVM(nil, bs)
+	ret, contractAddr, gasPrice, err := evm.Create(sender, data, 10000000)
 	fmt.Println("contract :", contractAddr)
 	fmt.Println("ret :", string(ret))
 	fmt.Println("gas price :", gasPrice.String())

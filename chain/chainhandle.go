@@ -942,28 +942,24 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 		rv, events, txFee, err = contract.Execute(execCtx, bs, cdb, tx.GetTx(), sender, receiver, bi, executionMode, false)
 		sender.SubBalance(txFee)
 	case types.TxType_EVMDEPLOY:
-		evmService := evm.NewEVM(cdb, txBody.GetGasLimit(), bs)
+		evmService := evm.NewEVM(cdb, bs)
 		logger.Info().Msgf("EVM contract deploy with payload length %d from %s", len(txBody.Payload), sender.EthID().Hex())
 		var contractAddress []byte
-		_, contractAddress, txFee, err = evmService.Create(sender.EthID(), txBody.Payload)
+		_, contractAddress, txFee, err = evmService.Create(sender.EthID(), txBody.GetPayload(), txBody.GetGasLimit())
 		if err != nil {
 			logger.Warn().Err(err).Str("txhash", base58.Encode(tx.GetHash())).Msg("EVM contract deploy failed")
 		} else {
 			logger.Info().Msgf("EVM contract deployed at %s", hex.EncodeToString(contractAddress))
 		}
-
 		sender.SubBalance(txFee)
 	case types.TxType_EVMCALL:
-		contractAddress := txBody.Payload[0:20]
-		payload := txBody.Payload[20:]
-		logger.Info().Msgf("EVM contract call at %s with payload %s from %s", sender.EthID().Hex(), hex.EncodeToString(payload), sender.EthID().Hex())
 		var res []byte
-		evmService := evm.NewEVM(cdb, txBody.GetGasLimit(), bs)
-		res, txFee, err = evmService.Call(sender.EthID(), txBody.GetAmountBigInt(), contractAddress, txBody.Payload)
+		evmService := evm.NewEVM(cdb, bs)
+		res, txFee, err = evmService.Call(sender.EthID(), receiver.EthID(), txBody.GetPayload(), txBody.GetAmountBigInt(), txBody.GetGasLimit())
 		if err != nil {
 			logger.Warn().Err(err).Str("txhash", base58.Encode(tx.GetHash())).Msg("EVM contract call failed")
 		} else {
-			logger.Info().Msgf("EVM contract called at %s with res %s", hex.EncodeToString(contractAddress), hex.EncodeToString(res))
+			logger.Info().Msgf("EVM contract called at %s with res %s", receiver.EthID().Hex(), hex.EncodeToString(res))
 		}
 		sender.SubBalance(txFee)
 	case types.TxType_GOVERNANCE:

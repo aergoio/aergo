@@ -26,15 +26,12 @@ type EVM struct {
 	readonly      bool
 	chainAccessor ChainAccessor
 
-	gasLimit uint64
-
 	bs *state.BlockState
 }
 
-func NewEVM(chainAccessor ChainAccessor, gasLimit uint64, blockState *state.BlockState) *EVM {
+func NewEVM(chainAccessor ChainAccessor, blockState *state.BlockState) *EVM {
 	return &EVM{
 		readonly:      false,
-		gasLimit:      gasLimit,
 		chainAccessor: chainAccessor,
 		bs:            blockState,
 	}
@@ -59,7 +56,7 @@ func (e *EVM) Query(address []byte, contractAddress []byte, payload []byte) ([]b
 		ethdb.GetAddressEth(e.bs.Block().CoinbaseAccount),
 		e.bs.Block().BlockNo,
 		uint64(e.bs.Block().Timestamp),
-		e.gasLimit,
+		0,
 		e.bs.GasPrice(),
 		big.NewInt(0),
 		e.bs.EthStateDB.GetStateDB(),
@@ -76,26 +73,25 @@ func (e *EVM) Query(address []byte, contractAddress []byte, payload []byte) ([]b
 	return ret, feeUsed, nil
 }
 
-func (e *EVM) Call(address common.Address, amount *big.Int, contract, payload []byte) ([]byte, *big.Int, error) {
+func (e *EVM) Call(address, contract common.Address, payload []byte, amount *big.Int, gasLimit uint64) ([]byte, *big.Int, error) {
 	if e.readonly {
 		return nil, nil, errors.New("cannot call on readonly")
 	}
 
 	// create evmCfg
-	contractEth := common.BytesToAddress(contract)
 	cfg := NewConfig(
 		e.bs.Block().ChainID,
 		address,
 		ethdb.GetAddressEth(e.bs.Block().CoinbaseAccount),
 		e.bs.Block().BlockNo,
 		uint64(e.bs.Block().Timestamp),
-		e.gasLimit,
+		gasLimit,
 		e.bs.GasPrice(),
 		amount,
 		e.bs.EthStateDB.GetStateDB(),
 	)
 
-	ret, leftOverGas, err := e.call(contractEth, payload, cfg)
+	ret, leftOverGas, err := e.call(contract, payload, cfg)
 	gasUsed := cfg.GasLimit - leftOverGas
 	feeUsed := fee.CalcFee(cfg.GasPrice, gasUsed)
 
@@ -105,7 +101,7 @@ func (e *EVM) Call(address common.Address, amount *big.Int, contract, payload []
 	return ret, feeUsed, nil
 }
 
-func (e *EVM) Create(sender common.Address, payload []byte) ([]byte, []byte, *big.Int, error) {
+func (e *EVM) Create(sender common.Address, payload []byte, gasLimit uint64) ([]byte, []byte, *big.Int, error) {
 	if e.readonly {
 		return nil, nil, nil, errors.New("cannot create on readonly")
 	}
@@ -117,7 +113,7 @@ func (e *EVM) Create(sender common.Address, payload []byte) ([]byte, []byte, *bi
 		ethdb.GetAddressEth(e.bs.Block().CoinbaseAccount),
 		e.bs.Block().BlockNo,
 		uint64(e.bs.Block().Timestamp),
-		e.gasLimit,
+		gasLimit,
 		e.bs.GasPrice(),
 		big.NewInt(0),
 		e.bs.EthStateDB.GetStateDB(),
