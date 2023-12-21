@@ -99,11 +99,9 @@ func (bs *BlockState) GetEthRoot() []byte {
 }
 
 func (bs *BlockState) Update() error {
-	if bs.LuaStateDB != nil {
-		err := bs.LuaStateDB.Update()
-		if err != nil {
-			return err
-		}
+	err := bs.LuaStateDB.Update()
+	if err != nil {
+		return err
 	}
 	return nil
 }

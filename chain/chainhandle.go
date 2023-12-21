@@ -959,7 +959,7 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 		logger.Info().Msgf("EVM contract call at %s with payload %s from %s", sender.EthID().Hex(), hex.EncodeToString(payload), sender.EthID().Hex())
 		var res []byte
 		evmService := evm.NewEVM(cdb, txBody.GetGasLimit(), bs)
-		res, txFee, err = evmService.Call(sender.EthID(), contractAddress, txBody.Payload)
+		res, txFee, err = evmService.Call(sender.EthID(), txBody.GetAmountBigInt(), contractAddress, txBody.Payload)
 		if err != nil {
 			logger.Warn().Err(err).Str("txhash", base58.Encode(tx.GetHash())).Msg("EVM contract call failed")
 		} else {

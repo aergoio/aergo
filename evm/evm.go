@@ -76,7 +76,7 @@ func (e *EVM) Query(address []byte, contractAddress []byte, payload []byte) ([]b
 	return ret, feeUsed, nil
 }
 
-func (e *EVM) Call(address common.Address, contract, payload []byte) ([]byte, *big.Int, error) {
+func (e *EVM) Call(address common.Address, amount *big.Int, contract, payload []byte) ([]byte, *big.Int, error) {
 	if e.readonly {
 		return nil, nil, errors.New("cannot call on readonly")
 	}
@@ -91,7 +91,7 @@ func (e *EVM) Call(address common.Address, contract, payload []byte) ([]byte, *b
 		uint64(e.bs.Block().Timestamp),
 		e.gasLimit,
 		e.bs.GasPrice(),
-		big.NewInt(0),
+		amount,
 		e.bs.EthStateDB.GetStateDB(),
 	)
 

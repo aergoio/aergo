@@ -9,4 +9,8 @@ contract HelloWorld {
     constructor() {
         greet = "Hello, World!";
     }
+
+    function hello() public view returns (string memory) {
+        return greet;
+    }
 }
