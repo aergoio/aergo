@@ -15,7 +15,6 @@ import (
 
 	"github.com/aergoio/aergo/v2/internal/common"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
-	"github.com/aergoio/aergo/v2/internal/enc/base64"
 	"github.com/aergoio/aergo/v2/rpc"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/jsonrpc"
@@ -65,7 +64,6 @@ func (api *Web3APIv1) NewHandler() {
 
 	if consensus.Type == "raft" {
 		handlerGet["/getEnterpriseConfig"] = api.GetEnterpriseConfig
-		handlerGet["/getConfChangeProgress"] = api.GetConfChangeProgress
 	} else if consensus.Type == "dpos" {
 		handlerGet["/getStaking"] = api.GetStaking
 		handlerGet["/getVotes"] = api.GetVotes
@@ -132,12 +130,11 @@ func (api *Web3APIv1) GetState() (handler http.Handler, ok bool) {
 
 	// Staking, NextAction
 	resultStaking, err := api.rpc.GetStaking(api.request.Context(), &types.AccountAddress{Value: request.Value})
-	if err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
-	}
-	output.Stake = string(resultStaking.GetAmount())
-	if resultStaking.GetWhen() != 0 {
-		output.NextAction = resultStaking.GetWhen() + 86400
+	if err == nil {
+		output.Stake = new(big.Int).SetBytes(resultStaking.GetAmount()).String()
+		if resultStaking.GetWhen() != 0 {
+			output.NextAction = resultStaking.GetWhen() + 86400
+		}
 	}
 
 	// VotingPower
@@ -859,7 +856,7 @@ func (api *Web3APIv1) ListEvents() (handler http.Handler, ok bool) {
 			request.RecentBlockCnt = 10000
 		}
 	} else if Blockfrom == "" && Blockto == "" {
-		request.RecentBlockCnt = 100000
+		request.RecentBlockCnt = 10000
 	}
 
 	result, err := api.rpc.ListEvents(api.request.Context(), request)
@@ -1120,6 +1117,8 @@ func (api *Web3APIv1) GetVotes() (handler http.Handler, ok bool) {
 			return commonResponseHandler(&types.Empty{}, parseErr), true
 		}
 		request.Count = uint32(sizeValue)
+	} else {
+		request.Count = 1
 	}
 
 	result, err := api.rpc.GetVotes(api.request.Context(), request)
@@ -1174,39 +1173,6 @@ func (api *Web3APIv1) GetEnterpriseConfig() (handler http.Handler, ok bool) {
 	}
 
 	output := jsonrpc.ConvEnterpriseConfig(result)
-	return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
-}
-
-func (api *Web3APIv1) GetConfChangeProgress() (handler http.Handler, ok bool) {
-	values, err := url.ParseQuery(api.request.URL.RawQuery)
-	if err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
-	}
-
-	request := &types.SingleBytes{}
-	hash := values.Get("hash")
-	if hash != "" {
-		hashBytes, err := base64.Decode(hash)
-		if err != nil {
-			return commonResponseHandler(&types.Empty{}, err), true
-		}
-		request.Value = hashBytes
-	}
-
-	block, err := api.rpc.GetBlock(api.request.Context(), request)
-	if err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
-	}
-
-	b := make([]byte, 8)
-	binary.LittleEndian.PutUint64(b, block.BlockNo())
-
-	result, err := api.rpc.GetConfChangeProgress(api.request.Context(), &types.SingleBytes{Value: b})
-	if err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
-	}
-
-	output := jsonrpc.ConvConfChangeProgress(result)
 	return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 }
 

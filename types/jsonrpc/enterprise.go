@@ -85,8 +85,8 @@ func ConvEnterpriseConfig(msg *types.EnterpriseConfig) *InOutEnterpriseConfig {
 
 type InOutEnterpriseConfig struct {
 	Key    string   `json:"key,omitempty"`
-	On     bool     `json:"on,omitempty"`
-	Values []string `json:"values,omitempty"`
+	On     bool     `json:"on"`
+	Values []string `json:"values"`
 }
 
 func ConvConfChangeProgress(msg *types.ConfChangeProgress) *InOutConfChangeProgress {

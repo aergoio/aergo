@@ -3,7 +3,6 @@ package jsonrpc
 import (
 	"math/big"
 
-	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/types"
 )
 
@@ -64,7 +63,7 @@ func ConvVote(msg *types.Vote) *InOutVote {
 		return nil
 	}
 	return &InOutVote{
-		Candidate: base58.Encode(msg.Candidate),
+		Candidate: string(msg.Candidate),
 		Amount:    msg.GetAmountBigInt().String(),
 	}
 }
