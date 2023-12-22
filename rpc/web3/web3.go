@@ -49,8 +49,10 @@ func NewWeb3(cfg *config.Config, rpc *rpc.AergoRPCService) *Web3 {
 	mux := http.NewServeMux()
 
 	// swagger
-	mux.HandleFunc("/swagger.yaml", serveSwaggerYAML(cfg))
-	mux.HandleFunc("/swagger", serveSwaggerUI(cfg))
+	if cfg.Web3.SwaggerPath != "" {
+		mux.HandleFunc("/swagger.yaml", serveSwaggerYAML(cfg.Web3.SwaggerPath))
+		mux.HandleFunc("/swagger", serveSwaggerUI(cfg.Web3.SwaggerPath))
+	}
 
 	c := cors.New(cors.Options{
 		AllowedOrigins:   []string{"*"},
@@ -141,9 +143,9 @@ func getPortFromConfig(cfg *config.Config) int {
 	return cfg.Web3.NetServicePort
 }
 
-func serveSwaggerYAML(cfg *config.Config) func(w http.ResponseWriter, r *http.Request) {
+func serveSwaggerYAML(path string) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		yamlContent, err := os.ReadFile(cfg.Web3.SwaggerPath + "swagger.yaml")
+		yamlContent, err := os.ReadFile(path + "swagger.yaml")
 		if err != nil {
 			http.Error(w, "Failed to read YAML file", http.StatusInternalServerError)
 			return
@@ -154,9 +156,9 @@ func serveSwaggerYAML(cfg *config.Config) func(w http.ResponseWriter, r *http.Re
 	}
 }
 
-func serveSwaggerUI(cfg *config.Config) func(w http.ResponseWriter, r *http.Request) {
+func serveSwaggerUI(path string) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		htmlContent, err := os.ReadFile(cfg.Web3.SwaggerPath + "swagger-ui.html")
+		htmlContent, err := os.ReadFile(path + "swagger-ui.html")
 		if err != nil {
 			http.Error(w, "Failed to read HTML file", http.StatusInternalServerError)
 			return
