@@ -233,7 +233,7 @@ allowlegacy = "{{.P2P.AllowLegacy}}"
 [web3]
 netserviceport = {{.Web3.NetServicePort}}
 maxlimit = {{.Web3.MaxLimit}}
-swaggerpath = {{.Web3.SwaggerPath}}
+swaggerpath = "{{.Web3.SwaggerPath}}"
 enable = {{.Web3.Enable}}
 
 [polaris]
