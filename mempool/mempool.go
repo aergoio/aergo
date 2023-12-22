@@ -50,12 +50,22 @@ var (
 	metricInterval   = time.Second
 )
 
+type showCondition int
+
+const (
+	always showCondition = iota // always log metrics by intervals
+	hasAny                      //
+	hasOrphan
+	none
+)
+
 // MemPool is main structure of mempool service
 type MemPool struct {
 	*component.BaseComponent
 
 	sync.RWMutex
-	cfg *cfg.Config
+	cfg        *cfg.Config
+	showMetric showCondition
 
 	sdb           *state.ChainStateDB
 	bestBlockID   types.BlockID
@@ -93,8 +103,9 @@ func NewMemPoolService(cfg *cfg.Config, cs *chain.ChainService) *MemPool {
 	}
 
 	actor := &MemPool{
-		cfg: cfg,
-		sdb: sdb,
+		cfg:        cfg,
+		showMetric: always,
+		sdb:        sdb,
 		//cache:    map[types.TxID]types.Transaction{},
 		cache:    sync.Map{},
 		pool:     map[types.AccountID]*txList{},
@@ -109,7 +120,34 @@ func NewMemPoolService(cfg *cfg.Config, cs *chain.ChainService) *MemPool {
 	} else if cfg.Mempool.FadeoutPeriod > 0 {
 		evictPeriod = time.Duration(cfg.Mempool.FadeoutPeriod) * time.Hour
 	}
+
+	actor.showMetric = initMetricsConfig(cfg.Mempool)
+
 	return actor
+}
+
+func initMetricsConfig(cfg *cfg.MempoolConfig) showCondition {
+	var showMetric showCondition = always
+	// configuring show metrics condition
+	if len(cfg.MetricsCondition) > 0 {
+		switch cfg.MetricsCondition {
+		case "hasAny":
+			showMetric = hasAny
+		case "hasOrphan":
+			showMetric = hasOrphan
+		case "none":
+			showMetric = none
+		case "always":
+			fallthrough
+		default:
+			showMetric = always
+		}
+	} else {
+		if !cfg.ShowMetrics {
+			showMetric = none
+		}
+	}
+	return showMetric
 }
 
 // BeforeStart runs mempool servivce
@@ -168,8 +206,8 @@ func (mp *MemPool) monitor() {
 		select {
 		// Log current counts on mempool
 		case <-showmetric.C:
-			if mp.cfg.Mempool.ShowMetrics {
-				l, o := mp.Size()
+			l, o := mp.Size()
+			if isShowMetrics(mp.showMetric, l, o) {
 				mp.Info().Int("len", l).Int("orphan", o).Int("acc", len(mp.pool)).Msg("mempool metrics")
 			}
 			// Evict old enough transactions
@@ -185,6 +223,22 @@ func (mp *MemPool) monitor() {
 	}
 
 }
+
+func isShowMetrics(showCondition showCondition, txLen int, orphanLen int) bool {
+	switch showCondition {
+	case always:
+		return true
+	case none:
+		return false
+	case hasAny:
+		return txLen > 0
+	case hasOrphan:
+		return orphanLen > 0
+	default:
+		return true
+	}
+}
+
 func (mp *MemPool) evictTransactions() {
 	//startTime := time.Now()
 	//expireTimer := time.NewTimer(evictWorkTimeout)

@@ -113,11 +113,12 @@ type BlockchainConfig struct {
 
 // MempoolConfig defines configurations for mempool service
 type MempoolConfig struct {
-	ShowMetrics    bool   `mapstructure:"showmetrics" description:"show mempool metric periodically"`
-	EnableFadeout  bool   `mapstructure:"enablefadeout" description:"Enable transaction fadeout over timeout period"`
-	FadeoutPeriod  int    `mapstructure:"fadeoutperiod" description:"time period for evict transactions(in hour)"`
-	VerifierNumber int    `mapstructure:"verifiers" description:"number of concurrent verifier"`
-	DumpFilePath   string `mapstructure:"dumpfilepath" description:"file path for recording mempool at process termintation"`
+	ShowMetrics      bool   `mapstructure:"showmetrics" description:"show mempool metric periodically"`
+	MetricsCondition string `mapstructure:"metricscondition" description:"show mempool metric periodically"`
+	EnableFadeout    bool   `mapstructure:"enablefadeout" description:"Enable transaction fadeout over timeout period"`
+	FadeoutPeriod    int    `mapstructure:"fadeoutperiod" description:"time period for evict transactions(in hour)"`
+	VerifierNumber   int    `mapstructure:"verifiers" description:"number of concurrent verifier"`
+	DumpFilePath     string `mapstructure:"dumpfilepath" description:"file path for recording mempool at process terminnation"`
 }
 
 // ConsensusConfig defines configurations for consensus service

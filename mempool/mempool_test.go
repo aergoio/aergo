@@ -768,3 +768,68 @@ func TestMemPool_Unconfirmed(t *testing.T) {
 	req.Nil(err)
 	t.Log(string(b))
 }
+
+func Test_initMetricsConfig(t *testing.T) {
+	type args struct {
+		showMetric      bool
+		metricCondition string
+	}
+	tests := []struct {
+		name string
+		args args
+		want showCondition
+	}{
+		{"legacyTrue", args{true, ""}, always},
+		{"legacyFalse", args{false, ""}, none},
+		{"alwaysTrue", args{true, "always"}, always},
+		{"alwaysFalse", args{false, "always"}, always},
+		{"hasAnyTrue", args{true, "hasAny"}, hasAny},
+		{"hasAnyFalse", args{false, "hasAny"}, hasAny},
+		{"hasOrphanTrue", args{true, "hasOrphan"}, hasOrphan},
+		{"nonFalse", args{false, "none"}, none},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := config.MempoolConfig{ShowMetrics: tt.args.showMetric, MetricsCondition: tt.args.metricCondition}
+			assert.Equalf(t, tt.want, initMetricsConfig(&cfg), "initMetricsConfig(%v)", cfg)
+		})
+	}
+}
+
+func Test_isShowMetrics(t *testing.T) {
+	type args struct {
+		showMetric showCondition
+		txLen      int
+		orphanLen  int
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{"alwaysZero", args{always, 0, 0}, true},
+		{"alwaysLen", args{always, 4, 0}, true},
+		{"alwaysOrphan", args{always, 0, 2}, true}, // actually this situation must not be occurred.
+		{"alwaysBoth", args{always, 4, 1}, true},
+
+		{"hasAnyZero", args{hasAny, 0, 0}, false},
+		{"hasAnyLen", args{hasAny, 4, 0}, true},
+		{"hasAnyOrphan", args{hasAny, 0, 2}, false},
+		{"hasAnyBoth", args{hasAny, 4, 1}, true},
+
+		{"hasOrphanZero", args{hasOrphan, 0, 0}, false},
+		{"hasOrphanLen", args{hasOrphan, 4, 0}, false},
+		{"hasOrphanOrphan", args{hasOrphan, 0, 2}, true},
+		{"hasOrphanBoth", args{hasOrphan, 4, 1}, true},
+
+		{"noneZero", args{none, 0, 0}, false},
+		{"noneLen", args{none, 4, 0}, false},
+		{"noneOrphan", args{none, 0, 2}, false},
+		{"noneBoth", args{none, 4, 1}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equalf(t, tt.want, isShowMetrics(tt.args.showMetric, tt.args.txLen, tt.args.orphanLen), "isShowMetrics(%v, %v, %v)", tt.args.showMetric, tt.args.txLen, tt.args.orphanLen)
+		})
+	}
+}
