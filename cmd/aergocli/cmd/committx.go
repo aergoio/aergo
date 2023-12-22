@@ -8,10 +8,10 @@ package cmd
 import (
 	"context"
 	"errors"
-	"io/ioutil"
+	"os"
 
-	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/jsonrpc"
 	"github.com/spf13/cobra"
 )
 
@@ -50,7 +50,7 @@ func init() {
 
 func execCommitTX(cmd *cobra.Command, args []string) error {
 	if jsonPath != "" {
-		b, readerr := ioutil.ReadFile(jsonPath)
+		b, readerr := os.ReadFile(jsonPath)
 		if readerr != nil {
 			return errors.New("Failed to read --jsontxpath\n" + readerr.Error())
 		}
@@ -59,7 +59,7 @@ func execCommitTX(cmd *cobra.Command, args []string) error {
 
 	if jsonTx != "" {
 		var msg *types.CommitResultList
-		txlist, err := util.ParseBase58Tx([]byte(jsonTx))
+		txlist, err := jsonrpc.ParseBase58Tx([]byte(jsonTx))
 		if err != nil {
 			return errors.New("Failed to parse --jsontx\n" + err.Error())
 		}
@@ -67,7 +67,8 @@ func execCommitTX(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return errors.New("Failed request to aergo server\n" + err.Error())
 		}
-		cmd.Println(util.JSON(msg))
+		res := jsonrpc.ConvCommitResultList(msg)
+		cmd.Println(jsonrpc.MarshalJSON(res))
 	}
 	return nil
 }

@@ -21,6 +21,7 @@ import (
 	"github.com/aergoio/aergo/v2/p2p/p2pkey"
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/rpc"
+	"github.com/aergoio/aergo/v2/rpc/web3"
 	"github.com/aergoio/aergo/v2/syncer"
 	"github.com/spf13/cobra"
 )
@@ -119,13 +120,18 @@ func rootRun(cmd *cobra.Command, args []string) {
 		accountSvc = account.NewAccountService(cfg, chainSvc.SDB())
 	}
 
+	var web3Svr component.IComponent
+	if cfg.Web3.Enable {
+		web3Svr = web3.NewWeb3(cfg, rpcSvc.GetActualServer())
+	}
+
 	// Register services to Hub. Don't need to do nil-check since Register
 	// function skips nil parameters.
 	var verifyOnly = cfg.Blockchain.VerifyOnly || cfg.Blockchain.VerifyBlock != 0
 	if !verifyOnly {
-		compMng.Register(chainSvc, mpoolSvc, rpcSvc, syncSvc, p2pSvc, accountSvc, pmapSvc)
+		compMng.Register(chainSvc, mpoolSvc, rpcSvc, web3Svr, syncSvc, p2pSvc, accountSvc, pmapSvc)
 	} else {
-		compMng.Register(chainSvc, mpoolSvc, rpcSvc)
+		compMng.Register(chainSvc, mpoolSvc, rpcSvc, web3Svr)
 	}
 
 	consensusSvc, err := impl.New(cfg, compMng, chainSvc, p2pSvc, rpcSvc)

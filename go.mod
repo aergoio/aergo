@@ -35,6 +35,7 @@ require (
 	github.com/multiformats/go-multiaddr-dns v0.3.1
 	github.com/opentracing/opentracing-go v1.2.0
 	github.com/pkg/errors v0.9.1
+	github.com/rs/cors v1.7.0
 	github.com/rs/zerolog v1.29.1
 	github.com/sanity-io/litter v1.5.5
 	github.com/soheilhy/cmux v0.1.4
@@ -43,6 +44,7 @@ require (
 	github.com/stretchr/testify v1.8.4
 	github.com/willf/bloom v2.0.3+incompatible
 	golang.org/x/crypto v0.14.0
+	golang.org/x/time v0.5.0
 	google.golang.org/grpc v1.59.0
 	google.golang.org/protobuf v1.31.0
 )
@@ -141,7 +143,6 @@ require (
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.18.0 // indirect
 	github.com/prometheus/procfs v0.6.0 // indirect
-	github.com/rs/cors v1.7.0 // indirect
 	github.com/serialx/hashring v0.0.0-20190515033939-7706f26af194 // indirect
 	github.com/spacemonkeygo/spacelog v0.0.0-20180420211403-2296661a0572 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
@@ -164,7 +165,6 @@ require (
 	golang.org/x/sys v0.13.0 // indirect
 	golang.org/x/term v0.13.0 // indirect
 	golang.org/x/text v0.13.0 // indirect
-	golang.org/x/time v0.3.0 // indirect
 	golang.org/x/tools v0.14.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230822172742-b8732ec3820d // indirect
 	google.golang.org/grpc/examples v0.0.0-20230724170852-2aa261560586 // indirect

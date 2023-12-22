@@ -15,6 +15,7 @@ const (
 type Config struct {
 	BaseConfig `mapstructure:",squash"`
 	RPC        *RPCConfig        `mapstructure:"rpc"`
+	Web3       *Web3Config       `mapstructure:"web3"`
 	P2P        *P2PConfig        `mapstructure:"p2p"`
 	Polaris    *PolarisConfig    `mapstructure:"polaris"`
 	Blockchain *BlockchainConfig `mapstructure:"blockchain"`
@@ -52,6 +53,14 @@ type RPCConfig struct {
 	NSKey       string `mapstructure:"nskey" description:"Private Key file for RPC or REST API"`
 	NSCACert    string `mapstructure:"nscacert" description:"CA Certificate file for RPC or REST API"`
 	NSAllowCORS bool   `mapstructure:"nsallowcors" description:"Allow CORS to RPC or REST API"`
+}
+
+// Web3Config defines configurations for web3 service
+type Web3Config struct {
+	NetServicePort int    `mapstructure:"netserviceport" description:"Web3 service port"`
+	MaxLimit       int    `mapstructure:"maxlimit" description:"Web3 connect linit per second"`
+	SwaggerPath    string `mapstructure:"swaggerpath" description:"Swagger resource file path"`
+	Enable         bool   `mapstructure:"enable" description:"Enable web3"`
 }
 
 // P2PConfig defines configurations for p2p service
@@ -220,6 +229,12 @@ npaddpolarises = [{{range .P2P.NPAddPolarises}}
 ]
 peerrole = "{{.P2P.PeerRole}}"
 allowlegacy = "{{.P2P.AllowLegacy}}"
+
+[web3]
+netserviceport = {{.Web3.NetServicePort}}
+maxlimit = {{.Web3.MaxLimit}}
+swaggerpath = "{{.Web3.SwaggerPath}}"
+enable = {{.Web3.Enable}}
 
 [polaris]
 allowprivate = {{.Polaris.AllowPrivate}}

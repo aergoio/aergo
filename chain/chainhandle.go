@@ -137,6 +137,65 @@ func (cs *ChainService) getReceipt(txHash []byte) (*types.Receipt, error) {
 	return r, nil
 }
 
+func (cs *ChainService) getReceipts(blockHash []byte) (*types.Receipts, error) {
+	block, err := cs.cdb.getBlock(blockHash)
+	blockInMainChain, err := cs.cdb.GetBlockByNo(block.Header.BlockNo)
+	if !bytes.Equal(block.BlockHash(), blockInMainChain.BlockHash()) {
+		return nil, errors.New("cannot find a receipt")
+	}
+
+	receipts, err := cs.cdb.getReceipts(block.BlockHash(), block.GetHeader().BlockNo, cs.cfg.Hardfork)
+	if err != nil {
+		return nil, err
+	}
+
+	for idx, r := range receipts.Get() {
+		r.SetMemoryInfo(blockHash, block.Header.BlockNo, int32(idx))
+
+		r.ContractAddress = types.AddressOrigin(r.ContractAddress)
+
+		for _, tx := range block.GetBody().GetTxs() {
+			if bytes.Equal(r.GetTxHash(), tx.GetHash()) {
+				r.From = tx.GetBody().GetAccount()
+				r.To = tx.GetBody().GetRecipient()
+				break
+			}
+		}
+	}
+
+	return receipts, nil
+}
+
+func (cs *ChainService) getReceiptsByNo(blockNo types.BlockNo) (*types.Receipts, error) {
+	blockInMainChain, err := cs.cdb.GetBlockByNo(blockNo)
+
+	block, err := cs.cdb.getBlock(blockInMainChain.BlockHash())
+	if !bytes.Equal(block.BlockHash(), blockInMainChain.BlockHash()) {
+		return nil, errors.New("cannot find a receipt")
+	}
+
+	receipts, err := cs.cdb.getReceipts(block.BlockHash(), block.GetHeader().BlockNo, cs.cfg.Hardfork)
+	if err != nil {
+		return nil, err
+	}
+
+	for idx, r := range receipts.Get() {
+		r.SetMemoryInfo(blockInMainChain.BlockHash(), blockNo, int32(idx))
+
+		r.ContractAddress = types.AddressOrigin(r.ContractAddress)
+
+		for _, tx := range block.GetBody().GetTxs() {
+			if bytes.Equal(r.GetTxHash(), tx.GetHash()) {
+				r.From = tx.GetBody().GetAccount()
+				r.To = tx.GetBody().GetRecipient()
+				break
+			}
+		}
+	}
+
+	return receipts, nil
+}
+
 func (cs *ChainService) getEvents(events *[]*types.Event, blkNo types.BlockNo, filter *types.FilterInfo,
 	argFilter []types.ArgFilter) uint64 {
 	blkHash, err := cs.cdb.getHashByNo(blkNo)

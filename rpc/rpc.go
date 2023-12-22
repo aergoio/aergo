@@ -137,13 +137,17 @@ func NewRPC(cfg *config.Config, chainAccessor types.ChainAccessor, version strin
 	actualServer.setClientAuth(entConf)
 
 	rpcsvc.httpServer = &http.Server{
-		Handler:        rpcsvc.grpcWebHandlerFunc(grpcWebServer, http.DefaultServeMux),
+		Handler:        rpcsvc.grpcWebHandlerFunc(grpcWebServer, http.DefaultServeMux, actualServer),
 		ReadTimeout:    4 * time.Second,
 		WriteTimeout:   4 * time.Second,
 		MaxHeaderBytes: 1 << 20,
 	}
 
 	return rpcsvc
+}
+
+func (ns *RPC) GetActualServer() *AergoRPCService {
+	return ns.actualServer
 }
 
 func (ns *RPC) SetHub(hub *component.ComponentHub) {
@@ -256,13 +260,21 @@ func (ns *RPC) Receive(context actor.Context) {
 }
 
 // Create HTTP handler that redirects matching grpc-web requests to the grpc-web wrapper.
-func (ns *RPC) grpcWebHandlerFunc(grpcWebServer *grpcweb.WrappedGrpcServer, otherHandler http.Handler) http.Handler {
+func (ns *RPC) grpcWebHandlerFunc(grpcWebServer *grpcweb.WrappedGrpcServer, otherHandler http.Handler, actualServer *AergoRPCService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if grpcWebServer.IsAcceptableGrpcCorsRequest(r) || grpcWebServer.IsGrpcWebRequest(r) || grpcWebServer.IsGrpcWebSocketRequest(r) {
 			grpcWebServer.ServeHTTP(w, r)
 		} else {
 			ns.Info().Str("proto", r.Proto).Str("host", r.Host).Stringer("uri", r.URL).Str("content_type", r.Header.Get("content-type")).Str("remote_addr", r.RemoteAddr).Msg("Request handled by other handler. is this correct?")
 			otherHandler.ServeHTTP(w, r)
+			// handler, ok := restAPIHandler(actualServer, r)
+
+			// if(ok) {
+			// 	handler.ServeHTTP(w, r)
+			// }else{
+			// 	ns.Info().Msg("Request handled by other hanlder. is this correct?")
+			// 	otherHandler.ServeHTTP(w, r)
+			// }
 		}
 	})
 }
