@@ -15,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/core/vm/runtime"
+	"github.com/stretchr/testify/require"
 )
 
 func TestLevelDB(t *testing.T) {
@@ -376,6 +377,7 @@ func TestAddressConversion(t *testing.T) {
 	// 02d9cff15387da27a1df7e8144d3e04133b0aabc2cc5b2830dfb9020b33d897bc4
 	// -> 65ab92e68e2f79d4541367184d3c52b9bf733d0f
 	original, _ := hex.DecodeString("02d9cff15387da27a1df7e8144d3e04133b0aabc2cc5b2830dfb9020b33d897bc4")
-	convertedAddress := key.NewAccountEth(original)
+	convertedAddress, err := key.NewAccountEth(original)
+	require.NoError(t, err)
 	t.Log(convertedAddress.Hex())
 }

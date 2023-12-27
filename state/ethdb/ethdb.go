@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/aergoio/aergo/v2/types/dbkey"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/ethdb"
 )
@@ -47,4 +48,16 @@ func (db *DB) SetEthRoot(root []byte) {
 func (db *DB) GetEthRoot() []byte {
 	root, _ := db.Store.Get(dbkey.EthRootHash())
 	return root
+}
+
+func (db *DB) GetAddrId(addr common.Address) []byte {
+	id, _ := db.Store.Get(dbkey.EthAddress(addr.Bytes()))
+	if len(id) == 0 {
+		return nil
+	}
+	return id
+}
+
+func (db *DB) PutAddrId(addr common.Address, id []byte) {
+	db.Store.Put(dbkey.EthAddress(addr.Bytes()), id)
 }

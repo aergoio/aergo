@@ -1,8 +1,6 @@
 package ethdb
 
 import (
-	"math/big"
-
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -14,6 +12,7 @@ const (
 )
 
 type StateDB struct {
+	db         *DB
 	trieDB     *trie.Database
 	ethStateDB *state.StateDB
 }
@@ -28,6 +27,7 @@ func NewStateDB(root []byte, db *DB) (*StateDB, error) {
 	}
 
 	return &StateDB{
+		db:         db,
 		trieDB:     triedb,
 		ethStateDB: sdb,
 	}, nil
@@ -44,40 +44,36 @@ func (sdb *StateDB) GetStateDB() *state.StateDB {
 	return sdb.ethStateDB
 }
 
-func (sdb *StateDB) PutState(id []byte, addr common.Address, balance *big.Int, nonce uint64, code []byte) {
-	sdb.ethStateDB.SetBalance(addr, balance)
-
-	// id must be 33 bytes
-	idWithCode := make([]byte, types.AddressLength+len(code))
-	copy(idWithCode, id)
-	copy(idWithCode[types.AddressLength:], code)
-
-	if nonce != 0 {
-		sdb.ethStateDB.SetNonce(addr, nonce)
+func (sdb *StateDB) PutState(addr common.Address, state *types.State) {
+	sdb.ethStateDB.SetBalance(addr, state.GetBalanceBigInt())
+	if state.GetNonce() != 0 {
+		sdb.ethStateDB.SetNonce(addr, state.GetNonce())
 	}
-	if code != nil {
-		sdb.ethStateDB.SetCode(addr, code)
+	if state.GetCodeHash() != nil {
+		sdb.ethStateDB.SetCode(addr, state.GetCodeHash())
 	}
 }
 
-func (sdb *StateDB) GetState(addr common.Address) (id []byte, balance *big.Int, nonce uint64, code []byte) {
-	code = sdb.ethStateDB.GetCode(addr)
-	id = sdb.GetId(addr)
-	balance = sdb.ethStateDB.GetBalance(addr)
-	nonce = sdb.ethStateDB.GetNonce(addr)
-	return id, balance, nonce, code
+func (sdb *StateDB) GetState(addr common.Address) (state *types.State) {
+	if !sdb.ethStateDB.Exist(addr) {
+		return nil
+	}
+	code := sdb.ethStateDB.GetCode(addr)
+	balance := sdb.ethStateDB.GetBalance(addr)
+	nonce := sdb.ethStateDB.GetNonce(addr)
+	return &types.State{
+		Balance:  balance.Bytes(),
+		Nonce:    nonce,
+		CodeHash: code,
+	}
+}
+
+func (sdb *StateDB) PutId(addr common.Address, id []byte) {
+	sdb.db.PutAddrId(addr, id)
 }
 
 func (sdb *StateDB) GetId(addr common.Address) []byte {
-	if id := types.GetSpecialAccountEthReverse(addr); id != "" {
-		return []byte(id)
-	}
-
-	idWithCode := sdb.ethStateDB.GetCode(addr)
-	if len(idWithCode) <= types.AddressLength { // FIXME
-		return nil
-	}
-	return idWithCode[:types.AddressLength]
+	return sdb.db.GetAddrId(addr)
 }
 
 func (sdb *StateDB) Root() []byte {

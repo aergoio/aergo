@@ -132,11 +132,14 @@ func (as *AccountState) Reset() {
 }
 
 func (as *AccountState) PutState() error {
-	if err := as.luaStates.PutState(as.aid, as.newState); err != nil {
-		return err
+	if len(as.id) > 0 {
+		if err := as.luaStates.PutState(as.aid, as.newState); err != nil {
+			return err
+		}
 	}
 	if as.ethStates != nil {
-		as.ethStates.PutState(as.id, as.ethId, new(big.Int).SetBytes(as.newState.Balance), as.newState.Nonce, nil)
+		as.ethStates.PutId(as.ethId, as.id)
+		as.ethStates.PutState(as.ethId, as.newState)
 	}
 	return nil
 }
@@ -158,44 +161,71 @@ func CreateAccountState(id []byte, bs *BlockState) (*AccountState, error) {
 }
 
 func GetAccountState(id []byte, bs *BlockState) (*AccountState, error) {
+	var st *types.State
+	var err error
+	var newOne bool
+
 	aid := types.ToAccountID(id)
-	st, err := bs.LuaStateDB.GetState(aid)
+	ethId := ethdb.GetAddressEth(id)
+
+	st, err = bs.LuaStateDB.GetState(aid)
 	if err != nil {
 		return nil, err
 	}
-	ethAccount := ethdb.GetAddressEth(id)
-
 	if st == nil {
+		newOne = true // new address
 		if bs.LuaStateDB.Testmode {
 			amount := new(big.Int).Add(types.StakingMinimum, types.StakingMinimum)
-			return &AccountState{
-				luaStates: bs.LuaStateDB,
-				ethStates: bs.EthStateDB,
-				id:        id,
-				aid:       aid,
-				ethId:     ethAccount,
-				oldState:  &types.State{Balance: amount.Bytes()},
-				newState:  &types.State{Balance: amount.Bytes()},
-				newOne:    true,
-			}, nil
+			st = &types.State{Balance: amount.Bytes()}
+		} else if bs.EthStateDB != nil {
+			// if not exist in lua state db, check eth state db
+			st = bs.EthStateDB.GetState(ethId)
 		}
-		return &AccountState{
-			luaStates: bs.LuaStateDB,
-			ethStates: bs.EthStateDB,
-			id:        id,
-			aid:       aid,
-			ethId:     ethAccount,
-			oldState:  &types.State{},
-			newState:  &types.State{},
-			newOne:    true,
-		}, nil
+		if st == nil {
+			st = &types.State{}
+		}
 	}
 	return &AccountState{
 		luaStates: bs.LuaStateDB,
 		ethStates: bs.EthStateDB,
 		id:        id,
 		aid:       aid,
-		ethId:     ethAccount,
+		ethId:     ethId,
+		oldState:  st,
+		newState:  st.Clone(),
+		newOne:    newOne,
+	}, nil
+}
+
+func GetAccountStateEth(ethId common.Address, bs *BlockState) (*AccountState, error) {
+	id := bs.EthStateDB.GetId(ethId)
+	if len(id) > 0 {
+		aid := types.ToAccountID(id)
+		st, err := bs.LuaStateDB.GetState(aid)
+		if err != nil {
+			return nil, err
+		}
+		return &AccountState{
+			luaStates: bs.LuaStateDB,
+			ethStates: bs.EthStateDB,
+			id:        id,
+			aid:       aid,
+			ethId:     ethId,
+			oldState:  st,
+			newState:  st.Clone(),
+			newOne:    true,
+		}, nil
+	}
+	st := bs.EthStateDB.GetState(ethId)
+	if st == nil {
+		st = &types.State{}
+	}
+	return &AccountState{
+		luaStates: bs.LuaStateDB,
+		ethStates: bs.EthStateDB,
+		id:        nil,
+		aid:       types.AccountID{},
+		ethId:     ethId,
 		oldState:  st,
 		newState:  st.Clone(),
 	}, nil
@@ -213,7 +243,7 @@ func InitAccountState(id []byte, states *statedb.StateDB, ethstates *ethdb.State
 }
 
 func SendBalance(sender, receiver *AccountState, amount *big.Int) error {
-	if sender.AccountID() == receiver.AccountID() {
+	if len(sender.id) > 0 && sender.AccountID() == receiver.AccountID() {
 		return nil
 	}
 	if sender.Balance().Cmp(amount) < 0 {

@@ -4,6 +4,7 @@ package dbkey
 // chain
 const (
 	receiptsPrefix = "r"
+	ethAddrPrefix  = "e"
 )
 
 // metadata

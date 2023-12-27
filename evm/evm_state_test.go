@@ -93,7 +93,7 @@ func TestHello(t *testing.T) {
 		evmCall := NewEVM(nil, bs)
 		ret, gasPrice, err := evmCall.Call(accStateSender.EthID(), common.BytesToAddress(contractAddr), bytecodeCall, types.NewAmount(0, types.Aergo), 1000000)
 		require.NoError(t, err)
-		fmt.Println("ret :", string(ret))
+		fmt.Printf("ret : [%v]\n", string(ret))
 		_ = gasPrice
 	}
 }
@@ -148,11 +148,12 @@ func TestSendAergo(t *testing.T) {
 		require.NoError(t, err)
 		accStateReceiver, err := state.GetAccountState(receiverId, bs)
 		require.NoError(t, err)
+		fmt.Println("receiver id :", accStateReceiver.EthID())
 		bytecodeCall, err := GetPayloadCall("Send.json", "transferAergo", accStateReceiver.EthID(), types.NewAmount(1, types.Aergo))
 		require.NoError(t, err)
 
 		evmCall := NewEVM(nil, bs)
-		ret, gasPrice, err := evmCall.Call(accStateSender.EthID(), common.BytesToAddress(contractAddr), bytecodeCall, types.NewAmount(1, types.Aergo), 10000000)
+		ret, gasPrice, err := evmCall.Call(accStateSender.EthID(), common.BytesToAddress(contractAddr), bytecodeCall, types.NewAmount(2, types.Aergo), 10000000)
 		require.NoError(t, err)
 		_ = ret
 		_ = gasPrice
@@ -167,6 +168,9 @@ func TestSendAergo(t *testing.T) {
 		newReceiverState, err := state.GetAccountState(receiverId, bs)
 		require.NoError(t, err)
 		fmt.Println("after receiver balance  :", newReceiverState.Balance().String())
+		newConotractState, err := state.GetAccountState(contractAddr, bs)
+		require.NoError(t, err)
+		fmt.Println("after contract balance  :", newConotractState.Balance().String())
 	}
 }
 

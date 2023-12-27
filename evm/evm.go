@@ -115,7 +115,7 @@ func (e *EVM) Create(sender common.Address, payload []byte, gasLimit uint64) ([]
 		uint64(e.bs.Block().Timestamp),
 		gasLimit,
 		e.bs.GasPrice(),
-		big.NewInt(0),
+		types.NewZeroAmount(),
 		e.bs.EthStateDB.GetStateDB(),
 	)
 
@@ -141,27 +141,26 @@ func (e *EVM) GetHashFn() vm.GetHashFunc {
 
 func (e *EVM) TransferFn() vm.TransferFunc {
 	return func(db vm.StateDB, sender, recipient common.Address, amount *big.Int) {
-		senderId := e.bs.EthStateDB.GetId(sender)
-		senderAccState, err := state.GetAccountState(senderId, e.bs)
+		senderAccState, err := state.GetAccountStateEth(sender, e.bs)
 		if err != nil {
 			panic("impossible") // FIXME
 		}
 
-		receipientId := e.bs.EthStateDB.GetId(recipient)
-		receipientAccState, err := state.GetAccountState(receipientId, e.bs)
+		recipientAccState, err := state.GetAccountStateEth(recipient, e.bs)
 		if err != nil {
 			panic("impossible") // FIXME
 		}
 
-		err = state.SendBalance(senderAccState, receipientAccState, amount)
+		err = state.SendBalance(senderAccState, recipientAccState, amount)
 		if err != nil {
 			panic("impossible") // FIXME
 		}
+
 		err = senderAccState.PutState()
 		if err != nil {
 			panic("impossible") // FIXME
 		}
-		err = receipientAccState.PutState()
+		err = recipientAccState.PutState()
 		if err != nil {
 			panic("impossible") // FIXME
 		}
@@ -170,8 +169,7 @@ func (e *EVM) TransferFn() vm.TransferFunc {
 
 func (e *EVM) CanTransferFn() vm.CanTransferFunc {
 	return func(sdb vm.StateDB, addr common.Address, amount *big.Int) bool {
-		addrId := e.bs.EthStateDB.GetId(addr)
-		accState, err := state.GetAccountState(addrId, e.bs)
+		accState, err := state.GetAccountStateEth(addr, e.bs)
 		if err != nil {
 			panic("impossible") // FIXME
 		}
