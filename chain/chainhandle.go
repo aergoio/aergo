@@ -139,6 +139,10 @@ func (cs *ChainService) getReceipt(txHash []byte) (*types.Receipt, error) {
 
 func (cs *ChainService) getReceipts(blockHash []byte) (*types.Receipts, error) {
 	block, err := cs.cdb.getBlock(blockHash)
+	if err != nil {
+		return nil, &ErrNoBlock{blockHash}
+	}
+
 	blockInMainChain, err := cs.cdb.GetBlockByNo(block.Header.BlockNo)
 	if !bytes.Equal(block.BlockHash(), blockInMainChain.BlockHash()) {
 		return nil, errors.New("cannot find a receipt")
@@ -168,6 +172,9 @@ func (cs *ChainService) getReceipts(blockHash []byte) (*types.Receipts, error) {
 
 func (cs *ChainService) getReceiptsByNo(blockNo types.BlockNo) (*types.Receipts, error) {
 	blockInMainChain, err := cs.cdb.GetBlockByNo(blockNo)
+	if err != nil {
+		return nil, &ErrNoBlock{blockNo}
+	}
 
 	block, err := cs.cdb.getBlock(blockInMainChain.BlockHash())
 	if !bytes.Equal(block.BlockHash(), blockInMainChain.BlockHash()) {

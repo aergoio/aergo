@@ -132,10 +132,15 @@ func (api *Web3APIv1) GetState() (handler http.Handler, ok bool) {
 	resultStaking, err := api.rpc.GetStaking(api.request.Context(), &types.AccountAddress{Value: request.Value})
 	if err == nil {
 		output.Stake = new(big.Int).SetBytes(resultStaking.GetAmount()).String()
-		if resultStaking.GetWhen() != 0 {
-			output.NextAction = resultStaking.GetWhen() + 86400
+		output.When = resultStaking.GetWhen()
+		if output.When != 0 {
+			output.NextAction = output.When + 86400
 		}
 	}
+	balanceInt := new(big.Int).SetBytes([]byte(output.Balance))
+	stakeInt := new(big.Int).SetBytes([]byte(output.Stake))
+	totalInt := new(big.Int).Add(stakeInt, balanceInt)
+	output.Total = totalInt.String()
 
 	// VotingPower
 	resultVotingPower, err := api.rpc.GetAccountVotes(api.request.Context(), &types.AccountAddress{Value: request.Value})
@@ -474,7 +479,13 @@ func (api *Web3APIv1) ListBlockHeaders() (handler http.Handler, ok bool) {
 
 	result, err := api.rpc.ListBlockHeaders(api.request.Context(), request)
 	if err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
+		errStr := err.Error()
+
+		strBlockNo := strings.TrimPrefix(errStr, "block not found: blockNo=")
+		if strBlockNo == errStr {
+			return commonResponseHandler(&types.Empty{}, err), true
+		}
+		return commonResponseHandler(&types.Empty{}, errors.New("rpc error: code = Internal desc = "+errStr)), true
 	}
 
 	output := jsonrpc.ConvBlockHeaderList(result)
@@ -667,7 +678,21 @@ func (api *Web3APIv1) GetReceipts() (handler http.Handler, ok bool) {
 
 	result, err := api.rpc.GetReceipts(api.request.Context(), request)
 	if err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
+		errStr := err.Error()
+
+		strBlockNo := strings.TrimPrefix(errStr, "empty : blockNo=")
+		if strBlockNo == errStr {
+			return commonResponseHandler(&types.Empty{}, err), true
+		}
+
+		blockNo, err := strconv.ParseUint(strBlockNo, 10, 64)
+		if err != nil {
+			return commonResponseHandler(&types.Empty{}, err), true
+		}
+
+		receipts := &jsonrpc.InOutReceipts{}
+		receipts.BlockNo = blockNo
+		return stringResponseHandler(jsonrpc.MarshalJSON(receipts), nil), true
 	}
 
 	output := jsonrpc.ConvReceipts(result)
@@ -1108,6 +1133,8 @@ func (api *Web3APIv1) GetVotes() (handler http.Handler, ok bool) {
 	id := values.Get("id")
 	if id != "" {
 		request.Id = id
+	} else {
+		request.Id = types.OpvoteBP.Cmd()
 	}
 
 	count := values.Get("count")
@@ -1126,7 +1153,7 @@ func (api *Web3APIv1) GetVotes() (handler http.Handler, ok bool) {
 		return commonResponseHandler(&types.Empty{}, err), true
 	}
 
-	output := jsonrpc.ConvVotes(result)
+	output := jsonrpc.ConvVotes(result, id)
 	return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 }
 

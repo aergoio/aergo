@@ -47,6 +47,11 @@ func ConvState(msg *types.State) *InOutState {
 	s := &InOutState{}
 	s.Nonce = msg.GetNonce()
 	s.Balance = new(big.Int).SetBytes(msg.GetBalance()).String()
+	if len(msg.GetCodeHash()) > 0 {
+		s.IsContract = true
+	} else {
+		s.IsContract = false
+	}
 
 	return s
 }
@@ -56,8 +61,11 @@ type InOutState struct {
 	Balance     string `json:"balance"`
 	Account     string `json:"account,omitempty"`
 	Stake       string `json:"stake,omitempty"`
+	Total       string `json:"total,omitempty"`
 	VotingPower string `json:"votingpower,omitempty"`
+	When        uint64 `json:"when,omitempty"`
 	NextAction  uint64 `json:"nextaction,omitempty"`
+	IsContract  bool   `json:"isContract"`
 }
 
 func ConvStateAndPoof(msg *types.AccountProof) *InOutStateAndPoof {
