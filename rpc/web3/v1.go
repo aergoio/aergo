@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/aergoio/aergo/v2/contract/system"
 	"github.com/aergoio/aergo/v2/internal/common"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/rpc"
@@ -141,7 +142,7 @@ func (api *Web3APIv1) GetState() (handler http.Handler, ok bool) {
 	stakeInt := new(big.Int).SetBytes([]byte(output.Stake))
 	totalInt := new(big.Int).Add(stakeInt, balanceInt)
 	output.Total = totalInt.String()
-	
+
 	// VotingPower
 	resultVotingPower, err := api.rpc.GetAccountVotes(api.request.Context(), &types.AccountAddress{Value: request.Value})
 	if err == nil && resultVotingPower.Voting != nil {
@@ -1133,8 +1134,6 @@ func (api *Web3APIv1) GetVotes() (handler http.Handler, ok bool) {
 	id := values.Get("id")
 	if id != "" {
 		request.Id = id
-	} else {
-		request.Id = types.OpvoteBP.Cmd()
 	}
 
 	count := values.Get("count")
@@ -1145,15 +1144,31 @@ func (api *Web3APIv1) GetVotes() (handler http.Handler, ok bool) {
 		}
 		request.Count = uint32(sizeValue)
 	} else {
-		request.Count = 1
+		request.Count = 0
 	}
 
-	result, err := api.rpc.GetVotes(api.request.Context(), request)
-	if err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
+	output := &jsonrpc.InOutVotes{}
+	if id == "" {
+		request.Id = types.OpvoteBP.ID()
+
+		for _, i := range system.GetVotingCatalog() {
+			id := i.ID()
+
+			if id != "" {
+				result, _ := api.rpc.GetVotes(api.request.Context(), request)
+				subOutput := jsonrpc.ConvVotes(result, id)
+				output.Votes = append(output.Votes, subOutput.Votes...)
+			}
+		}
+	} else {
+		result, err := api.rpc.GetVotes(api.request.Context(), request)
+		if err != nil {
+			return commonResponseHandler(&types.Empty{}, err), true
+		}
+
+		output = jsonrpc.ConvVotes(result, id)
 	}
 
-	output := jsonrpc.ConvVotes(result, id)
 	return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 }
 
