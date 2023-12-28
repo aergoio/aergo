@@ -69,7 +69,7 @@ func ConvVote(msg *types.Vote, id string) *InOutVote {
 		Amount: msg.GetAmountBigInt().String(),
 	}
 
-	if strings.ToLower(id) == strings.ToLower(types.OpvoteBP.Cmd()) {
+	if strings.ToLower(id) == strings.ToLower(types.OpvoteBP.ID()) {
 		vote.Candidate = base58.Encode(msg.Candidate)
 	} else {
 		vote.Candidate = string(msg.Candidate)

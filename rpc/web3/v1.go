@@ -141,7 +141,7 @@ func (api *Web3APIv1) GetState() (handler http.Handler, ok bool) {
 	stakeInt := new(big.Int).SetBytes([]byte(output.Stake))
 	totalInt := new(big.Int).Add(stakeInt, balanceInt)
 	output.Total = totalInt.String()
-
+	
 	// VotingPower
 	resultVotingPower, err := api.rpc.GetAccountVotes(api.request.Context(), &types.AccountAddress{Value: request.Value})
 	if err == nil && resultVotingPower.Voting != nil {

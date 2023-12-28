@@ -532,7 +532,7 @@ func TestProposalExecute(t *testing.T) {
 	vinfo, err := GetVotes(scs, sender.ID())
 	assert.NoError(t, err, "failed in get vote")
 	t.Log(vinfo)
-	assert.Equal(t, "13", string(vinfo[0].Candidates[0]), "check vote")
+	assert.Equal(t, "13", string(vinfo[1].Candidates[0]), "check vote")
 
 	v, err := getVote(scs, bpCount.Key(), sender.ID())
 	assert.NoError(t, err, "failed in get vote")
