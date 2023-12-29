@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
+	key "github.com/aergoio/aergo/v2/account/key/crypto"
 	"github.com/aergoio/aergo/v2/state/ethdb"
 	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
@@ -139,7 +140,7 @@ func (as *AccountState) PutState() error {
 	}
 	if as.ethStates != nil {
 		as.ethStates.PutId(as.ethId, as.id)
-		as.ethStates.PutState(as.ethId, as.newState)
+		as.ethStates.Put(as.ethId, as.newState)
 	}
 	return nil
 }
@@ -147,7 +148,7 @@ func (as *AccountState) PutState() error {
 //----------------------------------------------------------------------------------------------//
 // global functions
 
-func CreateAccountState(id []byte, bs *BlockState) (*AccountState, error) {
+func CreateContractState(id []byte, nonce uint64, bs *BlockState) (*AccountState, error) {
 	v, err := GetAccountState(id, bs)
 	if err != nil {
 		return nil, err
@@ -155,8 +156,13 @@ func CreateAccountState(id []byte, bs *BlockState) (*AccountState, error) {
 	if !v.newOne {
 		return nil, fmt.Errorf("account(%s) aleardy exists", types.EncodeAddress(v.ID()))
 	}
-	v.newState.SqlRecoveryPoint = 1
-	v.deploy = deployFlag
+	contractAddrLua := key.CreateContractID(id, nonce)
+	ethId, _ := key.NewAccountEth(id)
+	contractAddrEth := key.NewContractEth(ethId, nonce)
+	v.id = contractAddrLua
+	v.aid = types.ToAccountID(v.id)
+	v.ethId = contractAddrEth
+
 	return v, nil
 }
 
@@ -179,7 +185,7 @@ func GetAccountState(id []byte, bs *BlockState) (*AccountState, error) {
 			st = &types.State{Balance: amount.Bytes()}
 		} else if bs.EthStateDB != nil {
 			// if not exist in lua state db, check eth state db
-			st = bs.EthStateDB.GetState(ethId)
+			st = bs.EthStateDB.Get(ethId)
 		}
 		if st == nil {
 			st = &types.State{}
@@ -216,7 +222,7 @@ func GetAccountStateEth(ethId common.Address, bs *BlockState) (*AccountState, er
 			newOne:    true,
 		}, nil
 	}
-	st := bs.EthStateDB.GetState(ethId)
+	st := bs.EthStateDB.Get(ethId)
 	if st == nil {
 		st = &types.State{}
 	}

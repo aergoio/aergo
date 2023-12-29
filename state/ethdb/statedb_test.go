@@ -18,8 +18,8 @@ func TestState(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, sdbOld.Root(), ethtypes.EmptyRootHash.Bytes(), "root mismatch with expect")
-	require.Equal(t, sdbOld.Root(), sdbOld.ethStateDB.IntermediateRoot(false).Bytes(), "root mismatch with IntermediateRoot(false)")
-	require.Equal(t, sdbOld.Root(), sdbOld.ethStateDB.IntermediateRoot(true).Bytes(), "root mismatch with IntermediateRoot(true)")
+	require.Equal(t, sdbOld.Root(), sdbOld.StateDB.IntermediateRoot(false).Bytes(), "root mismatch with IntermediateRoot(false)")
+	require.Equal(t, sdbOld.Root(), sdbOld.StateDB.IntermediateRoot(true).Bytes(), "root mismatch with IntermediateRoot(true)")
 
 	// put and commit
 	addr := common.BigToAddress(big.NewInt(1))
@@ -28,7 +28,7 @@ func TestState(t *testing.T) {
 		Nonce:    0,
 		CodeHash: []byte("code"),
 	}
-	sdbOld.PutState(addr, st)
+	sdbOld.Put(addr, st)
 
 	_, err = sdbOld.Commit(0)
 	require.NoError(t, err)

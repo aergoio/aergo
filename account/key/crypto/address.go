@@ -9,8 +9,10 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"encoding/binary"
+	"strconv"
 
 	"github.com/aergoio/aergo/v2/types"
+	sha256 "github.com/minio/sha256-simd"
 )
 
 // GenerateAddress calculates the raw (not-encoded) address for a private key.
@@ -31,4 +33,12 @@ func GenerateAddress(pubkey *ecdsa.PublicKey) []byte {
 	}
 	binary.Write(addr, binary.LittleEndian, pubkey.X.Bytes())
 	return addr.Bytes() // 33 bytes
+}
+
+func CreateContractID(account []byte, nonce uint64) []byte {
+	h := sha256.New()
+	h.Write(account)
+	h.Write([]byte(strconv.FormatUint(nonce, 10)))
+	recipientHash := h.Sum(nil)                   // byte array with length 32
+	return append([]byte{0x0C}, recipientHash...) // prepend 0x0C to make it same length as account addresses
 }

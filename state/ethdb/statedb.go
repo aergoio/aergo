@@ -12,9 +12,12 @@ const (
 )
 
 type StateDB struct {
-	db         *DB
-	trieDB     *trie.Database
-	ethStateDB *state.StateDB
+	db     *DB
+	trieDB *trie.Database
+	*state.StateDB
+
+	// These maps hold the state id that occurred in this **block**.
+	accountId map[common.Address][]byte
 }
 
 func NewStateDB(root []byte, db *DB) (*StateDB, error) {
@@ -27,40 +30,41 @@ func NewStateDB(root []byte, db *DB) (*StateDB, error) {
 	}
 
 	return &StateDB{
-		db:         db,
-		trieDB:     triedb,
-		ethStateDB: sdb,
+		db:      db,
+		trieDB:  triedb,
+		StateDB: sdb,
 	}, nil
 }
 
 func (sdb *StateDB) Copy() *StateDB {
 	return &StateDB{
-		trieDB:     sdb.trieDB,
-		ethStateDB: sdb.ethStateDB.Copy(),
+		trieDB:  sdb.trieDB,
+		StateDB: sdb.StateDB.Copy(),
 	}
 }
 
 func (sdb *StateDB) GetStateDB() *state.StateDB {
-	return sdb.ethStateDB
+	return sdb.StateDB
 }
 
-func (sdb *StateDB) PutState(addr common.Address, state *types.State) {
-	sdb.ethStateDB.SetBalance(addr, state.GetBalanceBigInt())
+func (sdb *StateDB) Put(addr common.Address, state *types.State) {
+	sdb.StateDB.SetBalance(addr, state.GetBalanceBigInt())
 	if state.GetNonce() != 0 {
-		sdb.ethStateDB.SetNonce(addr, state.GetNonce())
+		sdb.StateDB.SetNonce(addr, state.GetNonce())
 	}
+
 	if state.GetCodeHash() != nil {
-		sdb.ethStateDB.SetCode(addr, state.GetCodeHash())
+		sdb.StateDB.SetCode(addr, state.GetCodeHash())
 	}
 }
 
-func (sdb *StateDB) GetState(addr common.Address) (state *types.State) {
-	if !sdb.ethStateDB.Exist(addr) {
+func (sdb *StateDB) Get(addr common.Address) (state *types.State) {
+	if !sdb.StateDB.Exist(addr) {
 		return nil
 	}
-	code := sdb.ethStateDB.GetCode(addr)
-	balance := sdb.ethStateDB.GetBalance(addr)
-	nonce := sdb.ethStateDB.GetNonce(addr)
+	code := sdb.StateDB.GetCode(addr)
+	balance := sdb.StateDB.GetBalance(addr)
+	nonce := sdb.StateDB.GetNonce(addr)
 	return &types.State{
 		Balance:  balance.Bytes(),
 		Nonce:    nonce,
@@ -77,19 +81,19 @@ func (sdb *StateDB) GetId(addr common.Address) []byte {
 }
 
 func (sdb *StateDB) Root() []byte {
-	return sdb.ethStateDB.IntermediateRoot(false).Bytes()
+	return sdb.StateDB.IntermediateRoot(false).Bytes()
 }
 
 func (sdb *StateDB) Snapshot() int {
-	return sdb.ethStateDB.Snapshot()
+	return sdb.StateDB.Snapshot()
 }
 
 func (sdb *StateDB) Rollback(snapshot int) {
-	sdb.ethStateDB.RevertToSnapshot(snapshot)
+	sdb.StateDB.RevertToSnapshot(snapshot)
 }
 
 func (sdb *StateDB) Commit(blockNo uint64) (root []byte, err error) {
-	newRoot, err := sdb.ethStateDB.Commit(blockNo, false)
+	newRoot, err := sdb.StateDB.Commit(blockNo, false)
 	if err != nil {
 		return nil, err
 	}

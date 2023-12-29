@@ -474,7 +474,7 @@ func executeTx(
 			receiver.SetRedeploy()
 		}
 	} else {
-		receiver, err = state.CreateAccountState(contract.CreateContractID(txBody.Account, txBody.Nonce), bs)
+		receiver, err = state.CreateContractState(txBody.Account, txBody.Nonce, bs)
 		status = "CREATED"
 	}
 	if err != nil {

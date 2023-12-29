@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"math/big"
 	"regexp"
-	"strconv"
 
 	"github.com/aergoio/aergo/v2/fee"
 	"github.com/aergoio/aergo/v2/state"
@@ -158,14 +157,6 @@ func checkExecution(txType types.TxType, amount *big.Int, payloadSize int, versi
 	}
 
 	return true, nil
-}
-
-func CreateContractID(account []byte, nonce uint64) []byte {
-	h := sha256.New()
-	h.Write(account)
-	h.Write([]byte(strconv.FormatUint(nonce, 10)))
-	recipientHash := h.Sum(nil)                   // byte array with length 32
-	return append([]byte{0x0C}, recipientHash...) // prepend 0x0C to make it same length as account addresses
 }
 
 func checkRedeploy(sender, receiver *state.AccountState, contractState *statedb.ContractState) error {

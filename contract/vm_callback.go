@@ -1080,7 +1080,7 @@ func luaDeployContract(
 	// create account for the contract
 	prevContractInfo := ctx.curContract
 	creator := prevContractInfo.callState.accState
-	newContract, err := state.CreateAccountState(CreateContractID(prevContractInfo.contractId, creator.Nonce()), bs)
+	newContract, err := state.CreateContractState(prevContractInfo.contractId, creator.Nonce(), bs)
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDeployContract]:" + err.Error())
 	}
