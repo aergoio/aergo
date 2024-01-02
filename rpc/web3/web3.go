@@ -2,7 +2,6 @@ package web3
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"os"
 	"reflect"
@@ -98,11 +97,10 @@ func (web3 *Web3) run() {
 	err := http.ListenAndServe(":"+strconv.Itoa(port), web3.mux)
 
 	if err != nil {
-		fmt.Println("Web3 Server running fail:", err)
+		logger.Error().Msg("Web3 Server running fail: " + err.Error())
 		web3.status = CLOSE
 	} else {
-		fmt.Println("Web3 Server is listening on port " + strconv.Itoa(port) + "...")
-
+		logger.Info().Msg("Web3 Server is listening on port " + strconv.Itoa(port) + "...")
 	}
 }
 
@@ -119,7 +117,7 @@ func (web3 *Web3) BeforeStart() {
 }
 
 func (web3 *Web3) AfterStart() {
-	fmt.Println("Web3 Server Start")
+	logger.Info().Msg("Web3 Server Start")
 	web3.web3svc.NewHandler()
 	go web3.run()
 }
