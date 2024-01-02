@@ -1147,28 +1147,36 @@ func (api *Web3APIv1) GetVotes() (handler http.Handler, ok bool) {
 		request.Count = 0
 	}
 
-	output := &jsonrpc.InOutVotes{}
 	if id == "" {
-		request.Id = types.OpvoteBP.ID()
+		var output []*jsonrpc.InOutVotes
 
 		for _, i := range system.GetVotingCatalog() {
 			id := i.ID()
 
 			if id != "" {
-				result, _ := api.rpc.GetVotes(api.request.Context(), request)
-				subOutput := jsonrpc.ConvVotes(result, id)
-				output.Votes = append(output.Votes, subOutput.Votes...)
+				result, err := api.rpc.GetVotes(api.request.Context(), &types.VoteParams{
+					Id:    id,
+					Count: 0,
+				})
+
+				if err == nil {
+					subOutput := jsonrpc.ConvVotes(result, id)
+					subOutput.Id = id
+					output = append(output, subOutput)
+				}
 			}
 		}
-	} else {
-		result, err := api.rpc.GetVotes(api.request.Context(), request)
-		if err != nil {
-			return commonResponseHandler(&types.Empty{}, err), true
-		}
 
-		output = jsonrpc.ConvVotes(result, id)
+		return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 	}
 
+	output := &jsonrpc.InOutVotes{}
+	result, err := api.rpc.GetVotes(api.request.Context(), request)
+	if err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+
+	output = jsonrpc.ConvVotes(result, id)
 	return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 }
 

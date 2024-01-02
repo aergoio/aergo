@@ -66,7 +66,6 @@ func ConvVote(msg *types.Vote, id string) *InOutVote {
 	}
 
 	vote := &InOutVote{
-		Id:     id,
 		Amount: msg.GetAmountBigInt().String(),
 	}
 
@@ -80,7 +79,6 @@ func ConvVote(msg *types.Vote, id string) *InOutVote {
 }
 
 type InOutVote struct {
-	Id        string `json:"id,omitempty"`
 	Candidate string `json:"candidate,omitempty"`
 	Amount    string `json:"amount,omitempty"`
 }
