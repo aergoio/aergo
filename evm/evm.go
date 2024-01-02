@@ -37,7 +37,7 @@ func NewEVM(chainAccessor ChainAccessor, blockState *state.BlockState) *EVM {
 	}
 }
 
-func NewEVMQuery(chainAccessor ChainAccessor, queryStateRoot []byte, blockState *state.BlockState) *EVM {
+func NewEVMQuery(chainAccessor ChainAccessor, blockState *state.BlockState) *EVM {
 	return &EVM{
 		readonly:      true,
 		chainAccessor: chainAccessor,
@@ -58,7 +58,7 @@ func (e *EVM) Query(address []byte, contractAddress []byte, payload []byte) ([]b
 		uint64(e.bs.Block().Timestamp),
 		0,
 		e.bs.GasPrice(),
-		big.NewInt(0),
+		types.NewZeroAmount(),
 		e.bs.EthStateDB.GetStateDB(),
 	)
 
