@@ -165,9 +165,9 @@ func ConvReceipts(msg *types.Receipts) *InOutReceipts {
 	}
 
 	rs := &InOutReceipts{}
-	rs.BlockNo = msg.BlockNo
-	rs.Receipts = make([]*InOutReceipt, len(msg.Receipts))
-	for i, receipt := range msg.Receipts {
+	rs.BlockNo = msg.GetBlockNo()
+	rs.Receipts = make([]*InOutReceipt, len(msg.Get()))
+	for i, receipt := range msg.Get() {
 		rs.Receipts[i] = ConvReceipt(receipt)
 	}
 	return rs
