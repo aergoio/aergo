@@ -15,27 +15,14 @@ tags:
   - name: Etc
     description: Etc related operations
 paths:
-  /getAccounts:
-    get:
-      summary: 연결된 노드에 저장된 모든 계정 조회
-      tags: [Account]
-      responses:
-        "200":
-          description: Successful response
-          content:
-            application/json:
-              example:
-                accounts:
-                  ["AmNMcKNFfpAXn2iEV2stHsZtp4W7QPb2hEvZMTgWSdafdtrW2AC3"]
   /getState:
     get:
-      summary: 현재 잔액 및 Nonce 포함한 계정 상태 조회
+      summary: Get account state
       tags: [Account]
       parameters:
         - name: account
           in: query
           required: true
-          description: 조회할 계정의 주소
           schema:
             type: string
           example: "AmNdzAYv3dYKFtPRgfUMGppGwBJS2JvZLRTF9gRruF49vppEepgj"
@@ -45,12 +32,18 @@ paths:
           content:
             application/json:
               example:
-                account: "AmNdzAYv3dYKFtPRgfUMGppGwBJS2JvZLRTF9gRruF49vppEepgj"
-                balance: "100000000 aergo"
-                nonce: 0
+                nonce: 7,
+                balance: "28085280000000000000000"
+                account: "AmNpHWATDRqrK6YrF9shuPYpFwucX8dVGhW7X8ypmwBLSAoM6xDG"
+                stake: "10000000000000000000000"
+                total: "38085280000000000000000"
+                votingpower: "50000000000000000000000"
+                when: 255439
+                nextaction: 341839
+                isContract: false
   /getStateAndProof:
     get:
-      summary: 계정의 상태와 Merkle Proof를 포함하여 조회
+      summary: Get account state and proof
       tags: [Account]
       parameters:
         - name: account
@@ -74,12 +67,10 @@ paths:
                 account: "AmNdzAYv3dYKFtPRgfUMGppGwBJS2JvZLRTF9gRruF49vppEepgj"
                 nonce: 0
                 balance: "100000000 aergo"
-                included: true
                 merkle proof length: 4
-                height:
   /getNameInfo:
     get:
-      summary: 계정 이름 조회
+      summary: Owner of account name
       tags: [Account]
       parameters:
         - name: name
@@ -102,7 +93,7 @@ paths:
                 destination: ""
   /getBalance:
     get:
-      summary: 특정 주소의 잔액을 조회
+      summary: Get account balance
       tags: [Account]
       parameters:
         - name: account
@@ -120,7 +111,7 @@ paths:
                 balance: "1000000000000000000"
   /getBlock:
     get:
-      summary: 블록의 정보를 조회
+      summary: Get block information
       tags: [Block]
       parameters:
         - name: hash
@@ -152,7 +143,7 @@ paths:
                 body: {}
   /blockchain:
     get:
-      summary: 가장 최근 블록의 번호를 조회
+      summary: Get current blockchain status
       tags: [Block]
       responses:
         "200":
@@ -183,7 +174,7 @@ paths:
                   nameprice: "DeC2s6dkAAA="
   /getBlockBody:
     get:
-      summary: 블록안의 트랜잭션 조회
+      summary: Get block body
       tags: [Block]
       parameters:
         - name: hash
@@ -236,7 +227,7 @@ paths:
                     ]
   /listBlockHeaders:
     get:
-      summary: 주어진 블록에서 시작하여 마지막 n개의 블록 검색
+      summary: Get block headers list
       tags: [Block]
       parameters:
         - name: height
@@ -279,7 +270,7 @@ paths:
                       receiptsRootHash: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
   /getBlockMetadata:
     get:
-      summary: 블록 메타데이터를 검색
+      summary: Get block meta
       tags: [Block]
       parameters:
         - name: hash
@@ -311,7 +302,7 @@ paths:
                 size: 324
   /getTx:
     get:
-      summary: 트랜잭션의 정보 조회
+      summary: Get transaction information
       tags: [Transaction]
       parameters:
         - name: hash
@@ -347,7 +338,7 @@ paths:
                 }
   /getReceipt:
     get:
-      summary: 트랜잭션의 영수증 정보를 조회
+      summary: Get a receipt
       tags: [Transaction]
       parameters:
         - name: hash
@@ -374,7 +365,7 @@ paths:
                 }
   /getReceipts:
     get:
-      summary: 블록에 포함된 트랜잭션 영수증(Receipt)들을 조회
+      summary: Get receipt list in block
       tags: [Transaction]
       parameters:
         - name: hash
@@ -411,7 +402,7 @@ paths:
                 }
   /getBlockTx:
     get:
-      summary: 트랜잭션 해시로 조회한 블록 내의 트랜잭션에 대한 정보 조회
+      summary: Get transaction is in block
       tags: [Transaction]
       parameters:
         - name: hash
@@ -446,7 +437,7 @@ paths:
                 }
   /sendSignedTransaction:
     post:
-      summary: 서명된 트랜잭션을 커밋
+      summary: Commit transaction to aergo server
       tags: [Transaction]
       requestBody:
         required: true
@@ -455,24 +446,33 @@ paths:
             schema:
               type: object
               properties:
-                Hash:
+                hash:
                   type: string
-                Body:
+                body:
                   type: object
                   properties:
-                    Nonce:
+                    nonce:
                       type: integer
-                    Account:
+                    account:
                       type: string
-                    Recipient:
+                    recipient:
                       type: string
-                    Amount:
+                    amount:
                       type: string
-                    ChainIdHash:
+                    payloadJson:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        args:
+                          type: array
+                          items:
+                            type: string
+                    chainIdHash:
                       type: string
-                    Sign:
+                    sign:
                       type: string
-                    Type:
+                    type:
                       type: integer
       responses:
         "200":
@@ -490,7 +490,7 @@ paths:
                 }
   /queryContract:
     get:
-      summary: 스마트 컨트랙트의 상태 조회
+      summary: Call to execute a smart contract
       tags: [Transaction]
       parameters:
         - name: address
@@ -529,7 +529,7 @@ paths:
                 }
   /listEvents:
     get:
-      summary: 지난 이벤트를 조회
+      summary: List event
       tags: [Transaction]
       parameters:
         - name: address
@@ -587,7 +587,7 @@ paths:
                 }
   /getABI:
     get:
-      summary: ABI 조회
+      summary: Get ABI of the contract
       tags: [Transaction]
       parameters:
         - name: address
@@ -619,7 +619,7 @@ paths:
                 }
   /queryContractStateProof:
     get:
-      summary: 스마트컨트랙트 상태 조회
+      summary: Query the state of a contract with variable name and optional index
       tags: [Transaction]
       parameters:
         - name: address
@@ -656,7 +656,7 @@ paths:
                 }
   /getTxCount:
     get:
-      summary: 블록안의 트랜잭션 개수를 조회
+      summary: Transaction number in block
       tags: [Transaction]
       parameters:
         - name: hash
@@ -676,7 +676,7 @@ paths:
                 count: 10
   /getChainInfo:
     get:
-      summary: 블록체인의 현재 상태 조회
+      summary: Get current blockchain information
       tags: [Etc]
       responses:
         "200":
@@ -701,7 +701,7 @@ paths:
                 }
   /getConsensusInfo:
     get:
-      summary: Consensus 정보 조회
+      summary: Get consensus information
       tags: [Etc]
       responses:
         "200":
@@ -754,7 +754,7 @@ paths:
                 }
   /getAccountVotes:
     get:
-      summary: 가장 많이 투표된 블록 생산자 또는 시스템 변수 조회
+      summary: Show voting stat
       tags: [Etc]
       parameters:
         - name: account
@@ -768,9 +768,19 @@ paths:
           content:
             application/json:
               example:
+                {
+                  voting:
+                    [
+                      { id: "voteBP" },
+                      { id: "BPCOUNT" },
+                      { id: "STAKINGMIN" },
+                      { id: "GASPRICE" },
+                      { id: "NAMEPRICE" },
+                    ],
+                }
   /getNodeInfo:
     get:
-      summary: 노드 상태 조회
+      summary: Show internal metric
       tags: [Etc]
       parameters:
         - name: timeout
@@ -975,7 +985,7 @@ paths:
                 }
   /getChainId:
     get:
-      summary: 체인 ID 조회
+      summary: Get ChainID
       tags: [Etc]
       responses:
         "200":
@@ -985,7 +995,7 @@ paths:
               example: { magic: "bmt.aergo.io", consensus: "raft", version: 3 }
   /getPeer:
     get:
-      summary: 연결된 노드의 피어 목록 조회
+      summary: Get Peer list
       tags: [Etc]
       parameters:
         - name: noHidden
@@ -1061,7 +1071,7 @@ paths:
                 }
   /getServerInfo:
     get:
-      summary: 서버 정보 반환
+      summary: Show configs and status of server
       tags: [Etc]
       parameters:
         - name: key
@@ -1092,7 +1102,7 @@ paths:
                 }
   /getStaking:
     get:
-      summary: 스테이킹 정보 반환
+      summary: Get the staking info from the address
       tags: [Etc]
       parameters:
         - name: account
@@ -1105,10 +1115,10 @@ paths:
           description: Successful response
           content:
             application/json:
-              example:
+              example: { amount: "10000000000000000000000", when: 255439 }
   /getVotes:
     get:
-      summary: 투표에 대한 상위 결과 반환
+      summary: Show voting stat
       tags: [Etc]
       parameters:
         - name: count
@@ -1121,9 +1131,26 @@ paths:
           content:
             application/json:
               example:
+                {
+                  votes:
+                    [
+                      {
+                        candidate: "16Uiu2HAkyDXhsCj63R3ufsrYaK72nFT1RLVg5upabi6WAQtJzGoM",
+                        amount: "162179999999999990562816",
+                      },
+                      {
+                        candidate: "16Uiu2HAmKZUxcDNLo6BbhugZ8XfgdC4utmJ5M6HTjvFmYZ2tqTac",
+                        amount: "162179999999999990562816",
+                      },
+                      {
+                        candidate: "16Uiu2HAm82vRXcL187jRhFW9jnNjueMc7bSJLdcydNWUwxeUCC2U",
+                        amount: "162179999999999990562816",
+                      },
+                    ],
+                }
   /metric:
     get:
-      summary: 노드 메트릭스를 반환
+      summary: Show metric informations
       tags: [Etc]
       parameters:
         - name: type
@@ -1159,7 +1186,7 @@ paths:
                 }
   /chainStat:
     get:
-      summary: 체인 통계
+      summary: Get chain statistics
       tags: [Etc]
       responses:
         "200":
@@ -1169,7 +1196,7 @@ paths:
               example: { "report": { "ReorgStat": { "Count": 0 } } }
   /getEnterpriseConfig:
     get:
-      summary: 엔터프라이즈(기업용) 구성 설정 조회
+      summary: Get config values of enterprise
       tags: [Etc]
       parameters:
         - name: key
@@ -1185,18 +1212,3 @@ paths:
                 Key: ""
                 On: false
                 Values: ""
-  /getConfChangeProgress:
-    get:
-      summary: requestID로 조회한 changeCluster 트랜잭션의 상태 조회
-      tags: [Etc]
-      parameters:
-        - name: hash
-          in: query
-          schema:
-            type: string
-      responses:
-        "200":
-          description: Successful response
-          content:
-            application/json:
-              example:
