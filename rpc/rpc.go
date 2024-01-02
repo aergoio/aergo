@@ -54,7 +54,7 @@ type RPC struct {
 	entConf *types.EnterpriseConfig
 }
 
-//var _ component.IComponent = (*RPCComponent)(nil)
+var _ component.IComponent = (*RPC)(nil)
 
 // NewRPC create an rpc service
 func NewRPC(cfg *config.Config, chainAccessor types.ChainAccessor, version string) *RPC {
@@ -267,14 +267,6 @@ func (ns *RPC) grpcWebHandlerFunc(grpcWebServer *grpcweb.WrappedGrpcServer, othe
 		} else {
 			ns.Info().Str("proto", r.Proto).Str("host", r.Host).Stringer("uri", r.URL).Str("content_type", r.Header.Get("content-type")).Str("remote_addr", r.RemoteAddr).Msg("Request handled by other handler. is this correct?")
 			otherHandler.ServeHTTP(w, r)
-			// handler, ok := restAPIHandler(actualServer, r)
-
-			// if(ok) {
-			// 	handler.ServeHTTP(w, r)
-			// }else{
-			// 	ns.Info().Msg("Request handled by other hanlder. is this correct?")
-			// 	otherHandler.ServeHTTP(w, r)
-			// }
 		}
 	})
 }
