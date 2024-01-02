@@ -38,7 +38,7 @@ wait_version() {
     output=$(../bin/aergocli blockchain 2>/dev/null)
     # check if 'output' is non-empty and starts with '{'
     if [[ -n "$output" ]] && [[ "${output:0:1}" == "{" ]]; then
-      cur_version=$(echo "$output" | jq .ChainInfo.Chainid.Version | sed 's/"//g')
+      cur_version=$(echo "$output" | jq .chainInfo.id.version | sed 's/"//g')
     else
       cur_version=0
     fi
