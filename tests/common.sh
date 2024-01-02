@@ -39,6 +39,9 @@ wait_version() {
     # check if 'output' is non-empty and starts with '{'
     if [[ -n "$output" ]] && [[ "${output:0:1}" == "{" ]]; then
       cur_version=$(echo "$output" | jq .chainInfo.id.version | sed 's/"//g')
+      if [ "$cur_version" == "null" ]; then
+        cur_version=0
+      fi
     else
       cur_version=0
     fi
