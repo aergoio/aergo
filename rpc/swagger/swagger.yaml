@@ -993,7 +993,7 @@ paths:
           content:
             application/json:
               example: { magic: "bmt.aergo.io", consensus: "raft", version: 3 }
-  /getPeer:
+  /getPeers:
     get:
       summary: Get Peer list
       tags: [Etc]
