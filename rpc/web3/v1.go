@@ -138,8 +138,20 @@ func (api *Web3APIv1) GetState() (handler http.Handler, ok bool) {
 			output.NextAction = output.When + 86400
 		}
 	}
-	balanceInt, _ := new(big.Int).SetString(output.Balance, 10)
-	stakeInt, _ := new(big.Int).SetString(output.Stake, 10)
+
+	var balanceInt, stakeInt *big.Int
+	if output.Balance != "" {
+		balanceInt, _ = new(big.Int).SetString(output.Balance, 10)
+	} else {
+		balanceInt = new(big.Int)
+	}
+
+	if output.Stake != "" {
+		stakeInt, _ = new(big.Int).SetString(output.Stake, 10)
+	} else {
+		stakeInt = new(big.Int)
+	}
+
 	totalInt := new(big.Int).Add(stakeInt, balanceInt)
 	output.Total = totalInt.String()
 
