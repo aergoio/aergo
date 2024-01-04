@@ -152,10 +152,7 @@ func CreateContractState(id []byte, nonce uint64, bs *BlockState) (*AccountState
 	// get address and contract
 	contractAddrLua := key.CreateContractID(id, nonce)
 	aid := types.ToAccountID(contractAddrLua)
-	ethId, err := key.NewAccountEth(id)
-	if err != nil {
-		return nil, err
-	}
+	ethId := ethdb.GetAddressEth(id)
 	contractAddrEth := key.NewContractEth(ethId, nonce)
 
 	// get stlua, steth
