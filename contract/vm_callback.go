@@ -1223,7 +1223,7 @@ func isPublic() C.int {
 func luaRandomInt(min, max, service C.int) C.int {
 	ctx := contexts[service]
 	if ctx.seed == nil {
-		setRandomSeed(ctx)
+		ctx.seed = types.GetRandomSeed(ctx.isQuery, ctx.blockInfo, ctx.txHash)
 	}
 	return C.int(ctx.seed.Intn(int(max+C.int(1)-min)) + int(min))
 }

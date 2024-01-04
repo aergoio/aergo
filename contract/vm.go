@@ -38,7 +38,6 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	luacUtil "github.com/aergoio/aergo/v2/cmd/aergoluac/util"
 	"github.com/aergoio/aergo/v2/fee"
-	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/internal/enc/hex"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/state/statedb"
@@ -869,19 +868,6 @@ func Call(
 
 	// return the result
 	return ce.jsonRet, ce.getEvents(), ctx.usedFee(), nil
-}
-
-func setRandomSeed(ctx *vmContext) {
-	var randSrc rand.Source
-	if ctx.isQuery {
-		randSrc = rand.NewSource(ctx.blockInfo.Ts)
-	} else {
-		b, _ := new(big.Int).SetString(base58.Encode(ctx.blockInfo.PrevBlockHash[:7]), 62)
-		t, _ := new(big.Int).SetString(base58.Encode(ctx.txHash[:7]), 62)
-		b.Add(b, t)
-		randSrc = rand.NewSource(b.Int64())
-	}
-	ctx.seed = rand.New(randSrc)
 }
 
 func setContract(contractState *statedb.ContractState, contractAddress, payload []byte) ([]byte, []byte, error) {
