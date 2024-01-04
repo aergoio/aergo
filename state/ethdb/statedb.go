@@ -1,6 +1,7 @@
 package ethdb
 
 import (
+	hash "github.com/aergoio/aergo/v2/internal/common"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -47,14 +48,14 @@ func (sdb *StateDB) GetStateDB() *state.StateDB {
 	return sdb.StateDB
 }
 
+func (sdb *StateDB) PutCode(addr common.Address, code []byte) {
+	sdb.StateDB.SetCode(addr, code)
+}
+
 func (sdb *StateDB) Put(addr common.Address, state *types.State) {
 	sdb.StateDB.SetBalance(addr, state.GetBalanceBigInt())
 	if state.GetNonce() != 0 {
 		sdb.StateDB.SetNonce(addr, state.GetNonce())
-	}
-
-	if state.GetCodeHash() != nil {
-		sdb.StateDB.SetCode(addr, state.GetCodeHash())
 	}
 }
 
@@ -62,13 +63,17 @@ func (sdb *StateDB) Get(addr common.Address) (state *types.State) {
 	if !sdb.StateDB.Exist(addr) {
 		return nil
 	}
-	code := sdb.StateDB.GetCode(addr)
 	balance := sdb.StateDB.GetBalance(addr)
 	nonce := sdb.StateDB.GetNonce(addr)
+	var codeHash []byte
+	if code := sdb.StateDB.GetCode(addr); len(code) != 0 {
+		codeHash = hash.Hasher(code)
+	}
+
 	return &types.State{
 		Balance:  balance.Bytes(),
 		Nonce:    nonce,
-		CodeHash: code,
+		CodeHash: codeHash,
 	}
 }
 
@@ -102,5 +107,9 @@ func (sdb *StateDB) Commit(blockNo uint64) (root []byte, err error) {
 		return nil, err
 	}
 
+	/* 	for account, id := range sdb.accountId {
+
+	   	}
+	*/
 	return newRoot.Bytes(), nil
 }

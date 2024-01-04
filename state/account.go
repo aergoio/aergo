@@ -149,21 +149,39 @@ func (as *AccountState) PutState() error {
 // global functions
 
 func CreateContractState(id []byte, nonce uint64, bs *BlockState) (*AccountState, error) {
-	v, err := GetAccountState(id, bs)
+	contractAddrLua := key.CreateContractID(id, nonce)
+	aid := types.ToAccountID(contractAddrLua)
+
+	// get stlua, steth
+	var stlua, steth *types.State
+	var contractAddrEth common.Address
+	stlua, err := bs.LuaStateDB.GetState(aid)
 	if err != nil {
 		return nil, err
 	}
-	if !v.newOne {
-		return nil, fmt.Errorf("account(%s) aleardy exists", types.EncodeAddress(v.ID()))
+	if bs.EthStateDB != nil {
+		ethId, err := key.NewAccountEth(id)
+		if err == nil {
+			contractAddrEth = key.NewContractEth(ethId, nonce)
+			steth = bs.EthStateDB.Get(ethId)
+		}
+		bs.EthStateDB.PutId(contractAddrEth, contractAddrLua)
 	}
-	contractAddrLua := key.CreateContractID(id, nonce)
-	ethId, _ := key.NewAccountEth(id)
-	contractAddrEth := key.NewContractEth(ethId, nonce)
-	v.id = contractAddrLua
-	v.aid = types.ToAccountID(v.id)
-	v.ethId = contractAddrEth
+	if stlua != nil || steth != nil {
+		return nil, fmt.Errorf("account(%s) aleardy exists", types.EncodeAddress(contractAddrLua))
+	}
 
-	return v, nil
+	return &AccountState{
+		luaStates: bs.LuaStateDB,
+		ethStates: bs.EthStateDB,
+		id:        contractAddrLua,
+		aid:       aid,
+		ethId:     contractAddrEth,
+		oldState:  &types.State{},
+		newState:  &types.State{SqlRecoveryPoint: 1},
+		deploy:    deployFlag,
+		newOne:    true,
+	}, nil
 }
 
 func GetAccountState(id []byte, bs *BlockState) (*AccountState, error) {

@@ -26,7 +26,8 @@ type EVM struct {
 	readonly      bool
 	chainAccessor ChainAccessor
 
-	bs *state.BlockState
+	bs  *state.BlockState
+	sdb *StateDB
 }
 
 func NewEVM(chainAccessor ChainAccessor, blockState *state.BlockState) *EVM {
@@ -34,6 +35,7 @@ func NewEVM(chainAccessor ChainAccessor, blockState *state.BlockState) *EVM {
 		readonly:      false,
 		chainAccessor: chainAccessor,
 		bs:            blockState,
+		sdb:           NewStateDB(blockState),
 	}
 }
 
@@ -59,7 +61,7 @@ func (e *EVM) Query(address []byte, contractAddress []byte, payload []byte) ([]b
 		0,
 		e.bs.GasPrice(),
 		types.NewZeroAmount(),
-		e.bs.EthStateDB.GetStateDB(),
+		e.sdb,
 	)
 
 	// create call cfg
@@ -88,7 +90,7 @@ func (e *EVM) Call(address, contract common.Address, payload []byte, amount *big
 		gasLimit,
 		e.bs.GasPrice(),
 		amount,
-		e.bs.EthStateDB.GetStateDB(),
+		e.sdb,
 	)
 
 	ret, leftOverGas, err := e.call(contract, payload, cfg)
@@ -116,7 +118,7 @@ func (e *EVM) Create(sender common.Address, payload []byte, gasLimit uint64) ([]
 		gasLimit,
 		e.bs.GasPrice(),
 		types.NewZeroAmount(),
-		e.bs.EthStateDB.GetStateDB(),
+		e.sdb,
 	)
 
 	ret, ethContractAddress, leftOverGas, err := e.create(payload, cfg)
@@ -141,38 +143,13 @@ func (e *EVM) GetHashFn() vm.GetHashFunc {
 
 func (e *EVM) TransferFn() vm.TransferFunc {
 	return func(db vm.StateDB, sender, recipient common.Address, amount *big.Int) {
-		senderAccState, err := state.GetAccountStateEth(sender, e.bs)
-		if err != nil {
-			panic("impossible") // FIXME
-		}
-
-		recipientAccState, err := state.GetAccountStateEth(recipient, e.bs)
-		if err != nil {
-			panic("impossible") // FIXME
-		}
-
-		err = state.SendBalance(senderAccState, recipientAccState, amount)
-		if err != nil {
-			panic("impossible") // FIXME
-		}
-
-		err = senderAccState.PutState()
-		if err != nil {
-			panic("impossible") // FIXME
-		}
-		err = recipientAccState.PutState()
-		if err != nil {
-			panic("impossible") // FIXME
-		}
+		db.SubBalance(sender, amount)
+		db.AddBalance(recipient, amount)
 	}
 }
 
 func (e *EVM) CanTransferFn() vm.CanTransferFunc {
 	return func(sdb vm.StateDB, addr common.Address, amount *big.Int) bool {
-		accState, err := state.GetAccountStateEth(addr, e.bs)
-		if err != nil {
-			panic("impossible") // FIXME
-		}
-		return accState.Balance().Cmp(amount) >= 0
+		return sdb.GetBalance(addr).Cmp(amount) >= 0
 	}
 }

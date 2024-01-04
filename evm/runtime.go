@@ -4,9 +4,6 @@ import (
 	"errors"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/rawdb"
-	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 )
 
@@ -15,14 +12,11 @@ import (
 //
 // execute sets up an in-memory, temporary, environment for the execution of
 // the given code. It makes sure that it's restored to its original state afterwards.
-func (e *EVM) execute(code, input []byte, cfg *Config) ([]byte, *state.StateDB, error) {
-	if cfg == nil {
+func (e *EVM) execute(code, input []byte, cfg *Config) ([]byte, *StateDB, error) {
+	if cfg == nil || cfg.State == nil {
 		return nil, nil, errors.New("config is nil")
 	}
 
-	if cfg.State == nil {
-		cfg.State, _ = state.New(types.EmptyRootHash, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
-	}
 	var (
 		address = common.BytesToAddress([]byte("contract"))
 		vmenv   = NewEnv(cfg, e)

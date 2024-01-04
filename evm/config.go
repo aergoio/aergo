@@ -5,7 +5,6 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
 )
@@ -28,7 +27,7 @@ type Config struct {
 	BlobFeeCap  *big.Int
 	Random      *common.Hash
 
-	State *state.StateDB
+	State *StateDB
 }
 
 // TODO : modify runtime config and functions to be compatible with aergo
@@ -37,7 +36,7 @@ func NewConfig(
 	sender, coinbase common.Address,
 	blockNo, time, gasLimit uint64,
 	gasPrice, Value *big.Int,
-	state *state.StateDB,
+	state *StateDB,
 ) *Config {
 	cfg := new(Config)
 	cfg.Origin = sender

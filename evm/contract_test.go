@@ -37,8 +37,6 @@ func deinitTest(t *testing.T) {
 	os.RemoveAll("test_db")
 }
 
-// id 가 정의되지 않은 address 로 aergo 를 보냈을 경우, address 를 통해 id 를 가져올 수가 없는데, 그럴 때는 어떡하지?
-// 아마 evm 내부에서 code 를 가져올 때 id 를 합쳐서 가져와서 오류가 나는듯. id 를 지워야 함
 func TestHello(t *testing.T) {
 	initTest(t)
 	defer deinitTest(t)
