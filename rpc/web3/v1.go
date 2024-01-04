@@ -82,6 +82,13 @@ func (api *Web3APIv1) NewHandler() {
 }
 
 func (api *Web3APIv1) handler(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		if rc := recover(); rc != nil {
+			logger.Error().Msg("panic web3 : " + r.URL.Path + "?" + r.URL.RawQuery)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		}
+	}()
+
 	api.request = r
 	handler, ok := api.restAPIHandler(r)
 	if ok {
@@ -98,6 +105,7 @@ func (api *Web3APIv1) restAPIHandler(r *http.Request) (handler http.Handler, ok 
 	selectedHandler := api.handlerMap[r.Method][path]
 
 	if selectedHandler != nil {
+		
 		return selectedHandler()
 	}
 
