@@ -133,13 +133,12 @@ func (as *AccountState) Reset() {
 }
 
 func (as *AccountState) PutState() error {
-	if len(as.id) > 0 {
+	if as.aid != (types.AccountID{}) {
 		if err := as.luaStates.PutState(as.aid, as.newState); err != nil {
 			return err
 		}
 	}
 	if as.ethStates != nil {
-		as.ethStates.PutId(as.ethId, as.id)
 		as.ethStates.Put(as.ethId, as.newState)
 	}
 	return nil
@@ -162,11 +161,12 @@ func CreateContractState(id []byte, nonce uint64, bs *BlockState) (*AccountState
 	} else if stlua != nil {
 		return nil, fmt.Errorf("account(%s) aleardy exists", types.EncodeAddress(contractAddrLua))
 	}
+
 	if bs.EthStateDB != nil {
 		if bs.EthStateDB.Exist(contractAddrEth) {
 			return nil, fmt.Errorf("account(%s) aleardy exists", types.EncodeAddress(contractAddrLua))
 		}
-		bs.EthStateDB.PutId(contractAddrEth, contractAddrLua)
+		bs.EthStateDB.PutId(contractAddrEth, aid)
 	}
 
 	return &AccountState{
@@ -188,12 +188,20 @@ func GetAccountState(id []byte, bs *BlockState) (*AccountState, error) {
 	var newOne bool
 
 	aid := types.ToAccountID(id)
-	ethId := ethdb.GetAddressEth(id)
-
 	st, err = bs.LuaStateDB.GetState(aid)
 	if err != nil {
 		return nil, err
 	}
+
+	var ethId common.Address
+	if bs.EthStateDB != nil {
+		if ethId = bs.EthStateDB.GetEid(aid); ethId == (common.Address{}) {
+			if ethId = ethdb.GetAddressEth(id); ethId != (common.Address{}) {
+				bs.EthStateDB.PutId(ethId, aid)
+			}
+		}
+	}
+
 	if st == nil {
 		newOne = true // new address
 		if bs.LuaStateDB.Testmode {
@@ -220,23 +228,24 @@ func GetAccountState(id []byte, bs *BlockState) (*AccountState, error) {
 }
 
 func GetAccountStateEth(ethId common.Address, bs *BlockState) (*AccountState, error) {
-	id := bs.EthStateDB.GetId(ethId)
-	if len(id) > 0 {
-		aid := types.ToAccountID(id)
+	aid := bs.EthStateDB.GetAid(ethId)
+	if aid != statedb.EmptyAccountID {
 		st, err := bs.LuaStateDB.GetState(aid)
 		if err != nil {
 			return nil, err
 		}
-		return &AccountState{
-			luaStates: bs.LuaStateDB,
-			ethStates: bs.EthStateDB,
-			id:        id,
-			aid:       aid,
-			ethId:     ethId,
-			oldState:  st,
-			newState:  st.Clone(),
-			newOne:    true,
-		}, nil
+		if st != nil {
+			return &AccountState{
+				luaStates: bs.LuaStateDB,
+				ethStates: bs.EthStateDB,
+				id:        nil,
+				aid:       aid,
+				ethId:     ethId,
+				oldState:  st,
+				newState:  st.Clone(),
+				newOne:    false,
+			}, nil
+		}
 	}
 	st := bs.EthStateDB.Get(ethId)
 	if st == nil {
@@ -250,6 +259,7 @@ func GetAccountStateEth(ethId common.Address, bs *BlockState) (*AccountState, er
 		ethId:     ethId,
 		oldState:  st,
 		newState:  st.Clone(),
+		newOne:    true,
 	}, nil
 }
 

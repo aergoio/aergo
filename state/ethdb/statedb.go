@@ -1,6 +1,8 @@
 package ethdb
 
 import (
+	"math/big"
+
 	hash "github.com/aergoio/aergo/v2/internal/common"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -16,9 +18,6 @@ type StateDB struct {
 	db     *DB
 	trieDB *trie.Database
 	*state.StateDB
-
-	// These maps hold the state id that occurred in this **block**.
-	accountId map[common.Address][]byte
 }
 
 func NewStateDB(root []byte, db *DB) (*StateDB, error) {
@@ -77,12 +76,32 @@ func (sdb *StateDB) Get(addr common.Address) (state *types.State) {
 	}
 }
 
-func (sdb *StateDB) PutId(addr common.Address, id []byte) {
-	sdb.db.PutAddrId(addr, id)
+var (
+	IdManager = common.BigToAddress(big.NewInt(10))
+)
+
+func (sdb *StateDB) PutId(eid common.Address, aid types.AccountID) {
+	sdb.StateDB.SetState(IdManager, common.BytesToHash(eid.Bytes()), common.BytesToHash(aid[:]))
+	sdb.StateDB.SetState(IdManager, common.BytesToHash(aid[:]), common.BytesToHash(eid.Bytes()))
 }
 
-func (sdb *StateDB) GetId(addr common.Address) []byte {
-	return sdb.db.GetAddrId(addr)
+func (sdb *StateDB) GetAid(eid common.Address) types.AccountID {
+	rawAid := sdb.StateDB.GetState(IdManager, common.BytesToHash(eid.Bytes()))
+	if rawAid == (common.Hash{}) {
+		return types.AccountID{}
+	}
+
+	aid := rawAid.Bytes()
+	return types.AccountID(aid)
+}
+
+func (sdb *StateDB) GetEid(aid types.AccountID) common.Address {
+	rawEid := sdb.StateDB.GetState(IdManager, common.BytesToHash(aid[:]))
+	if rawEid == (common.Hash{}) {
+		return common.Address{}
+	}
+	eid := rawEid.Bytes()
+	return common.BytesToAddress(eid[12:])
 }
 
 func (sdb *StateDB) Root() []byte {
@@ -107,9 +126,5 @@ func (sdb *StateDB) Commit(blockNo uint64) (root []byte, err error) {
 		return nil, err
 	}
 
-	/* 	for account, id := range sdb.accountId {
-
-	   	}
-	*/
 	return newRoot.Bytes(), nil
 }

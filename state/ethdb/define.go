@@ -12,7 +12,7 @@ func GetAddressEth(id []byte) common.Address {
 	}
 	addr, err := key.NewAccountEth(id)
 	if err != nil {
-		return common.BytesToAddress(id)
+		return common.Address{}
 	}
 	return addr
 }
