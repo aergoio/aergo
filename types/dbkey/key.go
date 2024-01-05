@@ -45,10 +45,6 @@ func EthRootHash() []byte {
 	return []byte(ethRoot)
 }
 
-func EthAddress(addr []byte) []byte {
-	return append([]byte(ethAddrPrefix), addr...)
-}
-
 // dpos
 func DposLibStatus() []byte {
 	return []byte(dposLibStatus)
