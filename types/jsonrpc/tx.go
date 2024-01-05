@@ -150,7 +150,7 @@ func ParseTxBody(tb *InOutTxBody) (msg *types.TxBody, err error) {
 
 	if tb.PayloadJson != nil && tb.PayloadJson.Name != "" {
 		payload, err := json.Marshal(tb.PayloadJson)
-		
+
 		if err != nil {
 			return nil, err
 		} else {

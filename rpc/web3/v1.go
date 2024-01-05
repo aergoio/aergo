@@ -105,7 +105,7 @@ func (api *Web3APIv1) restAPIHandler(r *http.Request) (handler http.Handler, ok 
 	selectedHandler := api.handlerMap[r.Method][path]
 
 	if selectedHandler != nil {
-		
+
 		return selectedHandler()
 	}
 
