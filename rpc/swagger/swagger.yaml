@@ -1105,7 +1105,7 @@ paths:
       summary: Get the staking info from the address
       tags: [Etc]
       parameters:
-        - name: account
+        - name: address
           in: query
           schema:
             type: string
@@ -1121,6 +1121,10 @@ paths:
       summary: Show voting stat
       tags: [Etc]
       parameters:
+        - name: id
+          in: query
+          schema:
+            type: string
         - name: count
           in: query
           schema:

@@ -22,15 +22,23 @@ type InOutCommitResultList struct {
 }
 
 func ConvCommitResult(msg *types.CommitResult) *InOutCommitResult {
-	return &InOutCommitResult{
+	cr := &InOutCommitResult{
 		Hash:   base58.Encode(msg.Hash),
 		Error:  msg.Error,
 		Detail: msg.Detail,
 	}
+
+	status, err := types.CommitStatus_name[int32(msg.Error)]
+	if err && msg.Error != types.CommitStatus_TX_OK {
+		cr.Message = status
+	}
+
+	return cr
 }
 
 type InOutCommitResult struct {
-	Hash   string             `json:"hash,omitempty"`
-	Error  types.CommitStatus `json:"error,omitempty"`
-	Detail string             `json:"detail,omitempty"`
+	Hash    string             `json:"hash,omitempty"`
+	Error   types.CommitStatus `json:"error,omitempty"`
+	Detail  string             `json:"detail,omitempty"`
+	Message string             `json:"message,omitempty"`
 }
