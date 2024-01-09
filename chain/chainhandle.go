@@ -657,7 +657,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 		}
 
 		bState = state.NewBlockState(
-			cs.sdb.GetStateDB(),
+			cs.sdb.OpenNewStateDB(cs.sdb.GetLuaRoot()),
 			cs.sdb.OpenEthStateDB(block.GetHeader().GetEvmRootHash()),
 			state.SetBlock(block.GetHeader()),
 		)

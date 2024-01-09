@@ -23,6 +23,7 @@ type AccountState struct {
 	newState *types.State
 	newOne   bool
 	deploy   int8
+	ethOnly  bool
 }
 
 const (
@@ -133,7 +134,7 @@ func (as *AccountState) Reset() {
 }
 
 func (as *AccountState) PutState() error {
-	if as.aid != (types.AccountID{}) {
+	if as.ethOnly != true {
 		if err := as.luaStates.PutState(as.aid, as.newState); err != nil {
 			return err
 		}
@@ -260,6 +261,7 @@ func GetAccountStateEth(ethId common.Address, bs *BlockState) (*AccountState, er
 		oldState:  st,
 		newState:  st.Clone(),
 		newOne:    true,
+		ethOnly:   true,
 	}, nil
 }
 

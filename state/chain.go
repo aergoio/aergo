@@ -104,9 +104,6 @@ func (sdb *ChainStateDB) GetStateDB() *statedb.StateDB {
 
 // OpenNewStateDB returns new instance of statedb given state root hash
 func (sdb *ChainStateDB) OpenNewStateDB(root []byte) *statedb.StateDB {
-	if root == nil { // before v4
-		root = sdb.GetLuaRoot()
-	}
 	return statedb.NewStateDB(sdb.luaStore, root, sdb.testmode)
 }
 
