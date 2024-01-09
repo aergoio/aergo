@@ -9,6 +9,7 @@ import (
 	"github.com/aergoio/aergo/v2/state/ethdb"
 	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types/dbkey"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -35,18 +36,19 @@ func TestEVM(t *testing.T) {
 	ethDump := ethsdb.GetStateDB().RawDump(&state.DumpConfig{SkipStorage: true})
 
 	for address, state := range ethDump.Accounts {
-		if address == ethdb.IdManager {
+		if address == ethdb.IdManager.String() {
 			continue
 		}
-		aid := ethsdb.GetAid(address)
+
+		aid := ethsdb.GetAid(common.HexToAddress(address))
 		luaState, err := luasdb.GetAccountState(aid)
 		require.NoError(t, err)
 		evmBalance := state.Balance
 		luaBalance := big.NewInt(0).SetBytes(luaState.Balance).String()
 
-		fmt.Printf("bal: (%v, %v) | nonce: (%v, %v) | addr: (%v, %v) \n", evmBalance, luaBalance, state.Nonce, luaState.Nonce, address.Hex(), aid.String())
-		assert.Equalf(t, evmBalance, luaBalance, address.Hex(), aid.String())
-		assert.Equalf(t, state.Nonce, luaState.Nonce, address.Hex(), aid.String())
+		fmt.Printf("bal: (%v, %v) | nonce: (%v, %v) | addr: (%v, %v) \n", evmBalance, luaBalance, state.Nonce, luaState.Nonce, address, aid.String())
+		assert.Equalf(t, evmBalance, luaBalance, address, aid.String())
+		assert.Equalf(t, state.Nonce, luaState.Nonce, address, aid.String())
 	}
 	fmt.Println("total addr :", len(ethDump.Accounts))
 

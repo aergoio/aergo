@@ -11,8 +11,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/jsonrpc"
 	"github.com/spf13/cobra"
 )
 
@@ -150,13 +150,13 @@ func sendEVMTX(cmd *cobra.Command, tx *types.Tx, account []byte) string {
 		if err != nil {
 			return "Failed request to aergo server: " + err.Error()
 		}
-		return util.JSON(msgs.Results[0])
+		return jsonrpc.MarshalJSON(msgs.Results[0])
 	} else {
 		msg, err := client.SendTX(context.Background(), tx)
 		if err != nil {
 			return "Failed request to aergo sever: " + err.Error()
 		}
-		return util.JSON(msg)
+		return jsonrpc.MarshalJSON(msg)
 	}
 }
 
