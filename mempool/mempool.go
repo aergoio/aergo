@@ -60,7 +60,7 @@ type MemPool struct {
 	sdb           *state.ChainStateDB
 	bestBlockID   types.BlockID
 	bestBlockInfo *types.BlockHeaderInfo
-	stateDB       *statedb.StateDB
+	bs            *state.BlockState
 	verifier      *actor.PID
 	orphan        int
 	//cache       map[types.TxID]types.Transaction
@@ -139,7 +139,7 @@ func (mp *MemPool) AfterStart() {
 		panic("Mempool AfterStart Failed")
 	}
 	bestblock := rsp.(message.GetBestBlockRsp).Block
-	mp.setStateDB(bestblock) // nolint: errcheck
+	mp.setBlockState(bestblock) // nolint: errcheck
 
 	mp.wg.Add(1)
 	go mp.monitor()
@@ -417,7 +417,7 @@ Gather:
 	return ids, hasMore
 }
 
-func (mp *MemPool) setStateDB(block *types.Block) (bool, bool) {
+func (mp *MemPool) setBlockState(block *types.Block) (bool, bool) {
 	if mp.testConfig {
 		return true, false
 	}
@@ -435,15 +435,15 @@ func (mp *MemPool) setStateDB(block *types.Block) (bool, bool) {
 		mp.bestBlockInfo = types.NewBlockHeaderInfo(block)
 		mp.acceptChainIdHash = common.Hasher(types.MakeChainId(block.GetHeader().GetChainID(), mp.nextBlockVersion()))
 		stateRoot := block.GetHeader().GetBlocksRootHash()
-		if mp.stateDB == nil {
-			mp.stateDB = mp.sdb.OpenNewStateDB(stateRoot)
+		if mp.bs == nil {
+			mp.bs = mp.sdb.NewBlockState(stateRoot, state.SetPrevBlockHash(block.Header.PrevBlockHash))
 			cid := types.NewChainID()
 			if err := cid.Read(block.GetHeader().GetChainID()); err != nil {
 				mp.Error().Err(err).Msg("failed to read chain ID")
 			} else {
 				mp.isPublic = cid.PublicNet
 				if !mp.isPublic {
-					ecs, err := statedb.GetEnterpriseAccountState(mp.stateDB)
+					ecs, err := statedb.GetEnterpriseAccountState(mp.bs.StateDB)
 					if err != nil {
 						mp.Warn().Err(err).Msg("failed to get whitelist")
 					}
@@ -459,8 +459,8 @@ func (mp *MemPool) setStateDB(block *types.Block) (bool, bool) {
 				Str("chainidhash", base58.Encode(mp.bestChainIdHash)).
 				Str("next chainidhash", base58.Encode(mp.acceptChainIdHash)).
 				Msg("new StateDB opened")
-		} else if !bytes.Equal(mp.stateDB.GetRoot(), stateRoot) {
-			if err := mp.stateDB.SetRoot(stateRoot); err != nil {
+		} else if !bytes.Equal(mp.bs.GetRoot(), stateRoot) {
+			if err := mp.bs.SetRoot(stateRoot); err != nil {
 				mp.Error().Err(err).Msg("failed to set root of StateDB")
 			}
 		}
@@ -491,7 +491,7 @@ func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 
 	check := 0
 	dirty := map[types.AccountID]bool{}
-	reorg, fork := mp.setStateDB(block)
+	reorg, fork := mp.setBlockState(block)
 	if fork {
 		mp.Debug().Msg("reset mempool on fork")
 		mp.resetAll()
@@ -591,7 +591,7 @@ func (mp *MemPool) getNameDest(account []byte, owner bool) []byte {
 		return account
 	}
 
-	scs, err := statedb.GetNameAccountState(mp.stateDB)
+	scs, err := statedb.GetNameAccountState(mp.bs.StateDB)
 	if err != nil {
 		mp.Error().Str("for name", string(account)).Msgf("failed to open contract %s", types.AergoName)
 		return nil
@@ -663,13 +663,13 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 		if err != nil {
 			return err
 		}
-		scs, err := statedb.OpenContractState(id, aergoState, mp.stateDB)
+		scs, err := statedb.OpenContractState(id, aergoState, mp.bs.StateDB)
 		if err != nil {
 			return err
 		}
 		switch string(tx.GetBody().GetRecipient()) {
 		case types.AergoSystem:
-			sender, err := state.GetAccountState(account, mp.stateDB)
+			sender, err := state.GetAccountState(account, mp.bs.StateDB)
 			if err != nil {
 				return err
 			}
@@ -681,7 +681,7 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 				return err
 			}
 		case types.AergoName:
-			sender, err := state.GetAccountState(account, mp.stateDB)
+			sender, err := state.GetAccountState(account, mp.bs.StateDB)
 			if err != nil {
 				return err
 			}
@@ -689,11 +689,11 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 				return err
 			}
 		case types.AergoEnterprise:
-			enterprisecs, err := statedb.GetEnterpriseAccountState(mp.stateDB)
+			enterprisecs, err := statedb.GetEnterpriseAccountState(mp.bs.StateDB)
 			if err != nil {
 				return err
 			}
-			sender, err := state.GetAccountState(account, mp.stateDB)
+			sender, err := state.GetAccountState(account, mp.bs.StateDB)
 			if err != nil {
 				return err
 			}
@@ -798,9 +798,9 @@ func (mp *MemPool) getAccountState(acc []byte) (*types.State, error) {
 		return &types.State{Balance: new(big.Int).SetUint64(bal).Bytes(), Nonce: nonce}, nil
 	}
 
-	state, err := mp.stateDB.GetAccountState(types.ToAccountID(acc))
+	state, err := mp.bs.GetAccountState(types.ToAccountID(acc))
 	if err != nil {
-		mp.Fatal().Err(err).Str("sroot", base58.Encode(mp.stateDB.GetRoot())).Msg("failed to get state")
+		mp.Fatal().Err(err).Str("sroot", base58.Encode(mp.bs.GetRoot())).Msg("failed to get state")
 		return nil, err
 	}
 	return state, nil
