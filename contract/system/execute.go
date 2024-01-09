@@ -111,6 +111,7 @@ func GetVotes(scs *statedb.ContractState, address []byte) ([]*types.VoteInfo, er
 			return nil, err
 		}
 		if v.Amount == nil {
+			results = append(results, result)
 			continue
 		}
 

@@ -1,4 +1,4 @@
-package util
+package jsonrpc
 
 import (
 	"math/big"
