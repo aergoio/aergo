@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/aergoio/aergo-lib/db"
+	"github.com/aergoio/aergo/v2/types/dbkey"
 )
 
 // DbTx represents Set and Delete interface to store data
@@ -41,8 +42,7 @@ func (c *CacheDB) commit(txn *DbTx) {
 	c.updatedMux.Lock()
 	defer c.updatedMux.Unlock()
 	for key, batch := range c.updatedNodes {
-		var node []byte
-		(*txn).Set(append(node, key[:]...), c.serializeBatch(batch))
+		(*txn).Set(dbkey.Trie(key[:]), c.serializeBatch(batch))
 	}
 }
 

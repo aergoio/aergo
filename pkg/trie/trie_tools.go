@@ -10,6 +10,7 @@ import (
 	"fmt"
 
 	"github.com/aergoio/aergo-lib/db"
+	"github.com/aergoio/aergo/v2/types/dbkey"
 )
 
 // LoadCache loads the first layers of the merkle tree given a root
@@ -35,7 +36,7 @@ func (s *Trie) loadCache(root []byte, batch [][]byte, iBatch, height int, ch cha
 	if height%4 == 0 {
 		// Load the node from db
 		s.db.lock.Lock()
-		dbval := s.db.Store.Get(root[:HashLength])
+		dbval := s.db.Store.Get(dbkey.Trie(root[:HashLength]))
 		s.db.lock.Unlock()
 		if len(dbval) == 0 {
 			ch <- fmt.Errorf("the trie node %x is unavailable in the disk db, db may be corrupted", root)
@@ -113,7 +114,7 @@ func (s *Trie) get(root, key []byte, batch [][]byte, iBatch, height int) ([]byte
 // TrieRootExists returns true if the root exists in Database.
 func (s *Trie) TrieRootExists(root []byte) bool {
 	s.db.lock.RLock()
-	dbval := s.db.Store.Get(root)
+	dbval := s.db.Store.Get(dbkey.Trie(root))
 	s.db.lock.RUnlock()
 	if len(dbval) != 0 {
 		return true

@@ -80,6 +80,19 @@ type GetReceiptRsp struct {
 	Err     error
 }
 
+type GetReceipts struct {
+	BlockHash []byte
+}
+type GetReceiptsRsp struct {
+	Receipts *types.Receipts
+	Err      error
+}
+
+type GetReceiptsByNo struct {
+	BlockNo types.BlockNo
+}
+type GetReceiptsByNoRsp GetReceiptsRsp
+
 type GetABI struct {
 	Contract []byte
 }

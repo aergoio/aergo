@@ -1,6 +1,11 @@
 // package dbkey contains a key prefix collection of low level database accessors.
 package dbkey
 
+// state trie
+const (
+	triePrefix = "s"
+)
+
 // chain
 const (
 	receiptsPrefix = "r"

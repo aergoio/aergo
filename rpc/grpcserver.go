@@ -76,6 +76,10 @@ const defaultActorTimeout = time.Second * 3
 
 var _ types.AergoRPCServiceServer = (*AergoRPCService)(nil)
 
+func (ns *AergoRPCService) GetActorHelper() p2pcommon.ActorService {
+	return ns.actorHelper
+}
+
 func (rpc *AergoRPCService) SetConsensusAccessor(ca consensus.ConsensusAccessor) {
 	if rpc == nil {
 		return
@@ -664,6 +668,7 @@ func (rpc *AergoRPCService) CommitTX(ctx context.Context, in *types.TxList) (*ty
 	if in.Txs == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "input tx is empty")
 	}
+
 	rpc.hub.Get(message.MemPoolSvc)
 	p := newPutter(ctx, in.Txs, rpc.hub, defaultActorTimeout<<2)
 	err := p.Commit()
@@ -1060,6 +1065,51 @@ func (rpc *AergoRPCService) GetReceipt(ctx context.Context, in *types.SingleByte
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
 	}
 	return rsp.Receipt, rsp.Err
+}
+
+func (rpc *AergoRPCService) GetReceipts(ctx context.Context, in *types.SingleBytes) (*types.Receipts, error) {
+	if err := rpc.checkAuth(ctx, ReadBlockChain); err != nil {
+		return nil, err
+	}
+
+	var result interface{}
+	var err error
+	if cap(in.Value) == 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "Received no bytes")
+	}
+
+	if len(in.Value) == 32 {
+		result, err = rpc.hub.RequestFuture(message.ChainSvc, &message.GetReceipts{BlockHash: in.Value},
+			defaultActorTimeout, "rpc.(*AergoRPCService).GetReceipts#2").Result()
+	} else if len(in.Value) == 8 {
+		number := uint64(binary.LittleEndian.Uint64(in.Value))
+		result, err = rpc.hub.RequestFuture(message.ChainSvc, &message.GetReceiptsByNo{BlockNo: number},
+			defaultActorTimeout, "rpc.(*AergoRPCService).GetReceipts#1").Result()
+	} else {
+		return nil, status.Errorf(codes.InvalidArgument, "Invalid input. Should be a 32 byte hash or up to 8 byte number.")
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	switch result.(type) {
+	case message.GetReceiptsRsp:
+		rsp, ok := result.(message.GetReceiptsRsp)
+		if !ok {
+			return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
+		}
+		return rsp.Receipts, rsp.Err
+
+	case message.GetReceiptsByNoRsp:
+		rsp, ok := result.(message.GetReceiptsByNoRsp)
+		if !ok {
+			return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
+		}
+		return rsp.Receipts, rsp.Err
+	}
+
+	return nil, status.Errorf(codes.Internal, "unexpected result type %s, expected %s", reflect.TypeOf(result), "message.GetReceipts")
 }
 
 func (rpc *AergoRPCService) GetABI(ctx context.Context, in *types.SingleBytes) (*types.ABI, error) {

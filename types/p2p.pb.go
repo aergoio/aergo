@@ -40,11 +40,11 @@ const (
 	// ALREADY_EXISTS
 	ResultStatus_ALREADY_EXISTS ResultStatus = 6
 	// PERMISSION_DENIED
-	ResultStatus_PERMISSION_DENIED ResultStatus = 7
-	ResultStatus_RESOURCE_EXHAUSTED ResultStatus = 8
+	ResultStatus_PERMISSION_DENIED   ResultStatus = 7
+	ResultStatus_RESOURCE_EXHAUSTED  ResultStatus = 8
 	ResultStatus_FAILED_PRECONDITION ResultStatus = 9
 	// ABORTED
-	ResultStatus_ABORTED ResultStatus = 10
+	ResultStatus_ABORTED      ResultStatus = 10
 	ResultStatus_OUT_OF_RANGE ResultStatus = 11
 	// UNIMPLEMENTED indicates operation is not implemented or not
 	// supported/enabled in this service.
