@@ -23,6 +23,7 @@ import (
 	"github.com/aergoio/aergo/v2/account/key"
 	"github.com/aergoio/aergo/v2/chain"
 	cfg "github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/contract"
 	"github.com/aergoio/aergo/v2/contract/enterprise"
 	"github.com/aergoio/aergo/v2/contract/name"
 	"github.com/aergoio/aergo/v2/contract/system"
@@ -57,6 +58,7 @@ type MemPool struct {
 	sync.RWMutex
 	cfg *cfg.Config
 
+	chainAccessor contract.ChainAccessor
 	sdb           *state.ChainStateDB
 	bestBlockID   types.BlockID
 	bestBlockInfo *types.BlockHeaderInfo
@@ -86,15 +88,18 @@ type MemPool struct {
 func NewMemPoolService(cfg *cfg.Config, cs *chain.ChainService) *MemPool {
 
 	var sdb *state.ChainStateDB
+	var cdb contract.ChainAccessor
 	if cs != nil {
 		sdb = cs.SDB()
+		cdb = cs.CDB()
 	} else { // Test
 		fee.EnableZeroFee()
 	}
 
 	actor := &MemPool{
-		cfg: cfg,
-		sdb: sdb,
+		cfg:           cfg,
+		sdb:           sdb,
+		chainAccessor: cdb,
 		//cache:    map[types.TxID]types.Transaction{},
 		cache:    sync.Map{},
 		pool:     map[types.AccountID]*txList{},
@@ -723,16 +728,13 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 			return err
 		}
 		txBody := tx.GetBody()
-		rsp, err := mp.RequestToFuture(message.ChainSvc,
-			&message.CheckFeeDelegation{Payload: txBody.GetPayload(), Contract: recipient,
-				Sender: txBody.GetAccount(), TxHash: tx.GetHash(), Amount: txBody.GetAmount()},
-			time.Second).Result()
+		ctrState, err := statedb.OpenContractStateAccount(recipient, mp.bs.StateDB)
 		if err != nil {
 			mp.Error().Err(err).Msg("failed to checkFeeDelegation")
 			return err
 		}
-		err = rsp.(message.CheckFeeDelegationRsp).Err
-		if err != nil {
+		if err = contract.CheckFeeDelegation(recipient, mp.bs, mp.bestBlockInfo, mp.chainAccessor, ctrState,
+			txBody.GetPayload(), tx.GetTx().GetHash(), txBody.GetAccount(), txBody.GetAmount()); err != nil {
 			mp.Error().Err(err).Msg("failed to checkFeeDelegation")
 			return err
 		}
