@@ -35,6 +35,7 @@ const (
 
 func init() {
 	addressRegexp, _ = regexp.Compile("^[a-zA-Z0-9]+$")
+
 }
 
 // Execute executes a normal transaction which is possibly executing smart contract.

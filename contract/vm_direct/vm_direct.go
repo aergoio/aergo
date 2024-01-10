@@ -313,6 +313,7 @@ func (e *blockExecutor) execute() error {
 		if err := e.execTx(e.BlockState, types.NewTransaction(tx)); err != nil {
 			return err
 		}
+		// mark the next preload tx to be executed
 	}
 
 	if err := SendBlockReward(e.BlockState, e.coinbaseAcccount); err != nil {
