@@ -720,14 +720,22 @@ func (e *blockExecutor) execute() error {
 	// Receipt must be committed unconditionally.
 	if !e.commitOnly {
 		defer contract.CloseDatabase()
-		logger.Trace().Int("txCount", len(e.txs)).Msg("executing txs")
-		for _, tx := range e.txs {
+		var preloadTx *types.Tx
+		numTxs := len(e.txs)
+		for i, tx := range e.txs {
+			// if tx is not the last one, preload the next tx
+			if i != numTxs-1 {
+				preloadTx = e.txs[i+1]
+				contract.RequestPreload(e.BlockState, e.bi, preloadTx, tx, contract.ChainService)
+			}
 			// execute the transaction
 			if err := e.execTx(e.BlockState, types.NewTransaction(tx)); err != nil {
 				//FIXME maybe system error. restart or panic
 				// all txs have executed successfully in BP node
 				return err
 			}
+			// mark the next preload tx to be executed
+			contract.SetPreloadTx(preloadTx, contract.ChainService)
 		}
 
 		if e.validateSignWait != nil {
