@@ -888,7 +888,7 @@ func PreCall(
 	ce *executor,
 	bs *state.BlockState,
 	sender *state.AccountState,
-	contractState *state.ContractState,
+	contractState *statedb.ContractState,
 	rp, gasLimit uint64,
 ) (string, []*types.Event, *big.Int, error) {
 	var err error
@@ -899,8 +899,8 @@ func PreCall(
 	ctx.bs = bs
 	cs := ctx.curContract.callState
 	cs.ctrState = contractState
-	cs.curState = contractState.State
-	ctx.callState[sender.AccountID()] = &callState{curState: sender.State()}
+	cs.accState = state.InitAccountState(contractState.GetID(), bs.StateDB, cs.ctrState.State, cs.ctrState.State.Clone())
+	ctx.callState[sender.AccountID()] = &callState{accState: sender}
 
 	ctx.curContract.rp = rp
 
@@ -956,7 +956,7 @@ func PreCall(
 }
 
 // loads a contract and prepares it for execution
-func PreloadExecutor(bs *state.BlockState, contractState *state.ContractState, payload, contractAddress []byte,
+func PreloadExecutor(bs *state.BlockState, contractState *statedb.ContractState, payload, contractAddress []byte,
 	ctx *vmContext) (*executor, error) {
 
 	var err error
