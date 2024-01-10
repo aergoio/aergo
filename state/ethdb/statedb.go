@@ -53,13 +53,11 @@ func (sdb *StateDB) PutCode(addr common.Address, code []byte) {
 
 func (sdb *StateDB) Put(addr common.Address, state *types.State) {
 	sdb.StateDB.SetBalance(addr, state.GetBalanceBigInt())
-	if state.GetNonce() != 0 {
-		sdb.StateDB.SetNonce(addr, state.GetNonce())
-	}
+	sdb.StateDB.SetNonce(addr, state.GetNonce())
 }
 
 func (sdb *StateDB) Get(addr common.Address) (state *types.State) {
-	if !sdb.StateDB.Exist(addr) {
+	if sdb.StateDB.Empty(addr) {
 		return nil
 	}
 	balance := sdb.StateDB.GetBalance(addr)

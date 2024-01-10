@@ -214,6 +214,9 @@ func GetAccountState(id []byte, bs *BlockState) (*AccountState, error) {
 		}
 		if st == nil {
 			st = &types.State{}
+		} else {
+			// FIXME : for test, remove later
+			logger.Error().Str("id", types.EncodeAddress(id)).Str("ethId", ethId.Hex()).Msg("lua not exist, but eth exist. it is impossible")
 		}
 	}
 	return &AccountState{
@@ -277,7 +280,7 @@ func InitAccountState(id []byte, states *statedb.StateDB, ethstates *ethdb.State
 }
 
 func SendBalance(sender, receiver *AccountState, amount *big.Int) error {
-	if len(sender.id) > 0 && sender.AccountID() == receiver.AccountID() {
+	if sender.AccountID() == receiver.AccountID() {
 		return nil
 	}
 	if sender.Balance().Cmp(amount) < 0 {
