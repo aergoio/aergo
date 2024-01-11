@@ -172,7 +172,7 @@ paths:
                   maxtokens: "AkMGxAl4WcQ8AAAA"
                   gasprice: "C6Q7dAA="
                   nameprice: "DeC2s6dkAAA="
-  /getBlockBody:
+  /getBlockTx:
     get:
       summary: Get block body
       tags: [Block]
@@ -208,23 +208,22 @@ paths:
               example:
                 offset: 0
                 size: 5
-                body:
-                  txs:
-                    [
-                      {
-                        "hash": "7dYEViBVX3Qs1BTTPntT8fvi1zsBUFGbFtUscioWxQWJ",
-                        "body":
-                          {
-                            "nonce": 6,
-                            "account": "AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R",
-                            "recipient": "AmM1M4jAxeTxfh9CHUmKXJwTLxGJ6Qe5urEeFXqbqkKnZ73Uvx4y",
-                            "amount": "1000000000000000000",
-                            "type": 4,
-                            "chainIdHash": "BNVSYKKqSR78hTSrxkaroFK2S3mgsoocpWg9HYtb1Zhn",
-                            "sign": "AN1rKvtYAKYdFiDJP68RGcUxS3YYeMD7ExgpZzMMgzvKLoce4SJx5YBAQBLSPTf1kzT5aH4qqj6BbjyurzqRbjyG6wXJfBdwo",
-                          },
-                      },
-                    ]
+                txs:
+                  [
+                    {
+                      "hash": "7dYEViBVX3Qs1BTTPntT8fvi1zsBUFGbFtUscioWxQWJ",
+                      "body":
+                        {
+                          "nonce": 6,
+                          "account": "AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R",
+                          "recipient": "AmM1M4jAxeTxfh9CHUmKXJwTLxGJ6Qe5urEeFXqbqkKnZ73Uvx4y",
+                          "amount": "1000000000000000000",
+                          "type": 4,
+                          "chainIdHash": "BNVSYKKqSR78hTSrxkaroFK2S3mgsoocpWg9HYtb1Zhn",
+                          "sign": "AN1rKvtYAKYdFiDJP68RGcUxS3YYeMD7ExgpZzMMgzvKLoce4SJx5YBAQBLSPTf1kzT5aH4qqj6BbjyurzqRbjyG6wXJfBdwo",
+                        },
+                    },
+                  ]
   /listBlockHeaders:
     get:
       summary: Get block headers list
@@ -399,41 +398,6 @@ paths:
                       },
                     ],
                   "blockNo": 8,
-                }
-  /getBlockTx:
-    get:
-      summary: Get transaction is in block
-      tags: [Transaction]
-      parameters:
-        - name: hash
-          in: query
-          schema:
-            type: string
-      responses:
-        "200":
-          description: Successful response
-          content:
-            application/json:
-              example:
-                {
-                  "txIdx":
-                    {
-                      "blockHash": "HRdfbN8Pp9iUuknJ7SWaRbKdy23x5zruLL7dBdVLFdxS",
-                    },
-                  "tx":
-                    {
-                      "hash": "C5r1VqkYWnBAHtEqJBHUjXPzbKG9f7QYXNEd5sD2KdQb",
-                      "body":
-                        {
-                          "nonce": 1,
-                          "account": "AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R",
-                          "recipient": "AmM1M4jAxeTxfh9CHUmKXJwTLxGJ6Qe5urEeFXqbqkKnZ73Uvx4y",
-                          "amount": "1000000000000000000",
-                          "type": 4,
-                          "chainIdHash": "BNVSYKKqSR78hTSrxkaroFK2S3mgsoocpWg9HYtb1Zhn",
-                          "sign": "381yXZ1ekFJxDAPRTrNmZMoBWgBNRUsF9d755v1rkukZ2gZL5GFyrq1zo3ib9MY4TkpASdSwxsSci6a6n7at4nu1H97rNyhn",
-                        },
-                    },
                 }
   /sendSignedTransaction:
     post:

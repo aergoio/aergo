@@ -37,13 +37,12 @@ func (api *Web3APIv1) NewHandler() {
 		"/getBalance":              api.GetBalance,
 		"/getBlock":                api.GetBlock,
 		"/blockchain":              api.Blockchain,
-		"/getBlockBody":            api.GetBlockBody,
+		"/getBlockTx":              api.GetBlockBody,
 		"/listBlockHeaders":        api.ListBlockHeaders,
 		"/getBlockMetadata":        api.GetBlockMetadata,
 		"/getTx":                   api.GetTX,
 		"/getReceipt":              api.GetReceipt,
 		"/getReceipts":             api.GetReceipts,
-		"/getBlockTx":              api.GetBlockTX,
 		"/queryContract":           api.QueryContract,
 		"/listEvents":              api.ListEvents,
 		"/getABI":                  api.GetABI,
@@ -756,40 +755,6 @@ func (api *Web3APIv1) GetTX() (handler http.Handler, ok bool) {
 	}
 }
 
-func (api *Web3APIv1) GetBlockTX() (handler http.Handler, ok bool) {
-	values, err := url.ParseQuery(api.request.URL.RawQuery)
-	if err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
-	}
-
-	request := &types.SingleBytes{}
-	hash := values.Get("hash")
-	if hash != "" {
-		hashBytes, err := base58.Decode(hash)
-		if err != nil {
-			return commonResponseHandler(&types.Empty{}, err), true
-		}
-		request.Value = hashBytes
-	} else {
-		return commonResponseHandlerWithCode(&types.Empty{}, errors.New("Missing required parameter: hash"), http.StatusBadRequest), true
-	}
-
-	result, err := api.rpc.GetTX(api.request.Context(), request)
-	if err == nil {
-		output := jsonrpc.ConvTx(result, jsonrpc.Base58)
-		jsonrpc.CovPayloadJson(output)
-		return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
-	} else {
-		outputblock, err := api.rpc.GetBlockTX(api.request.Context(), request)
-		if err != nil {
-			return commonResponseHandler(&types.Empty{}, err), true
-		}
-		output := jsonrpc.ConvTxInBlock(outputblock, jsonrpc.Base58)
-		jsonrpc.CovPayloadJson(output.Tx)
-		return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
-	}
-}
-
 func (api *Web3APIv1) QueryContract() (handler http.Handler, ok bool) {
 	values, err := url.ParseQuery(api.request.URL.RawQuery)
 	if err != nil {
@@ -1175,7 +1140,7 @@ func (api *Web3APIv1) GetVotes() (handler http.Handler, ok bool) {
 			return commonResponseHandler(&types.Empty{}, parseErr), true
 		}
 		reqCount = uint32(sizeValue)
-	} 
+	}
 
 	var output []*jsonrpc.InOutVotes
 	if id == "" {
