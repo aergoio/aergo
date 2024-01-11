@@ -19,8 +19,7 @@ func TestEthAccount(t *testing.T) {
 			"AmPJht1vphFthrzB5TTHBRsqJ3yezmPgb9P8V8v4aCbCLpEg2WYC", // base58check encoded from compressed pubkey ( 33 length )
 			"0xDe00eFa73EF966c5a28DbD6E2C9A2830a3453207"},          // hex encoded from uncompressed pubkey ( 65 length )
 	} {
-		acc, err := key.NewAccountEth(test.account)
-		require.NoError(t, err)
+		acc := key.NewAccountEth(test.account)
 		require.Equal(t, test.ethAccount, acc.String())
 	}
 }

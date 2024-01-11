@@ -201,9 +201,8 @@ func GetAccountState(id []byte, bs *BlockState) (*AccountState, error) {
 	var ethId common.Address
 	if bs.EthStateDB != nil {
 		if ethId = bs.EthStateDB.GetEid(aid); ethId == (common.Address{}) {
-			if ethId = ethdb.GetAddressEth(id); ethId != (common.Address{}) {
-				bs.EthStateDB.PutId(ethId, aid)
-			}
+			ethId = ethdb.GetAddressEth(id)
+			bs.EthStateDB.PutId(ethId, aid)
 		}
 	}
 

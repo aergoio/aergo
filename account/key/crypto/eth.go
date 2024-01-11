@@ -6,12 +6,13 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-func NewAccountEth(pubKey []byte) (common.Address, error) {
+func NewAccountEth(pubKey []byte) common.Address {
 	ecdsaPubKey, err := btcec.ParsePubKey(pubKey, btcec.S256())
 	if err != nil {
-		return common.Address{}, err
+		// handle about not public key
+		return common.BytesToAddress(pubKey)
 	}
-	return crypto.PubkeyToAddress(*ecdsaPubKey.ToECDSA()), nil
+	return crypto.PubkeyToAddress(*ecdsaPubKey.ToECDSA())
 }
 
 func NewContractEth(from common.Address, nonce uint64) common.Address {
