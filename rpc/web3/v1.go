@@ -1163,16 +1163,15 @@ func (api *Web3APIv1) GetVotes() (handler http.Handler, ok bool) {
 		request.Id = id
 	}
 
+	reqCount := uint32(0)
 	count := values.Get("count")
 	if count != "" {
 		sizeValue, parseErr := strconv.ParseUint(count, 10, 32)
 		if parseErr != nil {
 			return commonResponseHandler(&types.Empty{}, parseErr), true
 		}
-		request.Count = uint32(sizeValue)
-	} else {
-		request.Count = getCount(id, 0)
-	}
+		reqCount = uint32(sizeValue)
+	} 
 
 	var output []*jsonrpc.InOutVotes
 	if id == "" {
@@ -1182,7 +1181,7 @@ func (api *Web3APIv1) GetVotes() (handler http.Handler, ok bool) {
 			if id != "" {
 				result, err := api.rpc.GetVotes(api.request.Context(), &types.VoteParams{
 					Id:    id,
-					Count: getCount(id, request.Count),
+					Count: getCount(id, reqCount),
 				})
 
 				if err == nil {
@@ -1193,6 +1192,7 @@ func (api *Web3APIv1) GetVotes() (handler http.Handler, ok bool) {
 			}
 		}
 	} else {
+		request.Count = getCount(id, reqCount)
 		result, err := api.rpc.GetVotes(api.request.Context(), request)
 		if err != nil {
 			return commonResponseHandler(&types.Empty{}, err), true
