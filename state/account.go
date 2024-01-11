@@ -152,8 +152,6 @@ func CreateContractState(id []byte, nonce uint64, bs *BlockState) (*AccountState
 	// get address and contract
 	contractAddrLua := key.CreateContractID(id, nonce)
 	aid := types.ToAccountID(contractAddrLua)
-	ethId := ethdb.GetAddressEth(id)
-	contractAddrEth := key.NewContractEth(ethId, nonce)
 
 	// get stlua, steth
 	stlua, err := bs.LuaStateDB.GetState(aid)
@@ -163,7 +161,13 @@ func CreateContractState(id []byte, nonce uint64, bs *BlockState) (*AccountState
 		return nil, fmt.Errorf("account(%s) aleardy exists", types.EncodeAddress(contractAddrLua))
 	}
 
+	var contractAddrEth common.Address
 	if bs.EthStateDB != nil {
+		ethId := bs.EthStateDB.GetEid(types.ToAccountID(id))
+		if ethId == (common.Address{}) {
+			ethId = ethdb.GetAddressEth(id)
+		}
+		contractAddrEth = key.NewContractEth(ethId, nonce)
 		if bs.EthStateDB.Exist(contractAddrEth) {
 			return nil, fmt.Errorf("account(%s) aleardy exists", types.EncodeAddress(contractAddrLua))
 		}
