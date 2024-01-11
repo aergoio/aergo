@@ -1152,7 +1152,11 @@ func (api *Web3APIv1) GetVotes() (handler http.Handler, ok bool) {
 		if strings.ToLower(id) == strings.ToLower(types.OpvoteBP.ID()) {
 			return count
 		}
-		return 1
+
+		if count == 0 {
+			return 1
+		}
+		return count
 	}
 
 	request := &types.VoteParams{}
