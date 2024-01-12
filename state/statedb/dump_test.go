@@ -4,18 +4,16 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/aergoio/aergo-lib/db"
 	"github.com/stretchr/testify/require"
 )
 
 func TestDump(t *testing.T) {
-	var rootHash []byte
-	rawdb := db.NewDB(db.MemoryImpl, "./testdb")
-	sdb := NewStateDB(rawdb, rootHash, false)
+	initTest(t)
+	defer deinitTest()
 
-	dump, err := sdb.RawDump()
+	dump, err := stateDB.RawDump()
 	require.NoError(t, err)
-	require.Equal(t, rootHash, dump.Root)
+	require.Equal(t, stateDB.Trie.Root, dump.Root)
 
 	for aid, account := range dump.Accounts {
 		fmt.Printf("accountId : [%v]\n", aid)
