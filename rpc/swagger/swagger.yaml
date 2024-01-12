@@ -199,7 +199,7 @@ paths:
           require: true
           schema:
             type: integer
-          example: 5
+          example: 100
       responses:
         "200":
           description: Successful response
@@ -207,7 +207,7 @@ paths:
             application/json:
               example:
                 offset: 0
-                size: 5
+                size: 100
                 txs:
                   [
                     {
