@@ -62,7 +62,7 @@ func (sdb *StateDB) RawDump() (Dump, error) {
 	for _, key := range self.Trie.GetKeys() {
 		var st *types.State
 		var code []byte
-		var storage map[types.AccountID][]byte = make(map[types.AccountID][]byte)
+		storage := make(map[types.AccountID][]byte)
 
 		// load account state
 		aid := types.AccountID(types.ToHashID(key))
@@ -74,7 +74,7 @@ func (sdb *StateDB) RawDump() (Dump, error) {
 			// load code
 			loadData(self.Store, st.GetCodeHash(), &code)
 
-			// load contract
+			// load contract state
 			cs, err := OpenContractState(key, st, self)
 			if err != nil {
 				return dump, err
