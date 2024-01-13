@@ -52,7 +52,12 @@ func TestDumpContract(t *testing.T) {
 	defer deinitTest()
 
 	code := "testcode"
-	err := stateDB.PutState(testAccount, &types.State{
+	codeHash := common.Hasher([]byte(code))
+	// save code
+	err := saveData(store, codeHash, []byte(code))
+	require.NoError(t, err, "failed to save code")
+	// set contract state
+	err = stateDB.PutState(testAccount, &types.State{
 		Balance:  types.NewAmount(1, types.Aergo).Bytes(),
 		Nonce:    1,
 		CodeHash: common.Hasher([]byte(code)),
@@ -73,7 +78,7 @@ func TestDumpContract(t *testing.T) {
 	require.Equal(t, string(jsondata), `{
 	"accounts": {
 		"9RhQjznbYXqMQG1GmuYSsvoCYe5bnCPZCTnT6ZvohkxN": {
-			"code": "",
+			"code": "testcode",
 			"state": {
 				"balance": "1000000000000000000",
 				"codeHash": "6GBoUd26XJnkj6wGs1L6fLg8jhuVXSTVUNWzoXsjeHoh",
