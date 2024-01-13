@@ -1,6 +1,9 @@
 package statedb
 
 import (
+	"encoding/json"
+
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/types"
 )
 
@@ -10,9 +13,41 @@ type DumpAccount struct {
 	Storage map[types.AccountID][]byte
 }
 
+func (d DumpAccount) MarshalJSON() ([]byte, error) {
+	mapState := make(map[string]interface{})
+	mapState["nonce"] = d.State.Nonce
+	mapState["balance"] = d.State.GetBalanceBigInt().String()
+	mapState["codeHash"] = base58.Encode(d.State.CodeHash)
+	mapState["storageRoot"] = base58.Encode(d.State.StorageRoot)
+	mapState["sqlRecoveryPoint"] = d.State.SqlRecoveryPoint
+
+	mapStorage := make(map[string]string)
+	for k, v := range d.Storage {
+		mapStorage[k.String()] = base58.Encode(v)
+	}
+
+	return json.Marshal(map[string]interface{}{
+		"state":   mapState,
+		"code":    base58.Encode(d.Code),
+		"storage": mapStorage,
+	})
+}
+
 type Dump struct {
 	Root     []byte                          `json:"root"`
 	Accounts map[types.AccountID]DumpAccount `json:"accounts"`
+}
+
+func (d Dump) MarshalJSON() ([]byte, error) {
+	mapAccounts := make(map[string]DumpAccount)
+	for k, v := range d.Accounts {
+		mapAccounts[k.String()] = v
+	}
+
+	return json.Marshal(map[string]interface{}{
+		"root":     base58.Encode(d.Root),
+		"accounts": mapAccounts,
+	})
 }
 
 func (sdb *StateDB) RawDump() (Dump, error) {
