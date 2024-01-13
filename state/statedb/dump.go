@@ -28,7 +28,7 @@ func (d DumpAccount) MarshalJSON() ([]byte, error) {
 
 	return json.Marshal(map[string]interface{}{
 		"state":   mapState,
-		"code":    base58.Encode(d.Code),
+		"code":    string(d.Code),
 		"storage": mapStorage,
 	})
 }
