@@ -2657,6 +2657,138 @@ func (x *EnterpriseConfig) GetValues() []string {
 	return nil
 }
 
+type ReceiptsParams struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Hashornumber []byte      `protobuf:"bytes,1,opt,name=hashornumber,proto3" json:"hashornumber,omitempty"`
+	Paging       *PageParams `protobuf:"bytes,2,opt,name=paging,proto3" json:"paging,omitempty"`
+}
+
+func (x *ReceiptsParams) Reset() {
+	*x = ReceiptsParams{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_rpc_proto_msgTypes[16]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *ReceiptsParams) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReceiptsParams) ProtoMessage() {}
+
+func (x *ReceiptsParams) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_proto_msgTypes[16]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (*ReceiptsParams) Descriptor() ([]byte, []int) {
+	return file_rpc_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *ReceiptsParams) GetHashornumber() []byte {
+	if x != nil {
+		return x.Hashornumber
+	}
+	return nil
+}
+
+func (x *ReceiptsParams) GetPaging() *PageParams {
+	if x != nil {
+		return x.Paging
+	}
+	return nil
+}
+
+type ReceiptsPaged struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Total    uint32     `protobuf:"varint,1,opt,name=total,proto3" json:"total,omitempty"`
+	Offset   uint32     `protobuf:"varint,2,opt,name=offset,proto3" json:"offset,omitempty"`
+	Size     uint32     `protobuf:"varint,3,opt,name=size,proto3" json:"size,omitempty"`
+	Receipts []*Receipt `protobuf:"bytes,4,opt,name=body,proto3" json:"receipts,omitempty"`
+	BlockNo  BlockNo    `protobuf:"bytes,4,opt,name=body,proto3" json:"blockNo,omitempty"`
+}
+
+func (x *ReceiptsPaged) Reset() {
+	*x = ReceiptsPaged{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_rpc_proto_msgTypes[15]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *ReceiptsPaged) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReceiptsPaged) ProtoMessage() {}
+
+func (x *ReceiptsPaged) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_proto_msgTypes[15]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (*ReceiptsPaged) Descriptor() ([]byte, []int) {
+	return file_rpc_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *ReceiptsPaged) GetTotal() uint32 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+func (x *ReceiptsPaged) GetOffset() uint32 {
+	if x != nil {
+		return x.Offset
+	}
+	return 0
+}
+
+func (x *ReceiptsPaged) GetSize() uint32 {
+	if x != nil {
+		return x.Size
+	}
+	return 0
+}
+
+func (x *ReceiptsPaged) Get() []*Receipt {
+	if x != nil {
+		return x.Receipts
+	}
+	return nil
+}
+
+func (x *ReceiptsPaged) GetBlockNo() uint64 {
+	if x != nil {
+		return x.BlockNo
+	}
+	return 0
+}
+
 var File_rpc_proto protoreflect.FileDescriptor
 
 var file_rpc_proto_rawDesc = []byte{

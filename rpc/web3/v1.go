@@ -674,14 +674,16 @@ func (api *Web3APIv1) GetReceipts() (handler http.Handler, ok bool) {
 		return commonResponseHandler(&types.Empty{}, err), true
 	}
 
-	request := &types.SingleBytes{}
+	request := &types.ReceiptsParams{}
+	request.Paging = &types.PageParams{}
+
 	hash := values.Get("hash")
 	if hash != "" {
 		hashBytes, err := base58.Decode(hash)
 		if err != nil {
 			return commonResponseHandler(&types.Empty{}, err), true
 		}
-		request.Value = hashBytes
+		request.Hashornumber = hashBytes
 	}
 
 	number := values.Get("number")
@@ -693,7 +695,29 @@ func (api *Web3APIv1) GetReceipts() (handler http.Handler, ok bool) {
 		number := uint64(numberValue) // Replace with your actual value
 		byteValue := make([]byte, 8)
 		binary.LittleEndian.PutUint64(byteValue, number)
-		request.Value = byteValue
+		request.Hashornumber = byteValue
+	}
+
+	size := values.Get("size")
+	if size != "" {
+		sizeValue, parseErr := strconv.ParseUint(size, 10, 64)
+		if parseErr != nil {
+			return commonResponseHandler(&types.Empty{}, parseErr), true
+
+		}
+		request.Paging.Size = uint32(sizeValue)
+		if request.Paging.Size > 100 {
+			request.Paging.Size = 100
+		}
+	}
+
+	offset := values.Get("offset")
+	if offset != "" {
+		offsetValue, parseErr := strconv.ParseUint(offset, 10, 64)
+		if parseErr != nil {
+			return commonResponseHandler(&types.Empty{}, parseErr), true
+		}
+		request.Paging.Offset = uint32(offsetValue)
 	}
 
 	result, err := api.rpc.GetReceipts(api.request.Context(), request)
@@ -715,7 +739,7 @@ func (api *Web3APIv1) GetReceipts() (handler http.Handler, ok bool) {
 		return stringResponseHandler(jsonrpc.MarshalJSON(receipts), nil), true
 	}
 
-	output := jsonrpc.ConvReceipts(result)
+	output := jsonrpc.ConvReceiptsPaged(result)
 	return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 }
 

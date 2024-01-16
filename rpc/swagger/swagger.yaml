@@ -375,6 +375,16 @@ paths:
           in: query
           schema:
             type: integer
+        - name: offset
+          in: query
+          schema:
+            type: integer
+          example: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+          example: 100
       responses:
         "200":
           description: Successful response
@@ -382,22 +392,37 @@ paths:
             application/json:
               example:
                 {
-                  "receipts":
+                  total: 2,
+                  size: 100,
+                  receipts:
                     [
                       {
-                        "contractAddress": "AmM1M4jAxeTxfh9CHUmKXJwTLxGJ6Qe5urEeFXqbqkKnZ73Uvx4y",
-                        "status": "SUCCESS",
-                        "ret": "",
-                        "txHash": "C5r1VqkYWnBAHtEqJBHUjXPzbKG9f7QYXNEd5sD2KdQb",
-                        "feeUsed": "0",
-                        "cumulativeFeeUsed": "0",
-                        "blockHash": "HRdfbN8Pp9iUuknJ7SWaRbKdy23x5zruLL7dBdVLFdxS",
-                        "blockNo": 8,
-                        "from": "AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R",
-                        "to": "AmM1M4jAxeTxfh9CHUmKXJwTLxGJ6Qe5urEeFXqbqkKnZ73Uvx4y",
+                        contractAddress: "AmM1M4jAxeTxfh9CHUmKXJwTLxGJ6Qe5urEeFXqbqkKnZ73Uvx4y",
+                        status: "SUCCESS",
+                        ret: "",
+                        txHash: "6kj45qbgaaKMtQLfPmvTPdU3ozipMX46P5ApSa8Jw1rn",
+                        feeUsed: "0",
+                        cumulativeFeeUsed: "0",
+                        blockHash: "A6Y8J1J9w5ZB8jzBemKZNyrbRZpNDeRsdFnukUqPEQak",
+                        blockNo: 39,
+                        from: "AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R",
+                        to: "AmM1M4jAxeTxfh9CHUmKXJwTLxGJ6Qe5urEeFXqbqkKnZ73Uvx4y",
+                      },
+                      {
+                        contractAddress: "AmM1M4jAxeTxfh9CHUmKXJwTLxGJ6Qe5urEeFXqbqkKnZ73Uvx4y",
+                        status: "SUCCESS",
+                        ret: "",
+                        txHash: "8bmgNcZP7YeTzxWmkn9kJD5hvD4z2BVGq1tQJ5Vj76Ur",
+                        feeUsed: "0",
+                        cumulativeFeeUsed: "0",
+                        blockHash: "A6Y8J1J9w5ZB8jzBemKZNyrbRZpNDeRsdFnukUqPEQak",
+                        blockNo: 39,
+                        txIndex: 1,
+                        from: "AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R",
+                        to: "AmM1M4jAxeTxfh9CHUmKXJwTLxGJ6Qe5urEeFXqbqkKnZ73Uvx4y",
                       },
                     ],
-                  "blockNo": 8,
+                  blockNo: 39,
                 }
   /sendSignedTransaction:
     post:
