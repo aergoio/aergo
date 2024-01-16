@@ -7,6 +7,7 @@ package statedb
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"math/big"
 	"sync"
@@ -409,4 +410,12 @@ func (states *StateDB) HasMarker(root []byte) bool {
 		return true
 	}
 	return false
+}
+
+func (sdb *StateDB) Dump() ([]byte, error) {
+	dump, err := sdb.RawDump()
+	if err != nil {
+		return nil, err
+	}
+	return json.MarshalIndent(dump, "", "\t")
 }

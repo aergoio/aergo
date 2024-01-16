@@ -1,7 +1,6 @@
 package statedb
 
 import (
-	"encoding/json"
 	"testing"
 
 	"github.com/aergoio/aergo/v2/internal/common"
@@ -23,13 +22,10 @@ func TestDumpAccount(t *testing.T) {
 	err = stateDB.Commit()
 	require.NoError(t, err, "failed to commit")
 
-	dump, err := stateDB.RawDump()
+	dump, err := stateDB.Dump()
 	require.NoError(t, err)
 
-	jsondata, err := json.MarshalIndent(dump, "", "\t")
-	require.NoError(t, err)
-
-	require.Equal(t, string(jsondata), `{
+	require.Equal(t, string(dump), `{
 	"accounts": {
 		"9RhQjznbYXqMQG1GmuYSsvoCYe5bnCPZCTnT6ZvohkxN": {
 			"code": "",
@@ -69,13 +65,10 @@ func TestDumpContract(t *testing.T) {
 	err = stateDB.Commit()
 	require.NoError(t, err, "failed to commit")
 
-	dump, err := stateDB.RawDump()
+	dump, err := stateDB.Dump()
 	require.NoError(t, err)
 
-	jsondata, err := json.MarshalIndent(dump, "", "\t")
-	require.NoError(t, err)
-
-	require.Equal(t, string(jsondata), `{
+	require.Equal(t, string(dump), `{
 	"accounts": {
 		"9RhQjznbYXqMQG1GmuYSsvoCYe5bnCPZCTnT6ZvohkxN": {
 			"code": "testcode",
@@ -124,13 +117,10 @@ func TestDumpStorage(t *testing.T) {
 	err = stateDB.Commit()
 	require.NoError(t, err, "failed to commit")
 
-	dump, err := stateDB.RawDump()
+	dump, err := stateDB.Dump()
 	require.NoError(t, err)
 
-	jsondata, err := json.MarshalIndent(dump, "", "\t")
-	require.NoError(t, err)
-
-	require.Equal(t, string(jsondata), `{
+	require.Equal(t, string(dump), `{
 	"accounts": {
 		"9RhQjznbYXqMQG1GmuYSsvoCYe5bnCPZCTnT6ZvohkxN": {
 			"code": "testcode",
