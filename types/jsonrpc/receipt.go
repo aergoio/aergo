@@ -178,6 +178,32 @@ type InOutReceipts struct {
 	BlockNo  uint64          `json:"blockNo,omitempty"`
 }
 
+func ConvReceiptsPaged(msg *types.ReceiptsPaged) *InOutReceiptsPaged {
+	if msg == nil {
+		return nil
+	}
+
+	rp := &InOutReceiptsPaged{}
+	rp.Total = msg.GetTotal()
+	rp.Offset = msg.GetOffset()
+	rp.Size = msg.GetSize()
+	rp.BlockNo = msg.GetBlockNo()
+	rp.Receipts = make([]*InOutReceipt, len(msg.Get()))
+	for i, receipt := range msg.Get() {
+		rp.Receipts[i] = ConvReceipt(receipt)
+	}
+
+	return rp
+}
+
+type InOutReceiptsPaged struct {
+	Total    uint32          `json:"total,omitempty"`
+	Offset   uint32          `json:"offset,omitempty"`
+	Size     uint32          `json:"size,omitempty"`
+	Receipts []*InOutReceipt `json:"receipts"`
+	BlockNo  uint64          `json:"blockNo,omitempty"`
+}
+
 func ConvEvents(msg *types.EventList) *InOutEventList {
 	if msg == nil {
 		return nil

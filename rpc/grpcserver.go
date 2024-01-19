@@ -1067,22 +1067,22 @@ func (rpc *AergoRPCService) GetReceipt(ctx context.Context, in *types.SingleByte
 	return rsp.Receipt, rsp.Err
 }
 
-func (rpc *AergoRPCService) GetReceipts(ctx context.Context, in *types.SingleBytes) (*types.Receipts, error) {
+func (rpc *AergoRPCService) GetReceipts(ctx context.Context, in *types.ReceiptsParams) (*types.ReceiptsPaged, error) {
 	if err := rpc.checkAuth(ctx, ReadBlockChain); err != nil {
 		return nil, err
 	}
 
 	var result interface{}
 	var err error
-	if cap(in.Value) == 0 {
+	if cap(in.Hashornumber) == 0 {
 		return nil, status.Errorf(codes.InvalidArgument, "Received no bytes")
 	}
 
-	if len(in.Value) == 32 {
-		result, err = rpc.hub.RequestFuture(message.ChainSvc, &message.GetReceipts{BlockHash: in.Value},
+	if len(in.Hashornumber) == 32 {
+		result, err = rpc.hub.RequestFuture(message.ChainSvc, &message.GetReceipts{BlockHash: in.Hashornumber},
 			defaultActorTimeout, "rpc.(*AergoRPCService).GetReceipts#2").Result()
-	} else if len(in.Value) == 8 {
-		number := uint64(binary.LittleEndian.Uint64(in.Value))
+	} else if len(in.Hashornumber) == 8 {
+		number := uint64(binary.LittleEndian.Uint64(in.Hashornumber))
 		result, err = rpc.hub.RequestFuture(message.ChainSvc, &message.GetReceiptsByNo{BlockNo: number},
 			defaultActorTimeout, "rpc.(*AergoRPCService).GetReceipts#1").Result()
 	} else {
@@ -1093,20 +1093,53 @@ func (rpc *AergoRPCService) GetReceipts(ctx context.Context, in *types.SingleByt
 		return nil, err
 	}
 
+	getPaging := func(data *types.Receipts, size uint32, offset uint32) *types.ReceiptsPaged {
+		allReceipts := data.Get()
+		total := uint32(len(allReceipts))
+
+		var fetchSize uint32
+		if size > uint32(1000) {
+			fetchSize = uint32(1000)
+		} else if size == uint32(0) {
+			fetchSize = 100
+		} else {
+			fetchSize = size
+		}
+
+		var receipts []*types.Receipt
+		if offset >= uint32(len(allReceipts)) {
+			receipts = []*types.Receipt{}
+		} else {
+			limit := offset + fetchSize
+			if limit > uint32(len(allReceipts)) {
+				limit = uint32(len(allReceipts))
+			}
+			receipts = allReceipts[offset:limit]
+		}
+
+		return &types.ReceiptsPaged{
+			Receipts: receipts,
+			BlockNo:  data.GetBlockNo(),
+			Total:    total,
+			Size:     fetchSize,
+			Offset:   offset,
+		}
+	}
+
 	switch result.(type) {
 	case message.GetReceiptsRsp:
 		rsp, ok := result.(message.GetReceiptsRsp)
 		if !ok {
 			return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
 		}
-		return rsp.Receipts, rsp.Err
+		return getPaging(rsp.Receipts, in.Paging.Size, in.Paging.Offset), rsp.Err
 
 	case message.GetReceiptsByNoRsp:
 		rsp, ok := result.(message.GetReceiptsByNoRsp)
 		if !ok {
 			return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
 		}
-		return rsp.Receipts, rsp.Err
+		return getPaging(rsp.Receipts, in.Paging.Size, in.Paging.Offset), rsp.Err
 	}
 
 	return nil, status.Errorf(codes.Internal, "unexpected result type %s, expected %s", reflect.TypeOf(result), "message.GetReceipts")

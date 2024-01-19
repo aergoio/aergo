@@ -125,7 +125,8 @@ func ConvBlockBodyPaged(msg *types.BlockBodyPaged) *InOutBlockBodyPaged {
 	}
 
 	bbp := &InOutBlockBodyPaged{}
-	bbp.Body = ConvBlockBody(msg.GetBody())
+	body := ConvBlockBody(msg.GetBody())
+	bbp.Txs = body.Txs
 	bbp.Total = msg.GetTotal()
 	bbp.Offset = msg.GetOffset()
 	bbp.Size = msg.GetSize()
@@ -134,10 +135,10 @@ func ConvBlockBodyPaged(msg *types.BlockBodyPaged) *InOutBlockBodyPaged {
 }
 
 type InOutBlockBodyPaged struct {
-	Total  uint32          `json:"total,omitempty"`
-	Offset uint32          `json:"offset,omitempty"`
-	Size   uint32          `json:"size,omitempty"`
-	Body   *InOutBlockBody `json:"body,omitempty"`
+	Total  uint32     `json:"total,omitempty"`
+	Offset uint32     `json:"offset,omitempty"`
+	Size   uint32     `json:"size,omitempty"`
+	Txs    []*InOutTx `json:"txs,omitempty"`
 }
 
 func ConvBlockMetadata(msg *types.BlockMetadata) *InOutBlockMetadata {

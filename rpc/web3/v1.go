@@ -37,13 +37,12 @@ func (api *Web3APIv1) NewHandler() {
 		"/getBalance":              api.GetBalance,
 		"/getBlock":                api.GetBlock,
 		"/blockchain":              api.Blockchain,
-		"/getBlockBody":            api.GetBlockBody,
+		"/getBlockTx":              api.GetBlockBody,
 		"/listBlockHeaders":        api.ListBlockHeaders,
 		"/getBlockMetadata":        api.GetBlockMetadata,
 		"/getTx":                   api.GetTX,
 		"/getReceipt":              api.GetReceipt,
 		"/getReceipts":             api.GetReceipts,
-		"/getBlockTx":              api.GetBlockTX,
 		"/queryContract":           api.QueryContract,
 		"/listEvents":              api.ListEvents,
 		"/getABI":                  api.GetABI,
@@ -675,14 +674,16 @@ func (api *Web3APIv1) GetReceipts() (handler http.Handler, ok bool) {
 		return commonResponseHandler(&types.Empty{}, err), true
 	}
 
-	request := &types.SingleBytes{}
+	request := &types.ReceiptsParams{}
+	request.Paging = &types.PageParams{}
+
 	hash := values.Get("hash")
 	if hash != "" {
 		hashBytes, err := base58.Decode(hash)
 		if err != nil {
 			return commonResponseHandler(&types.Empty{}, err), true
 		}
-		request.Value = hashBytes
+		request.Hashornumber = hashBytes
 	}
 
 	number := values.Get("number")
@@ -694,7 +695,29 @@ func (api *Web3APIv1) GetReceipts() (handler http.Handler, ok bool) {
 		number := uint64(numberValue) // Replace with your actual value
 		byteValue := make([]byte, 8)
 		binary.LittleEndian.PutUint64(byteValue, number)
-		request.Value = byteValue
+		request.Hashornumber = byteValue
+	}
+
+	size := values.Get("size")
+	if size != "" {
+		sizeValue, parseErr := strconv.ParseUint(size, 10, 64)
+		if parseErr != nil {
+			return commonResponseHandler(&types.Empty{}, parseErr), true
+
+		}
+		request.Paging.Size = uint32(sizeValue)
+		if request.Paging.Size > 100 {
+			request.Paging.Size = 100
+		}
+	}
+
+	offset := values.Get("offset")
+	if offset != "" {
+		offsetValue, parseErr := strconv.ParseUint(offset, 10, 64)
+		if parseErr != nil {
+			return commonResponseHandler(&types.Empty{}, parseErr), true
+		}
+		request.Paging.Offset = uint32(offsetValue)
 	}
 
 	result, err := api.rpc.GetReceipts(api.request.Context(), request)
@@ -716,7 +739,7 @@ func (api *Web3APIv1) GetReceipts() (handler http.Handler, ok bool) {
 		return stringResponseHandler(jsonrpc.MarshalJSON(receipts), nil), true
 	}
 
-	output := jsonrpc.ConvReceipts(result)
+	output := jsonrpc.ConvReceiptsPaged(result)
 	return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 }
 
@@ -751,40 +774,6 @@ func (api *Web3APIv1) GetTX() (handler http.Handler, ok bool) {
 		}
 
 		output := jsonrpc.ConvTxInBlock(resultblock, jsonrpc.Base58)
-		jsonrpc.CovPayloadJson(output.Tx)
-		return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
-	}
-}
-
-func (api *Web3APIv1) GetBlockTX() (handler http.Handler, ok bool) {
-	values, err := url.ParseQuery(api.request.URL.RawQuery)
-	if err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
-	}
-
-	request := &types.SingleBytes{}
-	hash := values.Get("hash")
-	if hash != "" {
-		hashBytes, err := base58.Decode(hash)
-		if err != nil {
-			return commonResponseHandler(&types.Empty{}, err), true
-		}
-		request.Value = hashBytes
-	} else {
-		return commonResponseHandlerWithCode(&types.Empty{}, errors.New("Missing required parameter: hash"), http.StatusBadRequest), true
-	}
-
-	result, err := api.rpc.GetTX(api.request.Context(), request)
-	if err == nil {
-		output := jsonrpc.ConvTx(result, jsonrpc.Base58)
-		jsonrpc.CovPayloadJson(output)
-		return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
-	} else {
-		outputblock, err := api.rpc.GetBlockTX(api.request.Context(), request)
-		if err != nil {
-			return commonResponseHandler(&types.Empty{}, err), true
-		}
-		output := jsonrpc.ConvTxInBlock(outputblock, jsonrpc.Base58)
 		jsonrpc.CovPayloadJson(output.Tx)
 		return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 	}
@@ -1148,6 +1137,17 @@ func (api *Web3APIv1) GetVotes() (handler http.Handler, ok bool) {
 		return commonResponseHandler(&types.Empty{}, err), true
 	}
 
+	getCount := func(id string, count uint32) uint32 {
+		if strings.ToLower(id) == strings.ToLower(types.OpvoteBP.ID()) {
+			return count
+		}
+
+		if count == 0 {
+			return 1
+		}
+		return count
+	}
+
 	request := &types.VoteParams{}
 	request.Id = types.OpvoteBP.ID()
 
@@ -1156,27 +1156,25 @@ func (api *Web3APIv1) GetVotes() (handler http.Handler, ok bool) {
 		request.Id = id
 	}
 
+	reqCount := uint32(0)
 	count := values.Get("count")
 	if count != "" {
 		sizeValue, parseErr := strconv.ParseUint(count, 10, 32)
 		if parseErr != nil {
 			return commonResponseHandler(&types.Empty{}, parseErr), true
 		}
-		request.Count = uint32(sizeValue)
-	} else {
-		request.Count = 0
+		reqCount = uint32(sizeValue)
 	}
 
+	var output []*jsonrpc.InOutVotes
 	if id == "" {
-		var output []*jsonrpc.InOutVotes
-
 		for _, i := range system.GetVotingCatalog() {
 			id := i.ID()
 
 			if id != "" {
 				result, err := api.rpc.GetVotes(api.request.Context(), &types.VoteParams{
 					Id:    id,
-					Count: 0,
+					Count: getCount(id, reqCount),
 				})
 
 				if err == nil {
@@ -1186,17 +1184,18 @@ func (api *Web3APIv1) GetVotes() (handler http.Handler, ok bool) {
 				}
 			}
 		}
+	} else {
+		request.Count = getCount(id, reqCount)
+		result, err := api.rpc.GetVotes(api.request.Context(), request)
+		if err != nil {
+			return commonResponseHandler(&types.Empty{}, err), true
+		}
 
-		return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
+		subOutput := jsonrpc.ConvVotes(result, id)
+		subOutput.Id = id
+		output = append(output, subOutput)
 	}
 
-	output := &jsonrpc.InOutVotes{}
-	result, err := api.rpc.GetVotes(api.request.Context(), request)
-	if err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
-	}
-
-	output = jsonrpc.ConvVotes(result, id)
 	return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
 }
 
