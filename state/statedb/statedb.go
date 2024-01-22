@@ -18,6 +18,7 @@ import (
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/pkg/trie"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/dbkey"
 )
 
 const (
@@ -407,6 +408,20 @@ func (states *StateDB) HasMarker(root []byte) bool {
 	marker := states.Store.Get(common.Hasher(root))
 	if marker != nil && bytes.Equal(marker, StateMarker) {
 		// logger.Debug().Str("stateRoot", enc.ToString(root)).Str("marker", hex.HexEncode(marker)).Msg("IsMarked")
+		return true
+	}
+	return false
+}
+
+func (states *StateDB) IsLegacyTrieKey() bool {
+	root := states.GetRoot()
+	if len(root) == 0 {
+		return false
+	}
+
+	prefixRoot := states.Store.Get(dbkey.Trie(root))
+	legacyRoot := states.Store.Get(root)
+	if len(prefixRoot) == 0 && len(legacyRoot) > 0 {
 		return true
 	}
 	return false
