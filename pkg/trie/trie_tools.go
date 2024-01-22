@@ -111,6 +111,35 @@ func (s *Trie) get(root, key []byte, batch [][]byte, iBatch, height int) ([]byte
 	return s.get(lnode, key, batch, 2*iBatch+1, height-1)
 }
 
+// GetKeys fetches all keys of shortcut.
+func (s *Trie) GetKeys() [][]byte {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+	s.atomicUpdate = false
+
+	keys := make([][]byte, 0, 1024)
+	s.getKeys(s.Root, nil, 0, s.TrieHeight, &keys)
+	return keys
+}
+
+func (s *Trie) getKeys(root []byte, batch [][]byte, iBatch, height int, keys *[][]byte) {
+	if len(root) == 0 {
+		// the trie does not contain the key
+		return
+	}
+	// Fetch the children of the node
+	batch, iBatch, lnode, rnode, isShortcut, err := s.loadChildren(root, height, iBatch, batch)
+	if err != nil {
+		return
+	}
+	if isShortcut {
+		*keys = append(*keys, lnode[:HashLength])
+		return
+	}
+	s.getKeys(rnode, batch, 2*iBatch+2, height-1, keys)
+	s.getKeys(lnode, batch, 2*iBatch+1, height-1, keys)
+}
+
 // TrieRootExists returns true if the root exists in Database.
 func (s *Trie) TrieRootExists(root []byte) bool {
 	s.db.lock.RLock()
