@@ -8,9 +8,9 @@ package cmd
 import (
 	"context"
 
-	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/jsonrpc"
 	"github.com/spf13/cobra"
 )
 
@@ -64,5 +64,6 @@ func execListBlockHeaders(cmd *cobra.Command, args []string) {
 		cmd.Printf("Failed: %s", err.Error())
 		return
 	}
-	cmd.Println(util.JSON(msg))
+	res := jsonrpc.ConvBlockHeaderList(msg)
+	cmd.Println(jsonrpc.MarshalJSON(res))
 }

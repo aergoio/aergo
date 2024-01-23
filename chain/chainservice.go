@@ -27,6 +27,7 @@ import (
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/dbkey"
 	"github.com/aergoio/aergo/v2/types/message"
@@ -179,6 +180,8 @@ type IChainHandler interface {
 	getBlockByNo(blockNo types.BlockNo) (*types.Block, error)
 	getTx(txHash []byte) (*types.Tx, *types.TxIdx, error)
 	getReceipt(txHash []byte) (*types.Receipt, error)
+	getReceipts(blockHash []byte) (*types.Receipts, error)
+	getReceiptsByNo(blockNo types.BlockNo) (*types.Receipts, error)
 	getAccountVote(addr []byte) (*types.AccountVoteInfo, error)
 	getVotes(id string, n uint32) (*types.VoteList, error)
 	getStaking(addr []byte) (*types.Staking, error)
@@ -229,6 +232,11 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	var err error
 	if cs.Core, err = NewCore(cfg.DbType, cfg.DataDir, cfg.EnableTestmode, types.BlockNo(cfg.Blockchain.ForceResetHeight)); err != nil {
 		logger.Panic().Err(err).Msg("failed to initialize DB")
+	}
+
+	// check legacy format about trie key
+	if legacy := cs.SDB().GetStateDB().IsLegacyTrieKey(); legacy {
+		logger.Panic().Msg("Legacy key format detected. Clear existing data and restart.")
 	}
 
 	if err = Init(cfg.Blockchain.MaxBlockSize,
@@ -294,7 +302,8 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	types.InitGovernance(cs.ConsensusType(), cs.IsPublic())
 
 	//reset parameter of aergo.system
-	systemState, err := cs.SDB().GetSystemAccountState()
+
+	systemState, err := statedb.GetSystemAccountState(cs.SDB().GetStateDB())
 	if err != nil {
 		logger.Panic().Err(err).Msg("failed to read aergo.system state")
 	}
@@ -433,6 +442,8 @@ func (cs *ChainService) Receive(context actor.Context) {
 		*message.GetStateAndProof,
 		*message.GetTx,
 		*message.GetReceipt,
+		*message.GetReceipts,
+		*message.GetReceiptsByNo,
 		*message.GetABI,
 		*message.GetQuery,
 		*message.GetStateQuery,
@@ -495,10 +506,14 @@ func (cs *ChainService) getVotes(id string, n uint32) (*types.VoteList, error) {
 	switch ConsensusName() {
 	case consensus.ConsensusName[consensus.ConsensusDPOS]:
 		sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
-		if n == 0 {
-			return system.GetVoteResult(sdb, []byte(id), system.GetBpCount())
+		scs, err := statedb.GetSystemAccountState(sdb)
+		if err != nil {
+			return nil, err
 		}
-		return system.GetVoteResult(sdb, []byte(id), int(n))
+		if n == 0 {
+			return system.GetVoteResult(scs, []byte(id), system.GetBpCount())
+		}
+		return system.GetVoteResult(scs, []byte(id), int(n))
 	case consensus.ConsensusName[consensus.ConsensusRAFT]:
 		//return cs.GetBPs()
 		return nil, ErrNotSupportedConsensus
@@ -513,11 +528,11 @@ func (cs *ChainService) getAccountVote(addr []byte) (*types.AccountVoteInfo, err
 	}
 
 	sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
-	scs, err := sdb.GetSystemAccountState()
+	scs, err := statedb.GetSystemAccountState(sdb)
 	if err != nil {
 		return nil, err
 	}
-	namescs, err := sdb.GetNameAccountState()
+	namescs, err := statedb.GetNameAccountState(sdb)
 	if err != nil {
 		return nil, err
 	}
@@ -535,11 +550,11 @@ func (cs *ChainService) getStaking(addr []byte) (*types.Staking, error) {
 	}
 
 	sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
-	scs, err := sdb.GetSystemAccountState()
+	scs, err := statedb.GetSystemAccountState(sdb)
 	if err != nil {
 		return nil, err
 	}
-	namescs, err := sdb.GetNameAccountState()
+	namescs, err := statedb.GetNameAccountState(sdb)
 	if err != nil {
 		return nil, err
 	}
@@ -551,7 +566,7 @@ func (cs *ChainService) getStaking(addr []byte) (*types.Staking, error) {
 }
 
 func (cs *ChainService) getNameInfo(qname string, blockNo types.BlockNo) (*types.NameInfo, error) {
-	var stateDB *state.StateDB
+	var stateDB *statedb.StateDB
 	if blockNo != 0 {
 		block, err := cs.cdb.GetBlockByNo(blockNo)
 		if err != nil {
@@ -561,22 +576,34 @@ func (cs *ChainService) getNameInfo(qname string, blockNo types.BlockNo) (*types
 	} else {
 		stateDB = cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
 	}
-	return name.GetNameInfo(stateDB, qname)
+
+	ncs, err := statedb.GetNameAccountState(stateDB)
+	if err != nil {
+		return nil, err
+	}
+	return name.GetNameInfo(ncs, qname)
 }
 
 func (cs *ChainService) getEnterpriseConf(key string) (*types.EnterpriseConfig, error) {
 	sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
-	if strings.ToUpper(key) != string(dbkey.EnterpriseAdmins()) {
-		return enterprise.GetConf(sdb, key)
+	ecs, err := statedb.GetEnterpriseAccountState(sdb)
+	if err != nil {
+		return nil, err
 	}
-	return enterprise.GetAdmin(sdb)
+	if strings.ToUpper(key) != string(dbkey.EnterpriseAdmins()) {
+		return enterprise.GetConf(ecs, key)
+	}
+	return enterprise.GetAdmin(ecs)
 }
 
 func (cs *ChainService) getSystemValue(key types.SystemValue) (*big.Int, error) {
-	stateDB := cs.sdb.GetStateDB()
 	switch key {
 	case types.StakingTotal:
-		return system.GetStakingTotal(stateDB)
+		scs, err := statedb.GetSystemAccountState(cs.sdb.GetStateDB())
+		if err != nil {
+			return nil, err
+		}
+		return system.GetStakingTotal(scs)
 	case types.StakingMin:
 		return system.GetStakingMinimum(), nil
 	case types.GasPrice:
@@ -682,9 +709,9 @@ func (cm *ChainManager) Receive(context actor.Context) {
 	}
 }
 
-func getAddressNameResolved(sdb *state.StateDB, account []byte) ([]byte, error) {
+func getAddressNameResolved(sdb *statedb.StateDB, account []byte) ([]byte, error) {
 	if len(account) == types.NameLength {
-		scs, err := sdb.GetNameAccountState()
+		scs, err := statedb.GetNameAccountState(sdb)
 		if err != nil {
 			logger.Error().Str("hash", base58.Encode(account)).Err(err).Msg("failed to get state for account")
 			return nil, err
@@ -695,9 +722,9 @@ func getAddressNameResolved(sdb *state.StateDB, account []byte) ([]byte, error) 
 }
 
 func (cw *ChainWorker) Receive(context actor.Context) {
-	var sdb *state.StateDB
+	var sdb *statedb.StateDB
 
-	getAccProof := func(sdb *state.StateDB, account, root []byte, compressed bool) (*types.AccountProof, error) {
+	getAccProof := func(sdb *statedb.StateDB, account, root []byte, compressed bool) (*types.AccountProof, error) {
 		address, err := getAddressNameResolved(sdb, account)
 		if err != nil {
 			return nil, err
@@ -773,6 +800,18 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			Receipt: receipt,
 			Err:     err,
 		})
+	case *message.GetReceipts:
+		receipts, err := cw.getReceipts(msg.BlockHash)
+		context.Respond(message.GetReceiptsRsp{
+			Receipts: receipts,
+			Err:      err,
+		})
+	case *message.GetReceiptsByNo:
+		receipts, err := cw.getReceiptsByNo(msg.BlockNo)
+		context.Respond(message.GetReceiptsByNoRsp{
+			Receipts: receipts,
+			Err:      err,
+		})
 	case *message.GetABI:
 		sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetRoot())
 		address, err := getAddressNameResolved(sdb, msg.Contract)
@@ -783,7 +822,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			})
 			break
 		}
-		contractState, err := sdb.OpenContractStateAccount(types.ToAccountID(address))
+		contractState, err := statedb.OpenContractStateAccount(address, sdb)
 		if err == nil {
 			abi, err := contract.GetABI(contractState, nil)
 			context.Respond(message.GetABIRsp{
@@ -805,7 +844,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
 			break
 		}
-		ctrState, err := sdb.OpenContractStateAccount(types.ToAccountID(address))
+		ctrState, err := statedb.OpenContractStateAccount(address, sdb)
 		if err != nil {
 			logger.Error().Str("hash", base58.Encode(address)).Err(err).Msg("failed to get state for contract")
 			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
@@ -893,7 +932,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		defer runtime.UnlockOSThread()
 
 		sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetRoot())
-		ctrState, err := sdb.OpenContractStateAccount(types.ToAccountID(msg.Contract))
+		ctrState, err := statedb.OpenContractStateAccount(msg.Contract, sdb)
 		if err != nil {
 			logger.Error().Str("hash", base58.Encode(msg.Contract)).Err(err).Msg("failed to get state for contract")
 			context.Respond(message.CheckFeeDelegationRsp{Err: err})

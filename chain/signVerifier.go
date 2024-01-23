@@ -10,6 +10,7 @@ import (
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/message"
 )
@@ -132,7 +133,7 @@ func (sv *SignVerifier) verifyTx(comm component.IComponentRequester, tx *types.T
 	}
 
 	if tx.NeedNameVerify() {
-		cs, err := sv.sdb.GetStateDB().GetNameAccountState()
+		cs, err := statedb.GetNameAccountState(sv.sdb.GetStateDB())
 		if err != nil {
 			logger.Error().Err(err).Msg("failed to get verify because of opening contract error")
 			return false, err

@@ -1,15 +1,15 @@
 package cmd
 
 import (
+	"encoding/json"
 	"os"
 	"regexp"
 	"strings"
 	"testing"
 
-	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
-	"github.com/aergoio/aergo/v2/cmd/aergocli/util/encoding/json"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/jsonrpc"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -26,7 +26,7 @@ func TestSignWithKey(t *testing.T) {
 	assert.Equalf(t, types.AddressLength, len(addr), "wrong address length value = %s", output)
 
 	ouputjson := strings.Join(outputline[1:], "")
-	var tx util.InOutTx
+	var tx jsonrpc.InOutTx
 	err = json.Unmarshal([]byte(ouputjson), &tx)
 	assert.NoError(t, err, "should be success")
 
