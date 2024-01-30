@@ -15,6 +15,7 @@ const (
 type Config struct {
 	BaseConfig `mapstructure:",squash"`
 	RPC        *RPCConfig        `mapstructure:"rpc"`
+	Web3       *Web3Config       `mapstructure:"web3"`
 	P2P        *P2PConfig        `mapstructure:"p2p"`
 	Polaris    *PolarisConfig    `mapstructure:"polaris"`
 	Blockchain *BlockchainConfig `mapstructure:"blockchain"`
@@ -31,8 +32,6 @@ type Config struct {
 type BaseConfig struct {
 	DataDir        string `mapstructure:"datadir" description:"Directory to store datafiles"`
 	DbType         string `mapstructure:"dbtype" description:"db implementation to store data"`
-	EnableProfile  bool   `mapstructure:"enableprofile" description:"enable profiling"`
-	ProfilePort    int    `mapstructure:"profileport" description:"profile port (default:6060)"`
 	EnableDump     bool   `mapstructure:"enabledump" description:"enable dump feature for debugging"`
 	DumpPort       int    `mapstructure:"dumpport" description:"dump port (default:7070)"`
 	EnableTestmode bool   `mapstructure:"enabletestmode" description:"enable unsafe test mode"`
@@ -54,6 +53,14 @@ type RPCConfig struct {
 	NSKey       string `mapstructure:"nskey" description:"Private Key file for RPC or REST API"`
 	NSCACert    string `mapstructure:"nscacert" description:"CA Certificate file for RPC or REST API"`
 	NSAllowCORS bool   `mapstructure:"nsallowcors" description:"Allow CORS to RPC or REST API"`
+}
+
+// Web3Config defines configurations for web3 service
+type Web3Config struct {
+	NetServicePort int    `mapstructure:"netserviceport" description:"Web3 service port"`
+	MaxLimit       int    `mapstructure:"maxlimit" description:"Web3 connect limit per second"`
+	SwaggerPath    string `mapstructure:"swaggerpath" description:"Swagger resource file path"`
+	Enable         bool   `mapstructure:"enable" description:"Enable web3"`
 }
 
 // P2PConfig defines configurations for p2p service
@@ -82,6 +89,7 @@ type P2PConfig struct {
 	Producers     []string `mapstructure:"producers" description:"List of peer ids of block producers, only meaningful when peer is agent"`
 	InternalZones []string `mapstructure:"internalzones" description:"List of address ranges that are recognised as inner zone of agent. defined by CIDR notation."`
 	Agent         string   `mapstructure:"agent" description:"Peer id of agent that delegates this producer, only available when local peer is producer"`
+	AllowLegacy   bool     `mapstructure:"allowlegacy" description:"Whether to allow legacy security protocols"`
 }
 
 // AuthConfig defines configuration for auditing
@@ -182,8 +190,6 @@ const tomlConfigFileTemplate = `# aergo TOML Configuration File (https://github.
 # base configurations
 datadir = "{{.BaseConfig.DataDir}}"
 dbtype = "{{.BaseConfig.DbType}}"
-enableprofile = {{.BaseConfig.EnableProfile}}
-profileport = {{.BaseConfig.ProfilePort}}
 enabledump = {{.BaseConfig.EnableDump}}
 dumpport = {{.BaseConfig.DumpPort}}
 personal = {{.BaseConfig.Personal}}
@@ -222,6 +228,13 @@ npaddpolarises = [{{range .P2P.NPAddPolarises}}
 "{{.}}", {{end}}
 ]
 peerrole = "{{.P2P.PeerRole}}"
+allowlegacy = "{{.P2P.AllowLegacy}}"
+
+[web3]
+netserviceport = {{.Web3.NetServicePort}}
+maxlimit = {{.Web3.MaxLimit}}
+swaggerpath = "{{.Web3.SwaggerPath}}"
+enable = {{.Web3.Enable}}
 
 [polaris]
 allowprivate = {{.Polaris.AllowPrivate}}

@@ -647,7 +647,7 @@ func (cdb *ChainDB) getReceipts(blockHash []byte, blockNo types.BlockNo,
 	hardForkConfig *config.HardforkConfig) (*types.Receipts, error) {
 	data := cdb.store.Get(dbkey.Receipts(blockHash, blockNo))
 	if len(data) == 0 {
-		return nil, errors.New("cannot find a receipt")
+		return nil, fmt.Errorf("empty : blockNo=%d", blockNo)
 	}
 	var receipts types.Receipts
 

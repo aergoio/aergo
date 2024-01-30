@@ -11,9 +11,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	aergorpc "github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/jsonrpc"
 	"github.com/spf13/cobra"
 )
 
@@ -45,7 +45,8 @@ func streamBlocks(cmd *cobra.Command) error {
 		if err != nil {
 			return fmt.Errorf("failed to receive block: %v", err)
 		}
-		cmd.Println(util.BlockConvBase58Addr(b))
+		res := jsonrpc.ConvBlock(b)
+		cmd.Println(jsonrpc.MarshalJSON(res))
 	}
 }
 
@@ -70,7 +71,8 @@ func getSingleBlock(cmd *cobra.Command) error {
 	if err != nil {
 		return fmt.Errorf("failed to get block: %v", err)
 	}
-	cmd.Println(util.BlockConvBase58Addr(msg))
+	res := jsonrpc.ConvBlock(msg)
+	cmd.Println(jsonrpc.MarshalJSON(res))
 	return nil
 }
 
