@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/dbkey"
 )
@@ -16,26 +17,22 @@ type NameMap struct {
 	Destination []byte
 }
 
-// AccountStateReader is an interface for getting a name account state.
-type AccountStateReader interface {
-	GetNameAccountState() (*state.ContractState, error)
-}
-
-func CreateName(scs *state.ContractState, tx *types.TxBody, sender, receiver *state.V, name string) error {
+func CreateName(scs *statedb.ContractState, tx *types.TxBody, sender, receiver *state.AccountState, name string) error {
 	amount := tx.GetAmountBigInt()
-	sender.SubBalance(amount)
-	receiver.AddBalance(amount)
+	if err := state.SendBalance(sender, receiver, amount); err != nil {
+		return err
+	}
 	return createName(scs, []byte(name), sender.ID())
 }
 
-func createName(scs *state.ContractState, name []byte, owner []byte) error {
+func createName(scs *statedb.ContractState, name []byte, owner []byte) error {
 	//	return setAddress(scs, name, owner)
 	return registerOwner(scs, name, owner, owner)
 }
 
 // UpdateName is avaliable after bid implement
-func UpdateName(bs *state.BlockState, scs *state.ContractState, tx *types.TxBody,
-	sender, receiver *state.V, name, to string) error {
+func UpdateName(bs *state.BlockState, scs *statedb.ContractState, tx *types.TxBody,
+	sender, receiver *state.AccountState, name, to string) error {
 	if len(getAddress(scs, []byte(name))) <= types.NameLength {
 		return fmt.Errorf("%s is not created yet", string(name))
 	}
@@ -43,9 +40,10 @@ func UpdateName(bs *state.BlockState, scs *state.ContractState, tx *types.TxBody
 	destination = GetAddress(scs, destination)
 
 	amount := tx.GetAmountBigInt()
-	sender.SubBalance(amount)
-	receiver.AddBalance(amount)
-	contract, err := bs.StateDB.OpenContractStateAccount(types.ToAccountID(destination))
+	if err := state.SendBalance(sender, receiver, amount); err != nil {
+		return err
+	}
+	contract, err := statedb.OpenContractStateAccount(destination, bs.StateDB)
 	if err != nil {
 		return types.ErrTxInvalidRecipient
 	}
@@ -63,7 +61,7 @@ func UpdateName(bs *state.BlockState, scs *state.ContractState, tx *types.TxBody
 	return updateName(scs, []byte(name), ownerAddr, destination)
 }
 
-func updateName(scs *state.ContractState, name []byte, owner []byte, to []byte) error {
+func updateName(scs *statedb.ContractState, name []byte, owner []byte, to []byte) error {
 	//return setAddress(scs, name, to)
 	return registerOwner(scs, name, owner, to)
 }
@@ -87,12 +85,12 @@ func Resolve(bs *state.BlockState, name []byte, legacy bool) ([]byte, error) {
 	return getAddress(scs, name), nil
 }
 
-func openContract(bs *state.BlockState) (*state.ContractState, error) {
-	v, err := bs.GetAccountStateV([]byte(types.AergoName))
+func openContract(bs *state.BlockState) (*statedb.ContractState, error) {
+	v, err := state.GetAccountState([]byte(types.AergoName), bs.StateDB)
 	if err != nil {
 		return nil, err
 	}
-	scs, err := bs.StateDB.OpenContractState(v.AccountID(), v.State())
+	scs, err := statedb.OpenContractState(v.ID(), v.State(), bs.StateDB)
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +98,7 @@ func openContract(bs *state.BlockState) (*state.ContractState, error) {
 }
 
 // GetAddress is resolve name for mempool
-func GetAddress(scs *state.ContractState, name []byte) []byte {
+func GetAddress(scs *statedb.ContractState, name []byte) []byte {
 	if len(name) == types.AddressLength || types.IsSpecialAccount(name) {
 		return name
 	}
@@ -108,14 +106,14 @@ func GetAddress(scs *state.ContractState, name []byte) []byte {
 }
 
 // GetAddressLegacy is resolve name for mempool by buggy logic, leaved for backward compatibility
-func GetAddressLegacy(scs *state.ContractState, name []byte) []byte {
+func GetAddressLegacy(scs *statedb.ContractState, name []byte) []byte {
 	if len(name) == types.AddressLength || strings.Contains(string(name), ".") {
 		return name
 	}
 	return getAddress(scs, name)
 }
 
-func getAddress(scs *state.ContractState, name []byte) []byte {
+func getAddress(scs *statedb.ContractState, name []byte) []byte {
 	nameMap := getNameMap(scs, name, true)
 	if nameMap != nil {
 		return nameMap.Destination
@@ -123,11 +121,11 @@ func getAddress(scs *state.ContractState, name []byte) []byte {
 	return nil
 }
 
-func GetOwner(scs *state.ContractState, name []byte) []byte {
+func GetOwner(scs *statedb.ContractState, name []byte) []byte {
 	return getOwner(scs, name, true)
 }
 
-func getOwner(scs *state.ContractState, name []byte, useInitial bool) []byte {
+func getOwner(scs *statedb.ContractState, name []byte, useInitial bool) []byte {
 	nameMap := getNameMap(scs, name, useInitial)
 	if nameMap != nil {
 		return nameMap.Owner
@@ -135,7 +133,7 @@ func getOwner(scs *state.ContractState, name []byte, useInitial bool) []byte {
 	return nil
 }
 
-func getNameMap(scs *state.ContractState, name []byte, useInitial bool) *NameMap {
+func getNameMap(scs *statedb.ContractState, name []byte, useInitial bool) *NameMap {
 	var err error
 	var ownerdata []byte
 	if useInitial {
@@ -149,21 +147,17 @@ func getNameMap(scs *state.ContractState, name []byte, useInitial bool) *NameMap
 	return deserializeNameMap(ownerdata)
 }
 
-func GetNameInfo(r AccountStateReader, name string) (*types.NameInfo, error) {
-	scs, err := r.GetNameAccountState()
-	if err != nil {
-		return nil, err
-	}
-	owner := getOwner(scs, []byte(name), true)
-	return &types.NameInfo{Name: &types.Name{Name: string(name)}, Owner: owner, Destination: GetAddress(scs, []byte(name))}, err
+func GetNameInfo(ncs *statedb.ContractState, name string) (*types.NameInfo, error) {
+	owner := getOwner(ncs, []byte(name), true)
+	return &types.NameInfo{Name: &types.Name{Name: string(name)}, Owner: owner, Destination: GetAddress(ncs, []byte(name))}, nil
 }
 
-func registerOwner(scs *state.ContractState, name, owner, destination []byte) error {
+func registerOwner(scs *statedb.ContractState, name, owner, destination []byte) error {
 	nameMap := &NameMap{Version: 1, Owner: owner, Destination: destination}
 	return setNameMap(scs, name, nameMap)
 }
 
-func setNameMap(scs *state.ContractState, name []byte, n *NameMap) error {
+func setNameMap(scs *statedb.ContractState, name []byte, n *NameMap) error {
 	return scs.SetData(dbkey.Name(name), serializeNameMap(n))
 }
 

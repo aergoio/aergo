@@ -22,11 +22,11 @@ import (
 	"github.com/aergoio/aergo/v2/chain"
 	"github.com/aergoio/aergo/v2/consensus"
 	"github.com/aergoio/aergo/v2/internal/common"
-	"github.com/aergoio/aergo/v2/message"
 	"github.com/aergoio/aergo/v2/p2p/metric"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/message"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -75,6 +75,10 @@ const halfMinute = time.Second * 30
 const defaultActorTimeout = time.Second * 3
 
 var _ types.AergoRPCServiceServer = (*AergoRPCService)(nil)
+
+func (ns *AergoRPCService) GetActorHelper() p2pcommon.ActorService {
+	return ns.actorHelper
+}
 
 func (rpc *AergoRPCService) SetConsensusAccessor(ca consensus.ConsensusAccessor) {
 	if rpc == nil {
@@ -664,6 +668,7 @@ func (rpc *AergoRPCService) CommitTX(ctx context.Context, in *types.TxList) (*ty
 	if in.Txs == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "input tx is empty")
 	}
+
 	rpc.hub.Get(message.MemPoolSvc)
 	p := newPutter(ctx, in.Txs, rpc.hub, defaultActorTimeout<<2)
 	err := p.Commit()
@@ -1060,6 +1065,84 @@ func (rpc *AergoRPCService) GetReceipt(ctx context.Context, in *types.SingleByte
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
 	}
 	return rsp.Receipt, rsp.Err
+}
+
+func (rpc *AergoRPCService) GetReceipts(ctx context.Context, in *types.ReceiptsParams) (*types.ReceiptsPaged, error) {
+	if err := rpc.checkAuth(ctx, ReadBlockChain); err != nil {
+		return nil, err
+	}
+
+	var result interface{}
+	var err error
+	if cap(in.Hashornumber) == 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "Received no bytes")
+	}
+
+	if len(in.Hashornumber) == 32 {
+		result, err = rpc.hub.RequestFuture(message.ChainSvc, &message.GetReceipts{BlockHash: in.Hashornumber},
+			defaultActorTimeout, "rpc.(*AergoRPCService).GetReceipts#2").Result()
+	} else if len(in.Hashornumber) == 8 {
+		number := uint64(binary.LittleEndian.Uint64(in.Hashornumber))
+		result, err = rpc.hub.RequestFuture(message.ChainSvc, &message.GetReceiptsByNo{BlockNo: number},
+			defaultActorTimeout, "rpc.(*AergoRPCService).GetReceipts#1").Result()
+	} else {
+		return nil, status.Errorf(codes.InvalidArgument, "Invalid input. Should be a 32 byte hash or up to 8 byte number.")
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	getPaging := func(data *types.Receipts, size uint32, offset uint32) *types.ReceiptsPaged {
+		allReceipts := data.Get()
+		total := uint32(len(allReceipts))
+
+		var fetchSize uint32
+		if size > uint32(1000) {
+			fetchSize = uint32(1000)
+		} else if size == uint32(0) {
+			fetchSize = 100
+		} else {
+			fetchSize = size
+		}
+
+		var receipts []*types.Receipt
+		if offset >= uint32(len(allReceipts)) {
+			receipts = []*types.Receipt{}
+		} else {
+			limit := offset + fetchSize
+			if limit > uint32(len(allReceipts)) {
+				limit = uint32(len(allReceipts))
+			}
+			receipts = allReceipts[offset:limit]
+		}
+
+		return &types.ReceiptsPaged{
+			Receipts: receipts,
+			BlockNo:  data.GetBlockNo(),
+			Total:    total,
+			Size:     fetchSize,
+			Offset:   offset,
+		}
+	}
+
+	switch result.(type) {
+	case message.GetReceiptsRsp:
+		rsp, ok := result.(message.GetReceiptsRsp)
+		if !ok {
+			return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
+		}
+		return getPaging(rsp.Receipts, in.Paging.Size, in.Paging.Offset), rsp.Err
+
+	case message.GetReceiptsByNoRsp:
+		rsp, ok := result.(message.GetReceiptsByNoRsp)
+		if !ok {
+			return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
+		}
+		return getPaging(rsp.Receipts, in.Paging.Size, in.Paging.Offset), rsp.Err
+	}
+
+	return nil, status.Errorf(codes.Internal, "unexpected result type %s, expected %s", reflect.TypeOf(result), "message.GetReceipts")
 }
 
 func (rpc *AergoRPCService) GetABI(ctx context.Context, in *types.SingleBytes) (*types.ABI, error) {

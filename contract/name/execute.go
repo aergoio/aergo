@@ -8,24 +8,25 @@ import (
 
 	"github.com/aergoio/aergo/v2/contract/system"
 	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 )
 
-func ExecuteNameTx(bs *state.BlockState, scs *state.ContractState, txBody *types.TxBody,
-	sender, receiver *state.V, blockInfo *types.BlockHeaderInfo) ([]*types.Event, error) {
+func ExecuteNameTx(bs *state.BlockState, scs *statedb.ContractState, txBody *types.TxBody,
+	sender, receiver *state.AccountState, blockInfo *types.BlockHeaderInfo) ([]*types.Event, error) {
 
 	ci, err := ValidateNameTx(txBody, sender, scs)
 	if err != nil {
 		return nil, err
 	}
 
-	var nameState *state.V
+	var nameState *state.AccountState
 	owner := getOwner(scs, []byte(types.AergoName), false)
 	if owner != nil {
 		if bytes.Equal(sender.ID(), owner) {
 			nameState = sender
 		} else {
-			if nameState, err = bs.GetAccountStateV(owner); err != nil {
+			if nameState, err = state.GetAccountState(owner, bs.StateDB); err != nil {
 				return nil, err
 			}
 		}
@@ -84,7 +85,7 @@ func ExecuteNameTx(bs *state.BlockState, scs *state.ContractState, txBody *types
 	return events, nil
 }
 
-func ValidateNameTx(tx *types.TxBody, sender *state.V, scs *state.ContractState) (*types.CallInfo, error) {
+func ValidateNameTx(tx *types.TxBody, sender *state.AccountState, scs *statedb.ContractState) (*types.CallInfo, error) {
 	if sender != nil && sender.Balance().Cmp(tx.GetAmountBigInt()) < 0 {
 		return nil, types.ErrInsufficientBalance
 	}
@@ -122,21 +123,22 @@ func ValidateNameTx(tx *types.TxBody, sender *state.V, scs *state.ContractState)
 	return &ci, nil
 }
 
-func SetContractOwner(bs *state.BlockState, scs *state.ContractState,
-	address string, nameState *state.V) (*state.V, error) {
+func SetContractOwner(bs *state.BlockState, scs *statedb.ContractState,
+	address string, nameState *state.AccountState) (*state.AccountState, error) {
 
 	rawaddr, err := types.DecodeAddress(address)
 	if err != nil {
 		return nil, err
 	}
 
-	ownerState, err := bs.GetAccountStateV(rawaddr)
+	ownerState, err := state.GetAccountState(rawaddr, bs.StateDB)
 	if err != nil {
 		return nil, err
 	}
 
-	ownerState.AddBalance(nameState.Balance())
-	nameState.SubBalance(nameState.Balance())
+	if err = state.SendBalance(nameState, ownerState, nameState.Balance()); err != nil {
+		return nil, err
+	}
 
 	name := []byte(types.AergoName)
 	if err = registerOwner(scs, name, rawaddr, name); err != nil {

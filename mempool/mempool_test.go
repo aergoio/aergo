@@ -6,6 +6,7 @@ package mempool
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"math/big"
 	"math/rand"
 	"os"
@@ -14,7 +15,6 @@ import (
 	"time"
 
 	crypto "github.com/aergoio/aergo/v2/account/key/crypto"
-	"github.com/aergoio/aergo/v2/cmd/aergocli/util/encoding/json"
 	"github.com/aergoio/aergo/v2/config"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/btcsuite/btcd/btcec"

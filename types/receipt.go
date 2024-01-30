@@ -485,6 +485,13 @@ func (rs *Receipts) Get() []*Receipt {
 	return rs.receipts
 }
 
+func (rs *Receipts) GetBlockNo() BlockNo {
+	if rs == nil {
+		return 0
+	}
+	return rs.blockNo
+}
+
 func (rs *Receipts) Set(receipts []*Receipt) {
 	rs.receipts = receipts
 }

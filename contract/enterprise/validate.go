@@ -10,6 +10,7 @@ import (
 	"github.com/aergoio/aergo/v2/consensus"
 	"github.com/aergoio/aergo/v2/internal/enc/base64"
 	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 )
 
@@ -24,8 +25,8 @@ const ChangeCluster = "changeCluster"
 
 var ErrTxEnterpriseAdminIsNotSet = errors.New("admin is not set")
 
-func ValidateEnterpriseTx(tx *types.TxBody, sender *state.V,
-	scs *state.ContractState, blockNo types.BlockNo) (*EnterpriseContext, error) {
+func ValidateEnterpriseTx(tx *types.TxBody, sender *state.AccountState,
+	scs *statedb.ContractState, blockNo types.BlockNo) (*EnterpriseContext, error) {
 	var ci types.CallInfo
 	if err := json.Unmarshal(tx.Payload, &ci); err != nil {
 		return nil, err
@@ -185,7 +186,7 @@ func ValidateEnterpriseTx(tx *types.TxBody, sender *state.V,
 	return context, nil
 }
 
-func checkAdmin(scs *state.ContractState, address []byte) ([][]byte, error) {
+func checkAdmin(scs *statedb.ContractState, address []byte) ([][]byte, error) {
 	admins, err := getAdmins(scs)
 	if err != nil {
 		return nil, fmt.Errorf("could not get admin in enterprise contract")

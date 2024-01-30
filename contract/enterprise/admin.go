@@ -3,17 +3,13 @@ package enterprise
 import (
 	"bytes"
 
-	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/dbkey"
 )
 
-func GetAdmin(r AccountStateReader) (*types.EnterpriseConfig, error) {
-	scs, err := r.GetEnterpriseAccountState()
-	if err != nil {
-		return nil, err
-	}
-	admins, err := getAdmins(scs)
+func GetAdmin(ecs *statedb.ContractState) (*types.EnterpriseConfig, error) {
+	admins, err := getAdmins(ecs)
 	if err != nil {
 		return nil, err
 	}
@@ -26,11 +22,11 @@ func GetAdmin(r AccountStateReader) (*types.EnterpriseConfig, error) {
 	}
 	return ret, nil
 }
-func setAdmins(scs *state.ContractState, addresses [][]byte) error {
+func setAdmins(scs *statedb.ContractState, addresses [][]byte) error {
 	return scs.SetData(dbkey.EnterpriseAdmins(), bytes.Join(addresses, []byte("")))
 }
 
-func getAdmins(scs *state.ContractState) ([][]byte, error) {
+func getAdmins(scs *statedb.ContractState) ([][]byte, error) {
 	data, err := scs.GetData(dbkey.EnterpriseAdmins())
 	if err != nil {
 		return nil, err
