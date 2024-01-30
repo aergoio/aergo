@@ -134,6 +134,21 @@ type testStream struct {
 	closed bool
 }
 
+func (s *testStream) CloseWrite() error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s *testStream) CloseRead() error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s *testStream) ID() string {
+	//TODO implement me
+	panic("implement me")
+}
+
 func (s *testStream) Read(p []byte) (n int, err error) {
 	size := copy(p, s.in)
 	return size, nil

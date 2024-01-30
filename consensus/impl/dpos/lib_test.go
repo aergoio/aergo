@@ -74,7 +74,7 @@ func (tc *testChain) setGenesis(block *types.Block) {
 
 func (tc *testChain) addBlock(i types.BlockNo) error {
 	pk := tc.getBpKey(i % types.BlockNo(tc.bpClusterSize))
-	b, err := pk.Bytes()
+	b, err := crypto.MarshalPrivateKey(pk)
 	if err != nil {
 		return err
 	}

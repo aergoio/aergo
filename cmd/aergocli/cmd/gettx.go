@@ -8,9 +8,9 @@ package cmd
 import (
 	"context"
 
-	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	aergorpc "github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/jsonrpc"
 	"github.com/spf13/cobra"
 )
 
@@ -35,20 +35,20 @@ func execGetTX(cmd *cobra.Command, args []string) {
 		cmd.Printf("Failed decode: %s", err.Error())
 		return
 	}
-	payloadEncodingType := util.Base58
+	payloadEncodingType := jsonrpc.Base58
 	if rawPayload {
-		payloadEncodingType = util.Raw
+		payloadEncodingType = jsonrpc.Raw
 	}
 	msg, err := client.GetTX(context.Background(), &aergorpc.SingleBytes{Value: txHash})
 	if err == nil {
-		cmd.Println(util.ConvTxEx(msg, payloadEncodingType))
+		cmd.Println(jsonrpc.ConvTx(msg, payloadEncodingType))
 	} else {
 		msgblock, err := client.GetBlockTX(context.Background(), &aergorpc.SingleBytes{Value: txHash})
 		if err != nil {
 			cmd.Printf("Failed: %s", err.Error())
 			return
 		}
-		cmd.Println(util.ConvTxInBlockEx(msgblock, payloadEncodingType))
+		cmd.Println(jsonrpc.ConvTxInBlock(msgblock, payloadEncodingType))
 	}
 
 }

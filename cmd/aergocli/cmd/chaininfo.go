@@ -3,8 +3,8 @@ package cmd
 import (
 	"context"
 
-	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/jsonrpc"
 	"github.com/spf13/cobra"
 )
 
@@ -21,6 +21,7 @@ var chaininfoCmd = &cobra.Command{
 			cmd.Printf("Failed: %s\n", err.Error())
 			return
 		}
-		cmd.Println(util.ConvChainInfoMsg(msg))
+		res := jsonrpc.ConvChainInfo(msg)
+		cmd.Println(jsonrpc.MarshalJSON(res))
 	},
 }
