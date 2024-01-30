@@ -25,7 +25,7 @@ type defaultMsgSigner struct {
 
 func newDefaultMsgSigner(privKey crypto.PrivKey, pubKey crypto.PubKey, peerID types.PeerID) p2pcommon.MsgSigner {
 	pidBytes := []byte(peerID)
-	pubKeyBytes, _ := pubKey.Bytes()
+	pubKeyBytes, _ := crypto.MarshalPublicKey(pubKey)
 	return &defaultMsgSigner{selfPeerID: peerID, privateKey: privKey, pubKey: pubKey, pidBytes: pidBytes, pubKeyBytes: pubKeyBytes}
 }
 

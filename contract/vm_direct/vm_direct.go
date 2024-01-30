@@ -20,6 +20,7 @@ import (
 	"github.com/aergoio/aergo/v2/fee"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 )
 
@@ -140,7 +141,7 @@ func LoadDummyChainEx(chainType ChainType) (*DummyChain, error) {
 	types.InitGovernance("dpos", true)
 
 	// To pass dao parameters test
-	scs, err := state.GetSystemAccountState(bc.sdb.GetStateDB())
+	scs, err := statedb.GetSystemAccountState(bc.sdb.GetStateDB())
 	if err != nil {
 		return nil, err
 	}
@@ -253,7 +254,7 @@ func newBlockExecutor(bc *DummyChain, txs []*types.Tx) (*blockExecutor, error) {
 
 	exec = NewTxExecutor(context.Background(), nil, bc, bi, contract.ChainService)
 
-	scs, err := state.GetSystemAccountState(blockState.StateDB)
+	scs, err := statedb.GetSystemAccountState(blockState.StateDB)
 	if err != nil {
 		return nil, err
 	}
@@ -275,7 +276,7 @@ func newBlockExecutor(bc *DummyChain, txs []*types.Tx) (*blockExecutor, error) {
 
 }
 
-func NewTxExecutor(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb contract.ChainAccessor, bi *types.BlockHeaderInfo, preloadService int) TxExecFn {
+func NewTxExecutor(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb contract.ChainAccessor, bi *types.BlockHeaderInfo, executionMode int) TxExecFn {
 
 	return func(blockState *state.BlockState, tx types.Transaction) error {
 
@@ -288,7 +289,7 @@ func NewTxExecutor(execCtx context.Context, ccc consensus.ChainConsensusCluster,
 
 		blockSnap := blockState.Snapshot()
 
-		err := executeTx(execCtx, ccc, cdb, blockState, tx, bi, preloadService)
+		err := executeTx(execCtx, ccc, cdb, blockState, tx, bi, executionMode)
 		if err != nil {
 			logger.Error().Err(err).Str("hash", base58.Encode(tx.GetHash())).Msg("tx failed")
 			if err2 := blockState.Rollback(blockSnap); err2 != nil {
@@ -307,22 +308,11 @@ func (e *blockExecutor) execute() error {
 
 	defer contract.CloseDatabase()
 
-	var preloadTx *types.Tx
-
-	numTxs := len(e.txs)
-
-	for i, tx := range e.txs {
-		// if tx is not the last one, preload the next tx
-		if i != numTxs-1 {
-			preloadTx = e.txs[i+1]
-			contract.RequestPreload(e.BlockState, e.bi, preloadTx, tx, contract.ChainService)
-		}
+	for _, tx := range e.txs {
 		// execute the transaction
 		if err := e.execTx(e.BlockState, types.NewTransaction(tx)); err != nil {
 			return err
 		}
-		// mark the next preload tx to be executed
-		contract.SetPreloadTx(preloadTx, contract.ChainService)
 	}
 
 	if err := SendBlockReward(e.BlockState, e.coinbaseAcccount); err != nil {
@@ -392,7 +382,7 @@ func executeTx(
 	bs *state.BlockState,
 	tx types.Transaction,
 	bi *types.BlockHeaderInfo,
-	preloadService int,
+	executionMode int,
 ) error {
 
 	var (
@@ -495,7 +485,7 @@ func executeTx(
 	var events []*types.Event
 	switch txBody.Type {
 	case types.TxType_NORMAL, types.TxType_REDEPLOY, types.TxType_TRANSFER, types.TxType_CALL, types.TxType_DEPLOY:
-		rv, events, txFee, err = contract.Execute(execCtx, bs, cdb, tx.GetTx(), sender, receiver, bi, preloadService, false)
+		rv, events, txFee, err = contract.Execute(execCtx, bs, cdb, tx.GetTx(), sender, receiver, bi, executionMode, false)
 		sender.SubBalance(txFee)
 	case types.TxType_GOVERNANCE:
 		txFee = new(big.Int).SetUint64(0)
@@ -508,8 +498,8 @@ func executeTx(
 		if err != nil {
 			return err
 		}
-		var contractState *state.ContractState
-		contractState, err = state.OpenContractState(receiver.AccountID(), receiver.State(), bs.StateDB)
+		var contractState *statedb.ContractState
+		contractState, err = statedb.OpenContractState(receiver.ID(), receiver.State(), bs.StateDB)
 		if err != nil {
 			return err
 		}
@@ -522,7 +512,7 @@ func executeTx(
 			}
 			return types.ErrNotAllowedFeeDelegation
 		}
-		rv, events, txFee, err = contract.Execute(execCtx, bs, cdb, tx.GetTx(), sender, receiver, bi, preloadService, true)
+		rv, events, txFee, err = contract.Execute(execCtx, bs, cdb, tx.GetTx(), sender, receiver, bi, executionMode, true)
 		receiver.SubBalance(txFee)
 	}
 
@@ -597,7 +587,7 @@ func executeGovernanceTx(ccc consensus.ChainConsensusCluster, bs *state.BlockSta
 
 	governance := string(txBody.Recipient)
 
-	scs, err := state.OpenContractState(receiver.AccountID(), receiver.State(), bs.StateDB)
+	scs, err := statedb.OpenContractState(receiver.ID(), receiver.State(), bs.StateDB)
 	if err != nil {
 		return nil, err
 	}
@@ -615,7 +605,7 @@ func executeGovernanceTx(ccc consensus.ChainConsensusCluster, bs *state.BlockSta
 	}
 
 	if err == nil {
-		err = state.StageContractState(scs, bs.StateDB)
+		err = statedb.StageContractState(scs, bs.StateDB)
 	}
 
 	return events, err

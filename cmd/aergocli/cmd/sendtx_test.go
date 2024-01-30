@@ -1,11 +1,12 @@
 package cmd
 
 import (
+	"encoding/json"
 	"testing"
 
-	"github.com/aergoio/aergo/v2/cmd/aergocli/util/encoding/json"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/jsonrpc"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )
@@ -32,9 +33,9 @@ func TestSendTxWithMock(t *testing.T) {
 	output, err := executeCommand(rootCmd, "sendtx", "--from", "AmNL5neKQS2ZwRuBeqfcfHMLg3aSmGoefEh5bW8ozWxrtmxaGHZ3", "--to", "AmNfacq5A3orqn3MhgkHSncufXEP8gVJgqDy8jTgBphXQeuuaHHF", "--amount", "1000", "--keystore", "")
 	assert.NoError(t, err, "should no error")
 	t.Log(output)
-	out := &types.CommitResult{}
+	out := &jsonrpc.InOutCommitResult{}
 	err = json.Unmarshal([]byte(output), out)
-	assert.Equal(t, testTxHashString, base58.Encode(out.Hash))
+	assert.Equal(t, testTxHashString, out.Hash)
 }
 
 func TestSendTxFromToValidation(t *testing.T) {

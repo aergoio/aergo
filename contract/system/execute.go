@@ -12,6 +12,7 @@ import (
 
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 )
 
@@ -27,12 +28,12 @@ type SystemContext struct {
 	Receiver  *state.AccountState
 
 	op     types.OpSysTx
-	scs    *state.ContractState
+	scs    *statedb.ContractState
 	txBody *types.TxBody
 }
 
 func newSystemContext(account []byte, txBody *types.TxBody, sender, receiver *state.AccountState,
-	scs *state.ContractState, blockInfo *types.BlockHeaderInfo) (*SystemContext, error) {
+	scs *statedb.ContractState, blockInfo *types.BlockHeaderInfo) (*SystemContext, error) {
 	context, err := ValidateSystemTx(sender.ID(), txBody, sender, scs, blockInfo)
 	if err != nil {
 		return nil, err
@@ -59,7 +60,7 @@ type sysCmd interface {
 type sysCmdCtor func(ctx *SystemContext) (sysCmd, error)
 
 func newSysCmd(account []byte, txBody *types.TxBody, sender, receiver *state.AccountState,
-	scs *state.ContractState, blockInfo *types.BlockHeaderInfo) (sysCmd, error) {
+	scs *statedb.ContractState, blockInfo *types.BlockHeaderInfo) (sysCmd, error) {
 
 	cmds := map[types.OpSysTx]sysCmdCtor{
 		types.OpvoteBP:  newVoteCmd,
@@ -81,7 +82,7 @@ func newSysCmd(account []byte, txBody *types.TxBody, sender, receiver *state.Acc
 	return ctor(context)
 }
 
-func ExecuteSystemTx(scs *state.ContractState, txBody *types.TxBody,
+func ExecuteSystemTx(scs *statedb.ContractState, txBody *types.TxBody,
 	sender, receiver *state.AccountState, blockInfo *types.BlockHeaderInfo) ([]*types.Event, error) {
 
 	cmd, err := newSysCmd(sender.ID(), txBody, sender, receiver, scs, blockInfo)
@@ -97,7 +98,7 @@ func ExecuteSystemTx(scs *state.ContractState, txBody *types.TxBody,
 	return []*types.Event{event}, nil
 }
 
-func GetVotes(scs *state.ContractState, address []byte) ([]*types.VoteInfo, error) {
+func GetVotes(scs *statedb.ContractState, address []byte) ([]*types.VoteInfo, error) {
 	var results []*types.VoteInfo
 
 	for _, i := range GetVotingCatalog() {
@@ -110,6 +111,7 @@ func GetVotes(scs *state.ContractState, address []byte) ([]*types.VoteInfo, erro
 			return nil, err
 		}
 		if v.Amount == nil {
+			results = append(results, result)
 			continue
 		}
 
