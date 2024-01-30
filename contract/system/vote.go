@@ -13,7 +13,7 @@ import (
 	"strings"
 
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
-	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/dbkey"
 )
@@ -75,38 +75,62 @@ func newVprCmd(ctx *SystemContext, vr *VoteResult) *vprCmd {
 		}
 	} else {
 		cmd.add = func(v *types.Vote) error {
-			return cmd.addVote(v)
+			cmd.addVpr(v) // calculate voting power rank with exception handling
+			return cmd.voteResult.AddVote(v)
 		}
 		cmd.sub = func(v *types.Vote) error {
-			return cmd.subVote(v)
+			cmd.subVpr(v) // calculate voting power rank with exception handling
+			return cmd.voteResult.SubVote(v)
 		}
 	}
 
 	return cmd
 }
 
-func (c *vprCmd) subVote(v *types.Vote) error {
-	votingPowerRank.sub(c.Sender.AccountID(), c.Sender.ID(), v.GetAmountBigInt())
-	// Hotfix - reproduce vpr calculation for block 138015125
-	// When block is reverted, votingPowerRank is not reverted and calculated three times.
-	if c.BlockInfo.No == 138015125 && c.Sender.AccountID().String() == "36t2u7Q31HmEbkkYZng7DHNm3xepxHKUfgGrAXNA8pMW" {
-		for i := 0; i < 2; i++ {
-			votingPowerRank.sub(c.Sender.AccountID(), c.Sender.ID(), v.GetAmountBigInt())
-		}
+func (c *vprCmd) subVpr(v *types.Vote) {
+	no := c.BlockInfo.No
+	aid := c.Sender.AccountID()
+
+	// Handle exception 1. multisig contract ( AmhNcvE7RR84xoRzYNyATnwZR2JXaC5ut7neu89R13aj1b4eUxKp )
+	if aid.String() == "A9zXKkooeGYAZC5ReCcgeg4ddsvMHAy2ivUafXhrnzpj" {
+		votingPowerRank.sub(statedb.EmptyAccountID, c.Sender.ID(), v.GetAmountBigInt())
+		return
 	}
-	return c.voteResult.SubVote(v)
+
+	// Handle exception 2. reproduce vpr calculation
+	// When block is reverted, votingPowerRank is not reverted and calculated three times.
+	if aid.String() == "36t2u7Q31HmEbkkYZng7DHNm3xepxHKUfgGrAXNA8pMW" && no == 138015125 {
+		for i := 0; i < 3; i++ {
+			votingPowerRank.sub(aid, c.Sender.ID(), v.GetAmountBigInt())
+		}
+		return
+	}
+
+	// normal case
+	votingPowerRank.sub(aid, c.Sender.ID(), v.GetAmountBigInt())
 }
 
-func (c *vprCmd) addVote(v *types.Vote) error {
-	votingPowerRank.add(c.Sender.AccountID(), c.Sender.ID(), v.GetAmountBigInt())
-	// Hotfix - reproduce vpr calculation for block 138015125
-	// When block is reverted, votingPowerRank is not reverted and calculated three times.
-	if c.BlockInfo.No == 138015125 && c.Sender.AccountID().String() == "36t2u7Q31HmEbkkYZng7DHNm3xepxHKUfgGrAXNA8pMW" {
-		for i := 0; i < 2; i++ {
-			votingPowerRank.add(c.Sender.AccountID(), c.Sender.ID(), v.GetAmountBigInt())
-		}
+func (c *vprCmd) addVpr(v *types.Vote) {
+	no := c.BlockInfo.No
+	aid := c.Sender.AccountID()
+
+	// Handle exception 1. multisig contract ( AmhNcvE7RR84xoRzYNyATnwZR2JXaC5ut7neu89R13aj1b4eUxKp )
+	if aid.String() == "A9zXKkooeGYAZC5ReCcgeg4ddsvMHAy2ivUafXhrnzpj" {
+		votingPowerRank.add(statedb.EmptyAccountID, c.Sender.ID(), v.GetAmountBigInt())
+		return
 	}
-	return c.voteResult.AddVote(v)
+
+	// Handle exception 2. reproduce vpr calculation
+	// When block is reverted, votingPowerRank is not reverted and calculated three times.
+	if aid.String() == "36t2u7Q31HmEbkkYZng7DHNm3xepxHKUfgGrAXNA8pMW" && no == 138015125 {
+		for i := 0; i < 3; i++ {
+			votingPowerRank.add(aid, c.Sender.ID(), v.GetAmountBigInt())
+		}
+		return
+	}
+
+	// normal case
+	votingPowerRank.add(aid, c.Sender.ID(), v.GetAmountBigInt())
 }
 
 type voteCmd struct {
@@ -285,11 +309,11 @@ func refreshAllVote(context *SystemContext) error {
 }
 
 // GetVote return amount, to, err.
-func GetVote(scs *state.ContractState, voter []byte, issue []byte) (*types.Vote, error) {
+func GetVote(scs *statedb.ContractState, voter []byte, issue []byte) (*types.Vote, error) {
 	return getVote(scs, issue, voter)
 }
 
-func getVote(scs *state.ContractState, key, voter []byte) (*types.Vote, error) {
+func getVote(scs *statedb.ContractState, key, voter []byte) (*types.Vote, error) {
 	data, err := scs.GetData(dbkey.SystemVote(key, voter))
 	if err != nil {
 		return nil, err
@@ -306,7 +330,7 @@ func getVote(scs *state.ContractState, key, voter []byte) (*types.Vote, error) {
 	return &types.Vote{}, nil
 }
 
-func setVote(scs *state.ContractState, key, voter []byte, vote *types.Vote) error {
+func setVote(scs *statedb.ContractState, key, voter []byte, vote *types.Vote) error {
 	if bytes.Equal(key, defaultVoteKey) {
 		return scs.SetData(dbkey.SystemVote(key, voter), serializeVote(vote))
 	} else {
@@ -328,17 +352,8 @@ func BuildOrderedCandidates(vote map[string]*big.Int) []string {
 	return bps
 }
 
-// AccountStateReader is an interface for getting a system account state.
-type AccountStateReader interface {
-	GetSystemAccountState() (*state.ContractState, error)
-}
-
 // GetVoteResult returns the top n voting result from the system account state.
-func GetVoteResult(ar AccountStateReader, id []byte, n int) (*types.VoteList, error) {
-	scs, err := ar.GetSystemAccountState()
-	if err != nil {
-		return nil, err
-	}
+func GetVoteResult(scs *statedb.ContractState, id []byte, n int) (*types.VoteList, error) {
 	if !bytes.Equal(id, defaultVoteKey) {
 		id = GenProposalKey(string(id))
 	}
@@ -346,10 +361,10 @@ func GetVoteResult(ar AccountStateReader, id []byte, n int) (*types.VoteList, er
 }
 
 // GetRankers returns the IDs of the top n rankers.
-func GetRankers(ar AccountStateReader) ([]string, error) {
+func GetRankers(scs *statedb.ContractState) ([]string, error) {
 	n := GetBpCount()
 
-	vl, err := GetVoteResult(ar, defaultVoteKey, n)
+	vl, err := GetVoteResult(scs, defaultVoteKey, n)
 	if err != nil {
 		return nil, err
 	}

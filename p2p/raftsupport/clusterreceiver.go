@@ -11,9 +11,9 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo/v2/internal/enc/proto"
-	"github.com/aergoio/aergo/v2/message"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/message"
 	"github.com/pkg/errors"
 )
 

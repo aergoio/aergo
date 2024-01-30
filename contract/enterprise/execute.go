@@ -10,6 +10,7 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/v2/consensus"
 	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 )
 
@@ -52,8 +53,8 @@ func (e *EnterpriseContext) HasConfValue(value string) bool {
 	return false
 }
 
-func ExecuteEnterpriseTx(bs *state.BlockState, ccc consensus.ChainConsensusCluster, scs *state.ContractState, txBody *types.TxBody,
-	sender, receiver *state.V, blockNo types.BlockNo) ([]*types.Event, error) {
+func ExecuteEnterpriseTx(bs *state.BlockState, ccc consensus.ChainConsensusCluster, scs *statedb.ContractState, txBody *types.TxBody,
+	sender, receiver *state.AccountState, blockNo types.BlockNo) ([]*types.Event, error) {
 
 	context, err := ValidateEnterpriseTx(txBody, sender, scs, blockNo)
 	if err != nil {

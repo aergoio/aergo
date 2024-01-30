@@ -13,7 +13,7 @@ import (
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
-	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/dbkey"
 	rb "github.com/emirpasic/gods/trees/redblacktree"
@@ -641,7 +641,7 @@ func (v *vpr) sub(id types.AccountID, addr []byte, power *big.Int) {
 	)
 }
 
-func (v *vpr) apply(s *state.ContractState) (int, error) {
+func (v *vpr) apply(s *statedb.ContractState) (int, error) {
 	if v == nil || len(v.changes) == 0 {
 		return 0, nil
 	}

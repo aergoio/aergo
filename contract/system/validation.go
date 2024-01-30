@@ -9,13 +9,14 @@ import (
 	"strings"
 
 	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 )
 
 var ErrTxSystemOperatorIsNotSet = errors.New("operator is not set")
 
-func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
-	scs *state.ContractState, blockInfo *types.BlockHeaderInfo) (*SystemContext, error) {
+func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.AccountState,
+	scs *statedb.ContractState, blockInfo *types.BlockHeaderInfo) (*SystemContext, error) {
 	var ci types.CallInfo
 	if err := json.Unmarshal(txBody.Payload, &ci); err != nil {
 		return nil, types.ErrTxInvalidPayload
@@ -110,7 +111,7 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 	return context, nil
 }
 
-func checkStakingBefore(account []byte, scs *state.ContractState) (*types.Staking, error) {
+func checkStakingBefore(account []byte, scs *statedb.ContractState) (*types.Staking, error) {
 	staked, err := getStaking(scs, account)
 	if err != nil {
 		return nil, err
@@ -121,7 +122,7 @@ func checkStakingBefore(account []byte, scs *state.ContractState) (*types.Stakin
 	return staked, nil
 }
 
-func validateForStaking(account []byte, txBody *types.TxBody, scs *state.ContractState, blockNo uint64) (*types.Staking, error) {
+func validateForStaking(account []byte, txBody *types.TxBody, scs *statedb.ContractState, blockNo uint64) (*types.Staking, error) {
 	staked, err := getStaking(scs, account)
 	if err != nil {
 		return nil, err
@@ -137,7 +138,7 @@ func validateForStaking(account []byte, txBody *types.TxBody, scs *state.Contrac
 	return staked, nil
 }
 
-func validateForVote(account []byte, txBody *types.TxBody, scs *state.ContractState, blockNo uint64, voteKey []byte) (*types.Staking, *types.Vote, error) {
+func validateForVote(account []byte, txBody *types.TxBody, scs *statedb.ContractState, blockNo uint64, voteKey []byte) (*types.Staking, *types.Vote, error) {
 	staked, err := checkStakingBefore(account, scs)
 	if err != nil {
 		return nil, nil, types.ErrMustStakeBeforeVote
@@ -152,7 +153,7 @@ func validateForVote(account []byte, txBody *types.TxBody, scs *state.ContractSt
 	return staked, oldvote, nil
 }
 
-func validateForUnstaking(account []byte, txBody *types.TxBody, scs *state.ContractState, blockNo uint64) (*types.Staking, error) {
+func validateForUnstaking(account []byte, txBody *types.TxBody, scs *statedb.ContractState, blockNo uint64) (*types.Staking, error) {
 	staked, err := checkStakingBefore(account, scs)
 	if err != nil {
 		return nil, types.ErrMustStakeBeforeUnstake

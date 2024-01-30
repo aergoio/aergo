@@ -10,9 +10,9 @@ import (
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo/v2/chain"
-	"github.com/aergoio/aergo/v2/message"
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/message"
 	"github.com/stretchr/testify/assert"
 )
 

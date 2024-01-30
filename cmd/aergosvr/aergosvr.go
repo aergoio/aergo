@@ -6,13 +6,12 @@ package main
 
 import (
 	"fmt"
-	"net/http"
-	_ "net/http/pprof"
 	"os"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/v2/account"
 	"github.com/aergoio/aergo/v2/chain"
+	polarisclient "github.com/aergoio/aergo/v2/cmd/polaris/client"
 	"github.com/aergoio/aergo/v2/config"
 	"github.com/aergoio/aergo/v2/consensus"
 	"github.com/aergoio/aergo/v2/consensus/impl"
@@ -21,8 +20,8 @@ import (
 	"github.com/aergoio/aergo/v2/p2p"
 	"github.com/aergoio/aergo/v2/p2p/p2pkey"
 	"github.com/aergoio/aergo/v2/pkg/component"
-	polarisclient "github.com/aergoio/aergo/v2/polaris/client"
 	"github.com/aergoio/aergo/v2/rpc"
+	"github.com/aergoio/aergo/v2/rpc/web3"
 	"github.com/aergoio/aergo/v2/syncer"
 	"github.com/spf13/cobra"
 )
@@ -99,14 +98,6 @@ func rootRun(cmd *cobra.Command, args []string) {
 	svrlog = log.NewLogger("asvr")
 	svrlog.Info().Str("revision", gitRevision).Str("branch", gitBranch).Msg("AERGO SVR STARTED")
 
-	if cfg.EnableProfile {
-		svrlog.Info().Msgf("Enable Profiling on localhost: %d", cfg.ProfilePort)
-		go func() {
-			err := http.ListenAndServe(fmt.Sprintf("0.0.0.0:%d", cfg.ProfilePort), nil)
-			svrlog.Info().Err(err).Msg("Run Profile Server")
-		}()
-	}
-
 	if cfg.EnableTestmode {
 		svrlog.Warn().Msgf("Running with unsafe test mode. Turn off test mode for production use!")
 	}
@@ -129,13 +120,18 @@ func rootRun(cmd *cobra.Command, args []string) {
 		accountSvc = account.NewAccountService(cfg, chainSvc.SDB())
 	}
 
+	var web3Svr component.IComponent
+	if cfg.Web3.Enable {
+		web3Svr = web3.NewWeb3(cfg, rpcSvc.GetActualServer())
+	}
+
 	// Register services to Hub. Don't need to do nil-check since Register
 	// function skips nil parameters.
 	var verifyOnly = cfg.Blockchain.VerifyOnly || cfg.Blockchain.VerifyBlock != 0
 	if !verifyOnly {
-		compMng.Register(chainSvc, mpoolSvc, rpcSvc, syncSvc, p2pSvc, accountSvc, pmapSvc)
+		compMng.Register(chainSvc, mpoolSvc, rpcSvc, web3Svr, syncSvc, p2pSvc, accountSvc, pmapSvc)
 	} else {
-		compMng.Register(chainSvc, mpoolSvc, rpcSvc)
+		compMng.Register(chainSvc, mpoolSvc, rpcSvc, web3Svr)
 	}
 
 	consensusSvc, err := impl.New(cfg, compMng, chainSvc, p2pSvc, rpcSvc)
