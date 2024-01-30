@@ -433,16 +433,7 @@ func (block *Block) VerifySign() (valid bool, err error) {
 
 // BPID returns its Block Producer's ID from block.
 func (block *Block) BPID() (id PeerID, err error) {
-	var pubKey crypto.PubKey
-	if pubKey, err = crypto.UnmarshalPublicKey(block.Header.PubKey); err != nil {
-		return PeerID(""), err
-	}
-
-	if id, err = IDFromPublicKey(pubKey); err != nil {
-		return PeerID(""), err
-	}
-
-	return
+	return block.Header.BPID()
 }
 
 // BpID2Str returns its Block Producer's ID in base64 format.
@@ -481,7 +472,7 @@ func (block *Block) PrevID() string {
 func (block *Block) setPubKey(pubKey crypto.PubKey) error {
 	var pk []byte
 	var err error
-	if pk, err = pubKey.Bytes(); err != nil {
+	if pk, err = crypto.MarshalPublicKey(pubKey); err != nil {
 		return err
 	}
 	block.Header.PubKey = pk
@@ -559,15 +550,15 @@ func (tx *Tx) Clone() *Tx {
 	}
 	body := &TxBody{
 		Nonce:       tx.Body.Nonce,
-		Account:     Clone(tx.Body.Account).([]byte),
-		Recipient:   Clone(tx.Body.Recipient).([]byte),
-		Amount:      Clone(tx.Body.Amount).([]byte),
-		Payload:     Clone(tx.Body.Payload).([]byte),
+		Account:     tx.Body.Account,
+		Recipient:   tx.Body.Recipient,
+		Amount:      tx.Body.Amount,
+		Payload:     tx.Body.Payload,
 		GasLimit:    tx.Body.GasLimit,
-		GasPrice:    Clone(tx.Body.GasPrice).([]byte),
+		GasPrice:    tx.Body.GasPrice,
 		Type:        tx.Body.Type,
-		ChainIdHash: Clone(tx.Body.ChainIdHash).([]byte),
-		Sign:        Clone(tx.Body.Sign).([]byte),
+		ChainIdHash: tx.Body.ChainIdHash,
+		Sign:        tx.Body.Sign,
 	}
 	res := &Tx{
 		Body: body,
@@ -678,6 +669,17 @@ func NewBlockHeaderInfoFromPrevBlock(prev *Block, ts int64, bv BlockVersionner) 
 
 func (b *BlockHeaderInfo) ChainIdHash() []byte {
 	return common.Hasher(b.ChainId)
+}
+
+func (bh *BlockHeader) BPID() (id PeerID, err error) {
+	var pubKey crypto.PubKey
+	if pubKey, err = crypto.UnmarshalPublicKey(bh.PubKey); err != nil {
+		return PeerID(""), err
+	}
+	if id, err = IDFromPublicKey(pubKey); err != nil {
+		return PeerID(""), err
+	}
+	return
 }
 
 // HasFunction returns if a function with the given name exists in the ABI definition

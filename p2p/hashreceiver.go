@@ -8,9 +8,9 @@ package p2p
 import (
 	"time"
 
-	"github.com/aergoio/aergo/v2/message"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/message"
 )
 
 // BlockHashesReceiver is send p2p GetHashesRequest to target peer and receive p2p responses till all requested hashes are received

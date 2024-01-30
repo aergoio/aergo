@@ -18,6 +18,7 @@ import (
 	"github.com/aergoio/aergo/v2/contract/system"
 	"github.com/aergoio/aergo/v2/internal/enc/gob"
 	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/davecgh/go-spew/spew"
 )
@@ -381,7 +382,11 @@ func (sn *Snapshots) AddSnapshot(refBlockNo types.BlockNo) ([]string, error) {
 }
 
 func (sn *Snapshots) gatherRankers() ([]string, error) {
-	return system.GetRankers(sn.sdb)
+	scs, err := statedb.GetSystemAccountState(sn.sdb.GetStateDB())
+	if err != nil {
+		return nil, err
+	}
+	return system.GetRankers(scs)
 }
 
 // UpdateCluster updates the current BP list by the ones corresponding to
@@ -496,6 +501,9 @@ func (sn *Snapshots) loadClusterSnapshot(blockNo types.BlockNo) ([]string, error
 	}
 
 	stateDB := sn.sdb.OpenNewStateDB(block.GetHeader().GetBlocksRootHash())
-
-	return system.GetRankers(stateDB)
+	scs, err := statedb.GetSystemAccountState(stateDB)
+	if err != nil {
+		return nil, err
+	}
+	return system.GetRankers(scs)
 }

@@ -9,6 +9,8 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -138,7 +140,7 @@ func TestUnstakingError(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
 	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
-	scs, err := cdb.GetStateDB().GetSystemAccountState()
+	scs, err := statedb.GetSystemAccountState(cdb.GetStateDB())
 	assert.Equal(t, err, nil, "could not open contract state")
 
 	account, err := types.DecodeAddress(testSender)
@@ -151,9 +153,9 @@ func TestUnstakingError(t *testing.T) {
 			Payload: []byte(`{"Name":"v1unstake"}`),
 		},
 	}
-	sender, err := bs.GetAccountStateV(tx.Body.Account)
+	sender, err := state.GetAccountState(tx.Body.Account, bs.StateDB)
 	assert.NoError(t, err, "could not get test address state")
-	receiver, err := bs.GetAccountStateV(tx.Body.Recipient)
+	receiver, err := state.GetAccountState(tx.Body.Recipient, bs.StateDB)
 	assert.NoError(t, err, "could not get test address state")
 	sender.AddBalance(types.MaxAER)
 

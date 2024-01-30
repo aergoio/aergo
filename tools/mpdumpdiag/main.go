@@ -5,12 +5,11 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"os"
 
-	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
 	"github.com/aergoio/aergo/v2/internal/enc/proto"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/jsonrpc"
 	"github.com/spf13/cobra"
 )
 
@@ -53,7 +52,7 @@ func runPrintCmd(cmd *cobra.Command, args []string) {
 	reader := bufio.NewReader(file)
 
 	var count int
-	var out []*util.InOutTx
+	var out []*jsonrpc.InOutTx
 	for {
 		buf := types.Tx{}
 		byteInt := make([]byte, 4)
@@ -83,7 +82,7 @@ func runPrintCmd(cmd *cobra.Command, args []string) {
 		count++
 		//mp.put(types.NewTransaction(&buf)) // nolint: errcheck
 
-		out = append(out, util.ConvTx(types.NewTransaction(&buf).GetTx()))
+		out = append(out, jsonrpc.ConvTx(types.NewTransaction(&buf).GetTx(), jsonrpc.Base58))
 	}
 	b, e := json.MarshalIndent(out, "", " ")
 	if e == nil {
@@ -105,11 +104,11 @@ func runGenCmd(cmd *cobra.Command, args []string) {
 	writer := bufio.NewWriter(file)
 	defer writer.Flush() //nolint: errcheck
 
-	b, err := ioutil.ReadFile(args[0])
+	b, err := os.ReadFile(args[0])
 	if err != nil {
 		cmd.Println("error: failed to read source file", err.Error())
 	}
-	txlist, err := util.ParseBase58Tx(b)
+	txlist, err := jsonrpc.ParseBase58Tx(b)
 	for _, v := range txlist {
 		var total_data []byte
 		data, err := proto.Encode(v)
