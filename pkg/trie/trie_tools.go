@@ -10,6 +10,7 @@ import (
 	"fmt"
 
 	"github.com/aergoio/aergo-lib/db"
+	"github.com/aergoio/aergo/v2/types/dbkey"
 )
 
 // LoadCache loads the first layers of the merkle tree given a root
@@ -35,7 +36,7 @@ func (s *Trie) loadCache(root []byte, batch [][]byte, iBatch, height int, ch cha
 	if height%4 == 0 {
 		// Load the node from db
 		s.db.lock.Lock()
-		dbval := s.db.Store.Get(root[:HashLength])
+		dbval := s.db.Store.Get(dbkey.Trie(root[:HashLength]))
 		s.db.lock.Unlock()
 		if len(dbval) == 0 {
 			ch <- fmt.Errorf("the trie node %x is unavailable in the disk db, db may be corrupted", root)
@@ -110,10 +111,39 @@ func (s *Trie) get(root, key []byte, batch [][]byte, iBatch, height int) ([]byte
 	return s.get(lnode, key, batch, 2*iBatch+1, height-1)
 }
 
+// GetKeys fetches all keys of shortcut.
+func (s *Trie) GetKeys() [][]byte {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+	s.atomicUpdate = false
+
+	keys := make([][]byte, 0, 1024)
+	s.getKeys(s.Root, nil, 0, s.TrieHeight, &keys)
+	return keys
+}
+
+func (s *Trie) getKeys(root []byte, batch [][]byte, iBatch, height int, keys *[][]byte) {
+	if len(root) == 0 {
+		// the trie does not contain the key
+		return
+	}
+	// Fetch the children of the node
+	batch, iBatch, lnode, rnode, isShortcut, err := s.loadChildren(root, height, iBatch, batch)
+	if err != nil {
+		return
+	}
+	if isShortcut {
+		*keys = append(*keys, lnode[:HashLength])
+		return
+	}
+	s.getKeys(rnode, batch, 2*iBatch+2, height-1, keys)
+	s.getKeys(lnode, batch, 2*iBatch+1, height-1, keys)
+}
+
 // TrieRootExists returns true if the root exists in Database.
 func (s *Trie) TrieRootExists(root []byte) bool {
 	s.db.lock.RLock()
-	dbval := s.db.Store.Get(root)
+	dbval := s.db.Store.Get(dbkey.Trie(root))
 	s.db.lock.RUnlock()
 	if len(dbval) != 0 {
 		return true

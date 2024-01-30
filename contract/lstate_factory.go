@@ -48,14 +48,14 @@ func statePool(numCloseLimit int) {
 
 func GetLState() *LState {
 	state := <-getCh
-	ctrLgr.Debug().Msg("LState acquired")
+	ctrLgr.Trace().Msg("LState acquired")
 	return state
 }
 
 func FreeLState(state *LState) {
 	if state != nil {
 		freeCh <- state
-		ctrLgr.Debug().Msg("LState released")
+		ctrLgr.Trace().Msg("LState released")
 	}
 }
 
@@ -72,7 +72,7 @@ func FlushLStates() {
 type LState = C.struct_lua_State
 
 func newLState() *LState {
-	ctrLgr.Debug().Msg("LState created")
+	ctrLgr.Trace().Msg("LState created")
 	return C.vm_newstate(C.int(currentForkVersion))
 }
 

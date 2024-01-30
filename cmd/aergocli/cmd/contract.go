@@ -7,10 +7,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strconv"
 
-	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
 	luacEncoding "github.com/aergoio/aergo/v2/cmd/aergoluac/encoding"
 	luac "github.com/aergoio/aergo/v2/cmd/aergoluac/util"
 	"github.com/aergoio/aergo/v2/internal/common"
@@ -18,11 +17,12 @@ import (
 	"github.com/aergoio/aergo/v2/internal/enc/hex"
 	"github.com/aergoio/aergo/v2/types"
 	aergorpc "github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/jsonrpc"
 	"github.com/spf13/cobra"
 )
 
 var (
-	client        *util.ConnClient
+	client        *ConnClient
 	admClient     types.AdminRPCServiceClient
 	data          string
 	nonce         uint64
@@ -185,12 +185,12 @@ func runDeployCmd(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = false
 			return errors.New("not enough arguments")
 		}
-		code, err = ioutil.ReadFile(args[1])
+		code, err = os.ReadFile(args[1])
 		if err != nil {
 			return fmt.Errorf("failed to read code file: %v", err.Error())
 		}
 		var abi []byte
-		abi, err = ioutil.ReadFile(args[2])
+		abi, err = os.ReadFile(args[2])
 		if err != nil {
 			return fmt.Errorf("failed to read abi file: %v", err.Error())
 		}
@@ -227,7 +227,7 @@ func runDeployCmd(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	amountBigInt, err := util.ParseUnit(amount)
+	amountBigInt, err := jsonrpc.ParseUnit(amount)
 	if err != nil {
 		return fmt.Errorf("failed to parse amount: %v", err.Error())
 	}
@@ -293,7 +293,7 @@ func runCallCmd(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	amountBigInt, err := util.ParseUnit(amount)
+	amountBigInt, err := jsonrpc.ParseUnit(amount)
 	if err != nil {
 		return fmt.Errorf("failed to parse amount: %v", err)
 	}
@@ -390,7 +390,8 @@ func sendCallTx(cmd *cobra.Command, tx *types.Tx, sender []byte) error {
 	}
 
 	if toJSON {
-		cmd.Println(util.TxConvBase58Addr(tx))
+		res := jsonrpc.ConvTx(tx, jsonrpc.Base58)
+		cmd.Println(jsonrpc.MarshalJSON(res))
 	} else {
 		txs := []*types.Tx{tx}
 		var msgs *types.CommitResultList
@@ -398,7 +399,8 @@ func sendCallTx(cmd *cobra.Command, tx *types.Tx, sender []byte) error {
 		if err != nil {
 			return fmt.Errorf("failed to commit tx: %v", err.Error())
 		}
-		cmd.Println(util.JSON(msgs.Results[0]))
+		res := jsonrpc.ConvCommitResult(msgs.Results[0])
+		cmd.Println(jsonrpc.MarshalJSON(res))
 	}
 	return nil
 }
@@ -414,7 +416,8 @@ func runGetABICmd(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to get abi: %v", err.Error())
 	}
-	cmd.Println(util.JSON(abi))
+	res := jsonrpc.ConvAbi(abi)
+	cmd.Println(jsonrpc.MarshalJSON(res))
 	return nil
 }
 

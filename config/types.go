@@ -15,6 +15,7 @@ const (
 type Config struct {
 	BaseConfig `mapstructure:",squash"`
 	RPC        *RPCConfig        `mapstructure:"rpc"`
+	Web3       *Web3Config       `mapstructure:"web3"`
 	P2P        *P2PConfig        `mapstructure:"p2p"`
 	Polaris    *PolarisConfig    `mapstructure:"polaris"`
 	Blockchain *BlockchainConfig `mapstructure:"blockchain"`
@@ -54,6 +55,14 @@ type RPCConfig struct {
 	NSAllowCORS bool   `mapstructure:"nsallowcors" description:"Allow CORS to RPC or REST API"`
 }
 
+// Web3Config defines configurations for web3 service
+type Web3Config struct {
+	NetServicePort int    `mapstructure:"netserviceport" description:"Web3 service port"`
+	MaxLimit       int    `mapstructure:"maxlimit" description:"Web3 connect limit per second"`
+	SwaggerPath    string `mapstructure:"swaggerpath" description:"Swagger resource file path"`
+	Enable         bool   `mapstructure:"enable" description:"Enable web3"`
+}
+
 // P2PConfig defines configurations for p2p service
 type P2PConfig struct {
 	// N2N (peer-to-peer) network
@@ -80,6 +89,7 @@ type P2PConfig struct {
 	Producers     []string `mapstructure:"producers" description:"List of peer ids of block producers, only meaningful when peer is agent"`
 	InternalZones []string `mapstructure:"internalzones" description:"List of address ranges that are recognised as inner zone of agent. defined by CIDR notation."`
 	Agent         string   `mapstructure:"agent" description:"Peer id of agent that delegates this producer, only available when local peer is producer"`
+	AllowLegacy   bool     `mapstructure:"allowlegacy" description:"Whether to allow legacy security protocols"`
 }
 
 // AuthConfig defines configuration for auditing
@@ -218,6 +228,13 @@ npaddpolarises = [{{range .P2P.NPAddPolarises}}
 "{{.}}", {{end}}
 ]
 peerrole = "{{.P2P.PeerRole}}"
+allowlegacy = "{{.P2P.AllowLegacy}}"
+
+[web3]
+netserviceport = {{.Web3.NetServicePort}}
+maxlimit = {{.Web3.MaxLimit}}
+swaggerpath = "{{.Web3.SwaggerPath}}"
+enable = {{.Web3.Enable}}
 
 [polaris]
 allowprivate = {{.Polaris.AllowPrivate}}

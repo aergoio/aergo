@@ -518,7 +518,17 @@ func checkPayable(callee *types.Function, amount *big.Int) error {
 	return fmt.Errorf("'%s' is not payable", callee.Name)
 }
 
-func (ce *executor) call(instLimit C.int, target *LState) C.int {
+func (ce *executor) call(instLimit C.int, target *LState) (ret C.int) {
+	defer func() {
+		if ret == 0 && target != nil {
+			if C.luaL_hasuncatchablerror(ce.L) != C.int(0) {
+				C.luaL_setuncatchablerror(target)
+			}
+			if C.luaL_hassyserror(ce.L) != C.int(0) {
+				C.luaL_setsyserror(target)
+			}
+		}
+	}()
 	if ce.err != nil {
 		return 0
 	}
@@ -576,14 +586,6 @@ func (ce *executor) call(instLimit C.int, target *LState) C.int {
 			"contract",
 			types.LogAddr(ce.ctx.curContract.contractId),
 		).Msg("contract is failed")
-		if target != nil {
-			if C.luaL_hasuncatchablerror(ce.L) != C.int(0) {
-				C.luaL_setuncatchablerror(target)
-			}
-			if C.luaL_hassyserror(ce.L) != C.int(0) {
-				C.luaL_setsyserror(target)
-			}
-		}
 		return 0
 	}
 	if target == nil {
@@ -777,7 +779,12 @@ func (ce *executor) vmLoadCode(id []byte) {
 func (ce *executor) vmLoadCall() {
 	if cErrMsg := C.vm_loadcall(ce.L); cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
-		ce.err = errors.New(errMsg)
+		isUncatchable := C.luaL_hasuncatchablerror(ce.L) != C.int(0)
+		if isUncatchable && (errMsg == C.ERR_BF_TIMEOUT || errMsg == vmTimeoutErrMsg) {
+			ce.err = &VmTimeoutError{}
+		} else {
+			ce.err = errors.New(errMsg)
+		}
 	}
 	C.luaL_set_service(ce.L, ce.ctx.service)
 }

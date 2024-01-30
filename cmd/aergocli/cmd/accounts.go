@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -237,7 +236,7 @@ func importKeystore(cmd *cobra.Command) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	keystore, err := ioutil.ReadFile(absPath)
+	keystore, err := os.ReadFile(absPath)
 	if err != nil {
 		return nil, err
 	}
