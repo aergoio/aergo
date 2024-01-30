@@ -9,8 +9,8 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/jsonrpc"
 	"github.com/spf13/cobra"
 )
 
@@ -47,7 +47,7 @@ func sendStake(cmd *cobra.Command, s bool) error {
 	} else {
 		ci.Name = types.Opunstake.Cmd()
 	}
-	amountBigInt, err := util.ParseUnit(amount)
+	amountBigInt, err := jsonrpc.ParseUnit(amount)
 	if err != nil {
 		return errors.New("Failed to parse --amount flag\n" + err.Error())
 	}

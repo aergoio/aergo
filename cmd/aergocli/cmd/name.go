@@ -13,8 +13,8 @@ import (
 	"log"
 	"math/big"
 
-	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/jsonrpc"
 	"github.com/spf13/cobra"
 )
 
@@ -77,7 +77,7 @@ func execNameNew(cmd *cobra.Command, args []string) error {
 	if len(name) != types.NameLength {
 		return errors.New("the name must be 12 alphabetic characters")
 	}
-	amount, err := util.ParseUnit(spending)
+	amount, err := jsonrpc.ParseUnit(spending)
 	if err != nil {
 		return fmt.Errorf("wrong value in --amount flag: %v", err.Error())
 	}
@@ -114,7 +114,7 @@ func execNameUpdate(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("Wrong address in --to flag: %v", err.Error())
 	}
-	amount, err := util.ParseUnit(spending)
+	amount, err := jsonrpc.ParseUnit(spending)
 	if err != nil {
 		return fmt.Errorf("Wrong value in --amount flag: %v", err.Error())
 	}
