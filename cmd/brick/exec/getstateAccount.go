@@ -2,6 +2,7 @@ package exec
 
 import (
 	"fmt"
+	"math/big"
 
 	"github.com/aergoio/aergo/v2/cmd/brick/context"
 	"github.com/aergoio/aergo/v2/contract/vm_dummy"
