@@ -76,7 +76,7 @@ function set_version() {
   echo "---------------------------------"
   echo "now test hardfork version $version"
   # get the current block number / height
-  block_no=$(../bin/aergocli blockchain | jq .Height | sed 's/"//g')
+  block_no=$(../bin/aergocli blockchain | jq .height | sed 's/"//g')
   # increment 2 numbers
   block_no=$((block_no+2))
   # terminate the server process(es)

@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo/v2/cmd/aergocli/cmd/mock_types"
-	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
 	"github.com/golang/mock/gomock"
 	"github.com/spf13/cobra"
 )
@@ -14,7 +13,7 @@ func initMock(t *testing.T) *mock_types.MockAergoRPCServiceClient {
 	test = true
 	ctrl := gomock.NewController(t)
 	mock := mock_types.NewMockAergoRPCServiceClient(ctrl)
-	mockClient := &util.ConnClient{
+	mockClient := &ConnClient{
 		AergoRPCServiceClient: mock,
 	}
 	client = mockClient

@@ -12,11 +12,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
 	"github.com/aergoio/aergo/v2/consensus"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/jsonrpc"
 	"github.com/aergoio/aergo/v2/types/message"
 	raftlib "github.com/aergoio/etcd/raft"
 	"github.com/aergoio/etcd/raft/raftpb"
@@ -1009,8 +1009,8 @@ func (cl *Cluster) AfterConfChange(cc *raftpb.ConfChange, member *consensus.Memb
 	}
 
 	propose := cl.savedChange
-
-	logger.Info().Str("req", util.JSON(propose.Cc)).Msg("conf change succeed")
+	res := jsonrpc.ConvConfChange(propose.Cc)
+	logger.Info().Str("req", jsonrpc.MarshalJSON(res)).Msg("conf change succeed")
 
 	cl.resetSavedConfChangePropose()
 
