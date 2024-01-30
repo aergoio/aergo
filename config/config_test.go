@@ -5,7 +5,7 @@
 package config
 
 import (
-	"io/ioutil"
+	"os"
 	"path"
 	"testing"
 
@@ -14,7 +14,7 @@ import (
 
 func TestSetParamConfPath(t *testing.T) {
 	// create a temporary directory
-	tmpDir, err := ioutil.TempDir("", "test")
+	tmpDir, err := os.MkdirTemp("", "test")
 	if err != nil {
 		assert.Fail(t, err.Error())
 	}

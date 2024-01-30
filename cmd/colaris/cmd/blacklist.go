@@ -9,8 +9,8 @@ import (
 	"context"
 	"strconv"
 
-	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/jsonrpc"
 	"github.com/spf13/cobra"
 )
 
@@ -64,8 +64,8 @@ func listBlacklistEntries(cmd *cobra.Command, args []string) {
 		cmd.Printf("Failed: %s", err.Error())
 		return
 	}
-
-	cmd.Println(util.JSON(msg))
+	res := jsonrpc.ConvBLConfEntries(msg)
+	cmd.Println(jsonrpc.MarshalJSON(res))
 }
 
 func addBlacklistEntry(cmd *cobra.Command, args []string) {
