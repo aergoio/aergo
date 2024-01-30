@@ -132,7 +132,7 @@ func writeToKeyFiles(priv crypto.PrivKey, pub crypto.PubKey, dir, prefix string)
 	if err != nil {
 		return err
 	}
-	pkBytes, err := priv.Bytes()
+	pkBytes, err := crypto.MarshalPrivateKey(priv)
 	if err != nil {
 		return err
 	}

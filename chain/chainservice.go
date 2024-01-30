@@ -180,6 +180,8 @@ type IChainHandler interface {
 	getBlockByNo(blockNo types.BlockNo) (*types.Block, error)
 	getTx(txHash []byte) (*types.Tx, *types.TxIdx, error)
 	getReceipt(txHash []byte) (*types.Receipt, error)
+	getReceipts(blockHash []byte) (*types.Receipts, error)
+	getReceiptsByNo(blockNo types.BlockNo) (*types.Receipts, error)
 	getAccountVote(addr []byte) (*types.AccountVoteInfo, error)
 	getVotes(id string, n uint32) (*types.VoteList, error)
 	getStaking(addr []byte) (*types.Staking, error)
@@ -230,6 +232,11 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	var err error
 	if cs.Core, err = NewCore(cfg.DbType, cfg.DataDir, cfg.EnableTestmode, types.BlockNo(cfg.Blockchain.ForceResetHeight)); err != nil {
 		logger.Panic().Err(err).Msg("failed to initialize DB")
+	}
+
+	// check legacy format about trie key
+	if legacy := cs.SDB().GetStateDB().IsLegacyTrieKey(); legacy {
+		logger.Panic().Msg("Legacy key format detected. Clear existing data and restart.")
 	}
 
 	if err = Init(cfg.Blockchain.MaxBlockSize,
@@ -295,6 +302,7 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	types.InitGovernance(cs.ConsensusType(), cs.IsPublic())
 
 	//reset parameter of aergo.system
+
 	systemState, err := statedb.GetSystemAccountState(cs.SDB().GetStateDB())
 	if err != nil {
 		logger.Panic().Err(err).Msg("failed to read aergo.system state")
@@ -434,6 +442,8 @@ func (cs *ChainService) Receive(context actor.Context) {
 		*message.GetStateAndProof,
 		*message.GetTx,
 		*message.GetReceipt,
+		*message.GetReceipts,
+		*message.GetReceiptsByNo,
 		*message.GetABI,
 		*message.GetQuery,
 		*message.GetStateQuery,
@@ -789,6 +799,18 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		context.Respond(message.GetReceiptRsp{
 			Receipt: receipt,
 			Err:     err,
+		})
+	case *message.GetReceipts:
+		receipts, err := cw.getReceipts(msg.BlockHash)
+		context.Respond(message.GetReceiptsRsp{
+			Receipts: receipts,
+			Err:      err,
+		})
+	case *message.GetReceiptsByNo:
+		receipts, err := cw.getReceiptsByNo(msg.BlockNo)
+		context.Respond(message.GetReceiptsByNoRsp{
+			Receipts: receipts,
+			Err:      err,
 		})
 	case *message.GetABI:
 		sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetRoot())
