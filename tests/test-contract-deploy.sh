@@ -57,7 +57,7 @@ ret=$(cat receipt.json | jq .ret | sed 's/"//g')
 gasUsed=$(cat receipt.json | jq .gasUsed | sed 's/"//g')
 
 assert_equals "$status"   "SUCCESS"
-#assert_equals "$ret"      "{}"
+#assert_equals "$ret"      ""
 #assert_equals "$gasUsed"  "117861"
 
 
@@ -74,7 +74,7 @@ ret=$(cat receipt.json | jq .ret | sed 's/"//g')
 gasUsed=$(cat receipt.json | jq .gasUsed | sed 's/"//g')
 
 assert_equals "$status"   "SUCCESS"
-#assert_equals "$ret"      "{}"
+#assert_equals "$ret"      ""
 #assert_equals "$gasUsed"  "117861"
 
 
@@ -91,7 +91,7 @@ ret=$(cat receipt.json | jq .ret | sed 's/"//g')
 gasUsed=$(cat receipt.json | jq .gasUsed | sed 's/"//g')
 
 assert_equals "$status"   "SUCCESS"
-#assert_equals "$ret"      "{}"
+#assert_equals "$ret"      ""
 #assert_equals "$gasUsed"  "117861"
 
 
@@ -108,7 +108,7 @@ ret=$(cat receipt.json | jq .ret | sed 's/"//g')
 gasUsed=$(cat receipt.json | jq .gasUsed | sed 's/"//g')
 
 assert_equals "$status"   "SUCCESS"
-#assert_equals "$ret"      "{}"
+#assert_equals "$ret"      ""
 #assert_equals "$gasUsed"  "117861"
 
 
@@ -125,5 +125,5 @@ ret=$(cat receipt.json | jq .ret | sed 's/"//g')
 gasUsed=$(cat receipt.json | jq .gasUsed | sed 's/"//g')
 
 assert_equals "$status"   "SUCCESS"
-#assert_equals "$ret"      "{}"
+#assert_equals "$ret"      ""
 #assert_equals "$gasUsed"  "117861"
