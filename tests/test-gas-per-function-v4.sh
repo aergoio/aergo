@@ -30,7 +30,7 @@ status=$(cat receipt.json | jq .status | sed 's/"//g')
 ret=$(cat receipt.json | jq .ret | sed 's/"//g')
 
 assert_equals "$status" "SUCCESS"
-assert_equals "$ret"    "{}"
+assert_equals "$ret"    ""
 
 
 echo "-- get account's nonce --"
