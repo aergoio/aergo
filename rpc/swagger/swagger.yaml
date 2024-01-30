@@ -29,6 +29,22 @@ paths:
       responses:
         "200":
           description: Successful response
+          schema:
+            {
+              "type": "object",
+              "properties":
+                {
+                  "nonce": { "type": "integer" },
+                  "balance": { "type": "string" },
+                  "account": { "type": "string" },
+                  "stake": { "type": "string" },
+                  "total": { "type": "string" },
+                  "votingpower": { "type": "string" },
+                  "when": { "type": "integer" },
+                  "nextaction": { "type": "integer" },
+                  "isContract": { "type": "boolean" },
+                },
+            }
           content:
             application/json:
               example:
@@ -61,6 +77,17 @@ paths:
       responses:
         "200":
           description: Successful response
+          schema:
+            {
+              "type": "object",
+              "properties":
+                {
+                  "nonce": { "type": "integer" },
+                  "balance": { "type": "string" },
+                  "account": { "type": "string" },
+                  "merkle proof length": { "type": "integer" },
+                },
+            }
           content:
             application/json:
               example:
@@ -85,6 +112,16 @@ paths:
       responses:
         "200":
           description: Successful response
+          schema:
+            {
+              "type": "object",
+              "properties":
+                {
+                  "name": { "type": "string" },
+                  "owner": { "type": "string" },
+                  "destination": { "type": "string" },
+                },
+            }
           content:
             application/json:
               example:
@@ -105,6 +142,11 @@ paths:
       responses:
         "200":
           description: Successful response
+          schema:
+            {
+              "type": "object",
+              "properties": { "balance": { "type": "string" } },
+            }
           content:
             application/json:
               example:
@@ -126,6 +168,31 @@ paths:
       responses:
         "200":
           description: Successful response
+          schema:
+            {
+              "type": "object",
+              "properties":
+                {
+                  "hash": { "type": "string" },
+                  "header":
+                    {
+                      "type": "object",
+                      "properties":
+                        {
+                          "chainID": { "type": "string" },
+                          "prevBlockHash": { "type": "string" },
+                          "blockNo": { "type": "integer" },
+                          "timestamp": { "type": "integer" },
+                          "blocksRootHash": { "type": "string" },
+                          "txsRootHash": { "type": "string" },
+                          "receiptsRootHash": { "type": "string" },
+                          "pubKey": { "type": "string" },
+                          "sign": { "type": "string" },
+                        },
+                    },
+                  "body": { "type": "object" },
+                },
+            }
           content:
             application/json:
               example:
@@ -148,6 +215,62 @@ paths:
       responses:
         "200":
           description: Successful response
+          schema:
+            {
+              "type": "object",
+              "properties":
+                {
+                  "best_block_hash": { "type": "string" },
+                  "best_height": { "type": "integer" },
+                  "consensus_info":
+                    {
+                      "type": "object",
+                      "properties":
+                        {
+                          "Type": { "type": "string" },
+                          "Status":
+                            {
+                              "type": "object",
+                              "properties":
+                                {
+                                  "Leader": { "type": "string" },
+                                  "Total": { "type": "integer" },
+                                  "Name": { "type": "string" },
+                                  "RaftId": { "type": "string" },
+                                  "Status": { "type": "string" },
+                                },
+                            },
+                        },
+                    },
+                  "best_chain_id_hash": { "type": "string" },
+                  "chain_info":
+                    {
+                      "type": "object",
+                      "properties":
+                        {
+                          "id":
+                            {
+                              "type": "object",
+                              "properties":
+                                {
+                                  "magic": { "type": "string" },
+                                  "consensus": { "type": "string" },
+                                  "version": { "type": "integer" },
+                                },
+                            },
+                          "bpNumber": { "type": "integer" },
+                          "maxblocksize": { "type": "integer" },
+                          "maxtokens": { "type": "string" },
+                          "gasprice": { "type": "string" },
+                          "nameprice": { "type": "string" },
+                        },
+                    },
+                  "votingpower": { "type": "string" },
+                  "when": { "type": "integer" },
+                  "nextaction": { "type": "integer" },
+                  "isContract": { "type": "boolean" },
+                },
+            }
           content:
             application/json:
               example:
@@ -172,7 +295,7 @@ paths:
                   maxtokens: "AkMGxAl4WcQ8AAAA"
                   gasprice: "C6Q7dAA="
                   nameprice: "DeC2s6dkAAA="
-  /getBlockTx:
+  /getBlockBody:
     get:
       summary: Get block body
       tags: [Block]
@@ -199,31 +322,75 @@ paths:
           require: true
           schema:
             type: integer
-          example: 100
+          example: 5
       responses:
         "200":
           description: Successful response
+          schema:
+            {
+              "type": "object",
+              "properties":
+                {
+                  "offset": { "type": "integer" },
+                  "size": { "type": "integer" },
+                  "body":
+                    {
+                      "type": "object",
+                      "properties":
+                        {
+                          "txs":
+                            {
+                              "type": "array",
+                              "items":
+                                {
+                                  "type": "object",
+                                  "properties":
+                                    {
+                                      "hash": { "type": "string" },
+                                      "body":
+                                        {
+                                          "type": "object",
+                                          "properties":
+                                            {
+                                              "nonce": { "type": "integer" },
+                                              "account": { "type": "string" },
+                                              "recipient": { "type": "string" },
+                                              "amount": { "type": "string" },
+                                              "type": { "type": "integer" },
+                                              "chainIdHash":
+                                                { "type": "string" },
+                                              "sign": { "type": "string" },
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            }
           content:
             application/json:
               example:
                 offset: 0
-                size: 100
-                txs:
-                  [
-                    {
-                      "hash": "7dYEViBVX3Qs1BTTPntT8fvi1zsBUFGbFtUscioWxQWJ",
-                      "body":
-                        {
-                          "nonce": 6,
-                          "account": "AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R",
-                          "recipient": "AmM1M4jAxeTxfh9CHUmKXJwTLxGJ6Qe5urEeFXqbqkKnZ73Uvx4y",
-                          "amount": "1000000000000000000",
-                          "type": 4,
-                          "chainIdHash": "BNVSYKKqSR78hTSrxkaroFK2S3mgsoocpWg9HYtb1Zhn",
-                          "sign": "AN1rKvtYAKYdFiDJP68RGcUxS3YYeMD7ExgpZzMMgzvKLoce4SJx5YBAQBLSPTf1kzT5aH4qqj6BbjyurzqRbjyG6wXJfBdwo",
-                        },
-                    },
-                  ]
+                size: 5
+                body:
+                  txs:
+                    [
+                      {
+                        "hash": "7dYEViBVX3Qs1BTTPntT8fvi1zsBUFGbFtUscioWxQWJ",
+                        "body":
+                          {
+                            "nonce": 6,
+                            "account": "AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R",
+                            "recipient": "AmM1M4jAxeTxfh9CHUmKXJwTLxGJ6Qe5urEeFXqbqkKnZ73Uvx4y",
+                            "amount": "1000000000000000000",
+                            "type": 4,
+                            "chainIdHash": "BNVSYKKqSR78hTSrxkaroFK2S3mgsoocpWg9HYtb1Zhn",
+                            "sign": "AN1rKvtYAKYdFiDJP68RGcUxS3YYeMD7ExgpZzMMgzvKLoce4SJx5YBAQBLSPTf1kzT5aH4qqj6BbjyurzqRbjyG6wXJfBdwo",
+                          },
+                      },
+                    ]
   /listBlockHeaders:
     get:
       summary: Get block headers list
@@ -256,6 +423,26 @@ paths:
       responses:
         "200":
           description: Successful response
+          schema:
+            {
+              "type": "object",
+              "properties":
+                {
+                  "hash": { "type": "string" },
+                  "header":
+                    {
+                      "type": "object",
+                      "properties":
+                        {
+                          "chainID": { "type": "string" },
+                          "timestamp": { "type": "integer" },
+                          "blocksRootHash": { "type": "string" },
+                          "txsRootHash": { "type": "string" },
+                          "receiptsRootHash": { "type": "string" },
+                        },
+                    },
+                },
+            }
           content:
             application/json:
               example:
@@ -284,6 +471,31 @@ paths:
       responses:
         "200":
           description: Successful response
+          schema:
+            {
+              "type": "object",
+              "properties":
+                {
+                  "hash": { "type": "string" },
+                  "header":
+                    {
+                      "type": "object",
+                      "properties":
+                        {
+                          "chainID": { "type": "string" },
+                          "prevBlockHash": { "type": "string" },
+                          "blockNo": { "type": "integer" },
+                          "timestamp": { "type": "integer" },
+                          "blocksRootHash": { "type": "string" },
+                          "txsRootHash": { "type": "string" },
+                          "receiptsRootHash": { "type": "string" },
+                          "pubKey": { "type": "string" },
+                          "sign": { "type": "string" },
+                        },
+                    },
+                  "size": { "type": "integer" },
+                },
+            }
           content:
             application/json:
               example:
@@ -311,6 +523,44 @@ paths:
       responses:
         "200":
           description: Successful response
+          schema:
+            {
+              "type": "object",
+              "properties":
+                {
+                  "txIdx":
+                    {
+                      "type": "object",
+                      "properties":
+                        {
+                          "blockHash": { "type": "string" },
+                          "idx": { "type": "integer" },
+                        },
+                    },
+                  "tx":
+                    {
+                      "type": "object",
+                      "properties":
+                        {
+                          "hash": { "type": "string" },
+                          "body":
+                            {
+                              "type": "object",
+                              "properties":
+                                {
+                                  "nonce": { "type": "integer" },
+                                  "account": { "type": "string" },
+                                  "recipient": { "type": "string" },
+                                  "amount": { "type": "string" },
+                                  "type": { "type": "integer" },
+                                  "chainIdHash": { "type": "string" },
+                                  "sign": { "type": "string" },
+                                },
+                            },
+                        },
+                    },
+                },
+            }
           content:
             application/json:
               example:
@@ -347,6 +597,23 @@ paths:
       responses:
         "200":
           description: Successful response
+          schema:
+            {
+              "type": "object",
+              "properties":
+                {
+                  "contractAddress": { "type": "string" },
+                  "status": { "type": "string" },
+                  "ret": { "type": "string" },
+                  "txHash": { "type": "string" },
+                  "feeUsed": { "type": "string" },
+                  "cumulativeFeeUsed": { "type": "string" },
+                  "blockHash": { "type": "string" },
+                  "blockNo": { "type": "integer" },
+                  "from": { "type": "string" },
+                  "to": { "type": "string" },
+                },
+            }
           content:
             application/json:
               example:
@@ -375,59 +642,166 @@ paths:
           in: query
           schema:
             type: integer
-        - name: offset
-          in: query
-          schema:
-            type: integer
-          example: 0
-        - name: size
-          in: query
-          schema:
-            type: integer
-          example: 100
       responses:
         "200":
           description: Successful response
+          schema:
+            {
+              "type": "object",
+              "properties":
+                {
+                  "receipts":
+                    {
+                      "type": "array",
+                      "items":
+                        {
+                          "type": "object",
+                          "properties":
+                            {
+                              "contractAddress": { "type": "string" },
+                              "status": { "type": "string" },
+                              "ret": { "type": "string" },
+                              "txHash": { "type": "string" },
+                              "feeUsed": { "type": "string" },
+                              "cumulativeFeeUsed": { "type": "string" },
+                              "blockHash": { "type": "string" },
+                              "blockNo": { "type": "integer" },
+                              "from": { "type": "string" },
+                              "to": { "type": "string" },
+                            },
+                        },
+                    },
+                  "blockNo": { "type": "integer" },
+                },
+            }
           content:
             application/json:
               example:
                 {
-                  total: 2,
-                  size: 100,
-                  receipts:
+                  "receipts":
                     [
                       {
-                        contractAddress: "AmM1M4jAxeTxfh9CHUmKXJwTLxGJ6Qe5urEeFXqbqkKnZ73Uvx4y",
-                        status: "SUCCESS",
-                        ret: "",
-                        txHash: "6kj45qbgaaKMtQLfPmvTPdU3ozipMX46P5ApSa8Jw1rn",
-                        feeUsed: "0",
-                        cumulativeFeeUsed: "0",
-                        blockHash: "A6Y8J1J9w5ZB8jzBemKZNyrbRZpNDeRsdFnukUqPEQak",
-                        blockNo: 39,
-                        from: "AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R",
-                        to: "AmM1M4jAxeTxfh9CHUmKXJwTLxGJ6Qe5urEeFXqbqkKnZ73Uvx4y",
-                      },
-                      {
-                        contractAddress: "AmM1M4jAxeTxfh9CHUmKXJwTLxGJ6Qe5urEeFXqbqkKnZ73Uvx4y",
-                        status: "SUCCESS",
-                        ret: "",
-                        txHash: "8bmgNcZP7YeTzxWmkn9kJD5hvD4z2BVGq1tQJ5Vj76Ur",
-                        feeUsed: "0",
-                        cumulativeFeeUsed: "0",
-                        blockHash: "A6Y8J1J9w5ZB8jzBemKZNyrbRZpNDeRsdFnukUqPEQak",
-                        blockNo: 39,
-                        txIndex: 1,
-                        from: "AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R",
-                        to: "AmM1M4jAxeTxfh9CHUmKXJwTLxGJ6Qe5urEeFXqbqkKnZ73Uvx4y",
+                        "contractAddress": "AmM1M4jAxeTxfh9CHUmKXJwTLxGJ6Qe5urEeFXqbqkKnZ73Uvx4y",
+                        "status": "SUCCESS",
+                        "ret": "",
+                        "txHash": "C5r1VqkYWnBAHtEqJBHUjXPzbKG9f7QYXNEd5sD2KdQb",
+                        "feeUsed": "0",
+                        "cumulativeFeeUsed": "0",
+                        "blockHash": "HRdfbN8Pp9iUuknJ7SWaRbKdy23x5zruLL7dBdVLFdxS",
+                        "blockNo": 8,
+                        "from": "AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R",
+                        "to": "AmM1M4jAxeTxfh9CHUmKXJwTLxGJ6Qe5urEeFXqbqkKnZ73Uvx4y",
                       },
                     ],
-                  blockNo: 39,
+                  "blockNo": 8,
+                }
+  /getBlockTx:
+    get:
+      summary: Get transaction is in block
+      tags: [Transaction]
+      parameters:
+        - name: hash
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successful response
+          schema:
+            {
+              "type": "object",
+              "properties":
+                {
+                  "txIdx":
+                    {
+                      "type": "object",
+                      "properties": { "blockHash": { "type": "string" } },
+                    },
+                  "tx":
+                    {
+                      "type": "object",
+                      "properties":
+                        {
+                          "hash": { "type": "string" },
+                          "body":
+                            {
+                              "type": "object",
+                              "properties":
+                                {
+                                  "nonce": { "type": "integer" },
+                                  "account": { "type": "string" },
+                                  "recipient": { "type": "string" },
+                                  "amount": { "type": "string" },
+                                  "type": { "type": "integer" },
+                                  "chainIdHash": { "type": "string" },
+                                  "sign": { "type": "string" },
+                                },
+                            },
+                        },
+                    },
+                },
+            }
+          content:
+            application/json:
+              example:
+                {
+                  "txIdx":
+                    {
+                      "blockHash": "HRdfbN8Pp9iUuknJ7SWaRbKdy23x5zruLL7dBdVLFdxS",
+                    },
+                  "tx":
+                    {
+                      "hash": "C5r1VqkYWnBAHtEqJBHUjXPzbKG9f7QYXNEd5sD2KdQb",
+                      "body":
+                        {
+                          "nonce": 1,
+                          "account": "AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R",
+                          "recipient": "AmM1M4jAxeTxfh9CHUmKXJwTLxGJ6Qe5urEeFXqbqkKnZ73Uvx4y",
+                          "amount": "1000000000000000000",
+                          "type": 4,
+                          "chainIdHash": "BNVSYKKqSR78hTSrxkaroFK2S3mgsoocpWg9HYtb1Zhn",
+                          "sign": "381yXZ1ekFJxDAPRTrNmZMoBWgBNRUsF9d755v1rkukZ2gZL5GFyrq1zo3ib9MY4TkpASdSwxsSci6a6n7at4nu1H97rNyhn",
+                        },
+                    },
                 }
   /sendSignedTransaction:
     post:
       summary: Commit transaction to aergo server
       tags: [Transaction]
+      parameters:
+        - name: request
+          in: body
+          schema:
+            type: object
+            properties:
+              hash:
+                type: string
+              body:
+                type: object
+                properties:
+                  nonce:
+                    type: integer
+                  account:
+                    type: string
+                  recipient:
+                    type: string
+                  amount:
+                    type: string
+                  payloadJson:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      args:
+                        type: array
+                        items:
+                          type: string
+                  chainIdHash:
+                    type: string
+                  sign:
+                    type: string
+                  type:
+                    type: integer
       requestBody:
         required: true
         content:
@@ -466,6 +840,22 @@ paths:
       responses:
         "200":
           description: Successful response
+          schema:
+            {
+              "type": "object",
+              "properties":
+                {
+                  "results":
+                    {
+                      "type": "array",
+                      "items":
+                        {
+                          "type": "object",
+                          "properties": { "hash": { "type": "string" } },
+                        },
+                    },
+                },
+            }
           content:
             application/json:
               example:
@@ -500,6 +890,40 @@ paths:
       responses:
         "200":
           description: Successful response
+          schema:
+            {
+              "type": "object",
+              "properties":
+                {
+                  "txIdx":
+                    {
+                      "type": "object",
+                      "properties": { "blockHash": { "type": "string" } },
+                    },
+                  "tx":
+                    {
+                      "type": "object",
+                      "properties":
+                        {
+                          "hash": { "type": "string" },
+                          "body":
+                            {
+                              "type": "object",
+                              "properties":
+                                {
+                                  "nonce": { "type": "integer" },
+                                  "account": { "type": "string" },
+                                  "recipient": { "type": "string" },
+                                  "amount": { "type": "string" },
+                                  "type": { "type": "integer" },
+                                  "chainIdHash": { "type": "string" },
+                                  "sign": { "type": "string" },
+                                },
+                            },
+                        },
+                    },
+                },
+            }
           content:
             application/json:
               example:
@@ -556,6 +980,36 @@ paths:
       responses:
         "200":
           description: Successful response
+          schema:
+            {
+              "type": "object",
+              "properties":
+                {
+                  "events":
+                    {
+                      "type": "array",
+                      "items":
+                        {
+                          "type": "object",
+                          "properties":
+                            {
+                              "contractAddress": { "type": "string" },
+                              "eventName": { "type": "string" },
+                              "Args":
+                                {
+                                  "type": "array",
+                                  "items": { "type": "string" },
+                                },
+                              "txHash": { "type": "string" },
+                              "EventIdx": { "type": "integer" },
+                              "BlockHash": { "type": "string" },
+                              "BlockNo": { "type": "integer" },
+                              "TxIndex": { "type": "integer" },
+                            },
+                        },
+                    },
+                },
+            }
           content:
             application/json:
               example:
@@ -630,6 +1084,18 @@ paths:
       responses:
         "200":
           description: Successful response
+          schema:
+            {
+              "type": "object",
+              "properties":
+                {
+                  "key": { "type": "string" },
+                  "proofKey": { "type": "integer" },
+                  "proofVal": { "type": "string" },
+                  "auditPath":
+                    { "type": "array", "items": { "type": "string" } },
+                },
+            }
           content:
             application/json:
               example:
@@ -670,6 +1136,30 @@ paths:
       responses:
         "200":
           description: Successful response
+          schema:
+            {
+              "type": "object",
+              "properties":
+                {
+                  "id":
+                    {
+                      "type": "object",
+                      "properties":
+                        {
+                          "magic": { "type": "string" },
+                          "consensus": { "type": "string" },
+                          "version": { "type": "string" },
+                        },
+                    },
+                  "bpNumber": { "type": "integer" },
+                  "maxblocksize": { "type": "integer" },
+                  "maxtokens": { "type": "string" },
+                  "gasprice": { "type": "string" },
+                  "nameprice": { "type": "string" },
+                  "totalvotingpower": { "type": "string" },
+                  "votingreward": { "type": "string" },
+                },
+            }
           content:
             application/json:
               example:
@@ -695,6 +1185,16 @@ paths:
       responses:
         "200":
           description: Successful response
+          schema:
+            {
+              "type": "object",
+              "properties":
+                {
+                  "type": { "type": "string" },
+                  "info": { "type": "object" },
+                  "bps": { "type": "array", "items": { "type": "object" } },
+                },
+            }
           content:
             application/json:
               example:
@@ -754,6 +1254,22 @@ paths:
       responses:
         "200":
           description: Successful response
+          schema:
+            {
+              "type": "object",
+              "properties":
+                {
+                  "voting":
+                    {
+                      "type": "array",
+                      "items":
+                        {
+                          "type": "object",
+                          "properties": { "id": { "type": "string" } },
+                        },
+                    },
+                },
+            }
           content:
             application/json:
               example:
@@ -785,6 +1301,20 @@ paths:
       responses:
         "200":
           description: Successful response
+          schema:
+            {
+              "type": "object",
+              "properties":
+                {
+                  "AccountsSvc": { "type": "object" },
+                  "ChainSvc": { "type": "object" },
+                  "MemPoolSvc": { "type": "object" },
+                  "RPCSvc": { "type": "object" },
+                  "SyncerSvc": { "type": "object" },
+                  "mapSvc": { "type": "object" },
+                  "p2pSvc": { "type": "object" },
+                },
+            }
           content:
             application/json:
               example:
@@ -1000,6 +1530,31 @@ paths:
       responses:
         "200":
           description: Successful response
+          schema:
+            {
+              "type": "object",
+              "properties":
+                {
+                  "peers":
+                    {
+                      "type": "array",
+                      "items":
+                        {
+                          "type": "object",
+                          "properties":
+                            {
+                              "address": { "type": "object" },
+                              "bestblock": { "type": "object" },
+                              "state": { "type": "integer" },
+                              "hidden": { "type": "boolean" },
+                              "lashCheck": { "type": "integer" },
+                              "version": { "type": "string" },
+                              "acceptedRole": { "type": "string" },
+                            },
+                        },
+                    },
+                },
+            }
           content:
             application/json:
               example:
@@ -1072,6 +1627,33 @@ paths:
       responses:
         "200":
           description: Successful response
+          schema:
+            {
+              "type": "object",
+              "properties":
+                {
+                  "status":
+                    {
+                      "type": "object",
+                      "properties":
+                        {
+                          "addr": { "type": "string" },
+                          "id": { "type": "string" },
+                          "port": { "type": "string" },
+                          "version": { "type": "string" },
+                        },
+                    },
+                  "config":
+                    {
+                      "type": "object",
+                      "properties":
+                        {
+                          "account": { "type": "object" },
+                          "base": { "type": "object" },
+                        },
+                    },
+                },
+            }
           content:
             application/json:
               example:
@@ -1102,6 +1684,15 @@ paths:
       responses:
         "200":
           description: Successful response
+          schema:
+            {
+              "type": "object",
+              "properties":
+                {
+                  "amount": { "type": "string" },
+                  "when": { "type": "integer" },
+                },
+            }
           content:
             application/json:
               example: { amount: "10000000000000000000000", when: 255439 }
@@ -1121,6 +1712,26 @@ paths:
       responses:
         "200":
           description: Successful response
+          schema:
+            {
+              "type": "object",
+              "properties":
+                {
+                  "votes":
+                    {
+                      "type": "array",
+                      "items":
+                        {
+                          "type": "object",
+                          "properties":
+                            {
+                              "candidate": { "type": "string" },
+                              "amount": { "type": "string" },
+                            },
+                        },
+                    },
+                },
+            }
           content:
             application/json:
               example:
@@ -1155,6 +1766,29 @@ paths:
       responses:
         "200":
           description: Successful response
+          schema:
+            {
+              "type": "object",
+              "properties":
+                {
+                  "peers":
+                    {
+                      "type": "array",
+                      "items":
+                        {
+                          "type": "object",
+                          "properties":
+                            {
+                              "peerID": { "type": "string" },
+                              "sumIn": { "type": "integer" },
+                              "avrIn": { "type": "integer" },
+                              "sumOut": { "type": "integer" },
+                              "avrOut": { "type": "integer" },
+                            },
+                        },
+                    },
+                },
+            }
           content:
             application/json:
               example:
@@ -1184,6 +1818,30 @@ paths:
       responses:
         "200":
           description: Successful response
+          schema:
+            {
+              "type": "object",
+              "properties":
+                {
+                  "report":
+                    {
+                      "type": "object",
+                      "items":
+                        {
+                          "type": "object",
+                          "properties":
+                            {
+                              "ReorgStat":
+                                {
+                                  "type": "object",
+                                  "properties":
+                                    { "Count": { "type": "integer" } },
+                                },
+                            },
+                        },
+                    },
+                },
+            }
           content:
             application/json:
               example: { "report": { "ReorgStat": { "Count": 0 } } }
@@ -1199,6 +1857,16 @@ paths:
       responses:
         "200":
           description: Successful response
+          schema:
+            {
+              "type": "object",
+              "properties":
+                {
+                  "Key": { "type": "string" },
+                  "On": { "type": "boolean" },
+                  "Values": { "type": "string" },
+                },
+            }
           content:
             application/json:
               example:
