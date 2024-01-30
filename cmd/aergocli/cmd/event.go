@@ -9,8 +9,8 @@ import (
 	"context"
 	"log"
 
-	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
 	aergorpc "github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/jsonrpc"
 	"github.com/spf13/cobra"
 )
 
@@ -82,7 +82,8 @@ func execListEvent(cmd *cobra.Command, args []string) {
 		return
 	}
 	for _, event := range events.GetEvents() {
-		cmd.Println(util.JSON(event))
+		res := jsonrpc.ConvEvent(event)
+		cmd.Println(jsonrpc.MarshalJSON(res))
 	}
 }
 
@@ -108,6 +109,7 @@ func execStreamEvent(cmd *cobra.Command, args []string) {
 			cmd.Printf("Failed: %s\n", err.Error())
 			return
 		}
-		cmd.Println(util.JSON(event))
+		res := jsonrpc.ConvEvent(event)
+		cmd.Println(jsonrpc.MarshalJSON(res))
 	}
 }

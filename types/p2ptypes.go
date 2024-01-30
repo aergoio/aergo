@@ -6,6 +6,7 @@
 package types
 
 import (
+	"github.com/mr-tron/base58"
 	"net"
 	"strconv"
 	"strings"
@@ -32,10 +33,10 @@ func RandomPeerID() PeerID {
 }
 
 func IDB58Decode(b58 string) (PeerID, error) {
-	return peer.IDB58Decode(b58)
+	return peer.Decode(b58)
 }
 func IDB58Encode(pid PeerID) string {
-	return peer.IDB58Encode(pid)
+	return base58.Encode([]byte(pid))
 }
 
 func IDFromBytes(b []byte) (PeerID, error) {

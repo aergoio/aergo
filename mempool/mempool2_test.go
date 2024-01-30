@@ -24,7 +24,11 @@ func TestCheckExpired(t *testing.T) {
 
 func BenchmarkTimerCheck(b *testing.B) {
 	pool := make(map[types.AccountID]*txList)
-	st := types.NewState()
+	st := &types.State{
+		Nonce:            0,
+		Balance:          []byte{0},
+		SqlRecoveryPoint: uint64(1),
+	}
 	totSize := 0
 	for i := 0; i < 8000; i++ {
 		acc := types.AccountID(types.ToHashID([]byte(types.RandomPeerID())))
@@ -39,11 +43,11 @@ func BenchmarkTimerCheck(b *testing.B) {
 		}
 		pool[acc] = l
 	}
-	cache := sync.Map{}
+	cache := &sync.Map{}
 	ttl := 4 * time.Millisecond
 	benchmarks := []struct {
 		name string
-		fn   func(pool map[types.AccountID]*txList, cache sync.Map, ttl time.Duration) (int, time.Duration)
+		fn   func(pool map[types.AccountID]*txList, cache *sync.Map, ttl time.Duration) (int, time.Duration)
 	}{
 		{"BNoTO", noTimeout},
 		{"BCtx", timeoutWithCtx},
@@ -64,7 +68,7 @@ func BenchmarkTimerCheck(b *testing.B) {
 	}
 }
 
-func noTimeout(pool map[types.AccountID]*txList, cache sync.Map, ttl time.Duration) (int, time.Duration) {
+func noTimeout(pool map[types.AccountID]*txList, cache *sync.Map, ttl time.Duration) (int, time.Duration) {
 	start := time.Now()
 	//expireT := start.Add(ttl)
 	total := 0
@@ -83,7 +87,7 @@ func noTimeout(pool map[types.AccountID]*txList, cache sync.Map, ttl time.Durati
 	return total, elapsed
 }
 
-func timeoutWithNow(pool map[types.AccountID]*txList, cache sync.Map, ttl time.Duration) (int, time.Duration) {
+func timeoutWithNow(pool map[types.AccountID]*txList, cache *sync.Map, ttl time.Duration) (int, time.Duration) {
 	start := time.Now()
 	expireT := start.Add(ttl)
 	total := 0
@@ -105,7 +109,7 @@ func timeoutWithNow(pool map[types.AccountID]*txList, cache sync.Map, ttl time.D
 	return total, elapsed
 }
 
-func timeoutWithNow64(pool map[types.AccountID]*txList, cache sync.Map, ttl time.Duration) (int, time.Duration) {
+func timeoutWithNow64(pool map[types.AccountID]*txList, cache *sync.Map, ttl time.Duration) (int, time.Duration) {
 	start := time.Now()
 	expireT := start.Add(ttl)
 	total := 0
@@ -129,7 +133,7 @@ func timeoutWithNow64(pool map[types.AccountID]*txList, cache sync.Map, ttl time
 	return total, elapsed
 }
 
-func timeoutWithTimer(pool map[types.AccountID]*txList, cache sync.Map, ttl time.Duration) (int, time.Duration) {
+func timeoutWithTimer(pool map[types.AccountID]*txList, cache *sync.Map, ttl time.Duration) (int, time.Duration) {
 	start := time.Now()
 	expireT := time.NewTimer(ttl)
 	total := 0
@@ -155,7 +159,7 @@ L:
 	elapsed := time.Now().Sub(start)
 	return total, elapsed
 }
-func timeoutWithTimer2(pool map[types.AccountID]*txList, cache sync.Map, ttl time.Duration) (int, time.Duration) {
+func timeoutWithTimer2(pool map[types.AccountID]*txList, cache *sync.Map, ttl time.Duration) (int, time.Duration) {
 	start := time.Now()
 	evictTime := start.Add(-evictPeriod)
 	expireT := time.NewTimer(ttl)
@@ -183,7 +187,7 @@ L:
 	return total, elapsed
 }
 
-func timeoutWithCtx(pool map[types.AccountID]*txList, cache sync.Map, ttl time.Duration) (int, time.Duration) {
+func timeoutWithCtx(pool map[types.AccountID]*txList, cache *sync.Map, ttl time.Duration) (int, time.Duration) {
 	start := time.Now()
 	expireT, _ := context.WithTimeout(context.TODO(), ttl)
 	total := 0

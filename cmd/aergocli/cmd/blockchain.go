@@ -8,8 +8,8 @@ package cmd
 import (
 	"context"
 
-	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
 	aergorpc "github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/jsonrpc"
 	"github.com/spf13/cobra"
 )
 
@@ -30,9 +30,11 @@ var blockchainCmd = &cobra.Command{
 			return
 		}
 		if printHex {
-			cmd.Println(util.ConvHexBlockchainStatus(msg))
+			res := jsonrpc.ConvHexBlockchainStatus(msg)
+			cmd.Println(jsonrpc.MarshalJSON(res))
 		} else {
-			cmd.Println(util.ConvBlockchainStatus(msg))
+			res := jsonrpc.ConvBlockchainStatus(msg)
+			cmd.Println(jsonrpc.MarshalJSON(res))
 		}
 	},
 }

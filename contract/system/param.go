@@ -4,7 +4,7 @@ import (
 	"math/big"
 	"sync"
 
-	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/dbkey"
 )
@@ -190,23 +190,19 @@ func GetBpCount() int {
 
 // these functions are reading the param value directly from the state
 
-func GetNamePriceFromState(scs *state.ContractState) *big.Int {
+func GetNamePriceFromState(scs *statedb.ContractState) *big.Int {
 	return getParamFromState(scs, namePrice)
 }
 
-func GetStakingMinimumFromState(scs *state.ContractState) *big.Int {
+func GetStakingMinimumFromState(scs *statedb.ContractState) *big.Int {
 	return getParamFromState(scs, stakingMin)
 }
 
-func GetGasPriceFromState(ar AccountStateReader) *big.Int {
-	scs, err := ar.GetSystemAccountState()
-	if err != nil {
-		panic("could not open system state when get gas price")
-	}
+func GetGasPriceFromState(scs *statedb.ContractState) *big.Int {
 	return getParamFromState(scs, gasPrice)
 }
 
-func getParamFromState(scs *state.ContractState, id sysParamIndex) *big.Int {
+func getParamFromState(scs *statedb.ContractState, id sysParamIndex) *big.Int {
 	data, err := scs.GetInitialData(dbkey.SystemParam(id.ID()))
 	if err != nil {
 		panic("could not get blockchain parameter")
