@@ -54,7 +54,7 @@ type RPC struct {
 	entConf *types.EnterpriseConfig
 }
 
-//var _ component.IComponent = (*RPCComponent)(nil)
+var _ component.IComponent = (*RPC)(nil)
 
 // NewRPC create an rpc service
 func NewRPC(cfg *config.Config, chainAccessor types.ChainAccessor, version string) *RPC {
@@ -137,13 +137,17 @@ func NewRPC(cfg *config.Config, chainAccessor types.ChainAccessor, version strin
 	actualServer.setClientAuth(entConf)
 
 	rpcsvc.httpServer = &http.Server{
-		Handler:        rpcsvc.grpcWebHandlerFunc(grpcWebServer, http.DefaultServeMux),
+		Handler:        rpcsvc.grpcWebHandlerFunc(grpcWebServer, http.DefaultServeMux, actualServer),
 		ReadTimeout:    4 * time.Second,
 		WriteTimeout:   4 * time.Second,
 		MaxHeaderBytes: 1 << 20,
 	}
 
 	return rpcsvc
+}
+
+func (ns *RPC) GetActualServer() *AergoRPCService {
+	return ns.actualServer
 }
 
 func (ns *RPC) SetHub(hub *component.ComponentHub) {
@@ -256,7 +260,7 @@ func (ns *RPC) Receive(context actor.Context) {
 }
 
 // Create HTTP handler that redirects matching grpc-web requests to the grpc-web wrapper.
-func (ns *RPC) grpcWebHandlerFunc(grpcWebServer *grpcweb.WrappedGrpcServer, otherHandler http.Handler) http.Handler {
+func (ns *RPC) grpcWebHandlerFunc(grpcWebServer *grpcweb.WrappedGrpcServer, otherHandler http.Handler, actualServer *AergoRPCService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if grpcWebServer.IsAcceptableGrpcCorsRequest(r) || grpcWebServer.IsGrpcWebRequest(r) || grpcWebServer.IsGrpcWebSocketRequest(r) {
 			grpcWebServer.ServeHTTP(w, r)
