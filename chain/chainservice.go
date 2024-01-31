@@ -234,6 +234,11 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 		logger.Panic().Err(err).Msg("failed to initialize DB")
 	}
 
+	// check legacy format about trie key
+	if legacy := cs.SDB().GetStateDB().IsLegacyTrieKey(); legacy {
+		logger.Panic().Msg("Legacy key format detected. Clear existing data and restart.")
+	}
+
 	if err = Init(cfg.Blockchain.MaxBlockSize,
 		cfg.Blockchain.CoinbaseAccount,
 		cfg.Consensus.EnableBp,
@@ -297,6 +302,7 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	types.InitGovernance(cs.ConsensusType(), cs.IsPublic())
 
 	//reset parameter of aergo.system
+
 	systemState, err := statedb.GetSystemAccountState(cs.SDB().GetStateDB())
 	if err != nil {
 		logger.Panic().Err(err).Msg("failed to read aergo.system state")

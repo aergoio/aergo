@@ -82,7 +82,7 @@ func (ctx *ServerContext) GetDefaultWeb3Config() *Web3Config {
 		NetServicePort: 7847,
 		MaxLimit:       0,
 		SwaggerPath:    "",
-		Enable:         true,
+		Enable:         false,
 	}
 }
 

@@ -172,7 +172,7 @@ paths:
                   maxtokens: "AkMGxAl4WcQ8AAAA"
                   gasprice: "C6Q7dAA="
                   nameprice: "DeC2s6dkAAA="
-  /getBlockBody:
+  /getBlockTx:
     get:
       summary: Get block body
       tags: [Block]
@@ -199,7 +199,7 @@ paths:
           require: true
           schema:
             type: integer
-          example: 5
+          example: 100
       responses:
         "200":
           description: Successful response
@@ -207,24 +207,23 @@ paths:
             application/json:
               example:
                 offset: 0
-                size: 5
-                body:
-                  txs:
-                    [
-                      {
-                        "hash": "7dYEViBVX3Qs1BTTPntT8fvi1zsBUFGbFtUscioWxQWJ",
-                        "body":
-                          {
-                            "nonce": 6,
-                            "account": "AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R",
-                            "recipient": "AmM1M4jAxeTxfh9CHUmKXJwTLxGJ6Qe5urEeFXqbqkKnZ73Uvx4y",
-                            "amount": "1000000000000000000",
-                            "type": 4,
-                            "chainIdHash": "BNVSYKKqSR78hTSrxkaroFK2S3mgsoocpWg9HYtb1Zhn",
-                            "sign": "AN1rKvtYAKYdFiDJP68RGcUxS3YYeMD7ExgpZzMMgzvKLoce4SJx5YBAQBLSPTf1kzT5aH4qqj6BbjyurzqRbjyG6wXJfBdwo",
-                          },
-                      },
-                    ]
+                size: 100
+                txs:
+                  [
+                    {
+                      "hash": "7dYEViBVX3Qs1BTTPntT8fvi1zsBUFGbFtUscioWxQWJ",
+                      "body":
+                        {
+                          "nonce": 6,
+                          "account": "AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R",
+                          "recipient": "AmM1M4jAxeTxfh9CHUmKXJwTLxGJ6Qe5urEeFXqbqkKnZ73Uvx4y",
+                          "amount": "1000000000000000000",
+                          "type": 4,
+                          "chainIdHash": "BNVSYKKqSR78hTSrxkaroFK2S3mgsoocpWg9HYtb1Zhn",
+                          "sign": "AN1rKvtYAKYdFiDJP68RGcUxS3YYeMD7ExgpZzMMgzvKLoce4SJx5YBAQBLSPTf1kzT5aH4qqj6BbjyurzqRbjyG6wXJfBdwo",
+                        },
+                    },
+                  ]
   /listBlockHeaders:
     get:
       summary: Get block headers list
@@ -376,39 +375,16 @@ paths:
           in: query
           schema:
             type: integer
-      responses:
-        "200":
-          description: Successful response
-          content:
-            application/json:
-              example:
-                {
-                  "receipts":
-                    [
-                      {
-                        "contractAddress": "AmM1M4jAxeTxfh9CHUmKXJwTLxGJ6Qe5urEeFXqbqkKnZ73Uvx4y",
-                        "status": "SUCCESS",
-                        "ret": "",
-                        "txHash": "C5r1VqkYWnBAHtEqJBHUjXPzbKG9f7QYXNEd5sD2KdQb",
-                        "feeUsed": "0",
-                        "cumulativeFeeUsed": "0",
-                        "blockHash": "HRdfbN8Pp9iUuknJ7SWaRbKdy23x5zruLL7dBdVLFdxS",
-                        "blockNo": 8,
-                        "from": "AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R",
-                        "to": "AmM1M4jAxeTxfh9CHUmKXJwTLxGJ6Qe5urEeFXqbqkKnZ73Uvx4y",
-                      },
-                    ],
-                  "blockNo": 8,
-                }
-  /getBlockTx:
-    get:
-      summary: Get transaction is in block
-      tags: [Transaction]
-      parameters:
-        - name: hash
+        - name: offset
           in: query
           schema:
-            type: string
+            type: integer
+          example: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+          example: 100
       responses:
         "200":
           description: Successful response
@@ -416,24 +392,37 @@ paths:
             application/json:
               example:
                 {
-                  "txIdx":
-                    {
-                      "blockHash": "HRdfbN8Pp9iUuknJ7SWaRbKdy23x5zruLL7dBdVLFdxS",
-                    },
-                  "tx":
-                    {
-                      "hash": "C5r1VqkYWnBAHtEqJBHUjXPzbKG9f7QYXNEd5sD2KdQb",
-                      "body":
-                        {
-                          "nonce": 1,
-                          "account": "AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R",
-                          "recipient": "AmM1M4jAxeTxfh9CHUmKXJwTLxGJ6Qe5urEeFXqbqkKnZ73Uvx4y",
-                          "amount": "1000000000000000000",
-                          "type": 4,
-                          "chainIdHash": "BNVSYKKqSR78hTSrxkaroFK2S3mgsoocpWg9HYtb1Zhn",
-                          "sign": "381yXZ1ekFJxDAPRTrNmZMoBWgBNRUsF9d755v1rkukZ2gZL5GFyrq1zo3ib9MY4TkpASdSwxsSci6a6n7at4nu1H97rNyhn",
-                        },
-                    },
+                  total: 2,
+                  size: 100,
+                  receipts:
+                    [
+                      {
+                        contractAddress: "AmM1M4jAxeTxfh9CHUmKXJwTLxGJ6Qe5urEeFXqbqkKnZ73Uvx4y",
+                        status: "SUCCESS",
+                        ret: "",
+                        txHash: "6kj45qbgaaKMtQLfPmvTPdU3ozipMX46P5ApSa8Jw1rn",
+                        feeUsed: "0",
+                        cumulativeFeeUsed: "0",
+                        blockHash: "A6Y8J1J9w5ZB8jzBemKZNyrbRZpNDeRsdFnukUqPEQak",
+                        blockNo: 39,
+                        from: "AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R",
+                        to: "AmM1M4jAxeTxfh9CHUmKXJwTLxGJ6Qe5urEeFXqbqkKnZ73Uvx4y",
+                      },
+                      {
+                        contractAddress: "AmM1M4jAxeTxfh9CHUmKXJwTLxGJ6Qe5urEeFXqbqkKnZ73Uvx4y",
+                        status: "SUCCESS",
+                        ret: "",
+                        txHash: "8bmgNcZP7YeTzxWmkn9kJD5hvD4z2BVGq1tQJ5Vj76Ur",
+                        feeUsed: "0",
+                        cumulativeFeeUsed: "0",
+                        blockHash: "A6Y8J1J9w5ZB8jzBemKZNyrbRZpNDeRsdFnukUqPEQak",
+                        blockNo: 39,
+                        txIndex: 1,
+                        from: "AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R",
+                        to: "AmM1M4jAxeTxfh9CHUmKXJwTLxGJ6Qe5urEeFXqbqkKnZ73Uvx4y",
+                      },
+                    ],
+                  blockNo: 39,
                 }
   /sendSignedTransaction:
     post:
