@@ -36,8 +36,7 @@ func init() {
 				if err != nil {
 					log.Fatal(err)
 				}
-				res := jsonrpc.ConvReceipt(msg)
-				cmd.Println(jsonrpc.MarshalJSON(res))
+				cmd.Println(jsonrpc.MarshalJSON(msg))
 			},
 		},
 	)
