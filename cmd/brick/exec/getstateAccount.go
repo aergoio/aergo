@@ -2,6 +2,7 @@ package exec
 
 import (
 	"fmt"
+	"math/big"
 
 	"github.com/aergoio/aergo/v2/cmd/brick/context"
 	"github.com/aergoio/aergo/v2/contract/vm_dummy"
@@ -48,7 +49,11 @@ func (c *getStateAccount) parse(args string) (string, string, error) {
 
 	expectedResult := ""
 	if len(splitArgs) == 2 {
-		expectedResult = splitArgs[1].Text
+		expectedResult = context.ParseDecimalAmount(splitArgs[1].Text, 18)
+		_, success := new(big.Int).SetString(expectedResult, 10)
+		if expectedResult == "error" || success == false {
+			return "", "", fmt.Errorf("fail to parse number: %s", splitArgs[1].Text)
+		}
 	} else if len(splitArgs) > 2 {
 		return "", "", fmt.Errorf("too many arguments. usage: %s", c.Usage())
 	}

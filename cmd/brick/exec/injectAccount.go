@@ -49,7 +49,8 @@ func (c *injectAccount) parse(args string) (string, *big.Int, error) {
 		return "", nil, fmt.Errorf("need 2 arguments. usage: %s", c.Usage())
 	}
 
-	amount, success := new(big.Int).SetString(splitArgs[1].Text, 10)
+	amountStr := context.ParseDecimalAmount(splitArgs[1].Text, 18)
+	amount, success := new(big.Int).SetString(amountStr, 10)
 	if success == false {
 		return "", nil, fmt.Errorf("fail to parse number %s", splitArgs[1].Text)
 	}

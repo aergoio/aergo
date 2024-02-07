@@ -61,7 +61,7 @@ func (c *setb) parse(args string) (uint64, string, error) {
 
 	line, err := strconv.ParseUint(splitArgs[0].Text, 10, 64)
 	if err != nil {
-		return 0, "", fmt.Errorf("fail to parse number %s: %s", splitArgs[1].Text, err.Error())
+		return 0, "", fmt.Errorf("fail to parse number %s: %s", splitArgs[0].Text, err.Error())
 	}
 
 	contractIDHex := contract.PlainStrToHexAddr(splitArgs[1].Text)
@@ -119,7 +119,7 @@ func (c *delb) parse(args string) (uint64, string, error) {
 
 	line, err := strconv.ParseUint(splitArgs[0].Text, 10, 64)
 	if err != nil {
-		return 0, "", fmt.Errorf("fail to parse number %s: %s", splitArgs[1].Text, err.Error())
+		return 0, "", fmt.Errorf("fail to parse number %s: %s", splitArgs[0].Text, err.Error())
 	}
 
 	contractIDHex := contract.PlainStrToHexAddr(splitArgs[1].Text)

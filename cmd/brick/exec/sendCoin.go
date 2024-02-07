@@ -51,9 +51,10 @@ func (c *sendCoin) parse(args string) (string, string, *big.Int, error) {
 		return "", "", nil, fmt.Errorf("need 3 arguments. usage: %s", c.Usage())
 	}
 
-	amount, success := new(big.Int).SetString(splitArgs[2].Text, 10)
+	amountStr := context.ParseDecimalAmount(splitArgs[2].Text, 18)
+	amount, success := new(big.Int).SetString(amountStr, 10)
 	if success == false {
-		return "", "", nil, fmt.Errorf("fail to parse number %s", splitArgs[1].Text)
+		return "", "", nil, fmt.Errorf("fail to parse number %s", splitArgs[2].Text)
 	}
 
 	return splitArgs[0].Text,
