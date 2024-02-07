@@ -38,6 +38,8 @@ var (
 	//ErrInvalidRecipient
 	ErrTxInvalidRecipient = errors.New("tx invalid recipient")
 
+	ErrTxNotAllowedRecipient = errors.New("tx not allowed recipient")
+
 	ErrTxInvalidAmount = errors.New("tx invalid amount")
 
 	ErrTxInvalidPrice = errors.New("tx invalid price")
