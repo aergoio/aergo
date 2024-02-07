@@ -393,6 +393,21 @@ func TestContractSystem(t *testing.T) {
 		exRv := fmt.Sprintf(`["%s","6FbDRScGruVdATaNWzD51xJkTfYCVwxSZDb7gzqCLzwf","AmhNNBNY7XFk4p5ym4CJf8nTcRTEHjWzAeXJfhP71244CjBCAQU3",%d,3,999]`, StrToAddress("user1"), bc.cBlock.Header.Timestamp/1e9)
 		assert.Equal(t, exRv, receipt.GetRet(), "receipt ret error")
 
+		if version >= 4 {
+
+			tx = NewLuaTxCall("user1", "system", 0, `{"Name":"get_version", "Args":[]}`)
+			err = bc.ConnectBlock(tx)
+			require.NoErrorf(t, err, "failed to call tx")
+
+			receipt = bc.GetReceipt(tx.Hash())
+			expected := fmt.Sprintf(`%d`, version)
+			assert.Equal(t, expected, receipt.GetRet(), "receipt ret error")
+
+			err = bc.Query("system", `{"Name":"get_version", "Args":[]}`, "", expected)
+			require.NoErrorf(t, err, "failed to query")
+
+		}
+
 	}
 }
 

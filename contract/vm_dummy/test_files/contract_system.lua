@@ -5,3 +5,10 @@ function testState()
 end
 
 abi.register(testState)
+
+
+function get_version()
+	return system.version()
+end
+
+abi.register_view(get_version)
