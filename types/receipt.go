@@ -358,7 +358,7 @@ func (r *Receipt) MarshalJSON() ([]byte, error) {
 	b.WriteString(`","status":"`)
 	b.WriteString(r.Status)
 	if len(r.Ret) == 0 {
-		b.WriteString(`","ret": {}`)
+		b.WriteString(`","ret": ""`)
 	} else if r.Status == "ERROR" {
 		js, _ := json.Marshal(r.Ret)
 		b.WriteString(`","ret": `)
