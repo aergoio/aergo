@@ -255,6 +255,13 @@ static int Bisneg(lua_State *L) {
 	return 1;
 }
 
+static int Bispos(lua_State *L) {
+	mp_num a = Bget(L, 1);
+	lua_gasuse(L, 10);
+	lua_pushboolean(L, (mpz_sgn(MPZ(a)) > 0));
+	return 1;
+}
+
 static int Bnumber(lua_State *L) {
 	lua_gasuse(L, 50);
 	Bget(L, 1);
@@ -498,7 +505,7 @@ const char *init_bignum() {
 	return NULL;
 }
 
-static const luaL_Reg R[] = {
+static const luaL_Reg bignum_lib_v2[] = {
 	{ "__add",      Badd    },              /* __add(x,y) */
 	{ "__div",      Bdiv    },              /* __div(x,y) */
 	{ "__eq",       Beq     },              /* __eq(x,y) */
@@ -532,19 +539,60 @@ static const luaL_Reg R[] = {
 	{ NULL,         NULL    }
 };
 
+static const luaL_Reg bignum_lib_v4[] = {
+	{ "__add",      Badd    },              /* __add(x,y) */
+	{ "__div",      Bdiv    },              /* __div(x,y) */
+	{ "__eq",       Beq     },              /* __eq(x,y) */
+	{ "__gc",       Bgc     },
+	{ "__lt",       Blt     },              /* __lt(x,y) */
+	{ "__mod",      Bmod    },              /* __mod(x,y) */
+	{ "__mul",      Bmul    },              /* __mul(x,y) */
+	{ "__pow",      Bpow    },              /* __pow(x,y) */
+	{ "__sub",      Bsub    },              /* __sub(x,y) */
+	{ "__tostring", Btostring},             /* __tostring(x) */
+	{ "__unm",      Bneg    },              /* __unm(x) */
+	{ "add",        Badd    },
+	{ "compare",    Bcompare},
+	{ "div",        Bdiv    },
+	{ "divmod",     Bdivmod },
+	{ "isneg",      Bisneg  },
+	{ "isnegative", Bisneg  },
+	{ "iszero",     Biszero },
+	{ "ispositive", Bispos  },
+	{ "mod",        Bmod    },
+	{ "mul",        Bmul    },
+	{ "neg",        Bneg    },
+	{ "number",     Bnumber },
+	{ "pow",        Bpow    },
+	{ "powmod",     Bpowmod },
+	{ "sqrt",       Bsqrt   },
+	{ "sub",        Bsub    },
+	{ "tonumber",   Btonumber},
+	{ "tostring",   Btostring},
+	{ "isbignum",   Bis     },
+	{ "tobyte",     Btobyte },
+	{ "frombyte", Bfrombyte },
+	{ NULL,         NULL    }
+};
+
 LUALIB_API int luaopen_bignum(lua_State *L) {
 
-	luaL_newmetatable(L,MYTYPE);
-	lua_setglobal(L,MYNAME);
-	luaL_register(L,MYNAME,R);
+	luaL_newmetatable(L, MYTYPE);
+	lua_setglobal(L, MYNAME);
 
-	lua_pushliteral(L,"version");                   /* version */
-	lua_pushliteral(L,MYVERSION);
-	lua_settable(L,-3);
+	if (vm_is_hardfork(L, 4)) {
+		luaL_register(L, MYNAME, bignum_lib_v4);
+	} else {
+		luaL_register(L, MYNAME, bignum_lib_v2);
+	}
 
-	lua_pushliteral(L,"__index");
-	lua_pushvalue(L,-2);
-	lua_settable(L,-3);
+	lua_pushliteral(L, "version");                   /* version */
+	lua_pushliteral(L, MYVERSION);
+	lua_settable(L, -3);
+
+	lua_pushliteral(L, "__index");
+	lua_pushvalue(L, -2);
+	lua_settable(L, -3);
 
 	lua_pop(L, 1);
 	return 1;
