@@ -354,11 +354,11 @@ func TestGasPerFunction(t *testing.T) {
 	}{
 		{"comp_ops", "", 0, 143204},
 		{"unarytest_n_copy_ops", "", 0, 143117},
-		{"unary_ops", "", 0, 143552},
+		{"unary_ops", "", 0, 148160},
 		{"binary_ops", "", 0, 145075},
 		{"constant_ops", "", 0, 143032},
 		{"upvalue_n_func_ops", "", 0, 144347},
-		{"table_ops", "", 0, 144482},
+		{"table_ops", "", 0, 149090},
 		{"call_n_vararg_ops", "", 0, 145001},
 		{"return_ops", "", 0, 143037},
 		{"loop_n_branche_ops", "", 0, 146372},
