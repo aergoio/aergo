@@ -379,8 +379,8 @@ func TestGasPerFunction(t *testing.T) {
 		{"tostring", "", 0, 143457},
 		{"type", "", 0, 143285},
 		{"unpack", "", 0, 150745},
-		{"pcall", "", 0, 146165},
-		{"xpcall", "", 0, 146437},
+		{"pcall", "", 0, 146105},
+		{"xpcall", "", 0, 146377},
 
 		{"string.byte", "", 0, 157040},
 		{"string.char", "", 0, 160397},
