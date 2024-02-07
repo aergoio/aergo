@@ -408,7 +408,12 @@ func luaDelegateCallContract(L *LState, service C.int, contractId *C.char,
 		if ctx.traceFile != nil {
 			_, _ = ctx.traceFile.WriteString(fmt.Sprintf("recovery snapshot: %d\n", seq))
 		}
-		return -1, C.CString("[Contract.LuaDelegateCallContract] call error: " + ce.err.Error())
+		switch ceErr := ce.err.(type) {
+		case *VmTimeoutError:
+			return -1, C.CString(ceErr.Error())
+		default:
+			return -1, C.CString("[Contract.LuaDelegateCallContract] call error: " + ce.err.Error())
+		}
 	}
 
 	if seq == 1 {

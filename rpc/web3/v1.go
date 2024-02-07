@@ -664,8 +664,7 @@ func (api *Web3APIv1) GetReceipt() (handler http.Handler, ok bool) {
 		return commonResponseHandler(&types.Empty{}, err), true
 	}
 
-	output := jsonrpc.ConvReceipt(result)
-	return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
+	return stringResponseHandler(jsonrpc.MarshalJSON(result), nil), true
 }
 
 func (api *Web3APIv1) GetReceipts() (handler http.Handler, ok bool) {
