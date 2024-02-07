@@ -17,11 +17,13 @@ import (
 func init() {
 	rootCmd.AddCommand(signCmd)
 	signCmd.Flags().StringVar(&jsonTx, "jsontx", "", "transaction json to sign")
+	signCmd.Flags().StringVar(&jsonPath, "jsontxpath", "", "transaction json file path to sign")
 	signCmd.Flags().StringVar(&address, "address", "1", "address of account to use for signing")
 	signCmd.Flags().StringVar(&pw, "password", "", "local account password")
 	signCmd.Flags().StringVar(&privKey, "key", "", "base58 encoded key for sign")
 	rootCmd.AddCommand(verifyCmd)
 	verifyCmd.Flags().StringVar(&jsonTx, "jsontx", "", "transaction list json to verify")
+	verifyCmd.Flags().StringVar(&jsonPath, "jsontxpath", "", "transaction json file path to verify")
 	verifyCmd.Flags().BoolVar(&remote, "remote", false, "verify in the node")
 }
 
@@ -32,9 +34,17 @@ var signCmd = &cobra.Command{
 	PreRun: preConnectAergo,
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
-		if jsonTx == "" {
+		if jsonTx == "" && jsonPath == "" {
 			cmd.Printf("need to transaction json input")
 			return
+		}
+		if jsonTx == "" {
+			b, readerr := os.ReadFile(jsonPath)
+			if readerr != nil {
+				cmd.Printf("Failed to read --jsontxpath\n" + readerr.Error())
+				return
+			}
+			jsonTx = string(b)
 		}
 		param, err := jsonrpc.ParseBase58TxBody([]byte(jsonTx))
 		if err != nil {
@@ -102,10 +112,19 @@ var verifyCmd = &cobra.Command{
 	Short:  "Verify transaction",
 	PreRun: preConnectAergo,
 	Run: func(cmd *cobra.Command, args []string) {
-		if jsonTx == "" {
+		if jsonTx == "" && jsonPath == "" {
 			cmd.Printf("need to transaction json input")
 			return
 		}
+		if jsonTx == "" {
+			b, readerr := os.ReadFile(jsonPath)
+			if readerr != nil {
+				cmd.Printf("Failed to read --jsontxpath\n" + readerr.Error())
+				return
+			}
+			jsonTx = string(b)
+		}
+
 		param, err := jsonrpc.ParseBase58Tx([]byte(jsonTx))
 		if err != nil {
 			cmd.Printf("Failed: %s\n", err.Error())
