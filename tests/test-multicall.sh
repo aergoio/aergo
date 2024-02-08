@@ -80,7 +80,7 @@ function multicall() {
 	ret=$(cat receipt.json | jq -c .ret)
 	gasUsed=$(cat receipt.json | jq .gasUsed | sed 's/"//g')
 
-	if [ "$ret" == "{}" ]; then
+	if [ "$ret" == '""' ]; then
 	  ret=""
 	fi
 
