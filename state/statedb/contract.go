@@ -32,6 +32,11 @@ func (cs *ContractState) SetCode(code []byte) error {
 	return nil
 }
 
+func (cs *ContractState) SetMultiCallCode(code []byte) {
+	// no codeHash means it is not a contract
+	cs.code = code
+}
+
 func (cs *ContractState) GetCode() ([]byte, error) {
 	if cs.code != nil {
 		// already loaded.
@@ -147,6 +152,15 @@ func (cs *ContractState) cache() *stateBuffer {
 
 //---------------------------------------------------------------//
 // global functions
+
+func GetMultiCallState(id []byte, st *types.State) (*ContractState) {
+	aid := types.ToAccountID(id)
+	res := &ContractState{
+		State:   st,
+		account: aid,
+	}
+	return res
+}
 
 func OpenContractStateAccount(id []byte, states *StateDB) (*ContractState, error) {
 	aid := types.ToAccountID(id)

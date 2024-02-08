@@ -979,12 +979,19 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 		return err
 	}
 
-	if recipient, err = name.Resolve(bs, txBody.Recipient, isQuirkTx); err != nil {
-		return err
+	isMultiCall := (txBody.Type == types.TxType_MULTICALL)
+
+	if !isMultiCall {
+		if recipient, err = name.Resolve(bs, txBody.Recipient, isQuirkTx); err != nil {
+			return err
+		}
 	}
+
 	var receiver *state.AccountState
 	status := "SUCCESS"
-	if len(recipient) > 0 {
+	if isMultiCall {
+		receiver = sender
+	} else if len(recipient) > 0 {
 		receiver, err = state.GetAccountState(recipient, bs.StateDB)
 		if receiver != nil && txBody.Type == types.TxType_REDEPLOY {
 			status = "RECREATED"
@@ -1001,8 +1008,9 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 	var txFee *big.Int
 	var rv string
 	var events []*types.Event
+
 	switch txBody.Type {
-	case types.TxType_NORMAL, types.TxType_REDEPLOY, types.TxType_TRANSFER, types.TxType_CALL, types.TxType_DEPLOY:
+	case types.TxType_NORMAL, types.TxType_TRANSFER, types.TxType_CALL, types.TxType_MULTICALL, types.TxType_DEPLOY, types.TxType_REDEPLOY:
 		rv, events, txFee, err = contract.Execute(execCtx, bs, cdb, tx.GetTx(), sender, receiver, bi, executionMode, false)
 		sender.SubBalance(txFee)
 	case types.TxType_GOVERNANCE:

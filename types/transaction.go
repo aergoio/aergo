@@ -159,12 +159,17 @@ func (tx *transaction) Validate(chainidhash []byte, isPublic bool) error {
 		if tx.GetBody().GetRecipient() == nil {
 			return ErrTxInvalidRecipient
 		}
-	case TxType_DEPLOY:
+	case TxType_DEPLOY, TxType_MULTICALL:
 		if tx.GetBody().GetRecipient() != nil {
 			return ErrTxInvalidRecipient
 		}
 		if len(tx.GetBody().GetPayload()) == 0 {
 			return ErrTxFormatInvalid
+		}
+		if tx.GetBody().Type == TxType_MULTICALL {
+			if amount.Cmp(big.NewInt(0)) != 0 {
+				return ErrTxInvalidAmount
+			}
 		}
 	default:
 		return ErrTxInvalidType

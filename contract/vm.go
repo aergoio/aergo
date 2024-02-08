@@ -88,6 +88,7 @@ type vmContext struct {
 	isQuery           bool
 	nestedView        int32 // indicates which parent called the contract in view (read-only mode)
 	isFeeDelegation   bool
+	isMultiCall       bool
 	service           C.int
 	callState         map[types.AccountID]*callState
 	lastRecoveryEntry *recoveryEntry
@@ -133,9 +134,23 @@ func InitContext(numCtx int) {
 	contexts = make([]*vmContext, maxContext)
 }
 
-func NewVmContext(execCtx context.Context, blockState *state.BlockState, cdb ChainAccessor, sender, receiver *state.AccountState,
-	contractState *statedb.ContractState, senderID, txHash []byte, bi *types.BlockHeaderInfo, node string, confirmed,
-	query bool, rp uint64, executionMode int, amount *big.Int, gasLimit uint64, feeDelegation bool) *vmContext {
+func NewVmContext(
+	execCtx context.Context,
+	blockState *state.BlockState,
+	cdb ChainAccessor,
+	sender, receiver *state.AccountState,
+	contractState *statedb.ContractState,
+	senderID,
+	txHash []byte,
+	bi *types.BlockHeaderInfo,
+	node string,
+	confirmed, query bool,
+	rp uint64,
+	executionMode int,
+	amount *big.Int,
+	gasLimit uint64,
+	feeDelegation, isMultiCall bool,
+) *vmContext {
 
 	csReceiver := &callState{ctrState: contractState, accState: receiver}
 	csSender := &callState{accState: sender}
@@ -154,13 +169,14 @@ func NewVmContext(execCtx context.Context, blockState *state.BlockState, cdb Cha
 		gasLimit:        gasLimit,
 		remainedGas:     gasLimit,
 		isFeeDelegation: feeDelegation,
+		isMultiCall:     isMultiCall,
 		execCtx:         execCtx,
 	}
 
 	// init call state
 	ctx.callState = make(map[types.AccountID]*callState)
 	ctx.callState[receiver.AccountID()] = csReceiver
-	if sender != nil {
+	if sender != nil && sender != receiver {
 		ctx.callState[sender.AccountID()] = csSender
 	}
 	if TraceBlockNo != 0 && TraceBlockNo == ctx.blockInfo.No {
@@ -199,6 +215,10 @@ func NewVmContextQuery(
 	ctx.callState = make(map[types.AccountID]*callState)
 	ctx.callState[types.ToAccountID(receiverId)] = cs
 	return ctx, nil
+}
+
+func (ctx *vmContext) IsMultiCall() bool {
+	return ctx.isMultiCall
 }
 
 func (ctx *vmContext) IsGasSystem() bool {
@@ -769,6 +789,13 @@ func (ce *executor) vmLoadCall() {
 	C.luaL_set_service(ce.L, ce.ctx.service)
 }
 
+func getMultiCallInfo(ci *types.CallInfo, payload []byte) error {
+	payload = append([]byte{'['}, payload...)
+	payload = append(payload, ']')
+	ci.Name = "execute"
+	return getCallInfo(&ci.Args, payload, []byte("multicall"))
+}
+
 func getCallInfo(ci interface{}, args []byte, contractAddress []byte) error {
 	d := json.NewDecoder(bytes.NewReader(args))
 	d.UseNumber()
@@ -791,13 +818,22 @@ func Call(
 
 	var err error
 	var ci types.CallInfo
+	var contract []byte
 
 	// get contract
-	contract := getContract(contractState, ctx.bs)
+	if ctx.isMultiCall {
+		contract = getMultiCallContract(contractState)
+	} else {
+		contract = getContract(contractState, ctx.bs)
+	}
 	if contract != nil {
-		if len(payload) > 0 {
-			// get call arguments
-			err = getCallInfo(&ci, payload, contractAddress)
+		// get call arguments
+		if ctx.isMultiCall {
+			err = getMultiCallInfo(&ci, payload)
+		} else {
+			if len(payload) > 0 {
+				err = getCallInfo(&ci, payload, contractAddress)
+			}
 		}
 	} else {
 		addr := types.EncodeAddress(contractAddress)
@@ -1195,11 +1231,30 @@ func getCode(contractState *statedb.ContractState, bs *state.BlockState) ([]byte
 }
 
 func getContract(contractState *statedb.ContractState, bs *state.BlockState) []byte {
+	// the code from multicall is not loaded, because there is no code hash
+	if len(contractState.GetCodeHash()) == 0 {
+		return nil
+	}
 	code, err := getCode(contractState, bs)
 	if err != nil {
 		return nil
 	}
 	return luacUtil.LuaCode(code).ByteCode()
+}
+
+func getMultiCallContract(contractState *statedb.ContractState) []byte {
+	if multicall_compiled == nil {
+		// compile the Lua code used to execute multicall txns
+		var err error
+		multicall_compiled, err = Compile(multicall_code, nil)
+		if err != nil {
+			ctrLgr.Error().Err(err).Msg("multicall compile")
+			return nil
+		}
+	}
+	// set and return the compiled code
+	contractState.SetMultiCallCode(multicall_compiled)
+	return multicall_compiled.ByteCode()
 }
 
 func GetABI(contractState *statedb.ContractState, bs *state.BlockState) (*types.ABI, error) {
