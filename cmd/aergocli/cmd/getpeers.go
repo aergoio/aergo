@@ -8,7 +8,13 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+	"io"
 	"os"
+	"os/user"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -23,15 +29,20 @@ var getpeersCmd = &cobra.Command{
 	Run:   execGetPeers,
 }
 
+const AergoDir = ".aergo"
+const NodeAliasFile = "nodeAliases.json"
+
 var nohidden bool
 var showself bool
 var sortFlag string
 var detailed int
+var nameAliases map[string]string
 
 const (
 	sortAddr    = "addr"
 	sortID      = "id"
 	sortHeight  = "height"
+	sortAlias   = "alias"
 	sortDefault = "no"
 )
 
@@ -47,6 +58,8 @@ func init() {
 	getpeersCmd.Flags().BoolVar(&showself, "self", false, "show self peer info")
 	getpeersCmd.Flags().StringVar(&sortFlag, "sort", "no", "sort peers by address, id or other")
 	getpeersCmd.Flags().IntVar(&detailed, "detail", 0, "detail level")
+
+	nameAliases = map[string]string{}
 }
 
 func execGetPeers(cmd *cobra.Command, args []string) {
@@ -65,10 +78,72 @@ func execGetPeers(cmd *cobra.Command, args []string) {
 		// TODO show long fields
 		res := jsonrpc.ConvLongPeerList(msg)
 		cmd.Println(jsonrpc.MarshalJSON(res))
+	} else if detailed == -2 {
+		showPrettyAndShort(cmd, msg)
 	} else {
 		res := jsonrpc.ConvShortPeerList(msg)
 		cmd.Println(jsonrpc.MarshalJSON(res))
 	}
+}
+
+func showPrettyAndShort(cmd *cobra.Command, msg *types.PeerList) {
+	usr, _ := user.Current()
+	dir := usr.HomeDir
+	aliasPath := filepath.Join(dir, AergoDir, NodeAliasFile)
+	// If the file doesn't exist, create it, or append to the file
+	f, err := os.Open(aliasPath)
+	if err == nil {
+		defer f.Close()
+		jsonString, _ := io.ReadAll(f)
+		json.Unmarshal(jsonString, &nameAliases)
+	}
+
+	res := convShort2PeerList(msg, nameAliases)
+	cmd.Println(jsonrpc.MarshalJSON(res))
+}
+
+type shortPeerInfo struct {
+	alias    string
+	addr     string
+	height   uint64
+	roleName string
+	peer     *types.Peer
+}
+
+func convShort2PeerList(msg *types.PeerList, aliases map[string]string) *jsonrpc.InOutShortPeerList {
+	if msg == nil {
+		return nil
+	}
+	p := &jsonrpc.InOutShortPeerList{}
+	peersCount := len(msg.Peers)
+	shortPeers := make([]shortPeerInfo, peersCount)
+	nameSize := 0
+	for i, peer := range msg.Peers {
+		pa := peer.Address
+		peerName := aliases[types.PeerID(pa.PeerID).String()]
+		if len(peerName) == 0 {
+			peerName = ""
+		}
+		if len(peerName) > nameSize {
+			nameSize = len(peerName)
+		}
+		shortPeers[i] = shortPeerInfo{peerName, p2putil.ShortForm(types.PeerID(peer.Address.PeerID)), peer.Bestblock.BlockNo, peer.AcceptedRole.String(), peer}
+	}
+	// TODO sorting by alias cannot be done in original algorithms, so ad-hoc is added here for now.
+	if sortFlag == sortAlias {
+		sort.Sort(byAliasName(shortPeers))
+	}
+	p.Peers = make([]string, peersCount)
+	for i, sp := range shortPeers {
+		if nameSize > 0 {
+			p.Peers[i] = fmt.Sprintf("%*s;%5s;%15s/%5d;%9s;%10d", nameSize, sp.alias, sp.addr,
+				sp.peer.Address.Address, sp.peer.Address.Port, sp.roleName, sp.height)
+		} else {
+			p.Peers[i] = fmt.Sprintf("%5s;%15s/%5d;%9s;%10d", sp.addr,
+				sp.peer.Address.Address, sp.peer.Address.Port, sp.roleName, sp.height)
+		}
+	}
+	return p
 }
 
 func Must(a0 string, _ error) string {
@@ -83,7 +158,7 @@ func GetSorter(cmd *cobra.Command, flag string) peerSorter {
 		return idSorter{}
 	case sortHeight:
 		return heightSorter{}
-	case sortDefault:
+	case sortDefault, sortAlias: // TODO fix ad-hoc code later
 		return noSorter{}
 	default:
 		cmd.Println("Invalid sort type", flag)
@@ -169,5 +244,20 @@ func (s byHeight) Less(i, j int) bool {
 }
 
 func (s byHeight) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+type byAliasName []shortPeerInfo
+
+func (s byAliasName) Len() int {
+	return len(s)
+}
+
+func (s byAliasName) Less(i, j int) bool {
+	result := strings.Compare(s[i].alias, s[j].alias)
+	return result < 0
+}
+
+func (s byAliasName) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
 }
