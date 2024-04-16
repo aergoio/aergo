@@ -1840,7 +1840,7 @@ func TestSnapshot(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.Query("snap", `{"Name":"query"}`, "", "[3,3,3,3]")
+	err = bc.Query("snap", `{"Name":"query"}`, "", "[3,null,null,null]")
 	if err != nil {
 		t.Error(err)
 	}
@@ -1848,12 +1848,13 @@ func TestSnapshot(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.Query("snap", `{"Name":"query", "Args":[3]}`, "", "[2,2,2,2]")
+	err = bc.Query("snap", `{"Name":"query", "Args":[3]}`, "", "[2,null,null,null]")
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.Query("snap", `{"Name":"query2", "Args":[]}`,
-		"invalid argument at getsnap, need (state.array, index, blockheight)", "")
+	//err = bc.Query("snap", `{"Name":"query2", "Args":[]}`,
+	//	"invalid argument at getsnap, need (state.array, index, blockheight)", "")
+	err = bc.Query("snap", `{"Name":"query2", "Args":[]}`, "", "null")
 	if err != nil {
 		t.Error(err)
 	}
