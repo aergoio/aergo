@@ -611,6 +611,12 @@ static int state_get_snap(lua_State *L)
     state_array_t *arr = NULL;
     state_value_t *v = NULL;
 
+    bool is_light_node = true;
+    if (is_light_node) {
+        lua_pushnil(L);
+        return 1;
+    }
+
     if (!lua_isuserdata(L, 1)) {
         luaL_typerror(L, 1, "state.value, state.map or state.array");
     }
