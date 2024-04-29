@@ -42,7 +42,6 @@ func (api *Web3APIv1) NewHandler() {
 		"/getBlockMetadata":        api.GetBlockMetadata,
 		"/getTx":                   api.GetTX,
 		"/getReceipt":              api.GetReceipt,
-		"/getReceipts":             api.GetReceipts,
 		"/queryContract":           api.QueryContract,
 		"/listEvents":              api.ListEvents,
 		"/getABI":                  api.GetABI,
@@ -667,80 +666,6 @@ func (api *Web3APIv1) GetReceipt() (handler http.Handler, ok bool) {
 	return stringResponseHandler(jsonrpc.MarshalJSON(result), nil), true
 }
 
-func (api *Web3APIv1) GetReceipts() (handler http.Handler, ok bool) {
-	values, err := url.ParseQuery(api.request.URL.RawQuery)
-	if err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
-	}
-
-	request := &types.ReceiptsParams{}
-	request.Paging = &types.PageParams{}
-
-	hash := values.Get("hash")
-	if hash != "" {
-		hashBytes, err := base58.Decode(hash)
-		if err != nil {
-			return commonResponseHandler(&types.Empty{}, err), true
-		}
-		request.Hashornumber = hashBytes
-	}
-
-	number := values.Get("number")
-	if number != "" {
-		numberValue, err := strconv.ParseUint(number, 10, 64)
-		if err != nil {
-			return commonResponseHandler(&types.Empty{}, err), true
-		}
-		number := uint64(numberValue) // Replace with your actual value
-		byteValue := make([]byte, 8)
-		binary.LittleEndian.PutUint64(byteValue, number)
-		request.Hashornumber = byteValue
-	}
-
-	size := values.Get("size")
-	if size != "" {
-		sizeValue, parseErr := strconv.ParseUint(size, 10, 64)
-		if parseErr != nil {
-			return commonResponseHandler(&types.Empty{}, parseErr), true
-
-		}
-		request.Paging.Size = uint32(sizeValue)
-		if request.Paging.Size > 100 {
-			request.Paging.Size = 100
-		}
-	}
-
-	offset := values.Get("offset")
-	if offset != "" {
-		offsetValue, parseErr := strconv.ParseUint(offset, 10, 64)
-		if parseErr != nil {
-			return commonResponseHandler(&types.Empty{}, parseErr), true
-		}
-		request.Paging.Offset = uint32(offsetValue)
-	}
-
-	result, err := api.rpc.GetReceipts(api.request.Context(), request)
-	if err != nil {
-		errStr := err.Error()
-
-		strBlockNo := strings.TrimPrefix(errStr, "empty : blockNo=")
-		if strBlockNo == errStr {
-			return commonResponseHandler(&types.Empty{}, err), true
-		}
-
-		blockNo, err := strconv.ParseUint(strBlockNo, 10, 64)
-		if err != nil {
-			return commonResponseHandler(&types.Empty{}, err), true
-		}
-
-		receipts := &jsonrpc.InOutReceipts{}
-		receipts.BlockNo = blockNo
-		return stringResponseHandler(jsonrpc.MarshalJSON(receipts), nil), true
-	}
-
-	output := jsonrpc.ConvReceiptsPaged(result)
-	return stringResponseHandler(jsonrpc.MarshalJSON(output), nil), true
-}
 
 func (api *Web3APIv1) GetTX() (handler http.Handler, ok bool) {
 	values, err := url.ParseQuery(api.request.URL.RawQuery)
