@@ -11,7 +11,6 @@ import (
 	"io"
 	"math"
 	"math/big"
-	"reflect"
 	"runtime"
 	"sync/atomic"
 	"time"
@@ -26,8 +25,9 @@ import (
 
 const (
 	// DefaultMaxBlockSize is the maximum block size (currently 1MiB)
-	DefaultMaxBlockSize = 1 << 20
-	DefaultEvictPeriod  = 12
+	DefaultMaxBlockSize   = 1 << 20
+	DefaultEvictPeriod    = 12
+	DefatultBlockGasLimit = 3_000_000
 
 	// DefaultMaxHdrSize is the max size of the proto-buf serialized non-body
 	// fields. For the estimation detail, check 'TestBlockHeaderLimit' in
@@ -53,14 +53,12 @@ var (
 	StakingMinimum *big.Int
 	// ProposalPrice is default value of creating proposal
 	ProposalPrice *big.Int
-	lastIndexOfBH int
 )
 
 func init() {
 	MaxAER = NewAmount(5*1e8, Aergo)       // 500,000,000 aergo
 	StakingMinimum = NewAmount(1e4, Aergo) // 10,000 aergo
 	ProposalPrice = NewZeroAmount()        // 0 aergo
-	lastIndexOfBH = getLastIndexOfBH()
 }
 
 func NewAvgTime(sizeMavg int) *AvgTime {
@@ -90,22 +88,6 @@ func (avgTime *AvgTime) UpdateAverage(cur time.Duration) time.Duration {
 
 func (avgTime *AvgTime) set(val time.Duration) {
 	avgTime.val.Store(val)
-}
-
-func getLastIndexOfBH() (lastIndex int) {
-	v := reflect.ValueOf(BlockHeader{})
-
-	nField := v.NumField()
-	var i int
-	for i = 0; i < nField; i++ {
-		name := v.Type().Field(i).Name
-		if name == lastFieldOfBH {
-			lastIndex = i
-			break
-		}
-	}
-
-	return i
 }
 
 //go:generate stringer -type=SystemValue
@@ -230,6 +212,11 @@ func (v DummyBlockVersionner) IsV2Fork(BlockNo) bool {
 
 // NewBlock represents to create a block to store transactions.
 func NewBlock(bi *BlockHeaderInfo, blockRoot []byte, receipts *Receipts, txs []*Tx, coinbaseAcc []byte, consensus []byte) *Block {
+	var gasLimit *uint64
+	if bi.ForkVersion >= 4 {
+		gasLimit = new(uint64)
+		*gasLimit = DefatultBlockGasLimit
+	}
 	return &Block{
 		Header: &BlockHeader{
 			ChainID:          bi.ChainId,
@@ -241,6 +228,7 @@ func NewBlock(bi *BlockHeaderInfo, blockRoot []byte, receipts *Receipts, txs []*
 			ReceiptsRootHash: receipts.MerkleRoot(),
 			CoinbaseAccount:  coinbaseAcc,
 			Consensus:        consensus,
+			GasLimit:         gasLimit,
 		},
 		Body: &BlockBody{
 			Txs: txs,
@@ -281,6 +269,12 @@ func writeBlockHeader(w io.Writer, bh *BlockHeader) error {
 		}
 	}
 
+	if bh.GasLimit != nil {
+		if err := binary.Write(w, binary.LittleEndian, bh.GasLimit); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -300,6 +294,12 @@ func writeBlockHeaderOmitSign(w io.Writer, bh *BlockHeader) error {
 		bh.Consensus,
 	} {
 		if err := binary.Write(w, binary.LittleEndian, f); err != nil {
+			return err
+		}
+	}
+
+	if bh.GasLimit != nil {
+		if err := binary.Write(w, binary.LittleEndian, bh.GasLimit); err != nil {
 			return err
 		}
 	}
