@@ -319,11 +319,17 @@ func (mp *MemPool) get(maxBlockBodySize uint32) ([]types.Transaction, error) {
 	defer mp.RUnlock()
 	count := 0
 	size := 0
+	var gasUsed, gasLimit uint64
+	if mp.bestBlockInfo.ForkVersion >= 4 {
+		gasLimit = types.DefatultBlockGasLimit
+	}
 	txs := make([]types.Transaction, 0)
 Gather:
 	for _, list := range mp.pool {
 		for _, tx := range list.Get() {
-			if size += proto.Size(tx.GetTx()); uint32(size) > maxBlockBodySize {
+			size += proto.Size(tx.GetTx())
+			gasUsed += tx.GetBody().GetGasLimit()
+			if uint32(size) > maxBlockBodySize || (gasLimit > 0 && gasUsed > gasLimit) {
 				break Gather
 			}
 			txs = append(txs, tx)
