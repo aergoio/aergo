@@ -72,25 +72,27 @@ func execGetPeers(cmd *cobra.Command, args []string) {
 	// address and peerid should be encoded, respectively
 	sorter.Sort(msg.Peers)
 	if detailed == 0 {
+		// print in normal format
 		res := jsonrpc.ConvPeerList(msg)
 		cmd.Println(jsonrpc.MarshalJSON(res))
 	} else if detailed > 0 {
-		// TODO show long fields
+		// print in detailed format
 		res := jsonrpc.ConvLongPeerList(msg)
 		cmd.Println(jsonrpc.MarshalJSON(res))
 	} else if detailed == -2 {
-		showPrettyAndShort(cmd, msg)
+		printInShort2Format(cmd, msg)
 	} else {
+		// print in old short format (named short1)
 		res := jsonrpc.ConvShortPeerList(msg)
 		cmd.Println(jsonrpc.MarshalJSON(res))
 	}
 }
 
-func showPrettyAndShort(cmd *cobra.Command, msg *types.PeerList) {
+func printInShort2Format(cmd *cobra.Command, msg *types.PeerList) {
 	usr, _ := user.Current()
 	dir := usr.HomeDir
 	aliasPath := filepath.Join(dir, AergoDir, NodeAliasFile)
-	// If the file doesn't exist, create it, or append to the file
+	// If an alias file exists, the alias names defined in that file are also displayed.
 	f, err := os.Open(aliasPath)
 	if err == nil {
 		defer f.Close()
