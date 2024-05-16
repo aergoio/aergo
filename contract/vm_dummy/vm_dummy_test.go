@@ -2406,6 +2406,10 @@ func TestBignumValues(t *testing.T) {
 
 	// process octal, hex, binary
 
+	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["0"]}`, "", `"0"`)
+	require.NoErrorf(t, err, "failed to query")
+	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["9"]}`, "", `"9"`)
+	require.NoErrorf(t, err, "failed to query")
 	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["01234567"]}`, "", `"342391"`)
 	require.NoErrorf(t, err, "failed to query")
 	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["0x123456789abcdef"]}`, "", `"81985529216486895"`)
@@ -2413,6 +2417,10 @@ func TestBignumValues(t *testing.T) {
 	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["0b1010101010101"]}`, "", `"5461"`)
 	require.NoErrorf(t, err, "failed to query")
 
+	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":[{"_bignum":"0"}]}`, "", `"0"`)
+	require.NoErrorf(t, err, "failed to query")
+	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":[{"_bignum":"9"}]}`, "", `"9"`)
+	require.NoErrorf(t, err, "failed to query")
 	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":[{"_bignum":"01234567"}]}`, "", `"342391"`)
 	require.NoErrorf(t, err, "failed to query")
 	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":[{"_bignum":"0x123456789abcdef"}]}`, "", `"81985529216486895"`)
@@ -2432,6 +2440,10 @@ func TestBignumValues(t *testing.T) {
 	receipt := bc.GetReceipt(tx.Hash())
 	assert.Equalf(t, `"1234567"`, receipt.GetRet(), "contract Call ret error")
 
+	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["0"]}`, "", `"0"`)
+	require.NoErrorf(t, err, "failed to query")
+	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["9"]}`, "", `"9"`)
+	require.NoErrorf(t, err, "failed to query")
 	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["01234567"]}`, "", `"1234567"`)
 	require.NoErrorf(t, err, "failed to query")
 	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["0x123456789abcdef"]}`, "bignum invalid number string", `""`)
@@ -2439,6 +2451,10 @@ func TestBignumValues(t *testing.T) {
 	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["0b1010101010101"]}`, "bignum invalid number string", `""`)
 	require.NoErrorf(t, err, "failed to query")
 
+	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":[{"_bignum":"0"}]}`, "", `"0"`)
+	require.NoErrorf(t, err, "failed to query")
+	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":[{"_bignum":"9"}]}`, "", `"9"`)
+	require.NoErrorf(t, err, "failed to query")
 	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":[{"_bignum":"01234567"}]}`, "", `"1234567"`)
 	require.NoErrorf(t, err, "failed to query")
 	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":[{"_bignum":"0x123456789abcdef"}]}`, "bignum invalid number string", `""`)
@@ -2468,6 +2484,10 @@ func TestBignumValues(t *testing.T) {
 		receipt = bc.GetReceipt(tx.Hash())
 		assert.Equalf(t, `"1234567"`, receipt.GetRet(), "contract Call ret error")
 
+		err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["0"]}`, "", `"0"`)
+		require.NoErrorf(t, err, "failed to query")
+		err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["9"]}`, "", `"9"`)
+		require.NoErrorf(t, err, "failed to query")
 		err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["01234567"]}`, "", `"1234567"`)
 		require.NoErrorf(t, err, "failed to query")
 		err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["0x123456789abcdef"]}`, "", `"81985529216486895"`)
@@ -2475,6 +2495,10 @@ func TestBignumValues(t *testing.T) {
 		err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["0b1010101010101"]}`, "", `"5461"`)
 		require.NoErrorf(t, err, "failed to query")
 
+		err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":[{"_bignum":"0"}]}`, "", `"0"`)
+		require.NoErrorf(t, err, "failed to query")
+		err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":[{"_bignum":"9"}]}`, "", `"9"`)
+		require.NoErrorf(t, err, "failed to query")
 		err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":[{"_bignum":"01234567"}]}`, "", `"1234567"`)
 		require.NoErrorf(t, err, "failed to query")
 		err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":[{"_bignum":"0x123456789abcdef"}]}`, "", `"81985529216486895"`)
