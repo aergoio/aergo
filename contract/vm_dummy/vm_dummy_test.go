@@ -2410,7 +2410,7 @@ func TestBignumValues(t *testing.T) {
 	require.NoErrorf(t, err, "failed to query")
 	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["9"]}`, "", `"9"`)
 	require.NoErrorf(t, err, "failed to query")
-	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["0055"]}`, "", `"55"`)
+	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["0055"]}`, "", `"45"`)
 	require.NoErrorf(t, err, "failed to query")
 	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["01234567"]}`, "", `"342391"`)
 	require.NoErrorf(t, err, "failed to query")
