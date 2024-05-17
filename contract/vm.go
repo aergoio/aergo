@@ -891,17 +891,32 @@ func setRandomSeed(ctx *vmContext) {
 	ctx.seed = rand.New(randSrc)
 }
 
-func setContract(contractState *statedb.ContractState, contractAddress, payload []byte) ([]byte, []byte, error) {
+func setContract(contractState *statedb.ContractState, contractAddress, payload []byte, ctx *vmContext) ([]byte, []byte, error) {
 	codePayload := luacUtil.LuaCodePayload(payload)
 	if _, err := codePayload.IsValidFormat(); err != nil {
 		ctrLgr.Warn().Err(err).Str("contract", types.EncodeAddress(contractAddress)).Msg("deploy")
 		return nil, nil, err
 	}
 	code := codePayload.Code()
+
+	// if hardfork version 4
+	if ctx.blockInfo.ForkVersion >= 4 {
+		// the payload must be lua code. compile it to bytecode
+		var err error
+		code, err = Compile(string(code), nil)
+		if err != nil {
+			ctrLgr.Warn().Err(err).Str("contract", types.EncodeAddress(contractAddress)).Msg("deploy")
+			return nil, nil, err
+		}
+	//} else {
+		// on previous hardfork versions the payload is bytecode
+	}
+
 	err := contractState.SetCode(code.Bytes())
 	if err != nil {
 		return nil, nil, err
 	}
+
 	contract := getContract(contractState, nil)
 	if contract == nil {
 		err = fmt.Errorf("cannot deploy contract %s", types.EncodeAddress(contractAddress))
@@ -917,11 +932,11 @@ func setContract(contractState *statedb.ContractState, contractAddress, payload 
 
 func Create(
 	contractState *statedb.ContractState,
-	code, contractAddress []byte,
+	payload, contractAddress []byte,
 	ctx *vmContext,
 ) (string, []*types.Event, *big.Int, error) {
 
-	if len(code) == 0 {
+	if len(payload) == 0 {
 		return "", nil, ctx.usedFee(), errors.New("contract code is required")
 	}
 
@@ -930,7 +945,7 @@ func Create(
 	}
 
 	// save the contract code
-	contract, args, err := setContract(contractState, contractAddress, code)
+	contract, args, err := setContract(contractState, contractAddress, payload, ctx)
 	if err != nil {
 		return "", nil, ctx.usedFee(), err
 	}
