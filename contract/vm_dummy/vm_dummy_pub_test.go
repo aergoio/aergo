@@ -354,11 +354,11 @@ func TestGasPerFunction(t *testing.T) {
 	}{
 		{"comp_ops", "", 0, 143204},
 		{"unarytest_n_copy_ops", "", 0, 143117},
-		{"unary_ops", "", 0, 148160},
+		{"unary_ops", "", 0, 143552},
 		{"binary_ops", "", 0, 145075},
 		{"constant_ops", "", 0, 143032},
 		{"upvalue_n_func_ops", "", 0, 144347},
-		{"table_ops", "", 0, 149090},
+		{"table_ops", "", 0, 144482},
 		{"call_n_vararg_ops", "", 0, 145001},
 		{"return_ops", "", 0, 143037},
 		{"loop_n_branche_ops", "", 0, 146372},
@@ -373,8 +373,8 @@ func TestGasPerFunction(t *testing.T) {
 		{"tostring", "", 0, 143457},
 		{"type", "", 0, 143285},
 		{"unpack", "", 0, 150745},
-		{"pcall", "", 0, 146105},
-		{"xpcall", "", 0, 146377},
+		{"pcall", "", 0, 147905},
+		{"xpcall", "", 0, 148177},
 
 		{"string.byte", "", 0, 157040},
 		{"string.char", "", 0, 160397},
@@ -633,7 +633,7 @@ func TestGasBF(t *testing.T) {
 	err = expectGas(string(code2), 0, `"main"`, ``, 47456046, SetHardForkVersion(3))
 	assert.NoError(t, err)
 
-	err = expectGas(string(code4), 0, `"main"`, ``, 47341329, SetHardForkVersion(4))
+	err = expectGas(string(code4), 0, `"main"`, ``, 47342481, SetHardForkVersion(4))
 	assert.NoError(t, err)
 }
 

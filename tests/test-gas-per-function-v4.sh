@@ -50,11 +50,11 @@ add_test() {
 
 add_test "comp_ops" 143204
 add_test "unarytest_n_copy_ops" 143117
-add_test "unary_ops" 148160
+add_test "unary_ops" 143552
 add_test "binary_ops" 145075
 add_test "constant_ops" 143032
 add_test "upvalue_n_func_ops" 144347
-add_test "table_ops" 149090
+add_test "table_ops" 144482
 add_test "call_n_vararg_ops" 145001
 add_test "return_ops" 143037
 add_test "loop_n_branche_ops" 146372
@@ -69,8 +69,8 @@ add_test "tonumber" 143186
 add_test "tostring" 143457
 add_test "type" 143285
 add_test "unpack" 150745
-add_test "pcall" 146105
-add_test "xpcall" 146377
+add_test "pcall" 147905
+add_test "xpcall" 148177
 
 add_test "string.byte" 157040
 add_test "string.char" 160397

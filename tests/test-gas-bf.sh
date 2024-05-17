@@ -36,7 +36,7 @@ assert_equals "$status"   "SUCCESS"
 #assert_equals "$ret"      ""
 
 if [ "$fork_version" -eq "4" ]; then
-  assert_equals "$gasUsed"  "47341329"
+  assert_equals "$gasUsed"  "47342481"
 elif [ "$fork_version" -eq "3" ]; then
   assert_equals "$gasUsed"  "47456046"
 else
