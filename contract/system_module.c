@@ -423,6 +423,56 @@ static int lua_random(lua_State *L) {
 	return 1;
 }
 
+static int toPubkey(lua_State *L) {
+	char *address, *ret;
+
+	lua_gasuse(L, 100);
+
+	// get the function argument
+	address = (char *)luaL_checkstring(L, 1);
+	// convert the address to public key
+	ret = luaToPubkey(L, address);
+
+	if (ret == NULL) {
+		lua_pushnil(L);
+	} else {
+		// if the returned string starts with `[`, it's an error
+		if (ret[0] == '[') {
+			strPushAndRelease(L, ret);
+			luaL_throwerror(L);
+		} else {
+			strPushAndRelease(L, ret);
+		}
+	}
+
+	return 1;
+}
+
+static int toAddress(lua_State *L) {
+	char *pubkey, *ret;
+
+	lua_gasuse(L, 100);
+
+	// get the function argument
+	pubkey = (char *)luaL_checkstring(L, 1);
+	// convert the public key to an address
+	ret = luaToAddress(L, pubkey);
+
+	if (ret == NULL) {
+		lua_pushnil(L);
+	} else {
+		// if the returned string starts with `[`, it's an error
+		if (ret[0] == '[') {
+			strPushAndRelease(L, ret);
+			luaL_throwerror(L);
+		} else {
+			strPushAndRelease(L, ret);
+		}
+	}
+
+	return 1;
+}
+
 static int is_contract(lua_State *L) {
 	char *contract;
 	int service = getLuaExecContext(L);
@@ -467,7 +517,6 @@ static int system_version(lua_State *L) {
 	return 1;
 }
 
-
 static const luaL_Reg system_lib_v1[] = {
 	{"print", systemPrint},
 	{"setItem", setItem},
@@ -507,6 +556,8 @@ static const luaL_Reg system_lib_v4[] = {
 	{"time", os_time},
 	{"difftime", os_difftime},
 	{"random", lua_random},
+	{"toPubKey", toPubkey},
+	{"toAddress", toAddress},
 	{"isContract", is_contract},
 	{"isFeeDelegation", is_fee_delegation},
 	{"version", system_version},

@@ -395,6 +395,8 @@ func TestContractSystem(t *testing.T) {
 
 		if version >= 4 {
 
+      // system.version()
+
 			tx = NewLuaTxCall("user1", "system", 0, `{"Name":"get_version", "Args":[]}`)
 			err = bc.ConnectBlock(tx)
 			require.NoErrorf(t, err, "failed to call tx")
@@ -404,6 +406,49 @@ func TestContractSystem(t *testing.T) {
 			assert.Equal(t, expected, receipt.GetRet(), "receipt ret error")
 
 			err = bc.Query("system", `{"Name":"get_version", "Args":[]}`, "", expected)
+			require.NoErrorf(t, err, "failed to query")
+
+			// system.toPubKey()
+
+			err = bc.Query("system", `{"Name":"to_pubkey", "Args":["AmgKtCaGjH4XkXwny2Jb1YH5gdsJGJh78ibWEgLmRWBS5LMfQuTf"]}`, "", `"0x0c3270bb25fea5bf0029b57e78581647a143265810b84940dd24e543ddc618ab91"`)
+			require.NoErrorf(t, err, "failed to query")
+
+			err = bc.Query("system", `{"Name":"to_pubkey", "Args":["Amhmj6kKZz7mPstBAPJWRe1e8RHP7bZ5pV35XatqTHMWeAVSyMkc"]}`, "", `"0x0cf0d0fd04f44db75d66409346102167d67c40a5d76d46748fc4533f0265d0f83f"`)
+			require.NoErrorf(t, err, "failed to query")
+
+			err = bc.Query("system", `{"Name":"to_pubkey", "Args":["6FbDRScGruVdATaNWzD51xJkTfYCVwxSZDb7gzqCLzwf"]}`, "invalid address length", "")
+			require.NoErrorf(t, err, "failed to query")
+
+			err = bc.Query("system", `{"Name":"to_pubkey", "Args":["0x0c3270bb25fea5bf0029b57e78581647a143265810b84940dd24e543ddc618ab91"]}`, "invalid address length", "")
+			require.NoErrorf(t, err, "failed to query")
+
+			err = bc.Query("system", `{"Name":"to_pubkey", "Args":[""]}`, "invalid address length", "")
+			require.NoErrorf(t, err, "failed to query")
+
+			err = bc.Query("system", `{"Name":"to_pubkey", "Args":[]}`, "string expected, got nil", "")
+			require.NoErrorf(t, err, "failed to query")
+
+			// system.toAddress()
+
+			err = bc.Query("system", `{"Name":"to_address", "Args":["0x0c3270bb25fea5bf0029b57e78581647a143265810b84940dd24e543ddc618ab91"]}`, "", `"AmgKtCaGjH4XkXwny2Jb1YH5gdsJGJh78ibWEgLmRWBS5LMfQuTf"`)
+			require.NoErrorf(t, err, "failed to query")
+
+			err = bc.Query("system", `{"Name":"to_address", "Args":["0x0cf0d0fd04f44db75d66409346102167d67c40a5d76d46748fc4533f0265d0f83f"]}`, "", `"Amhmj6kKZz7mPstBAPJWRe1e8RHP7bZ5pV35XatqTHMWeAVSyMkc"`)
+			require.NoErrorf(t, err, "failed to query")
+
+			err = bc.Query("system", `{"Name":"to_address", "Args":["0cf0d0fd04f44db75d66409346102167d67c40a5d76d46748fc4533f0265d0f83f"]}`, "", `"Amhmj6kKZz7mPstBAPJWRe1e8RHP7bZ5pV35XatqTHMWeAVSyMkc"`)
+			require.NoErrorf(t, err, "failed to query")
+
+			err = bc.Query("system", `{"Name":"to_address", "Args":["AmhNNBNY7XFk4p5ym4CJf8nTcRTEHjWzAeXJfhP71244CjBCAQU3"]}`, "invalid public key", "")
+			require.NoErrorf(t, err, "failed to query")
+
+			err = bc.Query("system", `{"Name":"to_address", "Args":["6FbDRScGruVdATaNWzD51xJkTfYCVwxSZDb7gzqCLzwf"]}`, "invalid public key", "")
+			require.NoErrorf(t, err, "failed to query")
+
+			err = bc.Query("system", `{"Name":"to_address", "Args":[""]}`, "invalid public key", "")
+			require.NoErrorf(t, err, "failed to query")
+
+			err = bc.Query("system", `{"Name":"to_address", "Args":[]}`, "string expected, got nil", "")
 			require.NoErrorf(t, err, "failed to query")
 
 		}

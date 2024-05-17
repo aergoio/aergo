@@ -1283,6 +1283,39 @@ func luaDropEvent(L *LState, service C.int, from C.int) {
 	}
 }
 
+//export luaToPubkey
+func luaToPubkey(L *LState, address *C.char) *C.char {
+	// check the length of address
+	if len(C.GoString(address)) != types.EncodedAddressLength {
+		return C.CString("[Contract.LuaToPubkey] invalid address length")
+	}
+	// decode the address in string format to bytes (public key)
+	pubkey, err := types.DecodeAddress(C.GoString(address))
+	if err != nil {
+		return C.CString("[Contract.LuaToPubkey] invalid address")
+	}
+	// return the public key in hex format
+	return C.CString("0x" + hex.Encode(pubkey))
+}
+
+//export luaToAddress
+func luaToAddress(L *LState, pubkey *C.char) *C.char {
+	// decode the pubkey in hex format to bytes
+	pubkeyBytes, err := decodeHex(C.GoString(pubkey))
+	if err != nil {
+		return C.CString("[Contract.LuaToAddress] invalid public key")
+	}
+	// check the length of pubkey
+	if len(pubkeyBytes) != types.AddressLength {
+		return C.CString("[Contract.LuaToAddress] invalid public key length")
+		// or convert the pubkey to compact format - SerializeCompressed()
+	}
+	// encode the pubkey in bytes to an address in string format
+	address := types.EncodeAddress(pubkeyBytes)
+	// return the address
+	return C.CString(address)
+}
+
 //export luaIsContract
 func luaIsContract(L *LState, service C.int, contractId *C.char) (C.int, *C.char) {
 
