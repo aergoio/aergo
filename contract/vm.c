@@ -4,6 +4,7 @@
 #include "vm.h"
 #include "system_module.h"
 #include "contract_module.h"
+#include "name_module.h"
 #include "db_module.h"
 #include "state_module.h"
 #include "crypto_module.h"
@@ -47,6 +48,10 @@ static void preloadModules(lua_State *L) {
 	luaopen_crypto(L);
 	luaopen_bignum(L);
 	luaopen_utf8(L);
+
+	if (vm_is_hardfork(L, 4)) {
+		luaopen_name(L);
+	}
 
 	if (!isPublic()) {
 		luaopen_db(L);

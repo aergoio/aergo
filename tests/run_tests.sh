@@ -132,6 +132,7 @@ check ./test-gas-per-function-v2.sh
 check ./test-contract-deploy.sh
 check ./test-pcall-events.sh
 check ./test-transaction-types.sh
+check ./test-name-service.sh
 
 # change the hardfork version
 set_version 3
@@ -146,6 +147,7 @@ check ./test-gas-per-function-v3.sh
 check ./test-contract-deploy.sh
 check ./test-pcall-events.sh
 check ./test-transaction-types.sh
+check ./test-name-service.sh
 
 # change the hardfork version
 set_version 4
@@ -160,6 +162,7 @@ check ./test-gas-per-function-v4.sh
 check ./test-contract-deploy.sh
 check ./test-pcall-events.sh
 check ./test-transaction-types.sh
+check ./test-name-service.sh
 
 # terminate the server process
 echo ""

@@ -1337,6 +1337,27 @@ func luaIsContract(L *LState, service C.int, contractId *C.char) (C.int, *C.char
 	return C.int(len(cs.accState.CodeHash())), nil
 }
 
+//export luaNameResolve
+func luaNameResolve(L *LState, service C.int, name_or_address *C.char) *C.char {
+	ctx := contexts[service]
+	if ctx == nil {
+		return C.CString("[Contract.LuaNameResolve] contract state not found")
+	}
+	var addr []byte
+	var err error
+	account := C.GoString(name_or_address)
+	if len(account) == types.EncodedAddressLength {
+		// also checks if valid address
+		addr, err = types.DecodeAddress(account)
+	} else {
+		addr, err = name.Resolve(ctx.bs, []byte(account), false)
+	}
+	if err != nil {
+		return C.CString("[Contract.LuaNameResolve] " + err.Error())
+	}
+	return C.CString(types.EncodeAddress(addr))
+}
+
 //export luaGovernance
 func luaGovernance(L *LState, service C.int, gType C.char, arg *C.char) *C.char {
 
