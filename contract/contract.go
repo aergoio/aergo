@@ -140,6 +140,17 @@ func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, t
 // check if the tx is valid and if the code should be executed
 func checkExecution(txType types.TxType, amount *big.Int, payloadSize int, version int32, isDeploy, isContract bool) (do_execute bool, err error) {
 
+	// transactions with type NORMAL should not call smart contracts
+	// transactions with type TRANSFER can only call smart contracts when:
+	//  * the amount is greater than 0
+	//  * the payload is empty (only transfer to "default" function)
+	if version >= 4 && isContract {
+		if txType == types.TxType_NORMAL || (txType == types.TxType_TRANSFER && (payloadSize > 0 || types.IsZeroAmount(amount))) {
+			// emit an error
+			return false, newVmError(types.ErrTxNotAllowedRecipient)
+		}
+	}
+
 	// check if the receiver is a not contract
 	if !isDeploy && !isContract {
 		// before the hardfork version 3, all transactions in which the recipient
