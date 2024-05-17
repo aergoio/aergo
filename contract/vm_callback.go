@@ -1261,6 +1261,28 @@ func luaEvent(L *LState, service C.int, eventName *C.char, args *C.char) *C.char
 	return nil
 }
 
+//export luaGetEventCount
+func luaGetEventCount(L *LState, service C.int) C.int {
+	eventCount := contexts[service].eventCount
+	if ctrLgr.IsDebugEnabled() {
+		ctrLgr.Debug().Int32("eventCount", eventCount).Msg("get event count")
+	}
+	return C.int(eventCount)
+}
+
+//export luaDropEvent
+func luaDropEvent(L *LState, service C.int, from C.int) {
+	// Drop all the events after the given index.
+	ctx := contexts[service]
+	if ctrLgr.IsDebugEnabled() {
+		ctrLgr.Debug().Int32("from", int32(from)).Int("len", len(ctx.events)).Msg("drop events")
+	}
+	if from >= 0 {
+		ctx.events = ctx.events[:from]
+		ctx.eventCount = int32(len(ctx.events))
+	}
+}
+
 //export luaIsContract
 func luaIsContract(L *LState, service C.int, contractId *C.char) (C.int, *C.char) {
 
