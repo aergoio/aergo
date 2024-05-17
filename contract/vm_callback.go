@@ -54,7 +54,8 @@ var (
 )
 
 const (
-	maxEventCnt       = 50
+	maxEventCntV2     = 50
+	maxEventCntV4     = 128
 	maxEventNameSize  = 64
 	maxEventArgSize   = 4096
 	luaCallCountDeduc = 1000
@@ -64,6 +65,14 @@ func init() {
 	mulAergo = types.NewAmount(1, types.Aergo)
 	mulGaer = types.NewAmount(1, types.Gaer)
 	zeroBig = types.NewZeroAmount()
+}
+
+func maxEventCnt(ctx *vmContext) int32 {
+	if ctx.blockInfo.ForkVersion >= 4 {
+		return maxEventCntV4
+	} else {
+		return maxEventCntV2
+	}
 }
 
 //export luaSetDB
@@ -1293,8 +1302,8 @@ func luaEvent(L *LState, service C.int, eventName *C.char, args *C.char) *C.char
 	if ctx.isQuery == true || ctx.nestedView > 0 {
 		return C.CString("[Contract.Event] event not permitted in query")
 	}
-	if ctx.eventCount >= maxEventCnt {
-		return C.CString(fmt.Sprintf("[Contract.Event] exceeded the maximum number of events(%d)", maxEventCnt))
+	if ctx.eventCount >= maxEventCnt(ctx) {
+		return C.CString(fmt.Sprintf("[Contract.Event] exceeded the maximum number of events(%d)", maxEventCnt(ctx)))
 	}
 	if len(C.GoString(eventName)) > maxEventNameSize {
 		return C.CString(fmt.Sprintf("[Contract.Event] exceeded the maximum length of event name(%d)", maxEventNameSize))
