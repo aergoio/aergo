@@ -75,8 +75,8 @@ add_test "tonumber" 143186
 add_test "tostring" 143457
 add_test "type" 143285
 add_test "unpack" 150745
-add_test "pcall" 146165
-add_test "xpcall" 146437
+add_test "pcall" 146105
+add_test "xpcall" 146377
 
 add_test "string.byte" 157040
 add_test "string.char" 160397
