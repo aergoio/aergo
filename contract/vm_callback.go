@@ -217,7 +217,7 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 	aid := types.ToAccountID(cid)
 
 	// read the amount for the contract call
-	amountBig, err := transformAmount(C.GoString(amount))
+	amountBig, err := transformAmount(C.GoString(amount), ctx.blockInfo.ForkVersion)
 	if err != nil {
 		return -1, C.CString("[Contract.LuaCallContract] invalid amount: " + err.Error())
 	}
@@ -443,7 +443,7 @@ func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char)
 	}
 
 	// read the amount to be sent
-	amountBig, err := transformAmount(C.GoString(amount))
+	amountBig, err := transformAmount(C.GoString(amount), ctx.blockInfo.ForkVersion)
 	if err != nil {
 		return C.CString("[Contract.LuaSendAmount] invalid amount: " + err.Error())
 	}
@@ -940,9 +940,28 @@ func luaCryptoKeccak256(data unsafe.Pointer, dataLen C.int) (unsafe.Pointer, int
 
 // transformAmount processes the input string to calculate the total amount,
 // taking into account the different units ("aergo", "gaer", "aer")
-func transformAmount(amountStr string) (*big.Int, error) {
+func transformAmount(amountStr string, forkVersion int32) (*big.Int, error) {
 	if len(amountStr) == 0 {
 		return zeroBig, nil
+	}
+
+	if forkVersion >= 4 {
+		// Check for amount in decimal format
+		if strings.Contains(amountStr,".") && strings.HasSuffix(amountStr,"aergo") {
+			// Extract the part before the unit
+			decimalAmount := strings.TrimSuffix(amountStr, "aergo")
+			decimalAmount = strings.TrimRight(decimalAmount, " ")
+			// Parse the decimal amount
+			decimalAmount = parseDecimalAmount(decimalAmount, 18)
+			if decimalAmount == "error" {
+				return nil, errors.New("converting error for BigNum: " + amountStr)
+			}
+			amount, valid := new(big.Int).SetString(decimalAmount, 10)
+			if !valid {
+				return nil, errors.New("converting error for BigNum: " + amountStr)
+			}
+			return amount, nil
+		}
 	}
 
 	totalAmount := new(big.Int)
@@ -990,18 +1009,53 @@ func transformAmount(amountStr string) (*big.Int, error) {
 	return totalAmount, nil
 }
 
+// convert decimal amount into big integer string
+func parseDecimalAmount(str string, num_decimals int) string {
+	// Get the integer and decimal parts
+	idx := strings.Index(str, ".")
+	if idx == -1 {
+		return str
+	}
+	p1 := str[0:idx]
+	p2 := str[idx+1:]
+
+	// Check for another decimal point
+	if strings.Index(p2, ".") != -1 {
+		return "error"
+	}
+
+	// Compute the amount of zero digits to add
+	to_add := num_decimals - len(p2)
+	if to_add > 0 {
+		p2 = p2 + strings.Repeat("0", to_add)
+	} else if to_add < 0 {
+		// Do not truncate decimal amounts
+		return "error"
+	}
+
+	// Join the integer and decimal parts
+	str = p1 + p2
+
+	// Remove leading zeros
+	str = strings.TrimLeft(str, "0")
+	if str == "" {
+		str = "0"
+	}
+	return str
+}
+
 // parseAndConvert is a helper function to parse the substring as a big integer
 // and apply the necessary multiplier based on the unit.
-func parseAndConvert(subStr, unit string, mulUnit *big.Int, amountStr string) (*big.Int, error) {
-	trimmedStr := strings.TrimSpace(subStr)
+func parseAndConvert(subStr, unit string, mulUnit *big.Int, fullStr string) (*big.Int, error) {
+	subStr = strings.TrimSpace(subStr)
 
-	// Convert the trimmed string to a big integer
-	amountBig, valid := new(big.Int).SetString(trimmedStr, 10)
+	// Convert the string to a big integer
+	amountBig, valid := new(big.Int).SetString(subStr, 10)
 	if !valid {
 		// Emits a backwards compatible error message
 		// the same as: dataType := len(unit) > 0 ? "BigNum" : "Integer"
 		dataType := map[bool]string{true: "BigNum", false: "Integer"}[len(unit) > 0]
-		return nil, errors.New("converting error for " + dataType + ": " + strings.TrimSpace(amountStr))
+		return nil, errors.New("converting error for " + dataType + ": " + strings.TrimSpace(fullStr))
 	}
 
 	// Check for negative amounts
@@ -1098,7 +1152,7 @@ func luaDeployContract(
 	ctx.callState[newContract.AccountID()] = cs
 
 	// read the amount transferred to the contract
-	amountBig, err := transformAmount(C.GoString(amount))
+	amountBig, err := transformAmount(C.GoString(amount), ctx.blockInfo.ForkVersion)
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDeployContract]value not proper format:" + err.Error())
 	}
@@ -1376,7 +1430,7 @@ func luaGovernance(L *LState, service C.int, gType C.char, arg *C.char) *C.char 
 	switch gType {
 	case 'S', 'U':
 		var err error
-		amountBig, err = transformAmount(C.GoString(arg))
+		amountBig, err = transformAmount(C.GoString(arg), ctx.blockInfo.ForkVersion)
 		if err != nil {
 			return C.CString("[Contract.LuaGovernance] invalid amount: " + err.Error())
 		}
