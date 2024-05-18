@@ -20,7 +20,7 @@ get_deploy_args ../contract/vm_dummy/test_files/pcall-events-2.lua
 
 txhash=$(../bin/aergocli --keystore . --password bmttest \
     contract deploy AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \
-    $deploy_args '["'$address3'"]' --payload `cat payload.out` | jq .hash | sed 's/"//g')
+    $deploy_args '["'$address3'"]' | jq .hash | sed 's/"//g')
 
 get_receipt $txhash
 
@@ -34,7 +34,7 @@ get_deploy_args ../contract/vm_dummy/test_files/pcall-events-1.lua
 
 txhash=$(../bin/aergocli --keystore . --password bmttest \
     contract deploy AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \
-    $deploy_args '["'$address2'"]' --payload `cat payload.out` | jq .hash | sed 's/"//g')
+    $deploy_args '["'$address2'"]' | jq .hash | sed 's/"//g')
 
 get_receipt $txhash
 
@@ -48,7 +48,7 @@ get_deploy_args ../contract/vm_dummy/test_files/pcall-events-0.lua
 
 txhash=$(../bin/aergocli --keystore . --password bmttest \
     contract deploy AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \
-    $deploy_args '["'$address2'"]' --payload `cat payload.out` | jq .hash | sed 's/"//g')
+    $deploy_args '["'$address2'"]' | jq .hash | sed 's/"//g')
 
 get_receipt $txhash
 

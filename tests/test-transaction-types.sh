@@ -62,7 +62,7 @@ rm test-tx-type-*.lua
 
 # get some info
 from=AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R
-chainIdHash=$(../bin/aergocli blockchain | jq -r '.ChainIdHash')
+chainIdHash=$(../bin/aergocli blockchain | jq -r '.chainIdHash')
 
 
 echo "-- TRANSFER type, contract without 'default' function --"
