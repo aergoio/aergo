@@ -17,6 +17,7 @@ var (
 	rootCmd *cobra.Command
 	abiFile string
 	payload bool
+	decode  bool
 	version bool
 )
 
@@ -24,7 +25,7 @@ var githash = "No git hash provided"
 
 func init() {
 	rootCmd = &cobra.Command{
-		Use:   "aergoluac --payload srcfile\n  aergoluac --abi abifile srcfile bcfile",
+		Use:   "aergoluac --payload srcfile\n  aergoluac srcfile bcfile\n  aergoluac --abi abifile srcfile bcfile\n  aergoluac --decode payloadfile",
 		Short: "Compile a lua contract",
 		Long:  "Compile a lua contract. This command makes a bytecode file and a ABI file or prints a payload data.",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -34,7 +35,14 @@ func init() {
 				cmd.Printf("Aergoluac %s\n", githash)
 				return nil
 			}
-			if payload {
+
+			if decode {
+				if len(args) == 0 {
+					err = util.DecodeFromStdin()
+				} else {
+					err = util.DecodeFromFile(args[0])
+				}
+			} else if payload {
 				if len(args) == 0 {
 					err = util.DumpFromStdin()
 				} else {
@@ -46,11 +54,13 @@ func init() {
 				}
 				err = util.CompileFromFile(args[0], args[1], abiFile)
 			}
+
 			return err
 		},
 	}
 	rootCmd.PersistentFlags().StringVarP(&abiFile, "abi", "a", "", "abi filename")
 	rootCmd.PersistentFlags().BoolVar(&payload, "payload", false, "print the compilation result consisting of bytecode and abi")
+	rootCmd.PersistentFlags().BoolVar(&decode, "decode", false, "extract raw bytecode and abi from payload (hex or base58)")
 	rootCmd.PersistentFlags().BoolVar(&version, "version", false, "print the version number of aergoluac")
 }
 
