@@ -74,6 +74,7 @@ type MemPool struct {
 	acceptChainIdHash []byte
 	isPublic          bool
 	whitelist         *whitelistConf
+	blacklist         *blacklistConf
 	// followings are for test
 	testConfig bool
 	deadtx     int
@@ -306,6 +307,7 @@ func (mp *MemPool) Statistics() *map[string]interface{} {
 		"dead":   mp.deadtx,
 		"config": mp.cfg.Mempool,
 	}
+	ret["blacklist"] = mp.blacklist.GetBlacklist()
 	if !mp.isPublic {
 		ret["whitelist"] = mp.whitelist.GetWhitelist()
 		ret["whitelist_on"] = mp.whitelist.GetOn()
@@ -607,11 +609,15 @@ func (mp *MemPool) nextBlockVersion() int32 {
 }
 
 // check tx sanity
+// check if sender is on blacklist
 // check if sender has enough balance
 // check if recipient is valid name
 // check tx account is lower than known value
 func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error {
 	if !mp.whitelist.Check(types.EncodeAddress(account)) {
+		return types.ErrTxNotAllowedAccount
+	}
+	if mp.blacklist.Check(types.EncodeAddress(account)) {
 		return types.ErrTxNotAllowedAccount
 	}
 	ns, err := mp.getAccountState(account)
