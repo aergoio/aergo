@@ -110,6 +110,9 @@ func NewMemPoolService(cfg *cfg.Config, cs *chain.ChainService) *MemPool {
 	} else if cfg.Mempool.FadeoutPeriod > 0 {
 		evictPeriod = time.Duration(cfg.Mempool.FadeoutPeriod) * time.Hour
 	}
+	if cfg.Mempool.Blacklist != nil {
+		actor.blacklist = newBlacklistConf(actor, cfg.Mempool.Blacklist)
+	}
 	return actor
 }
 

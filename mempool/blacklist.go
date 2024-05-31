@@ -2,6 +2,10 @@ package mempool
 
 import (
 	"sync"
+
+	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/internal/common"
+	"github.com/aergoio/aergo/v2/internal/enc/hex"
 )
 
 type blacklistConf struct {
@@ -19,6 +23,9 @@ func newBlacklistConf(mp *MemPool, addresses []string) *blacklistConf {
 }
 
 func (b *blacklistConf) GetBlacklist() []string {
+	if b == nil {
+		return []string{}
+	}
 	b.RLock()
 	defer b.RUnlock()
 	ret := make([]string, len(b.sourcelist))
@@ -29,7 +36,7 @@ func (b *blacklistConf) GetBlacklist() []string {
 func (b *blacklistConf) SetBlacklist(addresses []string) {
 	b.Lock()
 	defer b.Unlock()
-	b.sourcelist := make([]string, len(addresses))
+	b.sourcelist = make([]string, len(addresses))
 	copy(b.sourcelist, addresses)
 	b.blocked = make(map[string]bool)
 	for _, v := range addresses {
@@ -45,7 +52,7 @@ func (b *blacklistConf) SetBlacklist(addresses []string) {
 
 func (b *blacklistConf) Check(address string) bool {
 	if b == nil {
-		return true
+		return false
 	}
 	key, err := toKey(address)
 	if err != nil {
@@ -65,7 +72,7 @@ func toKey(address string) (string, error) {
 		var addr []byte
 		addr, err = types.DecodeAddress(address)
 		if err != nil {
-			return nil, err
+			return "", err
 		}
 		key = common.Hasher(addr)
 	}
