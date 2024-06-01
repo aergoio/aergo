@@ -35,6 +35,7 @@ import (
 	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/message"
+	"github.com/aergoio/aergo/v2/blacklist"
 )
 
 const (
@@ -74,7 +75,6 @@ type MemPool struct {
 	acceptChainIdHash []byte
 	isPublic          bool
 	whitelist         *whitelistConf
-	blacklist         *blacklistConf
 	blockDeploy       bool
 	// followings are for test
 	testConfig bool
@@ -113,7 +113,7 @@ func NewMemPoolService(cfg *cfg.Config, cs *chain.ChainService) *MemPool {
 		evictPeriod = time.Duration(cfg.Mempool.FadeoutPeriod) * time.Hour
 	}
 	if cfg.Mempool.Blacklist != nil {
-		actor.blacklist = newBlacklistConf(actor, cfg.Mempool.Blacklist)
+		blacklist.Initialize(cfg.Mempool.Blacklist)
 	}
 	return actor
 }
@@ -312,7 +312,6 @@ func (mp *MemPool) Statistics() *map[string]interface{} {
 		"dead":   mp.deadtx,
 		"config": mp.cfg.Mempool,
 	}
-	ret["blacklist"] = mp.blacklist.GetBlacklist()
 	if !mp.isPublic {
 		ret["whitelist"] = mp.whitelist.GetWhitelist()
 		ret["whitelist_on"] = mp.whitelist.GetOn()
@@ -622,7 +621,7 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 	if !mp.whitelist.Check(types.EncodeAddress(account)) {
 		return types.ErrTxNotAllowedAccount
 	}
-	if mp.blacklist.Check(types.EncodeAddress(account)) {
+	if blacklist.Check(types.EncodeAddress(account)) {
 		return types.ErrTxNotAllowedAccount
 	}
 	ns, err := mp.getAccountState(account)

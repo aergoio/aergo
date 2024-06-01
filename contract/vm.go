@@ -44,6 +44,7 @@ import (
 	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/dbkey"
+	"github.com/aergoio/aergo/v2/blacklist"
 	jsoniter "github.com/json-iterator/go"
 )
 
@@ -291,6 +292,16 @@ func newExecutor(
 		return ce
 	}
 	ctx.callDepth++
+
+	if blacklist.Check(types.EncodeAddress(contractId)) {
+		ce := &executor{
+			code: contract,
+			ctx:  ctx,
+		}
+		ce.err = fmt.Errorf("contract not available")
+		ctrLgr.Error().Err(ce.err).Str("contract", types.EncodeAddress(contractId)).Msg("blocked contract")
+		return ce
+	}
 
 	ce := &executor{
 		code: contract,
