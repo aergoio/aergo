@@ -75,6 +75,7 @@ type MemPool struct {
 	isPublic          bool
 	whitelist         *whitelistConf
 	blacklist         *blacklistConf
+	blockDeploy       bool
 	// followings are for test
 	testConfig bool
 	deadtx     int
@@ -103,6 +104,7 @@ func NewMemPoolService(cfg *cfg.Config, cs *chain.ChainService) *MemPool {
 		status:   initial,
 		verifier: nil,
 		quit:     make(chan bool),
+		blockDeploy: cfg.Mempool.BlockDeploy,
 	}
 	actor.BaseComponent = component.NewBaseComponent(message.MemPoolSvc, actor, log.NewLogger("mempool"))
 	if cfg.Mempool.EnableFadeout == false {
@@ -665,6 +667,9 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 	case types.TxType_DEPLOY:
 		if tx.GetBody().GetRecipient() != nil {
 			return types.ErrTxInvalidRecipient
+		}
+		if mp.blockDeploy {
+			return types.ErrTxInvalidType
 		}
 	case types.TxType_GOVERNANCE:
 		id := tx.GetBody().GetRecipient()
