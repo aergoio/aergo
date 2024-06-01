@@ -20,6 +20,7 @@ import (
 	"github.com/aergoio/aergo/v2/contract"
 	"github.com/aergoio/aergo/v2/contract/system"
 	"github.com/aergoio/aergo/v2/fee"
+	"github.com/aergoio/aergo/v2/internal/enc/hex"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/state/statedb"
@@ -403,6 +404,7 @@ func hash(id uint64) []byte {
 
 type luaTxDeploy struct {
 	luaTxContractCommon
+	isCompiled bool
 	cErr error
 }
 
@@ -413,14 +415,30 @@ func NewLuaTxDeploy(sender, recipient string, amount uint64, code string) *luaTx
 }
 
 func NewLuaTxDeployBig(sender, recipient string, amount *big.Int, code string) *luaTxDeploy {
+	var payload []byte
+	var isCompiled bool
+	var err error
+
+	if isHexString(code) {
+		payload, err = hex.Decode(code)
+		if err != nil {
+			return &luaTxDeploy{cErr: err}
+		}
+		isCompiled = true
+	} else {
+		payload = util.NewLuaCodePayload([]byte(code), nil)
+		isCompiled = false
+	}
+
 	return &luaTxDeploy{
 		luaTxContractCommon: luaTxContractCommon{
 			_sender:    contract.StrHash(sender),
 			_recipient: contract.StrHash(recipient),
-			_payload:   util.NewLuaCodePayload([]byte(code), nil),
+			_payload:   payload,
 			_amount:    amount,
 			txId:       newTxId(),
 		},
+		isCompiled: isCompiled,
 		cErr: nil,
 	}
 }
@@ -453,7 +471,7 @@ func (l *luaTxDeploy) okMsg() string {
 }
 
 func (l *luaTxDeploy) Constructor(args string) *luaTxDeploy {
-	if len(args) == 0 || strings.Compare(args, "[]") == 0 || l.cErr != nil {
+	if len(args) == 0 || strings.Compare(args, "[]") == 0 || l.isCompiled || l.cErr != nil {
 		return l
 	}
 	l._payload = util.NewLuaCodePayload(util.LuaCodePayload(l._payload).Code(), []byte(args))
@@ -547,7 +565,7 @@ func (l *luaTxDeploy) run(execCtx context.Context, bs *state.BlockState, bc *Dum
 	if l.cErr != nil {
 		return l.cErr
 	}
-	if bc.HardforkVersion < 4 {
+	if bc.HardforkVersion < 4 && !l.isCompiled {
 		// compile the plain code to bytecode
 		payload := util.LuaCodePayload(l._payload)
 		code := string(payload.Code())
@@ -755,4 +773,18 @@ func (bc *DummyChain) QueryOnly(contract_name, queryInfo string, expectedErr str
 
 func StrToAddress(name string) string {
 	return types.EncodeAddress(contract.StrHash(name))
+}
+
+func isHexString(s string) bool {
+	// check is the input has even number of characters
+	if len(s)%2 != 0 {
+		return false
+	}
+	// check if the input contains only hex characters
+	for _, c := range s {
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+			return false
+		}
+	}
+	return true
 }
