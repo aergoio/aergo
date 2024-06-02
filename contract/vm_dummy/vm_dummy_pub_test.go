@@ -624,16 +624,16 @@ func TestGasBF(t *testing.T) {
 	code2 := readLuaCode(t, "gas_bf_v2.lua")
 	code4 := readLuaCode(t, "gas_bf_v4.lua")
 
-	// err = expectGas(t, string(code), 0, `"main"`, ``, 100000, SetHardForkVersion(1))
+	// err = expectGas(t, string(code), 0, `"main"`, ``, 100000, SetHardForkVersion(1), SetTimeout(500))
 	// assert.NoError(t, err)
 
-	err = expectGas(string(code2), 0, `"main"`, ``, 47456244, SetHardForkVersion(2))
+	err = expectGas(string(code2), 0, `"main"`, ``, 47456244, SetHardForkVersion(2), SetTimeout(500))
 	assert.NoError(t, err)
 
-	err = expectGas(string(code2), 0, `"main"`, ``, 47456046, SetHardForkVersion(3))
+	err = expectGas(string(code2), 0, `"main"`, ``, 47456046, SetHardForkVersion(3), SetTimeout(500))
 	assert.NoError(t, err)
 
-	err = expectGas(string(code4), 0, `"main"`, ``, 47342481, SetHardForkVersion(4))
+	err = expectGas(string(code4), 0, `"main"`, ``, 47342481, SetHardForkVersion(4), SetTimeout(500))
 	assert.NoError(t, err)
 }
 
