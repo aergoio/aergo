@@ -130,20 +130,6 @@ func init() {
 	rootCmd.AddCommand(contractCmd)
 }
 
-func isHexString(s string) bool {
-	// check is the input has even number of characters
-	if len(s)%2 != 0 {
-		return false
-	}
-	// check if the input contains only hex characters
-	for _, c := range s {
-		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
-			return false
-		}
-	}
-	return true
-}
-
 func runDeployCmd(cmd *cobra.Command, args []string) error {
 	var err error
 	var code []byte
@@ -206,7 +192,7 @@ func runDeployCmd(cmd *cobra.Command, args []string) error {
 			deployArgs = []byte(args[1])
 		}
 		// check if the data is in hex format
-		if isHexString(data) {
+		if hex.IsHexString(data) {
 			if deployArgs != nil {
 				cmd.SilenceUsage = false
 				return errors.New("the call arguments are expected to be already on the hex data")

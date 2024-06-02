@@ -419,7 +419,7 @@ func NewLuaTxDeployBig(sender, recipient string, amount *big.Int, code string) *
 	var isCompiled bool
 	var err error
 
-	if isHexString(code) {
+	if hex.IsHexString(code) {
 		payload, err = hex.Decode(code)
 		if err != nil {
 			return &luaTxDeploy{cErr: err}
@@ -773,18 +773,4 @@ func (bc *DummyChain) QueryOnly(contract_name, queryInfo string, expectedErr str
 
 func StrToAddress(name string) string {
 	return types.EncodeAddress(contract.StrHash(name))
-}
-
-func isHexString(s string) bool {
-	// check is the input has even number of characters
-	if len(s)%2 != 0 {
-		return false
-	}
-	// check if the input contains only hex characters
-	for _, c := range s {
-		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
-			return false
-		}
-	}
-	return true
 }
