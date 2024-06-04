@@ -269,7 +269,7 @@ func (cv *ChainVerifier) Statistics() *map[string]interface{} {
 	}
 }
 
-const permVer int = 4
+const permVer int = 3
 
 func checkAccountStatus(accPermission []byte, accState *types.State) {
 	var stateCarry []byte
