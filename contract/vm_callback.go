@@ -210,17 +210,23 @@ func minusCallCount(ctx *vmContext, curCount, deduc C.int) C.int {
 
 //export luaCallContract
 func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char, args *C.char,
-	amount *C.char, gas uint64) (C.int, *C.char) {
+	amount *C.char, gas uint64) (C.int, result *C.char) {
+	contractAddress := C.GoString(contractId)
 	fnameStr := C.GoString(fname)
 	argsStr := C.GoString(args)
+	amountStr := C.GoString(amount)
 
 	ctx := contexts[service]
 	if ctx == nil {
 		return -1, C.CString("[Contract.LuaCallContract] contract state not found")
 	}
 
+	opId := logOperation(ctx, amountStr, "call", contractAddress, fnameStr, argsStr)
+	defer func() {
+		logOperationResult(opId, C.GoString(result))
+	}()
+
 	// get the contract address
-	contractAddress := C.GoString(contractId)
 	cid, err := getAddressNameResolved(contractAddress, ctx.bs)
 	if err != nil {
 		return -1, C.CString("[Contract.LuaCallContract] invalid contractId: " + err.Error())
@@ -228,7 +234,7 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 	aid := types.ToAccountID(cid)
 
 	// read the amount for the contract call
-	amountBig, err := transformAmount(C.GoString(amount), ctx.blockInfo.ForkVersion)
+	amountBig, err := transformAmount(amountStr, ctx.blockInfo.ForkVersion)
 	if err != nil {
 		return -1, C.CString("[Contract.LuaCallContract] invalid amount: " + err.Error())
 	}
@@ -242,7 +248,7 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 	// check if the contract exists
 	bytecode := getContractCode(cs.ctrState, ctx.bs)
 	if bytecode == nil {
-		return -1, C.CString("[Contract.LuaCallContract] cannot find contract " + C.GoString(contractId))
+		return -1, C.CString("[Contract.LuaCallContract] cannot find contract " + contractAddress)
 	}
 
 	prevContractInfo := ctx.curContract
@@ -349,6 +355,11 @@ func luaDelegateCallContract(L *LState, service C.int, contractId *C.char,
 	var isMultiCall bool
 	var cid []byte
 	var err error
+
+	opId := logOperation(ctx, "", "delegate-call", contractIdStr, fnameStr, argsStr)
+	defer func() {
+		logOperationResult(opId, C.GoString(result))
+	}()
 
 	// get the contract address
 	if contractIdStr == "multicall" {
@@ -471,15 +482,22 @@ func getAddressNameResolved(account string, bs *state.BlockState) ([]byte, error
 }
 
 //export luaSendAmount
-func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char) *C.char {
+func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char) result *C.char {
+	contractAddress := C.GoString(contractId)
+	amountStr := C.GoString(amount)
 
 	ctx := contexts[service]
 	if ctx == nil {
 		return C.CString("[Contract.LuaSendAmount] contract state not found")
 	}
 
+	opId := logOperation(ctx, amountStr, "send", contractAddress)
+	defer func() {
+		logOperationResult(opId, C.GoString(result))
+	}()
+
 	// read the amount to be sent
-	amountBig, err := transformAmount(C.GoString(amount), ctx.blockInfo.ForkVersion)
+	amountBig, err := transformAmount(amountStr, ctx.blockInfo.ForkVersion)
 	if err != nil {
 		return C.CString("[Contract.LuaSendAmount] invalid amount: " + err.Error())
 	}
@@ -490,7 +508,7 @@ func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char)
 	}
 
 	// get the receiver account
-	cid, err := getAddressNameResolved(C.GoString(contractId), ctx.bs)
+	cid, err := getAddressNameResolved(contractAddress, ctx.bs)
 	if err != nil {
 		return C.CString("[Contract.LuaSendAmount] invalid contractId: " + err.Error())
 	}
@@ -524,7 +542,7 @@ func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char)
 		// get the contract code
 		bytecode := getContractCode(cs.ctrState, ctx.bs)
 		if bytecode == nil {
-			return C.CString("[Contract.LuaSendAmount] cannot find contract:" + C.GoString(contractId))
+			return C.CString("[Contract.LuaSendAmount] cannot find contract:" + contractAddress)
 		}
 
 		// get the remaining gas from the parent LState
@@ -1117,10 +1135,11 @@ func luaDeployContract(
 	contract *C.char,
 	args *C.char,
 	amount *C.char,
-) (C.int, *C.char) {
+) (C.int, result *C.char) {
 
-	argsStr := C.GoString(args)
 	contractStr := C.GoString(contract)
+	argsStr := C.GoString(args)
+	amountStr := C.GoString(amount)
 
 	ctx := contexts[service]
 	if ctx == nil {
@@ -1130,6 +1149,11 @@ func luaDeployContract(
 		return -1, C.CString("[Contract.LuaDeployContract]send not permitted in query")
 	}
 	bs := ctx.bs
+
+	opId := logOperation(ctx, amountStr, "deploy", contractStr, argsStr)
+	defer func() {
+		logOperationResult(opId, C.GoString(result))
+	}()
 
 	// contract code
 	var codeABI []byte
@@ -1202,7 +1226,7 @@ func luaDeployContract(
 	ctx.callState[newContract.AccountID()] = cs
 
 	// read the amount transferred to the contract
-	amountBig, err := transformAmount(C.GoString(amount), ctx.blockInfo.ForkVersion)
+	amountBig, err := transformAmount(amountStr, ctx.blockInfo.ForkVersion)
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDeployContract]value not proper format:" + err.Error())
 	}
