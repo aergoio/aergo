@@ -3,6 +3,7 @@ package contract
 import (
 	"errors"
 	"math/big"
+	"strings"
 	"testing"
 
 	"github.com/aergoio/aergo/v2/types"
@@ -130,6 +131,19 @@ func TestTransformAmount(t *testing.T) {
 					assert.Equal(t, tt.expectedAmount, result)
 				}
 			}
+
+			// now in uppercase
+			result, err = transformAmount(strings.ToUpper(tt.amountStr), version)
+
+			if tt.expectedError != nil {
+				if assert.Error(t, err, "Expected error: %s", tt.expectedError.Error()) {
+					assert.Equal(t, strings.ToUpper(tt.expectedError.Error()), strings.ToUpper(err.Error()))
+				}
+			} else {
+				if assert.NoError(t, err) && tt.expectedAmount != nil {
+					assert.Equal(t, tt.expectedAmount, result)
+				}
+			}
 		}
 	}
 
@@ -209,6 +223,19 @@ func TestTransformAmount(t *testing.T) {
 		if tt.expectedError != nil {
 			if assert.Error(t, err, "Expected error: %s", tt.expectedError.Error()) {
 				assert.Equal(t, tt.expectedError.Error(), err.Error(), tt.amountStr)
+			}
+		} else {
+			if assert.NoError(t, err) && tt.expectedAmount != nil {
+				assert.Equal(t, tt.expectedAmount, result, tt.amountStr)
+			}
+		}
+
+		// now in uppercase
+		result, err = transformAmount(strings.ToUpper(tt.amountStr), tt.forkVersion)
+
+		if tt.expectedError != nil {
+			if assert.Error(t, err, "Expected error: %s", tt.expectedError.Error()) {
+				assert.Equal(t, strings.ToUpper(tt.expectedError.Error()), strings.ToUpper(err.Error()), tt.amountStr)
 			}
 		} else {
 			if assert.NoError(t, err) && tt.expectedAmount != nil {

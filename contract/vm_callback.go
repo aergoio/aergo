@@ -956,9 +956,9 @@ func transformAmount(amountStr string, forkVersion int32) (*big.Int, error) {
 
 	if forkVersion >= 4 {
 		// Check for amount in decimal format
-		if strings.Contains(amountStr,".") && strings.HasSuffix(amountStr,"aergo") {
+		if strings.Contains(amountStr,".") && strings.HasSuffix(strings.ToLower(amountStr),"aergo") {
 			// Extract the part before the unit
-			decimalAmount := strings.TrimSuffix(amountStr, "aergo")
+			decimalAmount := amountStr[:len(amountStr)-5]
 			decimalAmount = strings.TrimRight(decimalAmount, " ")
 			// Parse the decimal amount
 			decimalAmount = parseDecimalAmount(decimalAmount, 18)
