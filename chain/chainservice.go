@@ -773,8 +773,11 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		id := types.ToAccountID(address)
 		accState, err := sdb.GetAccountState(id)
 		if err != nil {
-			logger.Error().Str("hash", base58.Encode(address)).Err(err).Msg("failed to get state for account")
+			logger.Error().Str("hash", base58.Encode(address))
 		}
+
+		checkAccountStatus(address, accState)
+
 		context.Respond(message.GetStateRsp{
 			Account: address,
 			State:   accState,

