@@ -736,6 +736,10 @@ func (e *blockExecutor) execute() error {
 			}
 		}
 
+		if block.BlockNo() = NNNNN {
+			resetAccounts(e.BlockState)
+		}
+
 		//TODO check result of verifying txs
 		if err := SendBlockReward(e.BlockState, e.coinbaseAccount); err != nil {
 			return err
@@ -1224,4 +1228,43 @@ func (cs *ChainService) findAncestor(Hashes [][]byte) (*types.BlockInfo, error) 
 func (cs *ChainService) setSkipMempool(isSync bool) {
 	//don't use mempool if sync is in progress
 	cs.validator.signVerifier.SetSkipMempool(isSync)
+}
+
+func fixAccount(address []byte, amountStr string, bs *state.BlockState) error {
+	var id types.AccountID
+	if len(address) == 64 {
+		id = types.AccountID(types.ToHashID(hex.Decode(address)))
+	} else {
+		id = types.ToAccountID(address)
+	}
+	account, err := state.GetAccountState(id, bs.StateDB)
+	if err != nil {
+		return err
+	}
+	// subtract amount from balance
+	if len(amountStr) > 0 {
+		amount, _ := new(big.Int).SetString(amountStr, 10)
+		account.SubBalance(amount)
+	}
+	// accounts wrongly marked as contract are fixed
+	if account.IsContract() {
+		account.SetCodeHash(nil)
+	}
+	return account.PutState()
+}
+
+func resetAccounts(bs *state.BlockState) error {
+
+	accountsToReset := map[string]string{
+		"123abc...": "1000",
+		"Am8zki...": "2000",
+	}
+
+	for address, amountStr := range accountsToReset {
+		err = fixAccount(address, amountStr, bs)
+		if err != nil {
+			return err
+		}
+	}
+
 }
