@@ -1256,8 +1256,8 @@ func fixAccount(address []byte, amountStr string, bs *state.BlockState) error {
 func resetAccounts(bs *state.BlockState) error {
 
 	accountsToReset := map[string]string{
-		"123abc...": "1000",
-		"Am8zki...": "2000",
+		"11d83cc8d59ed8a678d33fa38872bfd40106c0d0940334b0307ca45860e9f909": "1000000000000000000",
+		"AmhNcvE7RR84xoRzYNyATnwZR2JXaC5ut7neu89R13aj1b4eUxKp": "2000000000000000000",
 	}
 
 	for address, amountStr := range accountsToReset {
