@@ -736,7 +736,7 @@ func (e *blockExecutor) execute() error {
 			}
 		}
 
-		if block.BlockNo() = NNNNN {
+		if e.bi.BlockNo = NNNNN {
 			resetAccounts(e.BlockState)
 		}
 
