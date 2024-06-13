@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/aergoio/aergo/v2/internal/enc/hex"
 	"math/big"
 
 	"github.com/aergoio/aergo/v2/consensus"
@@ -736,7 +737,8 @@ func (e *blockExecutor) execute() error {
 			}
 		}
 
-		if e.bi.BlockNo == NNNNN {
+		// FIXME change block number you want
+		if e.bi.No == 161150005 {
 			resetAccounts(e.BlockState)
 		}
 
@@ -1230,14 +1232,18 @@ func (cs *ChainService) setSkipMempool(isSync bool) {
 	cs.validator.signVerifier.SetSkipMempool(isSync)
 }
 
-func fixAccount(address []byte, amountStr string, bs *state.BlockState) error {
+func fixAccount(address string, amountStr string, bs *state.BlockState) error {
 	var id types.AccountID
 	if len(address) == 64 {
-		id = types.AccountID(types.ToHashID(hex.Decode(address)))
+		decoded, err := hex.Decode(address)
+		if err != nil {
+			logger.Error().Err(err).Str("address", address).Msg("Failed to fix account")
+		}
+		id = types.AccountID(types.ToHashID(decoded))
 	} else {
-		id = types.ToAccountID(address)
+		id = types.ToAccountID([]byte(address))
 	}
-	account, err := state.GetAccountState(id, bs.StateDB)
+	account, err := state.GetAccountState(id[:], bs.StateDB)
 	if err != nil {
 		return err
 	}
@@ -1257,14 +1263,14 @@ func resetAccounts(bs *state.BlockState) error {
 
 	accountsToReset := map[string]string{
 		"11d83cc8d59ed8a678d33fa38872bfd40106c0d0940334b0307ca45860e9f909": "1000000000000000000",
-		"AmhNcvE7RR84xoRzYNyATnwZR2JXaC5ut7neu89R13aj1b4eUxKp": "2000000000000000000",
+		"AmhNcvE7RR84xoRzYNyATnwZR2JXaC5ut7neu89R13aj1b4eUxKp":             "2000000000000000000",
 	}
 
 	for address, amountStr := range accountsToReset {
-		err = fixAccount(address, amountStr, bs)
+		err := fixAccount(address, amountStr, bs)
 		if err != nil {
 			return err
 		}
 	}
-
+	return nil
 }
