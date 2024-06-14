@@ -1232,7 +1232,7 @@ func (cs *ChainService) setSkipMempool(isSync bool) {
 	cs.validator.signVerifier.SetSkipMempool(isSync)
 }
 
-func fixAccount(address string, amountStr string, bs *state.BlockState) error {
+func fixAccount(address string, amountStr string, bs *state.BlockState, clearCode bool) error {
 	var id types.AccountID
 	if len(address) == 64 {
 		decoded, err := hex.Decode(address)
@@ -1253,7 +1253,7 @@ func fixAccount(address string, amountStr string, bs *state.BlockState) error {
 		account.SubBalance(amount)
 	}
 	// accounts wrongly marked as contract are fixed
-	if account.IsContract() {
+	if clearCode && account.IsContract() {
 		account.SetCodeHash(nil)
 	}
 	return account.PutState()
@@ -1296,14 +1296,22 @@ func resetAccounts(bs *state.BlockState) error {
 		"780487d8c113facf1c3a694fe9cd72004de6724e03a8cba927374b4df2e9b771":"84937659999999995412480",
 		"11d83cc8d59ed8a678d33fa38872bfd40106c0d0940334b0307ca45860e9f909":"85034092000000004325376",
 		"ad4b858edab475bd28711836ff890aaa7206245b249cbe886d629ef4654c12fa":"46741050000000000458752",
-		"AmhNcvE7RR84xoRzYNyATnwZR2JXaC5ut7neu89R13aj1b4eUxKp":            "7707077000000000000000000",
 }
 
 	for address, amountStr := range accountsToReset {
-		err := fixAccount(address, amountStr, bs)
+		err := fixAccount(address, amountStr, bs, true)
 		if err != nil {
 			return err
 		}
 	}
+
+	address := "AmhNcvE7RR84xoRzYNyATnwZR2JXaC5ut7neu89R13aj1b4eUxKp"
+  amountStr := "7707077000000000000000000"
+
+	err := fixAccount(address, amountStr, bs, false)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
