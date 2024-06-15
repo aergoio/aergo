@@ -1264,6 +1264,18 @@ func resetAccounts(bs *state.BlockState) error {
 	logger.Info().Msg("--- running resetAccounts ---")
 
 	accountsToReset := map[string]string{
+		// these accounts will no longer be marked as contract
+		// the balance will remain the same
+		"AmMZpgsaVSNPcq4w1qpARaikWxV7dznPsGPtUwMG22zF3w28jCYT":"",
+		"AmMzLqWpdLUSap4nqUAjreL5J96ren7C9YtDq2BEXmxYyFGrHzkN":"",
+		"AmNGxQYmrfWomuVQmi5vkHsL4uXXTdMq8Li81bfa3nBuJZGmojyB":"",
+		"AmPCF1qscKJNBk46wrdxGobTLt54sVw7LB5c6HeewYrtqgzGTGtF":"",
+		"AmNyj7hzAVH93L9PFG6mLwXDQoMNRiQzgeDpt7vDdKf93aMxSsRq":"",
+		"AmPpKg3eJ6MzD2ePziZu5ooXqEaWRNmQEUkz2PgEggXYYoAapDwD":"",
+		"AmNWGCq8cqdZmqGWVoR5pDTCPGvdMj5kcjiiC7HuuKVvWDb23SBm":"",
+		"AmPJtKoB6VYCqKncUkWAzD8pXY48Xbh6Au2oP87GFjqz8A7VtFSN":"",
+		"AmNq5r6ZA5umDg4DxjGJxQy11ekr673GCfJpxNBcX3UztVQ2XGZC":"",
+		// fix both balance and remove CodeHash
 		"789bb338c3e5e0876454e0f4416e942284e97dfa09ce724c132800fd9ef6b5d0":"426796609999999963496448",
 		"7dd9ab21d30d08ae326b8d095f30a59e4af6a8a8f0be27744781207c2e3a4de6":"958954481999999947243520",
 		"e2aee7b315ed4a2e94ddd078db9a9b6e41fd00242b3cc839213b01305841ac0b":"854771430000000111738880",
