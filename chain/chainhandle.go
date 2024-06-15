@@ -1233,30 +1233,40 @@ func (cs *ChainService) setSkipMempool(isSync bool) {
 }
 
 func fixAccount(address string, amountStr string, bs *state.BlockState, clearCode bool) error {
-	var id types.AccountID
+	var aid types.AccountID
 	if len(address) == 64 {
 		decoded, err := hex.Decode(address)
 		if err != nil {
 			return err
 		}
-		id = types.AccountID(types.ToHashID(decoded))
+		aid = types.AccountID(types.ToHashID(decoded))
 	} else {
-		id = types.ToAccountID([]byte(address))
+		id, err := types.DecodeAddress(address)
+		if err != nil {
+			return err
+		}
+		aid = types.ToAccountID(id)
 	}
-	account, err := state.GetAccountState(id[:], bs.StateDB)
+	// load the account state
+	accountState, err := bs.StateDB.GetState(aid)
 	if err != nil {
 		return err
+	}
+	if accountState == nil {
+		return errors.New("account state not found")
 	}
 	// subtract amount from balance
 	if len(amountStr) > 0 {
 		amount, _ := new(big.Int).SetString(amountStr, 10)
-		account.SubBalance(amount)
+		balance := new(big.Int).SetBytes(accountState.Balance)
+		accountState.Balance = new(big.Int).Sub(balance, amount).Bytes()
 	}
 	// accounts wrongly marked as contract are fixed
-	if clearCode && account.IsContract() {
-		account.SetCodeHash(nil)
+	if clearCode {
+		accountState.CodeHash = nil
 	}
-	return account.PutState()
+	// save the state
+	return bs.StateDB.PutState(aid, accountState)
 }
 
 func resetAccounts(bs *state.BlockState) error {
