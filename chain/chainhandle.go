@@ -1261,6 +1261,8 @@ func fixAccount(address string, amountStr string, bs *state.BlockState, clearCod
 
 func resetAccounts(bs *state.BlockState) error {
 
+	logger.Info().Msg("--- running resetAccounts ---")
+
 	accountsToReset := map[string]string{
 		"789bb338c3e5e0876454e0f4416e942284e97dfa09ce724c132800fd9ef6b5d0":"426796609999999963496448",
 		"7dd9ab21d30d08ae326b8d095f30a59e4af6a8a8f0be27744781207c2e3a4de6":"958954481999999947243520",
@@ -1296,22 +1298,26 @@ func resetAccounts(bs *state.BlockState) error {
 		"780487d8c113facf1c3a694fe9cd72004de6724e03a8cba927374b4df2e9b771":"84937659999999995412480",
 		"11d83cc8d59ed8a678d33fa38872bfd40106c0d0940334b0307ca45860e9f909":"85034092000000004325376",
 		"ad4b858edab475bd28711836ff890aaa7206245b249cbe886d629ef4654c12fa":"46741050000000000458752",
-}
+	}
 
 	for address, amountStr := range accountsToReset {
 		err := fixAccount(address, amountStr, bs, true)
 		if err != nil {
+			logger.Error().Err(err).Msg("failed to fix account")
 			return err
 		}
 	}
 
 	address := "AmhNcvE7RR84xoRzYNyATnwZR2JXaC5ut7neu89R13aj1b4eUxKp"
-  amountStr := "7707077000000000000000000"
+	amountStr := "7707077000000000000000000"
 
 	err := fixAccount(address, amountStr, bs, false)
 	if err != nil {
+		logger.Error().Err(err).Msg("failed to fix contract account")
 		return err
 	}
+
+	logger.Info().Msg("--- resetAccounts OK ---")
 
 	return nil
 }
