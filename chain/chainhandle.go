@@ -1237,7 +1237,7 @@ func fixAccount(address string, amountStr string, bs *state.BlockState, clearCod
 	if len(address) == 64 {
 		decoded, err := hex.Decode(address)
 		if err != nil {
-			logger.Error().Err(err).Str("address", address).Msg("Failed to fix account")
+			return err
 		}
 		id = types.AccountID(types.ToHashID(decoded))
 	} else {
@@ -1315,7 +1315,7 @@ func resetAccounts(bs *state.BlockState) error {
 	for address, amountStr := range accountsToReset {
 		err := fixAccount(address, amountStr, bs, true)
 		if err != nil {
-			logger.Error().Err(err).Msg("failed to fix account")
+			logger.Error().Err(err).Str("address", address).Msg("failed to fix account")
 			return err
 		}
 	}
