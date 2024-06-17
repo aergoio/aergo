@@ -670,6 +670,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 		logger.Debug().Uint64("block no", block.BlockNo()).Msg("received block from block factory")
 		// In this case (bState != nil), the transactions has already been
 		// executed by the block factory.
+		bi = types.NewBlockHeaderInfo(block)
 		commitOnly = true
 	}
 	bState.SetGasPrice(system.GetGasPrice())
@@ -752,7 +753,7 @@ func (e *blockExecutor) execute() error {
 	}
 
 	// FIXME change block number you want
-	if e.bi.No == 161150035 {
+	if e.bi.No == 161150040 {
 		resetAccounts(e.BlockState)
 		if err := e.Update(); err != nil {
 			return err
