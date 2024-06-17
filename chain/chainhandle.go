@@ -737,11 +737,6 @@ func (e *blockExecutor) execute() error {
 			}
 		}
 
-		// FIXME change block number you want
-		if e.bi.No == 161150005 {
-			resetAccounts(e.BlockState)
-		}
-
 		//TODO check result of verifying txs
 		if err := SendBlockReward(e.BlockState, e.coinbaseAccount); err != nil {
 			return err
@@ -751,6 +746,14 @@ func (e *blockExecutor) execute() error {
 			return err
 		}
 
+		if err := e.Update(); err != nil {
+			return err
+		}
+	}
+
+	// FIXME change block number you want
+	if e.bi.No == 161150035 {
+		resetAccounts(e.BlockState)
 		if err := e.Update(); err != nil {
 			return err
 		}
