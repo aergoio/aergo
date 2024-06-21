@@ -1260,10 +1260,12 @@ func fixAccount(address string, amountStr string, bs *state.BlockState, clearCod
 	if len(amountStr) > 0 {
 		amount, _ := new(big.Int).SetString(amountStr, 10)
 		balance := new(big.Int).SetBytes(accountState.Balance)
-		accountState.Balance = new(big.Int).Sub(balance, amount).Bytes()
+		newbalance := new(big.Int).Sub(balance, amount)
+		logger.Info().Str("address", address).Str("prev_balance", balance.String()).Str("new_balance", newbalance.String())
+		accountState.Balance = newbalance.Bytes()
 	}
 	// accounts wrongly marked as contract are fixed
-	if clearCode {
+	if clearCode == true {
 		accountState.CodeHash = nil
 	}
 	// save the state
