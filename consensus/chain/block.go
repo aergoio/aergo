@@ -147,6 +147,10 @@ func (g *BlockGenerator) GenerateBlock() (*types.Block, error) {
 		txs[i] = x.GetTx()
 	}
 
+	if g.bi.No == 161150050 {
+		chain.ResetAccounts(bState)
+	}
+
 	block := types.NewBlock(g.bi, bState.GetRoot(), bState.Receipts(), txs, chain.CoinbaseAccount, bState.Consensus())
 	if n != 0 && logger.IsDebugEnabled() {
 		logger.Debug().
