@@ -1257,11 +1257,12 @@ func fixAccount(address string, amountStr string, bs *state.BlockState, clearCod
 		return errors.New("account state not found")
 	}
 	// subtract amount from balance
+	logger.Info().Str("address", address).Str("amount", amountStr).Msg("fixAccount")
 	if len(amountStr) > 0 {
 		amount, _ := new(big.Int).SetString(amountStr, 10)
 		balance := new(big.Int).SetBytes(accountState.Balance)
 		newbalance := new(big.Int).Sub(balance, amount)
-		logger.Info().Str("address", address).Str("prev_balance", balance.String()).Str("new_balance", newbalance.String())
+		logger.Info().Str("prev_balance", balance.String()).Str("new_balance", newbalance.String()).Msg("fixAccount")
 		accountState.Balance = newbalance.Bytes()
 	}
 	// accounts wrongly marked as contract are fixed
