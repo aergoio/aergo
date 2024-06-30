@@ -924,37 +924,38 @@ func luaCryptoToBytes(data []byte) ([]byte, bool) {
 	return d, isHex
 }
 
-func luaCryptoRlpToBytes(data unsafe.Pointer) rlpObject {
-	x := (*C.struct_rlp_obj)(data)
-	if x.rlp_obj_type == C.RLP_TSTRING {
-		b, _ := luaCryptoToBytes(x.data, C.int(x.size))
-		return rlpString(b)
+func cryptoBytesToRlpObject(data []byte) rlpObject {
+	// read the first byte to determine the type of the RLP object
+	rlpType := data[0]
+	data = data[1:]
+	// convert the remaining bytes to the appropriate type
+	if rlpType == C.RLP_TSTRING {
+		return rlpString(data)
 	}
-	var l rlpList
-	elems := (*[1 << 30]C.struct_rlp_obj)(unsafe.Pointer(x.data))[:C.int(x.size):C.int(x.size)]
-	for _, elem := range elems {
-		b, _ := luaCryptoToBytes(elem.data, C.int(elem.size))
-		l = append(l, rlpString(b))
+	// if the type is not a list, return nil
+	if rlpType != C.RLP_TLIST {
+		return nil
 	}
-	return l
+	// the type is a list. deserialize it
+	items := DeserializeMessageBytes(data)
+	// convert the items to rlpList
+	list := make(rlpList, len(items))
+	for i, item := range items {
+		list[i] = rlpString(item)
+	}
+	return list
 }
 
-func (ctx *vmContext) handleCryptoVerifyProof(
-	key []byte,
-	value []byte,
-	hash []byte,
-	proof unsafe.Pointer,
-	nProof C.int,
-) (result string, err error) {
-	k, _ := luaCryptoToBytes(key)
-	v := luaCryptoRlpToBytes(value)
-	h, _ := luaCryptoToBytes(hash)
-	cProof := (*[1 << 30]C.struct_proof)(proof)[:nProof:nProof]
-	bProof := make([][]byte, int(nProof))
-	for i, p := range cProof {
-		bProof[i], _ = luaCryptoToBytes(p.data, C.int(p.len))
+func (ctx *vmContext) handleCryptoVerifyEthStorageProof(args []string) (result string, err error) {
+	if len(args) != 4 {
+		return "", errors.New("[Contract.CryptoVerifyEthStorageProof] invalid number of arguments")
 	}
-	if verifyEthStorageProof(k, v, h, bProof) {
+	key := []byte(args[0])
+	value := cryptoBytesToRlpObject([]byte(args[1]))
+	hash := []byte(args[2])
+	proof := [][]byte(args[3])
+
+	if verifyEthStorageProof(key, value, hash, proof) {
 		return "1", nil
 	}
 	return "0", nil

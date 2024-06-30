@@ -381,40 +381,57 @@ func luaCryptoToBytes(data unsafe.Pointer, dataLen C.int) ([]byte, bool) {
 	return d, isHex
 }
 
-func luaCryptoRlpToBytes(data unsafe.Pointer) rlpObject {
+func luaCryptoRlpToBytes(data unsafe.Pointer) []byte {
 	x := (*C.struct_rlp_obj)(data)
 	if x.rlp_obj_type == C.RLP_TSTRING {
 		b, _ := luaCryptoToBytes(x.data, C.int(x.size))
-		return rlpString(b)
+		// add a first byte to the byte array to indicate the type of the RLP object
+		b = append([]byte{byte(C.RLP_TSTRING)}, b...)
+		return b
 	}
-	var l rlpList
 	elems := (*[1 << 30]C.struct_rlp_obj)(unsafe.Pointer(x.data))[:C.int(x.size):C.int(x.size)]
-	for _, elem := range elems {
+	list := make([][]byte, len(elems))
+	for i, elem := range elems {
 		b, _ := luaCryptoToBytes(elem.data, C.int(elem.size))
-		l = append(l, rlpString(b))
+		list[i] = b
 	}
-	return l
+	// serialize the list as a single byte array, including the type byte
+	ret := SerializeMessageBytes([]byte{byte(C.RLP_TLIST)}, list...)
+	return ret
 }
 
 //export luaCryptoVerifyProof
 func luaCryptoVerifyProof(
+	L *LState,
 	key unsafe.Pointer, keyLen C.int,
 	value unsafe.Pointer,
 	hash unsafe.Pointer, hashLen C.int,
 	proof unsafe.Pointer, nProof C.int,
 ) C.int {
+	// convert to bytes
 	k, _ := luaCryptoToBytes(key, keyLen)
 	v := luaCryptoRlpToBytes(value)
 	h, _ := luaCryptoToBytes(hash, hashLen)
+	// read each proof element into a string array
 	cProof := (*[1 << 30]C.struct_proof)(proof)[:nProof:nProof]
-	bProof := make([][]byte, int(nProof))
+	proofElems := make([]string, int(nProof))
 	for i, p := range cProof {
-		bProof[i], _ = luaCryptoToBytes(p.data, C.int(p.len))
+		data, _ := luaCryptoToBytes(p.data, C.int(p.len))
+		proofElems[i] = string(data)
 	}
-	if verifyEthStorageProof(k, v, h, bProof) {
-		return C.int(1)
+	// convert the proof elements into a single byte array
+	proofBytes := SerializeMessage(proofElems...)
+
+	// send request
+	args := []string{string(k), string(v), string(h), string(proofBytes)}
+	result, err := sendRequest("verifyEthStorageProof", args)
+	if err != nil {
+		if isUncatchable(err) {
+			C.luaL_setuncatchablerror(L)
+		}
+		return C.int(0)
 	}
-	return C.int(0)
+	return C.int(result)
 }
 
 //export luaCryptoKeccak256
