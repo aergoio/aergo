@@ -149,6 +149,17 @@ func (cs *ChainService) reorg(topBlock *types.Block, marker *ReorgMarker) error 
 		return consensus.ErrorConsensus{Msg: "reorganization rejected by consensus"}
 	}
 
+	// if using dummydb for chain data
+	if cs.cdb.store.Type() == "dummydb" {
+		// save the dummydb to file
+		cs.cdb.store.IoCtl("save")
+	}
+	// if using the delayed deletion database for the state
+	if cs.sdb.store.Type() == "deldeldb" {
+		// discard the queue of deletions
+		cs.sdb.store.IoCtl("reset-deletions")
+	}
+
 	err = reorg.rollback()
 	if err != nil {
 		return err
@@ -328,12 +339,6 @@ func (reorg *reorganizer) swapTxMapping() error {
 	}
 
 	bulk.Flush()
-
-	// if using dummydb, save it to file
-	if cdb.store.Type() == "dummydb" {
-		// save the dummydb to file
-		cdb.store.IoCtl("save")
-	}
 
 	//add rollbacked Tx to mempool (except played tx in roll forward)
 	count := len(oldTxs)
