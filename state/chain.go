@@ -20,9 +20,10 @@ var (
 // ChainStateDB manages statedb and additional informations about blocks like a state root hash
 type ChainStateDB struct {
 	sync.RWMutex
-	states   *statedb.StateDB
-	store    db.DB
-	testmode bool
+	states    *statedb.StateDB
+	store     db.DB
+	lightnode bool
+	testmode  bool
 }
 
 // NewChainStateDB creates instance of ChainStateDB
@@ -38,6 +39,8 @@ func (sdb *ChainStateDB) Clone() *ChainStateDB {
 	newSdb := &ChainStateDB{
 		store:  sdb.store,
 		states: sdb.GetStateDB().Clone(),
+		lightnode: lightnode,
+		testmode: testmode,
 	}
 	return newSdb
 }
@@ -48,6 +51,13 @@ func (sdb *ChainStateDB) Init(dbType string, dataDir string, bestBlock *types.Bl
 	defer sdb.Unlock()
 
 	sdb.testmode = test
+
+	// light nodes use dummydb for the chain and deldeldb for the state
+	if dbType == "dummydb" {
+		dbType = "deldeldb"
+		sdb.lightnode = true
+	}
+
 	// init db
 	if sdb.store == nil {
 		dbPath := common.PathMkdirAll(dataDir, statedb.StateName)
@@ -63,6 +73,7 @@ func (sdb *ChainStateDB) Init(dbType string, dataDir string, bestBlock *types.Bl
 
 		sdb.states = statedb.NewStateDB(sdb.store, sroot, sdb.testmode)
 	}
+
 	return nil
 }
 

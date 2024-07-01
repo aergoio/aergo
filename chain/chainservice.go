@@ -89,11 +89,6 @@ func (core *Core) init(dbType string, dataDir string, testModeOn bool, forceRese
 		return err
 	}
 
-	// light nodes use dummydb for the chain and badgerdb for the state
-	if dbType == "dummydb" {
-		dbType = "badgerdb"
-	}
-
 	if err := core.sdb.Init(dbType, dataDir, bestBlock, testModeOn); err != nil {
 		logger.Fatal().Err(err).Msg("failed to initialize statedb")
 		return err
