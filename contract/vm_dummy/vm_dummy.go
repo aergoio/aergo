@@ -85,12 +85,12 @@ func SetPubNet() DummyChainOptions {
 
 		contract.PubNet = true
 		fee.DisableZeroFee()
-		contract.FlushLStates()
+		contract.FlushVmInstances()
 
 		dc.clearLState = func() {
 			contract.PubNet = false
 			fee.EnableZeroFee()
-			contract.FlushLStates()
+			contract.FlushVmInstances()
 		}
 	}
 }
@@ -129,7 +129,7 @@ func LoadDummyChain(opts ...DummyChainOptions) (*DummyChain, error) {
 	bc.testReceiptDB = db.NewDB(db.MemoryImpl, path.Join(dataPath, "receiptDB"))
 	contract.LoadTestDatabase(dataPath) // sql database
 	contract.SetStateSQLMaxDBSize(1024)
-	contract.StartLStateFactory(lStateMaxSize, config.GetDefaultNumLStateClosers(), 1)
+	contract.StartVMPool(lStateMaxSize)
 	contract.InitContext(3)
 
 	bc.HardforkVersion = 2
