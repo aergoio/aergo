@@ -164,7 +164,7 @@ static int getTxhash(lua_State *L) {
 
 	lua_gasuse(L, 500);
 
-	hash = luaGetHash(L, service);
+	hash = luaGetTxHash(L, service);
 	strPushAndRelease(L, hash);
 	return 1;
 }

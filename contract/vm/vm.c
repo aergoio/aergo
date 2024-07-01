@@ -141,7 +141,7 @@ static int pcall(lua_State *L) {
 	lua_pushboolean(L, ret == 0);
 	lua_insert(L, 1);
 
-	// release the recovery point or revert the contract state
+	// release the recovery point (on success) or revert the contract state (on error)
 	if (start_seq.r0 > 0) {
 		bool is_error = (ret != 0);
 		char *errStr = luaClearRecovery(L, service, start_seq.r0, is_error);
@@ -228,7 +228,7 @@ static int xpcall(lua_State *L) {
 	lua_pushboolean(L, ret == 0);
 	lua_replace(L, 1);
 
-	// release the recovery point or revert the contract state
+	// release the recovery point (on success) or revert the contract state (on error)
 	if (start_seq.r0 > 0) {
 		bool is_error = (ret != 0);
 		char *errStr = luaClearRecovery(L, service, start_seq.r0, is_error);
@@ -327,11 +327,13 @@ const char *vm_loadcall(lua_State *L) {
 	return NULL;
 }
 
+#if 0
 static int cp_getLuaExecContext(lua_State *L) {
 	int *service = (int *)lua_topointer(L, 1);
 	*service = getLuaExecContext(L);
 	return 0;
 }
+#endif
 
 const char *vm_copy_service(lua_State *L, lua_State *main) {
 	int service;
