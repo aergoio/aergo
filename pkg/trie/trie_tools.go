@@ -173,14 +173,21 @@ func (s *Trie) Commit() error {
 func (s *Trie) StageUpdates(txn DbTx) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
+
 	// Commit the new nodes to database, clear updatedNodes and store the Root in pastTries for reverts.
 	if !s.atomicUpdate {
 		// if previously AtomicUpdate was called, then past tries is already updated
 		s.updatePastTries()
 	}
+
+	// commit the new nodes to the database
 	s.db.commit(&txn)
 
+	// clear the nodes lists
 	s.db.updatedNodes = make(map[Hash][][]byte)
+	s.db.deletedNodes = make(map[Hash]bool)
+
+	// set the previous root to the current root
 	s.prevRoot = s.Root
 }
 
@@ -189,22 +196,27 @@ func (s *Trie) StageUpdates(txn DbTx) {
 func (s *Trie) Stash(rollbackCache bool) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
+
+	// revert to the previous root
 	s.Root = s.prevRoot
+
+	// clear the nodes lists
+	s.db.updatedNodes = make(map[Hash][][]byte)
+	s.db.deletedNodes = make(map[Hash]bool)
+	s.db.liveCache = make(map[Hash][][]byte)
+
 	if rollbackCache {
 		// Making a temporary liveCache requires it to be copied, so it's quicker
 		// to just load the cache from DB if a block state root was incorrect.
-		s.db.liveCache = make(map[Hash][][]byte)
 		ch := make(chan error, 1)
 		s.loadCache(s.Root, nil, 0, s.TrieHeight, ch)
 		err := <-ch
 		if err != nil {
 			return err
 		}
-	} else {
-		s.db.liveCache = make(map[Hash][][]byte)
 	}
-	s.db.updatedNodes = make(map[Hash][][]byte)
-	// also stash past tries created by Atomic update
+
+	// also discard past tries created by Atomic update
 	for i := len(s.pastTries) - 1; i >= 0; i-- {
 		if bytes.Equal(s.pastTries[i], s.Root) {
 			break
@@ -213,5 +225,6 @@ func (s *Trie) Stash(rollbackCache bool) error {
 			s.pastTries = s.pastTries[:len(s.pastTries)-1]
 		}
 	}
+
 	return nil
 }

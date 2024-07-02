@@ -23,8 +23,10 @@ type CacheDB struct {
 	liveCache map[Hash][][]byte
 	// liveMux is a lock for liveCache
 	liveMux sync.RWMutex
-	// updatedNodes that have will be flushed to disk
+	// updatedNodes that will be flushed to disk
 	updatedNodes map[Hash][][]byte
+	// deletedNodes that will be deleted from disk
+	deletedNodes map[Hash]bool
 	// updatedMux is a lock for updatedNodes
 	updatedMux sync.RWMutex
 	// nodesToRevert will be deleted from db
@@ -43,6 +45,12 @@ func (c *CacheDB) commit(txn *DbTx) {
 	defer c.updatedMux.Unlock()
 	for key, batch := range c.updatedNodes {
 		(*txn).Set(dbkey.Trie(key[:]), c.serializeBatch(batch))
+	}
+	// if it is a light node
+	if c.Store.Type() == "deldeldb" {
+		for key, _ := range c.deletedNodes {
+			(*txn).Delete(dbkey.Trie(key[:]))
+		}
 	}
 }
 

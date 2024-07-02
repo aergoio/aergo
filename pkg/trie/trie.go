@@ -46,6 +46,8 @@ type Trie struct {
 	pastTries [][]byte
 	// atomicUpdate, commit all the changes made by intermediate update calls
 	atomicUpdate bool
+	// light nodes delete previous states from the database
+	lightNode bool
 }
 
 // NewSMT creates a new SMT given a keySize and a hash function.
@@ -54,10 +56,12 @@ func NewTrie(root []byte, hash func(data ...[]byte) []byte, store db.DB) *Trie {
 		hash:       hash,
 		TrieHeight: len(hash([]byte("height"))) * 8, // hash any string to get output length
 		counterOn:  false,
+		lightNode:  store.Type() == "deldeldb",
 	}
 	s.db = &CacheDB{
 		liveCache:    make(map[Hash][][]byte),
 		updatedNodes: make(map[Hash][][]byte),
+		deletedNodes: make(map[Hash]bool),
 		Store:        store,
 	}
 	// don't store any cache by default (contracts state don't use cache)
@@ -265,15 +269,30 @@ func (s *Trie) updateParallel(lnode, rnode, root []byte, lkeys, rkeys, lvalues, 
 
 // deleteOldNode deletes an old node that has been updated
 func (s *Trie) deleteOldNode(root []byte, height int, movingUp bool) {
+	if len(root) < HashLength {
+		return
+	}
 	var node Hash
 	copy(node[:], root)
+
+	s.db.updatedMux.Lock()
+	if s.lightNode {
+		// check if the node is already present in the updatedNodes list
+		_, exists := s.db.updatedNodes[node]
+		// if it is a new node/batch, then there is no need to delete it from the db
+		if !exists {
+			// add it to the list of deleted nodes
+			s.db.deletedNodes[node] = true
+		}
+	}
 	if !s.atomicUpdate || movingUp {
 		// dont delete old nodes with atomic updated except when
 		// moving up a shortcut, we dont record every single move
-		s.db.updatedMux.Lock()
 		delete(s.db.updatedNodes, node)
-		s.db.updatedMux.Unlock()
 	}
+	s.db.updatedMux.Unlock()
+
+	// update the cache
 	if height >= s.CacheHeightLimit {
 		s.db.liveMux.Lock()
 		delete(s.db.liveCache, node)
@@ -537,7 +556,7 @@ func (s *Trie) leafHash(key, value, oldRoot []byte, batch [][]byte, iBatch, heig
 
 // storeNode stores a batch and deletes the old node from cache
 func (s *Trie) storeNode(batch [][]byte, h, oldRoot []byte, height int) {
-	if len(oldRoot) == 0 || !bytes.Equal(h[:HashLength], oldRoot[:HashLength]) {
+	if !bytes.Equal(h, oldRoot) {
 		var node Hash
 		copy(node[:], h)
 		// record new node
@@ -550,6 +569,7 @@ func (s *Trie) storeNode(batch [][]byte, h, oldRoot []byte, height int) {
 			s.db.liveCache[node] = batch
 			s.db.liveMux.Unlock()
 		}
+		// delete the old node from the updatedNodes list
 		s.deleteOldNode(oldRoot, height, false)
 	}
 }
