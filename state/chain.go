@@ -39,8 +39,6 @@ func (sdb *ChainStateDB) Clone() *ChainStateDB {
 	newSdb := &ChainStateDB{
 		store:  sdb.store,
 		states: sdb.GetStateDB().Clone(),
-		lightnode: lightnode,
-		testmode: testmode,
 	}
 	return newSdb
 }
