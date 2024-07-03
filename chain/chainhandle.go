@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"github.com/aergoio/aergo/v2/internal/enc/hex"
 	"math/big"
+	"sort"
 
 	"github.com/aergoio/aergo/v2/consensus"
 	"github.com/aergoio/aergo/v2/contract"
@@ -1326,7 +1327,17 @@ func ResetAccounts(bs *state.BlockState) error {
 		"ad4b858edab475bd28711836ff890aaa7206245b249cbe886d629ef4654c12fa":"46741050000000000458752",
 	}
 
-	for address, amountStr := range accountsToReset {
+	// get the keys from accountsToReset
+	keys := make([]string, 0, len(accountsToReset))
+	for k := range accountsToReset {
+		keys = append(keys, k)
+	}
+	// sort the keys
+	sort.Strings(keys)
+	// iterate over the sorted keys
+	for _, k := range keys {
+		address := k
+		amountStr := accountsToReset[k]
 		err := fixAccount(address, amountStr, bs, true)
 		if err != nil {
 			logger.Error().Err(err).Str("address", address).Msg("failed to fix account")
