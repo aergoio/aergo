@@ -147,15 +147,6 @@ func (g *BlockGenerator) GenerateBlock() (*types.Block, error) {
 		txs[i] = x.GetTx()
 	}
 
-	if g.bi.No == 161150050 {
-		logger.Info().Str("state-root-hash", base58.Encode(bState.GetRoot())).Msg("before")
-		chain.ResetAccounts(bState)
-		if err := bState.Update(); err != nil {
-			return nil, err
-		}
-		logger.Info().Str("state-root-hash", base58.Encode(bState.GetRoot())).Msg("after")
-	}
-
 	block := types.NewBlock(g.bi, bState.GetRoot(), bState.Receipts(), txs, chain.CoinbaseAccount, bState.Consensus())
 	if n != 0 && logger.IsDebugEnabled() {
 		logger.Debug().
