@@ -56,7 +56,7 @@ func NewTrie(root []byte, hash func(data ...[]byte) []byte, store db.DB) *Trie {
 		hash:       hash,
 		TrieHeight: len(hash([]byte("height"))) * 8, // hash any string to get output length
 		counterOn:  false,
-		lightNode:  store.Type() == "deldeldb",
+		lightNode:  store != nil && store.Type() == "deldeldb",
 	}
 	s.db = &CacheDB{
 		liveCache:    make(map[Hash][][]byte),
