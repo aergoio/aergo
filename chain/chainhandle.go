@@ -782,11 +782,8 @@ func (e *blockExecutor) execute() error {
 // commit state changes and update state root
 func (e *blockExecutor) commit() error {
 
-	// if this is a light node
-	if e.sdb.store.Type() == "deldeldb" {
-		// create a new "version" on the database
-		e.sdb.store.IoCtl("new-version")
-	}
+	// if this is a light node, create a new version on the database
+	e.sdb.NewVersion()
 
 	// commit changes to the state db
 	if err := e.BlockState.Commit(); err != nil {

@@ -149,6 +149,12 @@ func (sdb *ChainStateDB) SetGenesis(genesis *types.Genesis, bpInit func(*statedb
 	return nil
 }
 
+func (sdb *ChainStateDB) NewVersion() {
+	if sdb.store.Type() == "deldeldb" {
+		sdb.store.IoCtl("new-version")
+	}
+}
+
 // Apply specific blockstate to statedb of main chain
 func (sdb *ChainStateDB) Apply(bstate *BlockState) error {
 	sdb.Lock()
