@@ -161,7 +161,7 @@ func (rm *ReorgMarker) RecoverChainMapping(cdb *ChainDB) error {
 	}
 
 	bulk := cdb.store.NewBulk()
-	defer bulk.DiscardLast()
+	defer bulk.Discard()
 
 	var tmpBlkNo types.BlockNo
 	var tmpBlk *types.Block

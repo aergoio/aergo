@@ -82,7 +82,7 @@ func (cdb *ChainDB) ClearWAL() {
 		logger.Debug().Uint64("last", lastIdx).Msg("reset raft entries from datafiles")
 
 		bulk := cdb.store.NewBulk()
-		defer bulk.DiscardLast()
+		defer bulk.Discard()
 
 		for i := lastIdx; i >= 1; i-- {
 			bulk.Delete(dbkey.RaftEntry(i))

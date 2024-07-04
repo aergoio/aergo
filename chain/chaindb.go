@@ -389,7 +389,7 @@ func (cdb *ChainDB) swapChainMapping(newBlocks []*types.Block) error {
 	var blockIdx []byte
 
 	bulk := cdb.store.NewBulk()
-	defer bulk.DiscardLast()
+	defer bulk.Discard()
 
 	//make newTx because of batchsize limit of DB
 	for i := len(newBlocks) - 1; i >= 0; i-- {

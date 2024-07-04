@@ -364,12 +364,12 @@ func (states *StateDB) Commit() error {
 	for _, storage := range states.Cache.storages {
 		// stage changes
 		if err := storage.stage(bulk); err != nil {
-			bulk.DiscardLast()
+			bulk.Discard()
 			return err
 		}
 	}
 	if err := states.stage(bulk); err != nil {
-		bulk.DiscardLast()
+		bulk.Discard()
 		return err
 	}
 	bulk.Flush()

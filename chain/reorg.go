@@ -334,7 +334,7 @@ func (reorg *reorganizer) swapTxMapping() error {
 
 	// delete old tx mapping
 	bulk := cdb.store.NewBulk()
-	defer bulk.DiscardLast()
+	defer bulk.Discard()
 
 	for _, oldTx := range oldTxs {
 		bulk.Delete(oldTx.Hash)
