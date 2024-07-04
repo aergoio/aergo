@@ -423,6 +423,12 @@ func (cp *chainProcessor) connectToChain(block *types.Block) (types.BlockNo, err
 	dbTx := cp.cdb.store.NewTx()
 	defer dbTx.Discard()
 
+	// if this is a light node
+	if cp.cdb.store.Type() == "dummydb" {
+		// create a new "version" on the database
+		cp.cdb.store.IoCtl("new-version")
+	}
+
 	// skip to add hash/block if wal of block is already written
 	oldLatest := cp.cdb.connectToChain(dbTx, block, cp.isByBP && cp.HasWAL())
 	if err := cp.cdb.addTxsOfBlock(&dbTx, block.GetBody().GetTxs(), block.BlockHash()); err != nil {
@@ -773,12 +779,21 @@ func (e *blockExecutor) execute() error {
 	return nil
 }
 
+// commit state changes and update state root
 func (e *blockExecutor) commit() error {
+
+	// if this is a light node
+	if e.sdb.store.Type() == "deldeldb" {
+		// create a new "version" on the database
+		e.sdb.store.IoCtl("new-version")
+	}
+
+	// commit changes to the state db
 	if err := e.BlockState.Commit(); err != nil {
 		return err
 	}
 
-	//TODO: after implementing BlockRootHash, remove statedb.lastest
+	// update state root
 	if err := e.sdb.UpdateRoot(e.BlockState); err != nil {
 		return err
 	}
