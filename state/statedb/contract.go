@@ -18,17 +18,17 @@ type ContractState struct {
 	store   db.DB
 }
 
-func (cs *ContractState) SetCode(code []byte) error {
-	codeHash := common.Hasher(code)
-	storedCode, err := cs.GetRawKV(codeHash[:])
-	if err == nil && !bytes.Equal(code, storedCode) {
-		err = cs.SetRawKV(codeHash[:], code)
+func (cs *ContractState) SetCode(bytecode []byte) error {
+	bytecodeHash := common.Hasher(bytecode)
+	storedBytecode, err := cs.GetRawKV(bytecodeHash[:])
+	if err == nil && !bytes.Equal(storedBytecode, bytecode) {
+		err = cs.SetRawKV(bytecodeHash[:], bytecode)
 	}
 	if err != nil {
 		return err
 	}
-	cs.State.CodeHash = codeHash[:]
-	cs.code = code
+	cs.State.CodeHash = bytecodeHash[:]
+	cs.code = bytecode
 	return nil
 }
 
@@ -42,7 +42,8 @@ func (cs *ContractState) GetCode() ([]byte, error) {
 		// not defined. do nothing.
 		return nil, nil
 	}
-	err := loadData(cs.store, cs.State.GetCodeHash(), &cs.code)
+	// load the code into the contract state
+	err := loadData(cs.store, codeHash, &cs.code)
 	if err != nil {
 		return nil, err
 	}

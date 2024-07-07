@@ -792,9 +792,9 @@ func Call(
 	var err error
 	var ci types.CallInfo
 
-	// get contract
-	contract := getContract(contractState, ctx.bs)
-	if contract != nil {
+	// get contract code
+	bytecode := getContractCode(contractState, ctx.bs)
+	if bytecode != nil {
 		if len(payload) > 0 {
 			// get call arguments
 			err = getCallInfo(&ci, payload, contractAddress)
@@ -814,7 +814,7 @@ func Call(
 
 	// create a new executor
 	contexts[ctx.service] = ctx
-	ce := newExecutor(contract, contractAddress, ctx, &ci, ctx.curContract.amount, false, false, contractState)
+	ce := newExecutor(bytecode, contractAddress, ctx, &ci, ctx.curContract.amount, false, false, contractState)
 	defer ce.close()
 
 	startTime := time.Now()
@@ -892,33 +892,43 @@ func setRandomSeed(ctx *vmContext) {
 }
 
 func setContract(contractState *statedb.ContractState, contractAddress, payload []byte, ctx *vmContext) ([]byte, []byte, error) {
+	// the payload contains:
+	// on V3: bytecode + ABI + constructor arguments
+	// on V4: lua code + constructor arguments
 	codePayload := luacUtil.LuaCodePayload(payload)
 	if _, err := codePayload.IsValidFormat(); err != nil {
 		ctrLgr.Warn().Err(err).Str("contract", types.EncodeAddress(contractAddress)).Msg("deploy")
 		return nil, nil, err
 	}
-	code := codePayload.Code()
+	code := codePayload.Code()  // type: LuaCode
 
+	var bytecodeABI []byte
 	// if hardfork version 4
 	if ctx.blockInfo.ForkVersion >= 4 {
 		// the payload must be lua code. compile it to bytecode
 		var err error
-		code, err = Compile(string(code), nil)
+		bytecodeABI, err = Compile(string(code), nil)
 		if err != nil {
 			ctrLgr.Warn().Err(err).Str("contract", types.EncodeAddress(contractAddress)).Msg("deploy")
 			return nil, nil, err
 		}
-	//} else {
+	} else {
 		// on previous hardfork versions the payload is bytecode
+		bytecodeABI = code
 	}
 
-	err := contractState.SetCode(code.Bytes())
+	// save the bytecode to the contract state
+	err := contractState.SetCode(bytecodeABI)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	contract := getContract(contractState, nil)
-	if contract == nil {
+	// extract the bytecode
+	bytecode := luacUtil.LuaCode(bytecodeABI).ByteCode()
+
+	// check if it was properly stored
+	savedBytecode := getContractCode(contractState, nil)
+	if savedBytecode == nil || !bytes.Equal(savedBytecode, bytecode) {
 		err = fmt.Errorf("cannot deploy contract %s", types.EncodeAddress(contractAddress))
 		ctrLgr.Warn().Str("error", "cannot load contract").Str(
 			"contract",
@@ -927,7 +937,7 @@ func setContract(contractState *statedb.ContractState, contractAddress, payload 
 		return nil, nil, err
 	}
 
-	return contract, codePayload.Args(), nil
+	return bytecode, codePayload.Args(), nil
 }
 
 func Create(
@@ -945,7 +955,7 @@ func Create(
 	}
 
 	// save the contract code
-	contract, args, err := setContract(contractState, contractAddress, payload, ctx)
+	bytecode, args, err := setContract(contractState, contractAddress, payload, ctx)
 	if err != nil {
 		return "", nil, ctx.usedFee(), err
 	}
@@ -976,7 +986,7 @@ func Create(
 	}
 
 	// create a new executor for the constructor
-	ce := newExecutor(contract, contractAddress, ctx, &ci, ctx.curContract.amount, true, false, contractState)
+	ce := newExecutor(bytecode, contractAddress, ctx, &ci, ctx.curContract.amount, true, false, contractState)
 	defer ce.close()
 
 	// call the constructor
@@ -1072,8 +1082,8 @@ func freeContextSlot(ctx *vmContext) {
 func Query(contractAddress []byte, bs *state.BlockState, cdb ChainAccessor, contractState *statedb.ContractState, queryInfo []byte) (res []byte, err error) {
 	var ci types.CallInfo
 
-	contract := getContract(contractState, bs)
-	if contract != nil {
+	bytecode := getContractCode(contractState, bs)
+	if bytecode != nil {
 		err = getCallInfo(&ci, queryInfo, contractAddress)
 	} else {
 		addr := types.EncodeAddress(contractAddress)
@@ -1099,7 +1109,7 @@ func Query(contractAddress []byte, bs *state.BlockState, cdb ChainAccessor, cont
 		ctrLgr.Debug().Str("abi", string(queryInfo)).Str("contract", types.EncodeAddress(contractAddress)).Msg("query")
 	}
 
-	ce := newExecutor(contract, contractAddress, ctx, &ci, ctx.curContract.amount, false, false, contractState)
+	ce := newExecutor(bytecode, contractAddress, ctx, &ci, ctx.curContract.amount, false, false, contractState)
 	defer ce.close()
 	defer func() {
 		if dbErr := ce.closeQuerySql(); dbErr != nil {
@@ -1140,8 +1150,8 @@ func CheckFeeDelegation(contractAddress []byte, bs *state.BlockState, bi *types.
 		return fmt.Errorf("%s function is not declared of fee delegation", ci.Name)
 	}
 
-	contract := getContract(contractState, bs)
-	if contract == nil {
+	bytecode := getContractCode(contractState, bs)
+	if bytecode == nil {
 		addr := types.EncodeAddress(contractAddress)
 		ctrLgr.Warn().Str("error", "not found contract").Str("contract", addr).Msg("checkFeeDelegation")
 		err = fmt.Errorf("not found contract %s", addr)
@@ -1173,7 +1183,7 @@ func CheckFeeDelegation(contractAddress []byte, bs *state.BlockState, bi *types.
 	ci.Args = append([]interface{}{ci.Name}, ci.Args...)
 	ci.Name = checkFeeDelegationFn
 
-	ce := newExecutor(contract, contractAddress, ctx, &ci, ctx.curContract.amount, false, true, contractState)
+	ce := newExecutor(bytecode, contractAddress, ctx, &ci, ctx.curContract.amount, false, true, contractState)
 	defer ce.close()
 	defer func() {
 		if dbErr := ce.rollbackToSavepoint(); dbErr != nil {
@@ -1209,7 +1219,7 @@ func getCode(contractState *statedb.ContractState, bs *state.BlockState) ([]byte
 	return code, nil
 }
 
-func getContract(contractState *statedb.ContractState, bs *state.BlockState) []byte {
+func getContractCode(contractState *statedb.ContractState, bs *state.BlockState) []byte {
 	code, err := getCode(contractState, bs)
 	if err != nil {
 		return nil

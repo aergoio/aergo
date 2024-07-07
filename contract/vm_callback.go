@@ -238,8 +238,8 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 	}
 
 	// check if the contract exists
-	callee := getContract(cs.ctrState, ctx.bs)
-	if callee == nil {
+	bytecode := getContractCode(cs.ctrState, ctx.bs)
+	if bytecode == nil {
 		return -1, C.CString("[Contract.LuaCallContract] cannot find contract " + C.GoString(contractId))
 	}
 
@@ -256,7 +256,7 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 	// get the remaining gas from the parent LState
 	ctx.refreshRemainingGas(L)
 	// create a new executor with the remaining gas on the child LState
-	ce := newExecutor(callee, cid, ctx, &ci, amountBig, false, false, cs.ctrState)
+	ce := newExecutor(bytecode, cid, ctx, &ci, amountBig, false, false, cs.ctrState)
 	defer func() {
 		// close the executor, closes also the child LState
 		ce.close()
@@ -358,8 +358,8 @@ func luaDelegateCallContract(L *LState, service C.int, contractId *C.char,
 	}
 
 	// check if the contract exists
-	contract := getContract(contractState, ctx.bs)
-	if contract == nil {
+	bytecode := getContractCode(contractState, ctx.bs)
+	if bytecode == nil {
 		return -1, C.CString("[Contract.LuaDelegateCallContract] cannot find contract " + contractIdStr)
 	}
 
@@ -374,7 +374,7 @@ func luaDelegateCallContract(L *LState, service C.int, contractId *C.char,
 	// get the remaining gas from the parent LState
 	ctx.refreshRemainingGas(L)
 	// create a new executor with the remaining gas on the child LState
-	ce := newExecutor(contract, cid, ctx, &ci, zeroBig, false, false, contractState)
+	ce := newExecutor(bytecode, cid, ctx, &ci, zeroBig, false, false, contractState)
 	defer func() {
 		// close the executor, closes also the child LState
 		ce.close()
@@ -495,15 +495,15 @@ func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char)
 		ci.Name = "default"
 
 		// get the contract code
-		code := getContract(cs.ctrState, ctx.bs)
-		if code == nil {
+		bytecode := getContractCode(cs.ctrState, ctx.bs)
+		if bytecode == nil {
 			return C.CString("[Contract.LuaSendAmount] cannot find contract:" + C.GoString(contractId))
 		}
 
 		// get the remaining gas from the parent LState
 		ctx.refreshRemainingGas(L)
 		// create a new executor with the remaining gas on the child LState
-		ce := newExecutor(code, cid, ctx, &ci, amountBig, false, false, cs.ctrState)
+		ce := newExecutor(bytecode, cid, ctx, &ci, amountBig, false, false, cs.ctrState)
 		defer func() {
 			// close the executor, closes also the child LState
 			ce.close()
