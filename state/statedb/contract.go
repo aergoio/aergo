@@ -1,8 +1,6 @@
 package statedb
 
 import (
-	"bytes"
-
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/v2/internal/common"
 	"github.com/aergoio/aergo/v2/internal/enc/proto"
@@ -18,17 +16,33 @@ type ContractState struct {
 	store   db.DB
 }
 
-func (cs *ContractState) SetCode(bytecode []byte) error {
+func (cs *ContractState) SetCode(sourceCode []byte, bytecode []byte) error {
+	var err error
+
+	// hash the bytecode
 	bytecodeHash := common.Hasher(bytecode)
-	storedBytecode, err := cs.GetRawKV(bytecodeHash[:])
-	if err == nil && !bytes.Equal(storedBytecode, bytecode) {
-		err = cs.SetRawKV(bytecodeHash[:], bytecode)
-	}
+	// save the bytecode to the database
+	err = cs.SetRawKV(bytecodeHash[:], bytecode)
 	if err != nil {
 		return err
 	}
+	// update the contract state
 	cs.State.CodeHash = bytecodeHash[:]
+	// update the contract bytecode
 	cs.code = bytecode
+
+	if sourceCode != nil {
+		// hash the source code
+		sourceCodeHash := common.Hasher(sourceCode)
+		// save the source code to the database
+		err = cs.SetRawKV(sourceCodeHash[:], sourceCode)
+		if err != nil {
+			return err
+		}
+		// update the contract state
+		cs.State.SourceHash = sourceCodeHash[:]
+	}
+
 	return nil
 }
 
@@ -48,6 +62,20 @@ func (cs *ContractState) GetCode() ([]byte, error) {
 		return nil, err
 	}
 	return cs.code, nil
+}
+
+func (cs *ContractState) GetSourceCode() []byte {
+	sourceCodeHash := cs.GetSourceHash()
+	if sourceCodeHash == nil {
+		return nil
+	}
+	// load the source code from the database
+	var sourceCode []byte
+	err := loadData(cs.store, sourceCodeHash, &sourceCode)
+	if err != nil {
+		return nil
+	}
+	return sourceCode
 }
 
 func (cs *ContractState) GetAccountID() types.AccountID {

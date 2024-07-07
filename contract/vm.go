@@ -902,12 +902,15 @@ func setContract(contractState *statedb.ContractState, contractAddress, payload 
 	}
 	code := codePayload.Code()  // type: LuaCode
 
+	var sourceCode []byte
 	var bytecodeABI []byte
+	var err error
+
 	// if hardfork version 4
 	if ctx.blockInfo.ForkVersion >= 4 {
 		// the payload must be lua code. compile it to bytecode
-		var err error
-		bytecodeABI, err = Compile(string(code), nil)
+		sourceCode = code
+		bytecodeABI, err = Compile(string(sourceCode), nil)
 		if err != nil {
 			ctrLgr.Warn().Err(err).Str("contract", types.EncodeAddress(contractAddress)).Msg("deploy")
 			return nil, nil, err
@@ -918,7 +921,7 @@ func setContract(contractState *statedb.ContractState, contractAddress, payload 
 	}
 
 	// save the bytecode to the contract state
-	err := contractState.SetCode(bytecodeABI)
+	err = contractState.SetCode(sourceCode, bytecodeABI)
 	if err != nil {
 		return nil, nil, err
 	}

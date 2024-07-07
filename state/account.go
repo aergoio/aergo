@@ -102,7 +102,7 @@ func (as *AccountState) IsNew() bool {
 }
 
 func (as *AccountState) IsContract() bool {
-	return len(as.State().CodeHash) > 0
+	return len(as.State().CodeHash) > 0 || len(as.State().SourceHash) > 0
 }
 
 func (as *AccountState) IsDeploy() bool {

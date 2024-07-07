@@ -17,7 +17,7 @@ func TestContractStateCode(t *testing.T) {
 	assert.NoError(t, err, "could not open contract state")
 
 	// set code
-	err = contractState.SetCode(testBytes)
+	err = contractState.SetCode(nil, testBytes)
 	assert.NoError(t, err, "set code to contract state")
 
 	// get code
