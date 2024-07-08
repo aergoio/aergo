@@ -345,6 +345,12 @@ func (cp *chainProcessor) addBlock(blk *types.Block) error {
 	dbTx := cp.cdb.store.NewTx()
 	defer dbTx.Discard()
 
+	// if this is a light node
+	if cp.cdb.store.Type() == "dummydb" {
+		// create a new "version" on the database
+		cp.cdb.store.IoCtl("new-version")
+	}
+
 	if err := cp.cdb.addBlock(dbTx, blk); err != nil {
 		return err
 	}
@@ -437,12 +443,6 @@ func (cp *chainProcessor) connectToChain(block *types.Block) (types.BlockNo, err
 
 	dbTx.Commit()
 
-	// if using dummydb and this block has transactions
-	if cp.cdb.store.Type() == "dummydb" && len(block.GetBody().GetTxs()) > 0 {
-		// save the dummydb to file
-		cp.cdb.store.IoCtl("save")
-	}
-
 	return oldLatest, nil
 }
 
@@ -466,6 +466,7 @@ func (cp *chainProcessor) reorganize() error {
 }
 
 func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBState *state.BlockState, peerID types.PeerID) (err error, cache bool) {
+
 	if !cs.VerifyTimestamp(newBlock) {
 		return &ErrBlock{
 			err: errBlockTimestamp,

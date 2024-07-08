@@ -291,8 +291,13 @@ func (cdb *ChainDB) addGenesisBlock(genesis *types.Genesis) error {
 		block.BlockID()
 	}
 
+	// add genesis block to chain
 	cdb.connectToChain(tx, block, false)
+
+	// save genesis block
 	tx.Set(dbkey.Genesis(), genesis.Bytes())
+
+	// save total balance
 	if totalBalance := genesis.TotalBalance(); totalBalance != nil {
 		tx.Set(dbkey.GenesisBalance(), totalBalance.Bytes())
 	}
@@ -391,7 +396,6 @@ func (cdb *ChainDB) swapChainMapping(newBlocks []*types.Block) error {
 	bulk := cdb.store.NewBulk()
 	defer bulk.Discard()
 
-	//make newTx because of batchsize limit of DB
 	for i := len(newBlocks) - 1; i >= 0; i-- {
 		block := newBlocks[i]
 		blockIdx = types.BlockNoToBytes(block.GetHeader().GetBlockNo())
