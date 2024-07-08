@@ -118,7 +118,7 @@ func (re *recoveryEntry) recovery(bs *state.BlockState) error {
 			return newDbSystemError(err)
 		}
 		if re.isDeploy {
-			err := cs.ctrState.SetCode(nil)
+			err := cs.ctrState.SetCode(nil, nil)
 			if err != nil {
 				return newDbSystemError(err)
 			}

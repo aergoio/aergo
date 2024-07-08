@@ -1102,7 +1102,8 @@ func luaDeployContract(
 	bs := ctx.bs
 
 	// contract code
-	var code []byte
+	var codeABI []byte
+	var sourceCode []byte
 
 	// check if contract name or address is given
 	cid, err := getAddressNameResolved(contractStr, bs)
@@ -1113,20 +1114,21 @@ func luaDeployContract(
 			return -1, C.CString("[Contract.LuaDeployContract]" + err.Error())
 		}
 		// read the contract code
-		code, err = contractState.GetCode()
+		codeABI, err = contractState.GetCode()
 		if err != nil {
 			return -1, C.CString("[Contract.LuaDeployContract]" + err.Error())
-		} else if len(code) == 0 {
+		} else if len(codeABI) == 0 {
 			return -1, C.CString("[Contract.LuaDeployContract]: not found code")
 		}
+		sourceCode = contractState.GetSourceCode()
 	}
 
 	// compile contract code if not found
-	if len(code) == 0 {
+	if len(codeABI) == 0 {
 		if ctx.blockInfo.ForkVersion >= 2 {
-			code, err = Compile(contractStr, L)
+			codeABI, err = Compile(contractStr, L)
 		} else {
-			code, err = Compile(contractStr, nil)
+			codeABI, err = Compile(contractStr, nil)
 		}
 		if err != nil {
 			if C.luaL_hasuncatchablerror(L) != C.int(0) &&
@@ -1135,12 +1137,12 @@ func luaDeployContract(
 			} else if err == ErrVmStart {
 				return -1, C.CString("[Contract.LuaDeployContract] get luaState error")
 			}
-
 			return -1, C.CString("[Contract.LuaDeployContract]compile error:" + err.Error())
 		}
+		sourceCode = []byte(contractStr)
 	}
 
-	err = ctx.addUpdateSize(int64(len(code)))
+	err = ctx.addUpdateSize(int64(len(codeABI) + len(sourceCode)))
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDeployContract]:" + err.Error())
 	}
@@ -1205,10 +1207,10 @@ func luaDeployContract(
 		ctx.curContract = prevContractInfo
 	}()
 
-	runCode := util.LuaCode(code).ByteCode()
+	bytecode := util.LuaCode(codeABI).ByteCode()
 
 	// save the contract code
-	err = contractState.SetCode(code)
+	err = contractState.SetCode(sourceCode, codeABI)
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDeployContract]:" + err.Error())
 	}
@@ -1222,7 +1224,7 @@ func luaDeployContract(
 	// get the remaining gas from the parent LState
 	ctx.refreshRemainingGas(L)
 	// create a new executor with the remaining gas on the child LState
-	ce := newExecutor(runCode, newContract.ID(), ctx, &ci, amountBig, true, false, contractState)
+	ce := newExecutor(bytecode, newContract.ID(), ctx, &ci, amountBig, true, false, contractState)
 	defer func() {
 		// close the executor, which will close the child LState
 		ce.close()

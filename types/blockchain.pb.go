@@ -668,6 +668,7 @@ type State struct {
 	CodeHash         []byte `protobuf:"bytes,3,opt,name=codeHash,proto3" json:"codeHash,omitempty"`
 	StorageRoot      []byte `protobuf:"bytes,4,opt,name=storageRoot,proto3" json:"storageRoot,omitempty"`
 	SqlRecoveryPoint uint64 `protobuf:"varint,5,opt,name=sqlRecoveryPoint,proto3" json:"sqlRecoveryPoint,omitempty"`
+	SourceHash       []byte `protobuf:"bytes,6,opt,name=sourceHash,proto3" json:"sourceHash,omitempty"`
 }
 
 func (x *State) Reset() {
@@ -719,6 +720,13 @@ func (x *State) GetBalance() []byte {
 func (x *State) GetCodeHash() []byte {
 	if x != nil {
 		return x.CodeHash
+	}
+	return nil
+}
+
+func (x *State) GetSourceHash() []byte {
+	if x != nil {
+		return x.SourceHash
 	}
 	return nil
 }
