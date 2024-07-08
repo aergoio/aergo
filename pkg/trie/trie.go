@@ -555,13 +555,17 @@ func (s *Trie) leafHash(key, value, oldRoot []byte, batch [][]byte, iBatch, heig
 }
 
 // storeNode stores a batch and deletes the old node from cache
-func (s *Trie) storeNode(batch [][]byte, h, oldRoot []byte, height int) {
-	if !bytes.Equal(h, oldRoot) {
+func (s *Trie) storeNode(batch [][]byte, newRoot, oldRoot []byte, height int) {
+	if !bytes.Equal(newRoot, oldRoot) {
 		var node Hash
-		copy(node[:], h)
+		copy(node[:], newRoot)
 		// record new node
 		s.db.updatedMux.Lock()
 		s.db.updatedNodes[node] = batch
+		if s.lightNode {
+			// remove the new node from the list of nodes to be deleted
+			delete(s.db.deletedNodes, node)
+		}
 		s.db.updatedMux.Unlock()
 		// Cache the shortcut node if it's height is over CacheHeightLimit
 		if height >= s.CacheHeightLimit {
