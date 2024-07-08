@@ -144,14 +144,46 @@ func (sdb *ChainStateDB) SetGenesis(genesis *types.Genesis, bpInit func(*statedb
 		return err
 	}
 
+	// fixate the genesis state on light nodes
+	sdb.persistGenesisState()
+
 	block.SetBlocksRootHash(sdb.GetRoot())
 
 	return nil
 }
 
+// NewVersion creates a new version on the database
 func (sdb *ChainStateDB) NewVersion() {
 	if sdb.store.Type() == "deldeldb" {
 		sdb.store.IoCtl("new-version")
+	}
+}
+
+// persistGenesisState persists the genesis state on light nodes
+func (sdb *ChainStateDB) persistGenesisState() {
+	// if this is a light node, re-save all keys and values
+	if sdb.store.Type() == "deldeldb" {
+		logger.Info().Msg("persistGenesisState - light node")
+		// iterate over all keys and values
+		keys := make([][]byte, 0)
+		values := make([][]byte, 0)
+		iter := sdb.store.Iterator(nil, nil)
+		for ; iter.Valid(); iter.Next() {
+			// save the key and value
+			key := iter.Key()
+			value := iter.Value()
+			keys = append(keys, key)
+			values = append(values, value)
+		}
+		iter.Close()
+		// create a transaction on the database
+		tx := sdb.store.NewTx()
+		for i, key := range keys {
+			value := values[i]
+			tx.Set(key, value)
+		}
+		// commit the transaction
+		tx.Commit()
 	}
 }
 
@@ -169,10 +201,12 @@ func (sdb *ChainStateDB) Apply(bstate *BlockState) error {
 	if err := bstate.Update(); err != nil {
 		return err
 	}
+	// commit the block state to the database
 	if err := bstate.Commit(); err != nil {
 		return err
 	}
 
+	// update the state root
 	if err := sdb.UpdateRoot(bstate); err != nil {
 		return err
 	}
