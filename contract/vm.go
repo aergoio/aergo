@@ -44,6 +44,7 @@ import (
 	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/dbkey"
+	"github.com/aergoio/aergo/v2/blacklist"
 	jsoniter "github.com/json-iterator/go"
 )
 
@@ -291,6 +292,16 @@ func newExecutor(
 		return ce
 	}
 	ctx.callDepth++
+
+	if blacklist.Check(types.EncodeAddress(contractId)) {
+		ce := &executor{
+			code: contract,
+			ctx:  ctx,
+		}
+		ce.err = fmt.Errorf("contract not available")
+		ctrLgr.Error().Err(ce.err).Str("contract", types.EncodeAddress(contractId)).Msg("blocked contract")
+		return ce
+	}
 
 	ce := &executor{
 		code: contract,
@@ -817,11 +828,13 @@ func Call(
 	ce := newExecutor(bytecode, contractAddress, ctx, &ci, ctx.curContract.amount, false, false, contractState)
 	defer ce.close()
 
-	startTime := time.Now()
-	// execute the contract call
-	ce.call(callMaxInstLimit, nil)
-	vmExecTime := time.Now().Sub(startTime).Microseconds()
-	vmLogger.Trace().Int64("execµs", vmExecTime).Stringer("txHash", types.LogBase58(ce.ctx.txHash)).Msg("tx execute time in vm")
+	if ce.err == nil {
+		startTime := time.Now()
+		// execute the contract call
+		ce.call(callMaxInstLimit, nil)
+		vmExecTime := time.Now().Sub(startTime).Microseconds()
+		vmLogger.Trace().Int64("execµs", vmExecTime).Stringer("txHash", types.LogBase58(ce.ctx.txHash)).Msg("tx execute time in vm")
+	}
 
 	// check if there is an error
 	err = ce.err
@@ -992,8 +1005,10 @@ func Create(
 	ce := newExecutor(bytecode, contractAddress, ctx, &ci, ctx.curContract.amount, true, false, contractState)
 	defer ce.close()
 
-	// call the constructor
-	ce.call(callMaxInstLimit, nil)
+	if err == nil {
+		// call the constructor
+		ce.call(callMaxInstLimit, nil)
+	}
 
 	// check if the call failed
 	err = ce.err
@@ -1120,7 +1135,9 @@ func Query(contractAddress []byte, bs *state.BlockState, cdb ChainAccessor, cont
 		}
 	}()
 
-	ce.call(queryMaxInstLimit, nil)
+	if err == nil {
+		ce.call(queryMaxInstLimit, nil)
+	}
 
 	return []byte(ce.jsonRet), ce.err
 }
@@ -1194,7 +1211,9 @@ func CheckFeeDelegation(contractAddress []byte, bs *state.BlockState, bi *types.
 		}
 	}()
 
-	ce.call(queryMaxInstLimit, nil)
+	if err == nil {
+		ce.call(queryMaxInstLimit, nil)
+	}
 
 	if ce.err != nil {
 		return ce.err
