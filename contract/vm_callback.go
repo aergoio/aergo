@@ -620,6 +620,10 @@ func luaSetRecoveryPoint(L *LState, service C.int) (C.int, *C.char) {
 		return 0, nil
 	}
 	curContract := ctx.curContract
+	// if it is the multicall code, ignore
+	if curContract.callState.ctrState.IsMultiCall() {
+		return 0, nil
+	}
 	seq, err := setRecoveryPoint(types.ToAccountID(curContract.contractId), ctx, nil,
 		curContract.callState, zeroBig, false, false)
 	if err != nil {
@@ -631,16 +635,16 @@ func luaSetRecoveryPoint(L *LState, service C.int) (C.int, *C.char) {
 	return C.int(seq), nil
 }
 
-func clearRecovery(L *LState, ctx *vmContext, start int, error bool) error {
+func clearRecovery(L *LState, ctx *vmContext, start int, isError bool) error {
 	item := ctx.lastRecoveryEntry
 	for {
-		if error {
+		if isError {
 			if item.recovery(ctx.bs) != nil {
 				return errors.New("database error")
 			}
 		}
 		if item.seq == start {
-			if error || item.prev == nil {
+			if isError || item.prev == nil {
 				ctx.lastRecoveryEntry = item.prev
 			}
 			return nil
@@ -653,16 +657,16 @@ func clearRecovery(L *LState, ctx *vmContext, start int, error bool) error {
 }
 
 //export luaClearRecovery
-func luaClearRecovery(L *LState, service C.int, start int, error bool) *C.char {
+func luaClearRecovery(L *LState, service C.int, start int, isError bool) *C.char {
 	ctx := contexts[service]
 	if ctx == nil {
 		return C.CString("[Contract.pcall] contract state not found")
 	}
-	err := clearRecovery(L, ctx, start, error)
+	err := clearRecovery(L, ctx, start, isError)
 	if err != nil {
 		return C.CString(err.Error())
 	}
-	if ctx.traceFile != nil && error == true {
+	if ctx.traceFile != nil && isError == true {
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("pcall recovery snapshot : %d\n", start))
 	}
 	return nil
@@ -682,7 +686,6 @@ func luaGetBalance(L *LState, service C.int, contractId *C.char) (*C.char, *C.ch
 	cs := ctx.callState[aid]
 	if cs == nil {
 		bs := ctx.bs
-
 		as, err := bs.GetAccountState(aid)
 		if err != nil {
 			return nil, C.CString("[Contract.LuaGetBalance] getAccount error: " + err.Error())

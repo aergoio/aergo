@@ -191,6 +191,11 @@ func GetMultiCallState(id []byte, st *types.State) (*ContractState) {
 	return res
 }
 
+// this refers to the specific contract, not the transaction
+func (ctrState *ContractState) IsMultiCall() bool {
+	return ctrState.storage == nil
+}
+
 func OpenContractStateAccount(id []byte, states *StateDB) (*ContractState, error) {
 	aid := types.ToAccountID(id)
 	st, err := states.GetAccountState(aid)
