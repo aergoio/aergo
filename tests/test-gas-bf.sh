@@ -6,7 +6,11 @@ fork_version=$1
 
 echo "-- deploy --"
 
-deploy ../contract/vm_dummy/test_files/gas_bf.lua
+if [ "$fork_version" -eq "4" ]; then
+  deploy ../contract/vm_dummy/test_files/gas_bf_v4.lua
+else
+  deploy ../contract/vm_dummy/test_files/gas_bf_v2.lua
+fi
 
 get_receipt $txhash
 
@@ -32,7 +36,7 @@ assert_equals "$status"   "SUCCESS"
 #assert_equals "$ret"      ""
 
 if [ "$fork_version" -eq "4" ]; then
-  assert_equals "$gasUsed"  "57105265"
+  assert_equals "$gasUsed"  "47342481"
 elif [ "$fork_version" -eq "3" ]; then
   assert_equals "$gasUsed"  "47456046"
 else

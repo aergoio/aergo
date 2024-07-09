@@ -61,26 +61,19 @@ add_test "loop_n_branche_ops" 146372
 add_test "function_header_ops" 143016
 
 add_test "assert" 143146
-add_test "getfenv" 143041
-add_test "metatable" 143988
 add_test "ipairs" 143039
 add_test "pairs" 143039
 add_test "next" 143087
-add_test "rawequal" 143216
-add_test "rawget" 143087
-add_test "rawset" 143941
 add_test "select" 143166
-add_test "setfenv" 143076
 add_test "tonumber" 143186
 add_test "tostring" 143457
 add_test "type" 143285
 add_test "unpack" 150745
-add_test "pcall" 146165
-add_test "xpcall" 146437
+add_test "pcall" 147905
+add_test "xpcall" 148177
 
 add_test "string.byte" 157040
 add_test "string.char" 160397
-add_test "string.dump" 150349
 add_test "string.find" 147808
 add_test "string.format" 143764
 add_test "string.gmatch" 143799

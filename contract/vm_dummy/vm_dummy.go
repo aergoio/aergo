@@ -20,6 +20,7 @@ import (
 	"github.com/aergoio/aergo/v2/contract"
 	"github.com/aergoio/aergo/v2/contract/system"
 	"github.com/aergoio/aergo/v2/fee"
+	"github.com/aergoio/aergo/v2/internal/enc/hex"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/state/statedb"
@@ -409,6 +410,7 @@ func hash(id uint64) []byte {
 
 type luaTxDeploy struct {
 	luaTxContractCommon
+	isCompiled bool
 	cErr error
 }
 
@@ -416,6 +418,35 @@ var _ LuaTxTester = (*luaTxDeploy)(nil)
 
 func NewLuaTxDeploy(sender, recipient string, amount uint64, code string) *luaTxDeploy {
 	return NewLuaTxDeployBig(sender, recipient, types.NewAmount(amount, types.Aer), code)
+}
+
+func NewLuaTxDeployBig(sender, recipient string, amount *big.Int, code string) *luaTxDeploy {
+	var payload []byte
+	var isCompiled bool
+	var err error
+
+	if hex.IsHexString(code) {
+		payload, err = hex.Decode(code)
+		if err != nil {
+			return &luaTxDeploy{cErr: err}
+		}
+		isCompiled = true
+	} else {
+		payload = util.NewLuaCodePayload([]byte(code), nil)
+		isCompiled = false
+	}
+
+	return &luaTxDeploy{
+		luaTxContractCommon: luaTxContractCommon{
+			_sender:    contract.StrHash(sender),
+			_recipient: contract.StrHash(recipient),
+			_payload:   payload,
+			_amount:    amount,
+			txId:       newTxId(),
+		},
+		isCompiled: isCompiled,
+		cErr: nil,
+	}
 }
 
 /*
@@ -446,7 +477,7 @@ func (l *luaTxDeploy) okMsg() string {
 }
 
 func (l *luaTxDeploy) Constructor(args string) *luaTxDeploy {
-	if len(args) == 0 || strings.Compare(args, "[]") == 0 || l.cErr != nil {
+	if len(args) == 0 || strings.Compare(args, "[]") == 0 || l.isCompiled || l.cErr != nil {
 		return l
 	}
 	l._payload = util.NewLuaCodePayload(util.LuaCodePayload(l._payload).Code(), []byte(args))
@@ -557,6 +588,16 @@ func contractFrame(l luaTxContract, bs *state.BlockState, cdb contract.ChainAcce
 func (l *luaTxDeploy) run(execCtx context.Context, bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error {
 	if l.cErr != nil {
 		return l.cErr
+	}
+	if bc.HardforkVersion < 4 && !l.isCompiled {
+		// compile the plain code to bytecode
+		payload := util.LuaCodePayload(l._payload)
+		code := string(payload.Code())
+		byteCode, err := contract.Compile(code, nil)
+		if err != nil {
+			return err
+		}
+		l._payload = util.NewLuaCodePayload(byteCode, payload.Args())
 	}
 	return contractFrame(l, bs, bc, receiptTx,
 		func(sender, contractV *state.AccountState, contractId types.AccountID, eContractState *statedb.ContractState) (string, []*types.Event, *big.Int, error) {

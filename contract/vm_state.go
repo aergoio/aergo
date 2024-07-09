@@ -88,6 +88,8 @@ type recoveryEntry struct {
 func (re *recoveryEntry) recovery(bs *state.BlockState) error {
 	var zero big.Int
 	cs := re.callState
+
+	// restore the contract balance
 	if re.amount.Cmp(&zero) > 0 {
 		if re.senderState != nil {
 			re.senderState.AddBalance(re.amount)
@@ -99,6 +101,8 @@ func (re *recoveryEntry) recovery(bs *state.BlockState) error {
 	if re.onlySend {
 		return nil
 	}
+
+	// restore the contract nonce
 	if re.senderState != nil {
 		re.senderState.SetNonce(re.senderNonce)
 	}
@@ -106,19 +110,23 @@ func (re *recoveryEntry) recovery(bs *state.BlockState) error {
 	if cs == nil {
 		return nil
 	}
+
+	// restore the contract state
 	if re.stateRevision != -1 {
 		err := cs.ctrState.Rollback(re.stateRevision)
 		if err != nil {
 			return newDbSystemError(err)
 		}
 		if re.isDeploy {
-			err := cs.ctrState.SetCode(nil)
+			err := cs.ctrState.SetCode(nil, nil)
 			if err != nil {
 				return newDbSystemError(err)
 			}
 			bs.RemoveCache(cs.ctrState.GetAccountID())
 		}
 	}
+
+	// restore the contract SQL db state
 	if cs.tx != nil {
 		if re.sqlSaveName == nil {
 			err := cs.tx.rollbackToSavepoint()
@@ -133,6 +141,7 @@ func (re *recoveryEntry) recovery(bs *state.BlockState) error {
 			}
 		}
 	}
+
 	return nil
 }
 

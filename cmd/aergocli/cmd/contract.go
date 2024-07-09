@@ -71,17 +71,17 @@ func init() {
 	contractCmd.PersistentFlags().Uint64VarP(&gas, "gaslimit", "g", 0, "Gas limit")
 
 	deployCmd := &cobra.Command{
-		Use: `deploy [flags] --payload 'payload string' <creatorAddress> [args]
-  aergocli contract deploy [flags] <creatorAddress> <bcfile> <abifile> [args]
+		Use: `deploy [flags] <creatorAddress> <path-to-lua-file> [args]
+  aergocli contract deploy [flags] <creatorAddress> --payload 'payload string' [args]
   
-  You can pass constructor arguments by passing a JSON string as the optional final parameter, e.g. "[1, 2, 3]".`,
-		Short:                 "Deploy a compiled contract to the server",
-		Args:                  nArgs([]int{1, 2, 3, 4}),
+  You can pass arguments to the constructor() function by passing a JSON string as the optional final parameter, e.g. '[1, "test"]'`,
+		Short:                 "Deploy a contract to the server",
+		Args:                  nArgs([]int{1, 2, 3}),
 		RunE:                  runDeployCmd,
 		DisableFlagsInUseLine: true,
 	}
 	deployCmd.PersistentFlags().Uint64Var(&nonce, "nonce", 0, "manually set a nonce (default: set nonce automatically)")
-	deployCmd.PersistentFlags().StringVar(&data, "payload", "", "result of compiling a contract")
+	deployCmd.PersistentFlags().StringVar(&data, "payload", "", "result of compiling a contract with aergoluac")
 	deployCmd.PersistentFlags().StringVar(&amount, "amount", "0", "amount of token to send with deployment, in aer")
 	deployCmd.PersistentFlags().StringVarP(&contractID, "redeploy", "r", "", "redeploy the contract")
 	deployCmd.Flags().StringVar(&pw, "password", "", "password (optional, will be asked on the terminal if not given)")
@@ -145,20 +145,6 @@ func init() {
 	rootCmd.AddCommand(contractCmd)
 }
 
-func isHexString(s string) bool {
-	// check is the input has even number of characters
-	if len(s)%2 != 0 {
-		return false
-	}
-	// check if the input contains only hex characters
-	for _, c := range s {
-		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
-			return false
-		}
-	}
-	return true
-}
-
 func runDeployCmd(cmd *cobra.Command, args []string) error {
 	var err error
 	var code []byte
@@ -179,9 +165,18 @@ func runDeployCmd(cmd *cobra.Command, args []string) error {
 		nonce = state.GetNonce() + 1
 	}
 
+	chainInfo, err := client.GetChainInfo(context.Background(), &types.Empty{})
+	if err != nil {
+		return fmt.Errorf("could not retrieve chain info: %v", err.Error())
+	}
+
 	var payload []byte
 	if len(data) == 0 {
-		if len(args) < 3 {
+		if chainInfo.Id.Version < 4 {
+			cmd.SilenceUsage = false
+			return errors.New("for old hardforks use aergoluac and --payload method instead")
+		}
+		if len(args) < 2 {
 			cmd.SilenceUsage = false
 			return errors.New("not enough arguments")
 		}
@@ -189,21 +184,20 @@ func runDeployCmd(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return fmt.Errorf("failed to read code file: %v", err.Error())
 		}
-		var abi []byte
-		abi, err = os.ReadFile(args[2])
-		if err != nil {
-			return fmt.Errorf("failed to read abi file: %v", err.Error())
-		}
-		if len(args) == 4 {
+		if len(args) == 3 {
 			var ci types.CallInfo
-			err = json.Unmarshal([]byte(args[3]), &ci.Args)
+			err = json.Unmarshal([]byte(args[2]), &ci.Args)
 			if err != nil {
-				return fmt.Errorf("failed to parse JSON: %v", err.Error())
+				return fmt.Errorf("failed to parse arguments (JSON): %v", err.Error())
 			}
-			deployArgs = []byte(args[3])
+			deployArgs = []byte(args[2])
 		}
-		payload = luac.NewLuaCodePayload(luac.NewLuaCode(code, abi), deployArgs)
+		payload = luac.NewLuaCodePayload(luac.LuaCode(code), deployArgs)
 	} else {
+		if chainInfo.Id.Version >= 4 {
+			cmd.SilenceUsage = false
+			return errors.New("this chain only accepts deploy in plain source code\nuse the other method instead")
+		}
 		if len(args) == 2 {
 			var ci types.CallInfo
 			err = json.Unmarshal([]byte(args[1]), &ci.Args)
@@ -213,7 +207,11 @@ func runDeployCmd(cmd *cobra.Command, args []string) error {
 			deployArgs = []byte(args[1])
 		}
 		// check if the data is in hex format
-		if isHexString(data) {
+		if hex.IsHexString(data) {
+			if deployArgs != nil {
+				cmd.SilenceUsage = false
+				return errors.New("the call arguments are expected to be already on the hex data")
+			}
 			// the data is expected to be copied from aergoscan view of
 			// the transaction that deployed the contract
 			payload, err = hex.Decode(data)

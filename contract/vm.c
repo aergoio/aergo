@@ -4,6 +4,7 @@
 #include "vm.h"
 #include "system_module.h"
 #include "contract_module.h"
+#include "name_module.h"
 #include "db_module.h"
 #include "state_module.h"
 #include "crypto_module.h"
@@ -23,6 +24,13 @@ extern void (*lj_internal_view_end)(lua_State *);
 void vm_internal_view_start(lua_State *L);
 void vm_internal_view_end(lua_State *L);
 
+int getLuaExecContext(lua_State *L) {
+	int service = luaL_service(L);
+	if (service < 0)
+		luaL_error(L, "not permitted state referencing at global scope");
+	return service;
+}
+
 #ifdef MEASURE
 static int nsec(lua_State *L) {
 	lua_pushnumber(L, luaL_nanosecond(L));
@@ -41,8 +49,37 @@ static void preloadModules(lua_State *L) {
 	luaopen_bignum(L);
 	luaopen_utf8(L);
 
+	if (vm_is_hardfork(L, 4)) {
+		luaopen_name(L);
+	}
+
 	if (!isPublic()) {
 		luaopen_db(L);
+	}
+
+	if (vm_is_hardfork(L, 4)) {
+		lua_getglobal(L, "_G");
+		// disable getmetatable
+		lua_pushnil(L);
+		lua_setfield(L, -2, "getmetatable");
+		// disable setmetatable
+		lua_pushnil(L);
+		lua_setfield(L, -2, "setmetatable");
+		// disable rawget
+		lua_pushnil(L);
+		lua_setfield(L, -2, "rawget");
+		// disable rawset
+		lua_pushnil(L);
+		lua_setfield(L, -2, "rawset");
+		// disable rawequal
+		lua_pushnil(L);
+		lua_setfield(L, -2, "rawequal");
+		lua_pop(L, 1);
+		// disable string.dump
+		lua_getglobal(L, "string");
+		lua_pushnil(L);
+		lua_setfield(L, -2, "dump");
+		lua_pop(L, 1);
 	}
 
 #ifdef MEASURE
@@ -61,18 +98,181 @@ static void preloadModules(lua_State *L) {
 #endif
 }
 
+// overridden version of pcall
+// used to rollback state and drop events upon error
+static int pcall(lua_State *L) {
+	int argc = lua_gettop(L);
+	int service = getLuaExecContext(L);
+	int num_events = luaGetEventCount(L, service);
+	struct luaSetRecoveryPoint_return start_seq;
+	int ret;
+
+	if (argc < 1) {
+		return luaL_error(L, "pcall: not enough arguments");
+	}
+
+	lua_gasuse(L, 300);
+
+	start_seq = luaSetRecoveryPoint(L, service);
+	if (start_seq.r0 < 0) {
+		strPushAndRelease(L, start_seq.r1);
+		luaL_throwerror(L);
+	}
+
+	// the stack is like this:
+	//   func arg1 arg2 ... argn
+
+	// call the function
+	ret = lua_pcall(L, argc - 1, LUA_MULTRET, 0);
+
+	// if failed, drop the events
+	if (ret != 0) {
+		if (vm_is_hardfork(L, 4)) {
+			luaDropEvent(L, service, num_events);
+		}
+	}
+
+	// throw the error if out of memory
+	if (ret == LUA_ERRMEM) {
+		luaL_throwerror(L);
+	}
+
+	// insert the status at the bottom of the stack
+	lua_pushboolean(L, ret == 0);
+	lua_insert(L, 1);
+
+	// release the recovery point or revert the contract state
+	if (start_seq.r0 > 0) {
+		bool is_error = (ret != 0);
+		char *errStr = luaClearRecovery(L, service, start_seq.r0, is_error);
+		if (errStr != NULL) {
+			if (vm_is_hardfork(L, 4)) {
+				luaDropEvent(L, service, num_events);
+			}
+			strPushAndRelease(L, errStr);
+			luaL_throwerror(L);
+		}
+	}
+
+	// return the number of items in the stack
+	return lua_gettop(L);
+}
+
+// overridden version of xpcall
+// used to rollback state and drop events upon error
+static int xpcall(lua_State *L) {
+	int argc = lua_gettop(L);
+	int service = getLuaExecContext(L);
+	int num_events = luaGetEventCount(L, service);
+	struct luaSetRecoveryPoint_return start_seq;
+	int ret, errfunc;
+
+	if (argc < 2) {
+		return luaL_error(L, "xpcall: not enough arguments");
+	}
+
+	lua_gasuse(L, 300);
+
+	start_seq = luaSetRecoveryPoint(L, service);
+	if (start_seq.r0 < 0) {
+		strPushAndRelease(L, start_seq.r1);
+		luaL_throwerror(L);
+	}
+
+	// the stack is like this:
+	//   func errfunc arg1 arg2 ... argn
+
+	// check the error handler
+	errfunc = 2;
+	if (!lua_isfunction(L, errfunc)) {
+		return luaL_error(L, "xpcall: error handler is not a function");
+	}
+
+	// move the error handler to the first position
+	lua_pushvalue(L, 1);  // function
+	lua_pushvalue(L, 2);  // error handler
+	lua_replace(L, 1);    // 1: error handler
+	lua_replace(L, 2);    // 2: function
+
+	// now the stack is like this:
+	//   errfunc func arg1 arg2 ... argn
+
+	// update the error handler position
+	errfunc = 1;
+
+	// call the function
+	ret = lua_pcall(L, argc - 2, LUA_MULTRET, errfunc);
+
+	// if failed, drop the events
+	if (ret != 0) {
+		if (vm_is_hardfork(L, 4)) {
+			luaDropEvent(L, service, num_events);
+		}
+	}
+
+	// throw the error if out of memory
+	if (ret == LUA_ERRMEM) {
+		luaL_throwerror(L);
+	}
+
+	// ensure the stack has 1 free slot
+	if (!lua_checkstack(L, 1)) {
+		// return: false, "stack overflow"
+		lua_settop(L, 0);
+		lua_pushboolean(L, 0);
+		lua_pushliteral(L, "stack overflow");
+		return 2;
+	}
+
+	// store the status at the bottom of the stack, replacing the error handler
+	lua_pushboolean(L, ret == 0);
+	lua_replace(L, 1);
+
+	// release the recovery point or revert the contract state
+	if (start_seq.r0 > 0) {
+		bool is_error = (ret != 0);
+		char *errStr = luaClearRecovery(L, service, start_seq.r0, is_error);
+		if (errStr != NULL) {
+			if (vm_is_hardfork(L, 4)) {
+				luaDropEvent(L, service, num_events);
+			}
+			strPushAndRelease(L, errStr);
+			luaL_throwerror(L);
+		}
+	}
+
+	// return the number of items in the stack
+	return lua_gettop(L);
+}
+
+static const struct luaL_Reg _basefuncs[] = {
+	{"pcall", pcall},
+	{"xpcall", xpcall},
+	{NULL, NULL}};
+
+static void override_basefuncs(lua_State *L) {
+	// override Lua builtin functions
+	lua_getglobal(L, "_G");
+	luaL_register(L, NULL, _basefuncs);
+	lua_pop(L, 1);
+}
+
 static int loadLibs(lua_State *L) {
 	luaL_openlibs(L);
 	preloadModules(L);
+	if (vm_is_hardfork(L, 4)) {
+		// override pcall to drop events upon error
+		override_basefuncs(L);
+	}
 	return 0;
 }
 
 lua_State *vm_newstate(int hardfork_version) {
-	int status;
 	lua_State *L = luaL_newstate(hardfork_version);
 	if (L == NULL)
 		return NULL;
-	status = lua_cpcall(L, loadLibs, NULL);
+	// hardfork version set before loading modules
+	int status = lua_cpcall(L, loadLibs, NULL);
 	if (status != 0)
 		return NULL;
 	return L;
@@ -89,14 +289,6 @@ void vm_closestates(lua_State *s[], int count) {
 void initViewFunction() {
 	lj_internal_view_start = vm_internal_view_start;
 	lj_internal_view_end = vm_internal_view_end;
-}
-
-int getLuaExecContext(lua_State *L) {
-	int service = luaL_service(L);
-	if (service < 0) {
-		luaL_error(L, "not permitted state referencing at global scope");
-	}
-	return service;
 }
 
 bool vm_is_hardfork(lua_State *L, int version) {
