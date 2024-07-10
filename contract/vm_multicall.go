@@ -25,7 +25,7 @@ action = {
 
   -- variables
   let = function (x,y,z) if z then y = convert_bignum(y,z) end vars[x] = y end,
-  store = function (n) vars[n] = vars['last_result'] end,
+  ["store result as"] = function (n) vars[n] = vars['last_result'] end,
 
   -- tables
   get = function (o,k) return o[k] end,
