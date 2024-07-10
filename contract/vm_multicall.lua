@@ -129,16 +129,28 @@ function execute(calls)
     elseif cmd == "end" then
       if_on = true
 
-    -- for foreach forpair break loop
+    -- for foreach break loop
     elseif cmd == "for each" and if_on then
-      for_var2 = "__"
-      for_obj = {}
-      for_list = args[2]
-    elseif cmd == "for pair" and if_on then
-      for_var2 = args[2]
-      for_obj = args[3]
-      for_list = action["get keys"](for_obj)
-      vars[for_var2] = for_obj[for_list[1]]
+      -- "for each", "item", "in", "list"
+      if args[2] == "in" then
+        for_var2 = "__"
+        for_obj = {}
+        for_list = args[3]
+      -- "for each", "key", "value", "in", "object"
+      elseif args[3] == "in" then
+        for_var2 = args[2]
+        for_obj = args[4]
+        for_list = action["get keys"](for_obj)
+        vars[for_var2] = for_obj[for_list[1]]
+      else
+        assert(false, "for each: invalid syntax")
+      end
+      for_cmdpos = cmdpos
+      for_type = "each"
+      for_var = args[1]
+      for_pos = 1
+      vars[for_var] = for_list[1]
+      skip_for = (for_list[1] == nil)  -- if the list is empty or it is a dictionary
     elseif cmd == "for" and if_on then
       for_cmdpos = cmdpos
       for_type = "number"
@@ -177,15 +189,6 @@ function execute(calls)
       return unpack(args)  -- or the array itself
     elseif if_on then
       assert(false, "command not found: " .. cmd)
-    end
-
-    if if_on and (cmd == "for each" or cmd == "for pair") then
-      for_cmdpos = cmdpos
-      for_type = "each"
-      for_var = args[1]
-      for_pos = 1
-      vars[for_var] = for_list[1]
-      skip_for = (for_list[1] == nil)  -- if the list is empty or it is a dictionary
     end
 
     if skip_for then
