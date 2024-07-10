@@ -4783,7 +4783,7 @@ func TestComposableTransactions(t *testing.T) {
 		// create new dict or array using fromjson
 
 		multicall(t, bc, "ac1", `[
-		 ["fromjson","{\"one\":1,\"two\":2}"],
+		 ["from json","{\"one\":1,\"two\":2}"],
 		 ["set","%last_result%","three",3],
 		 ["return","%last_result%"]
 		]`, ``, `{"one":1,"three":3,"two":2}`)
@@ -4821,34 +4821,34 @@ func TestComposableTransactions(t *testing.T) {
 		]`, ``, `["one",22,3.3,true,false]`)
 
 
-		// get_size
+		// get size
 
 		multicall(t, bc, "ac1", `[
 		 ["let","str","this is a string"],
-		 ["get_size","%str%"],
+		 ["get size","%str%"],
 		 ["return","%last_result%"]
 		]`, ``, `16`)
 
 		multicall(t, bc, "ac1", `[
 		 ["let","list",["one",1,"two",2,2.5,true,false]],
-		 ["get_size","%list%"],
+		 ["get size","%list%"],
 		 ["return","%last_result%"]
 		]`, ``, `7`)
 
 		multicall(t, bc, "ac1", `[
 		 ["let","obj",{"one":1,"two":2,"three":3}],
-		 ["get_size","%obj%"],
+		 ["get size","%obj%"],
 		 ["return","%last_result%"]
 		]`, ``, `0`)
 
 
-		// get_keys
+		// get keys
 
 		multicall(t, bc, "ac1", `[
 		 ["let","obj",{"one":1,"two":2,"three":3}],
-		 ["get_keys","%obj%"],
+		 ["get keys","%obj%"],
 		 ["store","keys"],
-		 ["get_size","%keys%"],
+		 ["get size","%keys%"],
 		 ["return","%last_result%","%keys%"]
 		]`, ``, `[3,["one","three","two"]]`)
 
@@ -4858,56 +4858,56 @@ func TestComposableTransactions(t *testing.T) {
 		// BIGNUM
 
 		multicall(t, bc, "ac1", `[
-		 ["tobignum",123],
+		 ["to big number",123],
 		 ["store","a"],
-		 ["tobignum",123],
+		 ["to big number",123],
 		 ["store","b"],
-		 ["mul","%a%","%b%"],
+		 ["multiply","%a%","%b%"],
 		 ["return","%last_result%"]
 		]`, ``, `{"_bignum":"15129"}`)
 
 		multicall(t, bc, "ac1", `[
-		 ["tobignum","500000000000000000000"],
+		 ["to big number","500000000000000000000"],
 		 ["store","a"],
-		 ["tobignum","100000"],
+		 ["to big number","100000"],
 		 ["store","b"],
-		 ["div","%a%","%b%"],
+		 ["divide","%a%","%b%"],
 		 ["return","%last_result%"]
 		]`, ``, `{"_bignum":"5000000000000000"}`)
 
 		multicall(t, bc, "ac1", `[
-		 ["tobignum","500000000000000000000"],
+		 ["to big number","500000000000000000000"],
 		 ["store","a"],
-		 ["tobignum","100000"],
+		 ["to big number","100000"],
 		 ["store","b"],
-		 ["div","%a%","%b%"],
-		 ["tostring","%last_result%"],
+		 ["divide","%a%","%b%"],
+		 ["to string","%last_result%"],
 		 ["return","%last_result%"]
 		]`, ``, `"5000000000000000"`)
 
 		multicall(t, bc, "ac1", `[
-		 ["tobignum","500000000000000000000"],
+		 ["to big number","500000000000000000000"],
 		 ["store","a"],
 
-		 ["tobignum","100000"],
-		 ["div","%a%","%last_result%"],
+		 ["to big number","100000"],
+		 ["divide","%a%","%last_result%"],
 		 ["store","a"],
 
-		 ["tobignum","1000000000000000"],
-		 ["sub","%a%","%last_result%"],
+		 ["to big number","1000000000000000"],
+		 ["subtract","%a%","%last_result%"],
 		 ["store","a"],
 
-		 ["tobignum","1234"],
+		 ["to big number","1234"],
 		 ["add","%a%","%last_result%"],
 		 ["store","a"],
 
-		 ["tobignum","2"],
+		 ["to big number","2"],
 		 ["pow","%a%","%last_result%"],
 		 ["sqrt","%last_result%"],
 		 ["store","a"],
 
-		 ["tobignum","2"],
-		 ["mod","%a%","10000"],
+		 ["to big number","2"],
+		 ["remainder","%a%","10000"],
 
 		 ["return","%last_result%"]
 		]`, ``, `{"_bignum":"1234"}`)
@@ -4935,34 +4935,34 @@ func TestComposableTransactions(t *testing.T) {
 
 		multicall(t, bc, "ac1", `[
 		 ["let","s","hello world"],
-		 ["substr","%s%",1,4],
+		 ["extract","%s%",1,4],
 		 ["return","%last_result%"]
 		]`, ``, `"hell"`)
 
 		multicall(t, bc, "ac1", `[
 		 ["let","s","hello world"],
-		 ["substr","%s%",-2,-1],
+		 ["extract","%s%",-2,-1],
 		 ["return","%last_result%"]
 		]`, ``, `"ld"`)
 
 		multicall(t, bc, "ac1", `[
 		 ["let","s","the amount is 12345"],
 		 ["find","%s%","%d+"],
-		 ["tonumber","%last_result%"],
+		 ["to number","%last_result%"],
 		 ["return","%last_result%"]
 		]`, ``, `12345`)
 
 		multicall(t, bc, "ac1", `[
 		 ["let","s","rate: 55 10%"],
 		 ["find","%s%","(%d+)%%"],
-		 ["tonumber","%last_result%"],
+		 ["to number","%last_result%"],
 		 ["return","%last_result%"]
 		]`, ``, `10`)
 
 		multicall(t, bc, "ac1", `[
 		 ["let","s","rate: 12%"],
 		 ["find","%s%","%s*(%d+)%%"],
-		 ["tonumber","%last_result%"],
+		 ["to number","%last_result%"],
 		 ["return","%last_result%"]
 		]`, ``, `12`)
 
@@ -4973,7 +4973,7 @@ func TestComposableTransactions(t *testing.T) {
 		]`, ``, `"good bye world"`)
 
 		multicall(t, bc, "ac1", `[
-		 ["fromjson","{\"name\":\"ticket\",\"value\":12.5,\"amount\":10}"],
+		 ["from json","{\"name\":\"ticket\",\"value\":12.5,\"amount\":10}"],
 		 ["replace","name = $name, value = $value, amount = $amount","%$(%w+)","%last_result%"],
 		 ["return","%last_result%"]
 		]`, ``, `"name = ticket, value = 12.5, amount = 10"`)
@@ -4985,7 +4985,7 @@ func TestComposableTransactions(t *testing.T) {
 		 ["let","s",20],
 		 ["if","%s%",">=",20],
 		 ["let","b","big"],
-		 ["elif","%s%",">=",10],
+		 ["else if","%s%",">=",10],
 		 ["let","b","medium"],
 		 ["else"],
 		 ["let","b","low"],
@@ -4998,7 +4998,7 @@ func TestComposableTransactions(t *testing.T) {
 		 ["let","s",10],
 		 ["if","%s%",">=",20],
 		 ["let","b","big"],
-		 ["elif","%s%",">=",10],
+		 ["else if","%s%",">=",10],
 		 ["let","b","medium"],
 		 ["else"],
 		 ["let","b","low"],
@@ -5011,7 +5011,7 @@ func TestComposableTransactions(t *testing.T) {
 		 ["let","s",5],
 		 ["if","%s%",">=",20],
 		 ["let","b","big"],
-		 ["elif","%s%",">=",10],
+		 ["else if","%s%",">=",10],
 		 ["let","b","medium"],
 		 ["else"],
 		 ["let","b","low"],
@@ -5024,7 +5024,7 @@ func TestComposableTransactions(t *testing.T) {
 		 ["let","s",20],
 		 ["if","%s%",">=",20],
 		 ["return","big"],
-		 ["elif","%s%",">=",10],
+		 ["else if","%s%",">=",10],
 		 ["return","medium"],
 		 ["else"],
 		 ["return","low"],
@@ -5036,7 +5036,7 @@ func TestComposableTransactions(t *testing.T) {
 		 ["let","s",10],
 		 ["if","%s%",">=",20],
 		 ["return","big"],
-		 ["elif","%s%",">=",10],
+		 ["else if","%s%",">=",10],
 		 ["return","medium"],
 		 ["else"],
 		 ["return","low"],
@@ -5048,7 +5048,7 @@ func TestComposableTransactions(t *testing.T) {
 		 ["let","s",5],
 		 ["if","%s%",">=",20],
 		 ["return","big"],
-		 ["elif","%s%",">=",10],
+		 ["else if","%s%",">=",10],
 		 ["return","medium"],
 		 ["else"],
 		 ["return","low"],
@@ -5058,9 +5058,9 @@ func TestComposableTransactions(t *testing.T) {
 
 
 		multicall(t, bc, "ac1", `[
-		 ["tobignum","500000000000000000000"],
+		 ["to big number","500000000000000000000"],
 		 ["store","a"],
-		 ["tobignum","500000000000000000000"],
+		 ["to big number","500000000000000000000"],
 		 ["store","b"],
 		 ["if","%a%","=","%b%"],
 		 ["let","b","equal"],
@@ -5071,9 +5071,9 @@ func TestComposableTransactions(t *testing.T) {
 		]`, ``, `"equal"`)
 
 		multicall(t, bc, "ac1", `[
-		 ["tobignum","500000000000000000000"],
+		 ["to big number","500000000000000000000"],
 		 ["store","a"],
-		 ["tobignum","500000000000000000001"],
+		 ["to big number","500000000000000000001"],
 		 ["store","b"],
 		 ["if","%a%","=","%b%"],
 		 ["let","b","equal"],
@@ -5084,9 +5084,9 @@ func TestComposableTransactions(t *testing.T) {
 		]`, ``, `"diff"`)
 
 		multicall(t, bc, "ac1", `[
-		 ["tobignum","500000000000000000001"],
+		 ["to big number","500000000000000000001"],
 		 ["store","a"],
-		 ["tobignum","500000000000000000000"],
+		 ["to big number","500000000000000000000"],
 		 ["store","b"],
 		 ["if","%a%",">","%b%"],
 		 ["let","b","bigger"],
@@ -5097,9 +5097,9 @@ func TestComposableTransactions(t *testing.T) {
 		]`, ``, `"bigger"`)
 
 		multicall(t, bc, "ac1", `[
-		 ["tobignum","500000000000000000000"],
+		 ["to big number","500000000000000000000"],
 		 ["store","a"],
-		 ["tobignum","500000000000000000001"],
+		 ["to big number","500000000000000000001"],
 		 ["store","b"],
 		 ["if","%a%",">","%b%"],
 		 ["let","b","bigger"],
@@ -5111,13 +5111,13 @@ func TestComposableTransactions(t *testing.T) {
 
 
 		multicall(t, bc, "ac1", `[
-		 ["tobignum","500000000000000000000"],
+		 ["to big number","500000000000000000000"],
 		 ["store","a"],
-		 ["tobignum","500000000000000000001"],
+		 ["to big number","500000000000000000001"],
 		 ["store","b"],
 		 ["if","%a%","<","%b%","and","1","=","0"],
 		 ["let","b","wrong 1"],
-		 ["elif","%a%","<","%b%","and","1","=","1"],
+		 ["else if","%a%","<","%b%","and","1","=","1"],
 		 ["let","b","correct"],
 		 ["else"],
 		 ["let","b","wrong 2"],
@@ -5126,13 +5126,13 @@ func TestComposableTransactions(t *testing.T) {
 		]`, ``, `"correct"`)
 
 		multicall(t, bc, "ac1", `[
-		 ["tobignum","500000000000000000000"],
+		 ["to big number","500000000000000000000"],
 		 ["store","a"],
-		 ["tobignum","500000000000000000001"],
+		 ["to big number","500000000000000000001"],
 		 ["store","b"],
 		 ["if","%a%","<","%b%","and",1,"=",0],
 		 ["let","b","wrong 1"],
-		 ["elif","%a%","<","%b%","and",1,"=",1],
+		 ["else if","%a%","<","%b%","and",1,"=",1],
 		 ["let","b","correct"],
 		 ["else"],
 		 ["let","b","wrong 2"],
@@ -5141,17 +5141,17 @@ func TestComposableTransactions(t *testing.T) {
 		]`, ``, `"correct"`)
 
 		multicall(t, bc, "ac1", `[
-		 ["tobignum","500000000000000000000"],
+		 ["to big number","500000000000000000000"],
 		 ["store","a"],
-		 ["tobignum","500000000000000000001"],
+		 ["to big number","500000000000000000001"],
 		 ["store","b"],
-		 ["tobignum","400000000000000000000"],
+		 ["to big number","400000000000000000000"],
 		 ["store","c"],
 		 ["if","%a%","<","%b%","and","%a%","<","%c%"],
 		 ["let","b","wrong 1"],
-		 ["elif","%a%",">","%b%","and","%a%",">","%c%"],
+		 ["else if","%a%",">","%b%","and","%a%",">","%c%"],
 		 ["let","b","wrong 2"],
-		 ["elif","%a%","<","%b%","and","%a%",">","%c%"],
+		 ["else if","%a%","<","%b%","and","%a%",">","%c%"],
 		 ["let","b","correct"],
 		 ["else"],
 		 ["let","b","wrong 3"],
@@ -5160,13 +5160,13 @@ func TestComposableTransactions(t *testing.T) {
 		]`, ``, `"correct"`)
 
 		multicall(t, bc, "ac1", `[
-		 ["tobignum","500000000000000000000"],
+		 ["to big number","500000000000000000000"],
 		 ["store","a"],
-		 ["tobignum","500000000000000000001"],
+		 ["to big number","500000000000000000001"],
 		 ["store","b"],
-		 ["tobignum","400000000000000000000"],
+		 ["to big number","400000000000000000000"],
 		 ["store","c"],
-		 ["tostring",0],
+		 ["to string",0],
 
 		 ["if","%a%",">","%b%","or","%a%","<","%c%"],
 		 ["format","%s%s","%last_result%","1"],
@@ -5288,7 +5288,7 @@ func TestComposableTransactions(t *testing.T) {
 		]`, ``, `6`)
 
 		multicall(t, bc, "ac1", `[
-		 ["tonumber","0"],
+		 ["to number","0"],
 		 ["for","n",1,5],
 		 ["add","%last_result%",1],
 		 ["loop"],
@@ -5296,21 +5296,21 @@ func TestComposableTransactions(t *testing.T) {
 		]`, ``, `5`)
 
 		multicall(t, bc, "ac1", `[
-		 ["tobignum","10000000000000000001"],
+		 ["to big number","10000000000000000001"],
 		 ["store","to_add"],
-		 ["tobignum","100000000000000000000"],
+		 ["to big number","100000000000000000000"],
 
 		 ["for","n",1,3],
 		 ["add","%last_result%","%to_add%"],
 		 ["loop"],
 
-		 ["tostring","%last_result%"],
+		 ["to string","%last_result%"],
 		 ["return","%last_result%"]
 		]`, ``, `"130000000000000000003"`)
 
 
 		multicall(t, bc, "ac1", `[
-		 ["tonumber","0"],
+		 ["to number","0"],
 		 ["for","n",500,10,-5],
 		 ["add","%last_result%",1],
 		 ["loop"],
@@ -5319,7 +5319,7 @@ func TestComposableTransactions(t *testing.T) {
 
 
 		multicall(t, bc, "ac1", `[
-		 ["tonumber","0"],
+		 ["to number","0"],
 		 ["for","n",5,1,-1],
 		 ["add","%last_result%",1],
 		 ["loop"],
@@ -5327,7 +5327,7 @@ func TestComposableTransactions(t *testing.T) {
 		]`, ``, `5`)
 
 		multicall(t, bc, "ac1", `[
-		 ["tonumber","0"],
+		 ["to number","0"],
 		 ["for","n",5,1],
 		 ["add","%last_result%",1],
 		 ["loop"],
@@ -5335,7 +5335,7 @@ func TestComposableTransactions(t *testing.T) {
 		]`, ``, `0`)
 
 		multicall(t, bc, "ac1", `[
-		 ["tonumber","0"],
+		 ["to number","0"],
 		 ["for","n",1,5],
 		 ["add","%last_result%",1],
 		 ["loop"],
@@ -5343,7 +5343,7 @@ func TestComposableTransactions(t *testing.T) {
 		]`, ``, `5`)
 
 		multicall(t, bc, "ac1", `[
-		 ["tonumber","0"],
+		 ["to number","0"],
 		 ["for","n",1,5,-1],
 		 ["add","%last_result%",1],
 		 ["loop"],
@@ -5357,7 +5357,7 @@ func TestComposableTransactions(t *testing.T) {
 		multicall(t, bc, "ac1", `[
 		 ["let","list",[11,22,33]],
 		 ["let","r",0],
-		 ["foreach","item","%list%"],
+		 ["for each","item","%list%"],
 		 ["add","%r%","%item%"],
 		 ["store","r"],
 		 ["loop"],
@@ -5367,7 +5367,7 @@ func TestComposableTransactions(t *testing.T) {
 		multicall(t, bc, "ac1", `[
 		 ["let","list",[11,22,33]],
 		 ["let","counter",0],
-		 ["foreach","item","%list%"],
+		 ["for each","item","%list%"],
 		 ["add","%counter%",1],
 		 ["store","counter"],
 		 ["loop"],
@@ -5377,7 +5377,7 @@ func TestComposableTransactions(t *testing.T) {
 		multicall(t, bc, "ac1", `[
 		 ["let","list",[]],
 		 ["let","counter",0],
-		 ["foreach","item","%list%"],
+		 ["for each","item","%list%"],
 		 ["add","%counter%",1],
 		 ["store","counter"],
 		 ["loop"],
@@ -5387,7 +5387,7 @@ func TestComposableTransactions(t *testing.T) {
 		multicall(t, bc, "ac1", `[
 		 ["let","list",["one",1,"two",2,2.5,true,false]],
 		 ["let","counter",0],
-		 ["foreach","item","%list%"],
+		 ["for each","item","%list%"],
 		 ["add","%counter%",1],
 		 ["store","counter"],
 		 ["loop"],
@@ -5397,7 +5397,7 @@ func TestComposableTransactions(t *testing.T) {
 		multicall(t, bc, "ac1", `[
 		 ["let","list",[10,21,32]],
 		 ["let","r",0],
-		 ["foreach","item","%list%"],
+		 ["for each","item","%list%"],
 		 ["if","%item%","<",30],
 		 ["add","%r%","%item%"],
 		 ["store","r"],
@@ -5410,9 +5410,9 @@ func TestComposableTransactions(t *testing.T) {
 		multicall(t, bc, "ac1", `[
 		 ["let","str",""],
 		 ["let","obj",{"one":1,"two":2,"three":3}],
-		 ["get_keys","%obj%"],
-		 ["foreach","key","%last_result%"],
-		 ["concat","%str%","%key%"],
+		 ["get keys","%obj%"],
+		 ["for each","key","%last_result%"],
+		 ["combine","%str%","%key%"],
 		 ["store","str"],
 		 ["loop"],
 		 ["return","%str%"]
@@ -5426,8 +5426,8 @@ func TestComposableTransactions(t *testing.T) {
 		 ["let","str",""],
 		 ["let","sum",0],
 		 ["let","obj",{"one":1,"two":2,"three":3}],
-		 ["forpair","key","value","%obj%"],
-		 ["concat","%str%","%key%"],
+		 ["for pair","key","value","%obj%"],
+		 ["combine","%str%","%key%"],
 		 ["store","str"],
 		 ["add","%sum%","%value%"],
 		 ["store","sum"],
@@ -5439,8 +5439,8 @@ func TestComposableTransactions(t *testing.T) {
 		 ["let","str",""],
 		 ["let","sum",0],
 		 ["let","obj",{"one":1.5,"two":2.5,"three":3.5,"four":4.5}],
-		 ["forpair","key","value","%obj%"],
-		 ["concat","%str%","%key%"],
+		 ["for pair","key","value","%obj%"],
+		 ["combine","%str%","%key%"],
 		 ["store","str"],
 		 ["add","%sum%","%value%"],
 		 ["store","sum"],
@@ -5452,7 +5452,7 @@ func TestComposableTransactions(t *testing.T) {
 		 ["let","names",[]],
 		 ["let","values",[]],
 		 ["let","obj",{"one":1.5,"two":2.5,"three":3.5,"four":4.5}],
-		 ["forpair","key","value","%obj%"],
+		 ["for pair","key","value","%obj%"],
 		 ["insert","%names%","%key%"],
 		 ["insert","%values%","%value%"],
 		 ["loop"],
@@ -5463,7 +5463,7 @@ func TestComposableTransactions(t *testing.T) {
 		 ["let","names",[]],
 		 ["let","values",[]],
 		 ["let","obj",{"one":1.5,"two":2.5,"three":3.5,"four":4.5}],
-		 ["forpair","key","value","%obj%"],
+		 ["for pair","key","value","%obj%"],
 		 ["insert","%names%","%key%"],
 		 ["insert","%values%","%value%"],
 		 ["loop"],
@@ -5475,7 +5475,7 @@ func TestComposableTransactions(t *testing.T) {
 		multicall(t, bc, "ac1", `[
 		 ["let","obj",{}],
 		 ["let","counter",0],
-		 ["forpair","key","value","%obj%"],
+		 ["for pair","key","value","%obj%"],
 		 ["add","%counter%",1],
 		 ["store","counter"],
 		 ["loop"],
@@ -5499,7 +5499,7 @@ func TestComposableTransactions(t *testing.T) {
 		]`, ``, `5`)
 
 		multicall(t, bc, "ac1", `[
-		 ["tonumber","0"],
+		 ["to number","0"],
 		 ["for","n",500,10,-5],
 		 ["add","%last_result%",1],
 		 ["if","%n%","=",475],
@@ -5532,7 +5532,7 @@ func TestComposableTransactions(t *testing.T) {
 		]`, ``, `5`)
 
 		multicall(t, bc, "ac1", `[
-		 ["tonumber","0"],
+		 ["to number","0"],
 		 ["for","n",500,10,-5],
 		 ["add","%last_result%",1],
 		 ["if","%n%","=",475],
@@ -5543,7 +5543,7 @@ func TestComposableTransactions(t *testing.T) {
 		]`, ``, `6`)
 
 		multicall(t, bc, "ac1", `[
-		 ["tonumber","0"],
+		 ["to number","0"],
 		 ["for","n",500,10,-5],
 		 ["add","%last_result%",1],
 		 ["break","if","%n%","=",475],
@@ -5567,7 +5567,7 @@ func TestComposableTransactions(t *testing.T) {
 		multicall(t, bc, "ac1", `[
 		 ["let","names",[]],
 		 ["let","list",["one","two","three","four"]],
-		 ["foreach","item","%list%"],
+		 ["for each","item","%list%"],
 		 ["if","%item%","=","three"],
 		 ["break"],
 		 ["end"],
@@ -5579,7 +5579,7 @@ func TestComposableTransactions(t *testing.T) {
 		multicall(t, bc, "ac1", `[
 		 ["let","names",[]],
 		 ["let","list",["one","two","three","four"]],
-		 ["foreach","item","%list%"],
+		 ["for each","item","%list%"],
 		 ["break","if","%item%","=","three"],
 		 ["insert","%names%","%item%"],
 		 ["loop"],
@@ -5589,7 +5589,7 @@ func TestComposableTransactions(t *testing.T) {
 		multicall(t, bc, "ac1", `[
 		 ["let","names",[]],
 		 ["let","obj",{"one":true,"two":false,"three":false,"four":true}],
-		 ["forpair","key","value","%obj%"],
+		 ["for pair","key","value","%obj%"],
 		 ["if","%value%","=",false],
 		 ["break"],
 		 ["end"],
@@ -5601,7 +5601,7 @@ func TestComposableTransactions(t *testing.T) {
 		multicall(t, bc, "ac1", `[
 		 ["let","names",[]],
 		 ["let","obj",{"one":true,"two":false,"three":false,"four":true}],
-		 ["forpair","key","value","%obj%"],
+		 ["for pair","key","value","%obj%"],
 		 ["break","if","%value%","=",false],
 		 ["insert","%names%","%key%"],
 		 ["loop"],
@@ -5694,7 +5694,7 @@ func TestComposableTransactions(t *testing.T) {
 
 		multicall(t, bc, "ac3", `[
 		 ["let","list",["first","second","third"]],
-		 ["foreach","item","%list%"],
+		 ["for each","item","%list%"],
 		 ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","add","%item%"],
 		 ["loop"]
 		]`)
@@ -5711,8 +5711,8 @@ func TestComposableTransactions(t *testing.T) {
 		multicall(t, bc, "ac3", `[
 		 ["let","list",["1st","2nd","3rd"]],
 		 ["let","n",1],
-		 ["foreach","item","%list%"],
-		 ["tostring","%n%"],
+		 ["for each","item","%list%"],
+		 ["to string","%n%"],
 		 ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","set","%last_result%","%item%"],
 		 ["add","%n%",1],
 		 ["store","n"],
@@ -5733,31 +5733,31 @@ func TestComposableTransactions(t *testing.T) {
 		// PCALL
 
 		multicall(t, bc, "ac1", `[
-		 ["pcall","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","works"],
+		 ["try call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","works"],
 		 ["get","%last_result%",1],
 		 ["assert","%last_result%","=",true],
-		 ["pcall","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","fails"],
+		 ["try call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","fails"],
 		 ["get","%last_result%",1],
 		 ["assert","%last_result%","=",false]
 		]`)
 
 		multicall(t, bc, "ac3", `[
-		 ["pcall","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","set_name","1st"],
+		 ["try call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","set_name","1st"],
 		 ["get","%last_result%",1],
 		 ["assert","%last_result%","=",true],
 
-		 ["pcall","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","get_name"],
+		 ["try call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","get_name"],
 		 ["store","ret"],
 		 ["get","%ret%",1],
 		 ["assert","%last_result%","=",true],
 		 ["get","%ret%",2],
 		 ["assert","%last_result%","=","1st"],
 
-		 ["pcall","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","set_name",22],
+		 ["try call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","set_name",22],
 		 ["get","%last_result%",1],
 		 ["assert","%last_result%","=",false],
 
-		 ["pcall","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","get_name"],
+		 ["try call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","get_name"],
 		 ["store","ret"],
 		 ["get","%ret%",1],
 		 ["assert","%last_result%","=",true],
@@ -5800,7 +5800,7 @@ func TestComposableTransactions(t *testing.T) {
 		]`, ``, `["testing multicall","contract 2","third one"]`)
 
 		multicall(t, bc, "ac0", `[
-		 ["fromjson","{}"],
+		 ["from json","{}"],
 		 ["store","res"],
 		 ["call","AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9","get_name"],
 		 ["set","%res%","r1","%last_result%"],
@@ -5832,7 +5832,7 @@ func TestComposableTransactions(t *testing.T) {
 		]`, ``, `["wohooooooo","it works!","it really works!"]`)
 
 		multicall(t, bc, "ac0", `[
-		 ["fromjson","{}"],
+		 ["from json","{}"],
 		 ["store","res"],
 		 ["call","AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9","get_name"],
 		 ["set","%res%","r1","%last_result%"],
@@ -5848,29 +5848,29 @@ func TestComposableTransactions(t *testing.T) {
 		// aergo BALANCE and SEND
 
 		multicall(t, bc, "ac5", `[
-		 ["balance"],
-		 ["tostring","%last_result%"],
+		 ["get balance"],
+		 ["to string","%last_result%"],
 		 ["assert","%last_result%","=","10000000000000000000"],
 		 ["return","%last_result%"]
 		]`, ``, `"10000000000000000000"`)
 
 		multicall(t, bc, "ac2", `[
-		 ["balance"],
-		 ["tostring","%last_result%"],
+		 ["get balance"],
+		 ["to string","%last_result%"],
 		 ["assert","%last_result%","=","10000000000000000000"],
 
-		 ["balance","AmgHyfkUt5iuXJKZNTrdthtXWLLJCrKWdJ6H6Yshn6ZR285Wr2Hc"],
-		 ["tostring","%last_result%"],
+		 ["get balance","AmgHyfkUt5iuXJKZNTrdthtXWLLJCrKWdJ6H6Yshn6ZR285Wr2Hc"],
+		 ["to string","%last_result%"],
 		 ["assert","%last_result%","=","0"],
 
 		 ["send","AmgHyfkUt5iuXJKZNTrdthtXWLLJCrKWdJ6H6Yshn6ZR285Wr2Hc","3000000000000000000"],
 
-		 ["balance","AmgHyfkUt5iuXJKZNTrdthtXWLLJCrKWdJ6H6Yshn6ZR285Wr2Hc"],
-		 ["tostring","%last_result%"],
+		 ["get balance","AmgHyfkUt5iuXJKZNTrdthtXWLLJCrKWdJ6H6Yshn6ZR285Wr2Hc"],
+		 ["to string","%last_result%"],
 		 ["assert","%last_result%","=","3000000000000000000"],
 
-		 ["balance"],
-		 ["tostring","%last_result%"],
+		 ["get balance"],
+		 ["to string","%last_result%"],
 		 ["assert","%last_result%","=","7000000000000000000"],
 
 		 ["return","%last_result%"]

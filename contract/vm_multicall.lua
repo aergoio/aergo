@@ -10,12 +10,12 @@ action = {
 
   -- contract call
   call = function (...) return contract.call(...) end,
-  ["call-send"] = function (amount,...) return contract.call.value(amount)(...) end,
-  ["pcall"] = function (...) return {pcall(contract.call,...)} end,
-  ["pcall-send"] = function (amount,...) return {pcall(contract.call.value(amount),...)} end,
+  ["call + send"] = function (amount,...) return contract.call.value(amount)(...) end,
+  ["try call"] = function (...) return {pcall(contract.call,...)} end,
+  ["try call + send"] = function (amount,...) return {pcall(contract.call.value(amount),...)} end,
 
   -- aergo balance and transfer
-  balance = function (address) return bignum.number(contract.balance(address)) end,
+  ["get balance"] = function (address) return bignum.number(contract.balance(address)) end,
   send = function (address,amount) return contract.send(address, amount) end,
 
   -- variables
@@ -27,8 +27,8 @@ action = {
   set = function (o,k,v) o[k] = v end,
   insert = function (...) table.insert(...) end,   -- inserts at the end if no pos informed
   remove = function (...) return table.remove(...) end,   -- returns the removed item
-  get_size = function (x) return #x end,
-  get_keys = function (obj)
+  ["get size"] = function (x) return #x end,
+  ["get keys"] = function (obj)
       local list = {}
       for key,_ in pairs(obj) do
         list[#list + 1] = key
@@ -39,26 +39,26 @@ action = {
 
   -- math
   add = function (x,y) return x+y end,
-  sub = function (x,y) return x-y end,
-  mul = function (x,y) return x*y end,
-  div = function (x,y) return x/y end,
+  ["subtract"] = function (x,y) return x-y end,
+  ["multiply"] = function (x,y) return x*y end,
+  ["divide"] = function (x,y) return x/y end,
+  ["remainder"] = function (x,y) return x%y end,
   pow = function (x,y) return x^y end,
-  mod = function (x,y) return x%y end,
   sqrt = function (x) return bignum.sqrt(x) end,  -- use pow(0.5) for numbers
 
   -- strings
-  concat = function (...) return table.concat({...}) end,
+  ["combine"] = function (...) return table.concat({...}) end,
   format = function (...) return string.format(...) end, -- for concat: ['format','%s%s','%val1%','%val2%']
-  substr = function (...) return string.sub(...) end,
+  ["extract"] = function (...) return string.sub(...) end,
   find = function (...) return string.match(...) end,
   replace = function (...) return string.gsub(...) end,
 
   -- conversions
-  tobignum = function (x) return bignum.number(x) end,
-  tonumber = function (x) return tonumber(x) end,
-  tostring = function (x) return tostring(x) end,     -- bignum to string
-  tojson   = function (x) return json.encode(x) end,
-  fromjson = function (x) return json.decode(x) end,  -- create tables
+  ["to big number"] = function (x) return bignum.number(x) end,
+  ["to number"] = function (x) return tonumber(x) end,
+  ["to string"] = function (x) return tostring(x) end,     -- bignum to string
+  ["to json"]   = function (x) return json.encode(x) end,
+  ["from json"] = function (x) return json.decode(x) end,  -- create tables
 
   -- assertion
   assert = function (...) assert(eval(...),"assertion failed: " .. json.encode({...})) end,
@@ -117,7 +117,7 @@ function execute(calls)
     elseif cmd == "if" then
       if_on = eval(unpack(args))
       if_done = if_on
-    elseif cmd == "elif" then
+    elseif cmd == "else if" then
       if if_on then
         if_on = false
       elseif not if_done then
@@ -130,14 +130,14 @@ function execute(calls)
       if_on = true
 
     -- for foreach forpair break loop
-    elseif cmd == "foreach" and if_on then
+    elseif cmd == "for each" and if_on then
       for_var2 = "__"
       for_obj = {}
       for_list = args[2]
-    elseif cmd == "forpair" and if_on then
+    elseif cmd == "for pair" and if_on then
       for_var2 = args[2]
       for_obj = args[3]
-      for_list = action["get_keys"](for_obj)
+      for_list = action["get keys"](for_obj)
       vars[for_var2] = for_obj[for_list[1]]
     elseif cmd == "for" and if_on then
       for_cmdpos = cmdpos
@@ -179,7 +179,7 @@ function execute(calls)
       assert(false, "command not found: " .. cmd)
     end
 
-    if if_on and (cmd == "foreach" or cmd == "forpair") then
+    if if_on and (cmd == "for each" or cmd == "for pair") then
       for_cmdpos = cmdpos
       for_type = "each"
       for_var = args[1]

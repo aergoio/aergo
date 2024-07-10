@@ -128,7 +128,7 @@ multicall "ac1" '[
 # create new dict or array using fromjson
 
 multicall "ac1" '[
- ["fromjson","{\"one\":1,\"two\":2}"],
+ ["from json","{\"one\":1,\"two\":2}"],
  ["set","%last_result%","three",3],
  ["return","%last_result%"]
 ]' '' '{"one":1,"three":3,"two":2}'
@@ -166,34 +166,34 @@ multicall "ac1" '[
 ]' '' '["one",22,3.3,true,false]'
 
 
-# get_size
+# get size
 
 multicall "ac1" '[
  ["let","str","this is a string"],
- ["get_size","%str%"],
+ ["get size","%str%"],
  ["return","%last_result%"]
 ]' '' '16'
 
 multicall "ac1" '[
  ["let","list",["one",1,"two",2,2.5,true,false]],
- ["get_size","%list%"],
+ ["get size","%list%"],
  ["return","%last_result%"]
 ]' '' '7'
 
 multicall "ac1" '[
  ["let","obj",{"one":1,"two":2,"three":3}],
- ["get_size","%obj%"],
+ ["get size","%obj%"],
  ["return","%last_result%"]
 ]' '' '0'
 
 
-# get_keys
+# get keys
 
 multicall "ac1" '[
  ["let","obj",{"one":1,"two":2,"three":3}],
- ["get_keys","%obj%"],
+ ["get keys","%obj%"],
  ["store","keys"],
- ["get_size","%keys%"],
+ ["get size","%keys%"],
  ["return","%last_result%","%keys%"]
 ]' '' '[3,["one","three","two"]]'
 
@@ -203,56 +203,56 @@ multicall "ac1" '[
 # BIGNUM
 
 multicall "ac1" '[
- ["tobignum",123],
+ ["to big number",123],
  ["store","a"],
- ["tobignum",123],
+ ["to big number",123],
  ["store","b"],
- ["mul","%a%","%b%"],
+ ["multiply","%a%","%b%"],
  ["return","%last_result%"]
 ]' '' '{"_bignum":"15129"}'
 
 multicall "ac1" '[
- ["tobignum","500000000000000000000"],
+ ["to big number","500000000000000000000"],
  ["store","a"],
- ["tobignum","100000"],
+ ["to big number","100000"],
  ["store","b"],
- ["div","%a%","%b%"],
+ ["divide","%a%","%b%"],
  ["return","%last_result%"]
 ]' '' '{"_bignum":"5000000000000000"}'
 
 multicall "ac1" '[
- ["tobignum","500000000000000000000"],
+ ["to big number","500000000000000000000"],
  ["store","a"],
- ["tobignum","100000"],
+ ["to big number","100000"],
  ["store","b"],
- ["div","%a%","%b%"],
- ["tostring","%last_result%"],
+ ["divide","%a%","%b%"],
+ ["to string","%last_result%"],
  ["return","%last_result%"]
 ]' '' '"5000000000000000"'
 
 multicall "ac1" '[
- ["tobignum","500000000000000000000"],
+ ["to big number","500000000000000000000"],
  ["store","a"],
 
- ["tobignum","100000"],
- ["div","%a%","%last_result%"],
+ ["to big number","100000"],
+ ["divide","%a%","%last_result%"],
  ["store","a"],
 
- ["tobignum","1000000000000000"],
- ["sub","%a%","%last_result%"],
+ ["to big number","1000000000000000"],
+ ["subtract","%a%","%last_result%"],
  ["store","a"],
 
- ["tobignum","1234"],
+ ["to big number","1234"],
  ["add","%a%","%last_result%"],
  ["store","a"],
 
- ["tobignum","2"],
+ ["to big number","2"],
  ["pow","%a%","%last_result%"],
  ["sqrt","%last_result%"],
  ["store","a"],
 
- ["tobignum","2"],
- ["mod","%a%","10000"],
+ ["to big number","2"],
+ ["remainder","%a%","10000"],
 
  ["return","%last_result%"]
 ]' '' '{"_bignum":"1234"}'
@@ -280,34 +280,34 @@ multicall "ac1" '[
 
 multicall "ac1" '[
  ["let","s","hello world"],
- ["substr","%s%",1,4],
+ ["extract","%s%",1,4],
  ["return","%last_result%"]
 ]' '' '"hell"'
 
 multicall "ac1" '[
  ["let","s","hello world"],
- ["substr","%s%",-2,-1],
+ ["extract","%s%",-2,-1],
  ["return","%last_result%"]
 ]' '' '"ld"'
 
 multicall "ac1" '[
  ["let","s","the amount is 12345"],
  ["find","%s%","%d+"],
- ["tonumber","%last_result%"],
+ ["to number","%last_result%"],
  ["return","%last_result%"]
 ]' '' '12345'
 
 multicall "ac1" '[
  ["let","s","rate: 55 10%"],
  ["find","%s%","(%d+)%%"],
- ["tonumber","%last_result%"],
+ ["to number","%last_result%"],
  ["return","%last_result%"]
 ]' '' '10'
 
 multicall "ac1" '[
  ["let","s","rate: 12%"],
  ["find","%s%","%s*(%d+)%%"],
- ["tonumber","%last_result%"],
+ ["to number","%last_result%"],
  ["return","%last_result%"]
 ]' '' '12'
 
@@ -318,7 +318,7 @@ multicall "ac1" '[
 ]' '' '"good bye world"'
 
 multicall "ac1" '[
- ["fromjson","{\"name\":\"ticket\",\"value\":12.5,\"amount\":10}"],
+ ["from json","{\"name\":\"ticket\",\"value\":12.5,\"amount\":10}"],
  ["replace","name = $name, value = $value, amount = $amount","%$(%w+)","%last_result%"],
  ["return","%last_result%"]
 ]' '' '"name = ticket, value = 12.5, amount = 10"'
@@ -330,7 +330,7 @@ multicall "ac1" '[
  ["let","s",20],
  ["if","%s%",">=",20],
  ["let","b","big"],
- ["elif","%s%",">=",10],
+ ["else if","%s%",">=",10],
  ["let","b","medium"],
  ["else"],
  ["let","b","low"],
@@ -343,7 +343,7 @@ multicall "ac1" '[
  ["let","s",10],
  ["if","%s%",">=",20],
  ["let","b","big"],
- ["elif","%s%",">=",10],
+ ["else if","%s%",">=",10],
  ["let","b","medium"],
  ["else"],
  ["let","b","low"],
@@ -356,7 +356,7 @@ multicall "ac1" '[
  ["let","s",5],
  ["if","%s%",">=",20],
  ["let","b","big"],
- ["elif","%s%",">=",10],
+ ["else if","%s%",">=",10],
  ["let","b","medium"],
  ["else"],
  ["let","b","low"],
@@ -369,7 +369,7 @@ multicall "ac1" '[
  ["let","s",20],
  ["if","%s%",">=",20],
  ["return","big"],
- ["elif","%s%",">=",10],
+ ["else if","%s%",">=",10],
  ["return","medium"],
  ["else"],
  ["return","low"],
@@ -381,7 +381,7 @@ multicall "ac1" '[
  ["let","s",10],
  ["if","%s%",">=",20],
  ["return","big"],
- ["elif","%s%",">=",10],
+ ["else if","%s%",">=",10],
  ["return","medium"],
  ["else"],
  ["return","low"],
@@ -393,7 +393,7 @@ multicall "ac1" '[
  ["let","s",5],
  ["if","%s%",">=",20],
  ["return","big"],
- ["elif","%s%",">=",10],
+ ["else if","%s%",">=",10],
  ["return","medium"],
  ["else"],
  ["return","low"],
@@ -403,9 +403,9 @@ multicall "ac1" '[
 
 
 multicall "ac1" '[
- ["tobignum","500000000000000000000"],
+ ["to big number","500000000000000000000"],
  ["store","a"],
- ["tobignum","500000000000000000000"],
+ ["to big number","500000000000000000000"],
  ["store","b"],
  ["if","%a%","=","%b%"],
  ["let","b","equal"],
@@ -416,9 +416,9 @@ multicall "ac1" '[
 ]' '' '"equal"'
 
 multicall "ac1" '[
- ["tobignum","500000000000000000000"],
+ ["to big number","500000000000000000000"],
  ["store","a"],
- ["tobignum","500000000000000000001"],
+ ["to big number","500000000000000000001"],
  ["store","b"],
  ["if","%a%","=","%b%"],
  ["let","b","equal"],
@@ -429,9 +429,9 @@ multicall "ac1" '[
 ]' '' '"diff"'
 
 multicall "ac1" '[
- ["tobignum","500000000000000000001"],
+ ["to big number","500000000000000000001"],
  ["store","a"],
- ["tobignum","500000000000000000000"],
+ ["to big number","500000000000000000000"],
  ["store","b"],
  ["if","%a%",">","%b%"],
  ["let","b","bigger"],
@@ -442,9 +442,9 @@ multicall "ac1" '[
 ]' '' '"bigger"'
 
 multicall "ac1" '[
- ["tobignum","500000000000000000000"],
+ ["to big number","500000000000000000000"],
  ["store","a"],
- ["tobignum","500000000000000000001"],
+ ["to big number","500000000000000000001"],
  ["store","b"],
  ["if","%a%",">","%b%"],
  ["let","b","bigger"],
@@ -456,13 +456,13 @@ multicall "ac1" '[
 
 
 multicall "ac1" '[
- ["tobignum","500000000000000000000"],
+ ["to big number","500000000000000000000"],
  ["store","a"],
- ["tobignum","500000000000000000001"],
+ ["to big number","500000000000000000001"],
  ["store","b"],
  ["if","%a%","<","%b%","and","1","=","0"],
  ["let","b","wrong 1"],
- ["elif","%a%","<","%b%","and","1","=","1"],
+ ["else if","%a%","<","%b%","and","1","=","1"],
  ["let","b","correct"],
  ["else"],
  ["let","b","wrong 2"],
@@ -471,13 +471,13 @@ multicall "ac1" '[
 ]' '' '"correct"'
 
 multicall "ac1" '[
- ["tobignum","500000000000000000000"],
+ ["to big number","500000000000000000000"],
  ["store","a"],
- ["tobignum","500000000000000000001"],
+ ["to big number","500000000000000000001"],
  ["store","b"],
  ["if","%a%","<","%b%","and",1,"=",0],
  ["let","b","wrong 1"],
- ["elif","%a%","<","%b%","and",1,"=",1],
+ ["else if","%a%","<","%b%","and",1,"=",1],
  ["let","b","correct"],
  ["else"],
  ["let","b","wrong 2"],
@@ -486,17 +486,17 @@ multicall "ac1" '[
 ]' '' '"correct"'
 
 multicall "ac1" '[
- ["tobignum","500000000000000000000"],
+ ["to big number","500000000000000000000"],
  ["store","a"],
- ["tobignum","500000000000000000001"],
+ ["to big number","500000000000000000001"],
  ["store","b"],
- ["tobignum","400000000000000000000"],
+ ["to big number","400000000000000000000"],
  ["store","c"],
  ["if","%a%","<","%b%","and","%a%","<","%c%"],
  ["let","b","wrong 1"],
- ["elif","%a%",">","%b%","and","%a%",">","%c%"],
+ ["else if","%a%",">","%b%","and","%a%",">","%c%"],
  ["let","b","wrong 2"],
- ["elif","%a%","<","%b%","and","%a%",">","%c%"],
+ ["else if","%a%","<","%b%","and","%a%",">","%c%"],
  ["let","b","correct"],
  ["else"],
  ["let","b","wrong 3"],
@@ -505,13 +505,13 @@ multicall "ac1" '[
 ]' '' '"correct"'
 
 multicall "ac1" '[
- ["tobignum","500000000000000000000"],
+ ["to big number","500000000000000000000"],
  ["store","a"],
- ["tobignum","500000000000000000001"],
+ ["to big number","500000000000000000001"],
  ["store","b"],
- ["tobignum","400000000000000000000"],
+ ["to big number","400000000000000000000"],
  ["store","c"],
- ["tostring",0],
+ ["to string",0],
 
  ["if","%a%",">","%b%","or","%a%","<","%c%"],
  ["format","%s%s","%last_result%","1"],
@@ -633,7 +633,7 @@ multicall "ac1" '[
 ]' '' '6'
 
 multicall "ac1" '[
- ["tonumber","0"],
+ ["to number","0"],
  ["for","n",1,5],
  ["add","%last_result%",1],
  ["loop"],
@@ -641,21 +641,21 @@ multicall "ac1" '[
 ]' '' '5'
 
 multicall "ac1" '[
- ["tobignum","10000000000000000001"],
+ ["to big number","10000000000000000001"],
  ["store","to_add"],
- ["tobignum","100000000000000000000"],
+ ["to big number","100000000000000000000"],
 
  ["for","n",1,3],
  ["add","%last_result%","%to_add%"],
  ["loop"],
 
- ["tostring","%last_result%"],
+ ["to string","%last_result%"],
  ["return","%last_result%"]
 ]' '' '"130000000000000000003"'
 
 
 multicall "ac1" '[
- ["tonumber","0"],
+ ["to number","0"],
  ["for","n",500,10,-5],
  ["add","%last_result%",1],
  ["loop"],
@@ -664,7 +664,7 @@ multicall "ac1" '[
 
 
 multicall "ac1" '[
- ["tonumber","0"],
+ ["to number","0"],
  ["for","n",5,1,-1],
  ["add","%last_result%",1],
  ["loop"],
@@ -672,7 +672,7 @@ multicall "ac1" '[
 ]' '' '5'
 
 multicall "ac1" '[
- ["tonumber","0"],
+ ["to number","0"],
  ["for","n",5,1],
  ["add","%last_result%",1],
  ["loop"],
@@ -680,7 +680,7 @@ multicall "ac1" '[
 ]' '' '0'
 
 multicall "ac1" '[
- ["tonumber","0"],
+ ["to number","0"],
  ["for","n",1,5],
  ["add","%last_result%",1],
  ["loop"],
@@ -688,7 +688,7 @@ multicall "ac1" '[
 ]' '' '5'
 
 multicall "ac1" '[
- ["tonumber","0"],
+ ["to number","0"],
  ["for","n",1,5,-1],
  ["add","%last_result%",1],
  ["loop"],
@@ -702,7 +702,7 @@ multicall "ac1" '[
 multicall "ac1" '[
  ["let","list",[11,22,33]],
  ["let","r",0],
- ["foreach","item","%list%"],
+ ["for each","item","%list%"],
  ["add","%r%","%item%"],
  ["store","r"],
  ["loop"],
@@ -712,7 +712,7 @@ multicall "ac1" '[
 multicall "ac1" '[
  ["let","list",[11,22,33]],
  ["let","counter",0],
- ["foreach","item","%list%"],
+ ["for each","item","%list%"],
  ["add","%counter%",1],
  ["store","counter"],
  ["loop"],
@@ -722,7 +722,7 @@ multicall "ac1" '[
 multicall "ac1" '[
  ["let","list",[]],
  ["let","counter",0],
- ["foreach","item","%list%"],
+ ["for each","item","%list%"],
  ["add","%counter%",1],
  ["store","counter"],
  ["loop"],
@@ -732,7 +732,7 @@ multicall "ac1" '[
 multicall "ac1" '[
  ["let","list",["one",1,"two",2,2.5,true,false]],
  ["let","counter",0],
- ["foreach","item","%list%"],
+ ["for each","item","%list%"],
  ["add","%counter%",1],
  ["store","counter"],
  ["loop"],
@@ -742,7 +742,7 @@ multicall "ac1" '[
 multicall "ac1" '[
  ["let","list",[10,21,32]],
  ["let","r",0],
- ["foreach","item","%list%"],
+ ["for each","item","%list%"],
  ["if","%item%","<",30],
  ["add","%r%","%item%"],
  ["store","r"],
@@ -755,9 +755,9 @@ multicall "ac1" '[
 multicall "ac1" '[
  ["let","str",""],
  ["let","obj",{"one":1,"two":2,"three":3}],
- ["get_keys","%obj%"],
- ["foreach","key","%last_result%"],
- ["concat","%str%","%key%"],
+ ["get keys","%obj%"],
+ ["for each","key","%last_result%"],
+ ["combine","%str%","%key%"],
  ["store","str"],
  ["loop"],
  ["return","%str%"]
@@ -771,8 +771,8 @@ multicall "ac1" '[
  ["let","str",""],
  ["let","sum",0],
  ["let","obj",{"one":1,"two":2,"three":3}],
- ["forpair","key","value","%obj%"],
- ["concat","%str%","%key%"],
+ ["for pair","key","value","%obj%"],
+ ["combine","%str%","%key%"],
  ["store","str"],
  ["add","%sum%","%value%"],
  ["store","sum"],
@@ -784,8 +784,8 @@ multicall "ac1" '[
  ["let","str",""],
  ["let","sum",0],
  ["let","obj",{"one":1.5,"two":2.5,"three":3.5,"four":4.5}],
- ["forpair","key","value","%obj%"],
- ["concat","%str%","%key%"],
+ ["for pair","key","value","%obj%"],
+ ["combine","%str%","%key%"],
  ["store","str"],
  ["add","%sum%","%value%"],
  ["store","sum"],
@@ -797,7 +797,7 @@ multicall "ac1" '[
  ["let","names",[]],
  ["let","values",[]],
  ["let","obj",{"one":1.5,"two":2.5,"three":3.5,"four":4.5}],
- ["forpair","key","value","%obj%"],
+ ["for pair","key","value","%obj%"],
  ["insert","%names%","%key%"],
  ["insert","%values%","%value%"],
  ["loop"],
@@ -808,7 +808,7 @@ multicall "ac1" '[
  ["let","names",[]],
  ["let","values",[]],
  ["let","obj",{"one":1.5,"two":2.5,"three":3.5,"four":4.5}],
- ["forpair","key","value","%obj%"],
+ ["for pair","key","value","%obj%"],
  ["insert","%names%","%key%"],
  ["insert","%values%","%value%"],
  ["loop"],
@@ -820,7 +820,7 @@ multicall "ac1" '[
 multicall "ac1" '[
  ["let","obj",{}],
  ["let","counter",0],
- ["forpair","key","value","%obj%"],
+ ["for pair","key","value","%obj%"],
  ["add","%counter%",1],
  ["store","counter"],
  ["loop"],
@@ -844,7 +844,7 @@ multicall "ac1" '[
 ]' '' '5'
 
 multicall "ac1" '[
- ["tonumber","0"],
+ ["to number","0"],
  ["for","n",500,10,-5],
  ["add","%last_result%",1],
  ["if","%n%","=",475],
@@ -877,7 +877,7 @@ multicall "ac1" '[
 ]' '' '5'
 
 multicall "ac1" '[
- ["tonumber","0"],
+ ["to number","0"],
  ["for","n",500,10,-5],
  ["add","%last_result%",1],
  ["if","%n%","=",475],
@@ -888,7 +888,7 @@ multicall "ac1" '[
 ]' '' '6'
 
 multicall "ac1" '[
- ["tonumber","0"],
+ ["to number","0"],
  ["for","n",500,10,-5],
  ["add","%last_result%",1],
  ["break","if","%n%","=",475],
@@ -912,7 +912,7 @@ multicall "ac1" '[
 multicall "ac1" '[
  ["let","names",[]],
  ["let","list",["one","two","three","four"]],
- ["foreach","item","%list%"],
+ ["for each","item","%list%"],
  ["if","%item%","=","three"],
  ["break"],
  ["end"],
@@ -924,7 +924,7 @@ multicall "ac1" '[
 multicall "ac1" '[
  ["let","names",[]],
  ["let","list",["one","two","three","four"]],
- ["foreach","item","%list%"],
+ ["for each","item","%list%"],
  ["break","if","%item%","=","three"],
  ["insert","%names%","%item%"],
  ["loop"],
@@ -934,7 +934,7 @@ multicall "ac1" '[
 multicall "ac1" '[
  ["let","names",[]],
  ["let","obj",{"one":true,"two":false,"three":false,"four":true}],
- ["forpair","key","value","%obj%"],
+ ["for pair","key","value","%obj%"],
  ["if","%value%","=",false],
  ["break"],
  ["end"],
@@ -946,7 +946,7 @@ multicall "ac1" '[
 multicall "ac1" '[
  ["let","names",[]],
  ["let","obj",{"one":true,"two":false,"three":false,"four":true}],
- ["forpair","key","value","%obj%"],
+ ["for pair","key","value","%obj%"],
  ["break","if","%value%","=",false],
  ["insert","%names%","%key%"],
  ["loop"],
@@ -1038,7 +1038,7 @@ multicall "ac3" '[
 
 multicall "ac3" '[
  ["let","list",["first","second","third"]],
- ["foreach","item","%list%"],
+ ["for each","item","%list%"],
  ["call","'$address'","add","%item%"],
  ["loop"]
 ]'
@@ -1055,8 +1055,8 @@ multicall "ac1" '[
 multicall "ac3" '[
  ["let","list",["1st","2nd","3rd"]],
  ["let","n",1],
- ["foreach","item","%list%"],
- ["tostring","%n%"],
+ ["for each","item","%list%"],
+ ["to string","%n%"],
  ["call","'$address'","set","%last_result%","%item%"],
  ["add","%n%",1],
  ["store","n"],
@@ -1077,31 +1077,31 @@ multicall "ac1" '[
 # PCALL
 
 multicall "ac1" '[
- ["pcall","'$address'","works"],
+ ["try call","'$address'","works"],
  ["get","%last_result%",1],
  ["assert","%last_result%","=",true],
- ["pcall","'$address'","fails"],
+ ["try call","'$address'","fails"],
  ["get","%last_result%",1],
  ["assert","%last_result%","=",false]
 ]'
 
 multicall "ac3" '[
- ["pcall","'$address'","set_name","1st"],
+ ["try call","'$address'","set_name","1st"],
  ["get","%last_result%",1],
  ["assert","%last_result%","=",true],
 
- ["pcall","'$address'","get_name"],
+ ["try call","'$address'","get_name"],
  ["store","ret"],
  ["get","%ret%",1],
  ["assert","%last_result%","=",true],
  ["get","%ret%",2],
  ["assert","%last_result%","=","1st"],
 
- ["pcall","'$address'","set_name",22],
+ ["try call","'$address'","set_name",22],
  ["get","%last_result%",1],
  ["assert","%last_result%","=",false],
 
- ["pcall","'$address'","get_name"],
+ ["try call","'$address'","get_name"],
  ["store","ret"],
  ["get","%ret%",1],
  ["assert","%last_result%","=",true],
@@ -1144,7 +1144,7 @@ multicall "ac0" '[
 ]' '' '["testing multicall","contract 2","third one"]'
 
 multicall "ac0" '[
- ["fromjson","{}"],
+ ["from json","{}"],
  ["store","res"],
  ["call","'$address1'","get_name"],
  ["set","%res%","r1","%last_result%"],
@@ -1176,7 +1176,7 @@ multicall "ac0" '[
 ]' '' '["wohooooooo","it works!","it really works!"]'
 
 multicall "ac0" '[
- ["fromjson","{}"],
+ ["from json","{}"],
  ["store","res"],
  ["call","'$address1'","get_name"],
  ["set","%res%","r1","%last_result%"],
@@ -1217,8 +1217,8 @@ balance4=$(parse_balance $balance4)
 echo balance=$balance4
 
 multicall "ac4" '[
- ["balance"],
- ["tostring","%last_result%"],
+ ["get balance"],
+ ["to string","%last_result%"],
  ["assert","%last_result%","=","'$balance4'"],
  ["return","%last_result%"]
 ]' '' '"'$balance4'"'
@@ -1236,22 +1236,22 @@ balance4after=$(echo "$balance4 + $amount" | bc)
 balance1after=$(echo "$balance1 - $amount" | bc)
 
 multicall "ac1" '[
- ["balance"],
- ["tostring","%last_result%"],
+ ["get balance"],
+ ["to string","%last_result%"],
  ["assert","%last_result%","=","'$balance1'"],
 
- ["balance","AmLaPgDNg3tsebXSU19bftkr1XxvmySWGusEti9SaHoKDJEZNjSw"],
- ["tostring","%last_result%"],
+ ["get balance","AmLaPgDNg3tsebXSU19bftkr1XxvmySWGusEti9SaHoKDJEZNjSw"],
+ ["to string","%last_result%"],
  ["assert","%last_result%","=","'$balance4'"],
 
  ["send","AmLaPgDNg3tsebXSU19bftkr1XxvmySWGusEti9SaHoKDJEZNjSw","'$amount'"],
 
- ["balance","AmLaPgDNg3tsebXSU19bftkr1XxvmySWGusEti9SaHoKDJEZNjSw"],
- ["tostring","%last_result%"],
+ ["get balance","AmLaPgDNg3tsebXSU19bftkr1XxvmySWGusEti9SaHoKDJEZNjSw"],
+ ["to string","%last_result%"],
  ["assert","%last_result%","=","'$balance4after'"],
 
- ["balance"],
- ["tostring","%last_result%"],
+ ["get balance"],
+ ["to string","%last_result%"],
  ["assert","%last_result%","=","'$balance1after'"],
 
  ["return","%last_result%"]
