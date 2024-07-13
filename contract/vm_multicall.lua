@@ -255,32 +255,51 @@ function eval(...)
   return matches
 end
 
+-- convert a number to a big number with the correct number of decimals
 function convert_bignum(x, token)
+  -- convert the number to a string
   if type(x) ~= 'string' then
     x = tostring(x)
   end
+
+  -- check if the string contains invalid characters
   assert(string.match(x, '[^0-9.]') == nil, "the amount contains invalid character")
+
+  -- count the number of dots
   local _, count = string.gsub(x, "%.", "")
   assert(count <= 1, "the amount is invalid")
-  if count == 1 then
-    local num_decimals
-    if token:lower() == 'aergo' then
-      num_decimals = 18
-    else
-      num_decimals = contract.call(token, "decimals")
-    end
-    assert(num_decimals >= 0 and num_decimals <= 18, "token with invalid decimals")
-    local p1, p2 = string.match('0' .. x .. '0', '(%d+)%.(%d+)')
-    local to_add = num_decimals - #p2
-    if to_add > 0 then
-      p2 = p2 .. string.rep('0', to_add)
-    elseif to_add < 0 then
-      p2 = string.sub(p2, 1, num_decimals)
-    end
-    x = p1 .. p2
-    x = string.gsub(x, '0*', '', 1)  -- remove leading zeros
-    if #x == 0 then x = '0' end
+
+  -- get the number of decimals from the token
+  local num_decimals
+  if token:lower() == 'aergo' then
+    num_decimals = 18
+  else
+    num_decimals = contract.call(token, "decimals")
   end
+  assert(num_decimals >= 0 and num_decimals <= 18, "token with invalid decimals")
+
+  -- split the amount into integer and fractional parts
+  local p1, p2
+  if count == 1 then
+    p1, p2 = string.match('0' .. x .. '0', '(%d+)%.(%d+)')
+  else
+    p1 = x
+    p2 = ""
+  end
+  -- compute the number of zeros to add or remove
+  local to_add = num_decimals - #p2
+  if to_add > 0 then
+    p2 = p2 .. string.rep('0', to_add)
+  elseif to_add < 0 then
+    p2 = string.sub(p2, 1, num_decimals)
+  end
+  -- join the two parts
+  x = p1 .. p2
+  -- remove leading zeros
+  x = string.gsub(x, '0*', '', 1)
+  -- if the result is empty, return 0
+  if #x == 0 then x = '0' end
+  -- convert to big number
   return bignum.number(x)
 end
 
