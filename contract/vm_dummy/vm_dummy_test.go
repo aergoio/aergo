@@ -5848,8 +5848,7 @@ func TestComposableTransactions(t *testing.T) {
 		// aergo BALANCE and SEND
 
 		multicall(t, bc, "ac5", `[
-		 ["get balance"],
-		 ["to string","%last_result%"],
+		 ["to string","%my aergo balance%"],
 		 ["assert","%last_result%","=","10000000000000000000"],
 		 ["return","%last_result%"]
 		]`, ``, `"10000000000000000000"`)

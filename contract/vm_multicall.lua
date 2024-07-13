@@ -69,14 +69,22 @@ function process_arg(arg)
   if type(arg) == 'string' then
     if #arg >= 3 and string.sub(arg, 1, 1) == '%' and string.sub(arg, -1, -1) == '%' then
       local varname = string.sub(arg, 2, -2)
-      if vars[varname] ~= nil then
-        arg = vars[varname]
-      end
+      arg = get_arg_value(varname, arg)
     end
   elseif type(arg) == 'table' then
     for k,v in pairs(arg) do arg[k] = process_arg(v) end
   end
   return arg
+end
+
+function get_arg_value(varname, default)
+  local value = default
+  if varname == "my aergo balance" then
+    value = action["get balance"]()
+  elseif vars[varname] ~= nil then
+    value = vars[varname]
+  end
+  return value
 end
 
 function execute(calls)
