@@ -5730,43 +5730,48 @@ func TestComposableTransactions(t *testing.T) {
 
 
 
-		// PCALL
+		// TRY CALL
 
 		multicall(t, bc, "ac1", `[
 		 ["try call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","works"],
-		 ["get","%last_result%",1],
-		 ["assert","%last_result%","=",true],
+		 ["assert","%call_succeeded%","=",true],
 		 ["try call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","fails"],
-		 ["get","%last_result%",1],
-		 ["assert","%last_result%","=",false]
+		 ["assert","%call_succeeded%","=",false]
 		]`)
 
 		multicall(t, bc, "ac3", `[
 		 ["try call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","set_name","1st"],
-		 ["get","%last_result%",1],
-		 ["assert","%last_result%","=",true],
+		 ["assert","%call_succeeded%","=",true],
 
 		 ["try call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","get_name"],
-		 ["store result as","ret"],
-		 ["get","%ret%",1],
-		 ["assert","%last_result%","=",true],
-		 ["get","%ret%",2],
+		 ["assert","%call_succeeded%","=",true],
 		 ["assert","%last_result%","=","1st"],
 
 		 ["try call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","set_name",22],
-		 ["get","%last_result%",1],
-		 ["assert","%last_result%","=",false],
+		 ["assert","%call_succeeded%","=",false],
 
 		 ["try call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","get_name"],
-		 ["store result as","ret"],
-		 ["get","%ret%",1],
-		 ["assert","%last_result%","=",true],
-		 ["get","%ret%",2],
+		 ["assert","%call_succeeded%","=",true],
 		 ["assert","%last_result%","=","1st"],
 
 		 ["return","%last_result%"]
 		]`, ``, `"1st"`)
 
+
+		// TRY CALL + SEND
+
+		multicall(t, bc, "ac1", `[
+		 ["get balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
+		 ["assert","%last_result%","=","0"],
+		 ["try call + send","0.25 aergo","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","recv_aergo"],
+		 ["assert","%call_succeeded%","=",true],
+		 ["try call + send","1 aergo","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","recv_aergo"],
+		 ["assert","%call_succeeded%","=",true],
+		 ["get balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
+		 ["assert","%last_result%","=","1.25 aergo"],
+		 ["try call + send","1 aergo","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRB","recv_aergo"],
+		 ["assert","%call_succeeded%","=",false]
+		]`)
 
 
 		// MULTICALL ON ACCOUNT ------------------------------------------

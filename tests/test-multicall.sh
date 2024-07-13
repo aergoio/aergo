@@ -1074,43 +1074,48 @@ multicall "ac1" '[
 
 
 
-# PCALL
+# TRY CALL
 
 multicall "ac1" '[
  ["try call","'$address'","works"],
- ["get","%last_result%",1],
- ["assert","%last_result%","=",true],
+ ["assert","%call_succeeded%","=",true],
  ["try call","'$address'","fails"],
- ["get","%last_result%",1],
- ["assert","%last_result%","=",false]
+ ["assert","%call_succeeded%","=",false]
 ]'
 
 multicall "ac3" '[
  ["try call","'$address'","set_name","1st"],
- ["get","%last_result%",1],
- ["assert","%last_result%","=",true],
+ ["assert","%call_succeeded%","=",true],
 
  ["try call","'$address'","get_name"],
- ["store result as","ret"],
- ["get","%ret%",1],
- ["assert","%last_result%","=",true],
- ["get","%ret%",2],
+ ["assert","%call_succeeded%","=",true],
  ["assert","%last_result%","=","1st"],
 
  ["try call","'$address'","set_name",22],
- ["get","%last_result%",1],
- ["assert","%last_result%","=",false],
+ ["assert","%call_succeeded%","=",false],
 
  ["try call","'$address'","get_name"],
- ["store result as","ret"],
- ["get","%ret%",1],
- ["assert","%last_result%","=",true],
- ["get","%ret%",2],
+ ["assert","%call_succeeded%","=",true],
  ["assert","%last_result%","=","1st"],
 
  ["return","%last_result%"]
 ]' '' '"1st"'
 
+
+# TRY CALL + SEND
+
+multicall "ac1" '[
+ ["get balance","'$address'"],
+ ["assert","%last_result%","=","0"],
+ ["try call + send","0.25 aergo","'$address'","recv_aergo"],
+ ["assert","%call_succeeded%","=",true],
+ ["try call + send","1 aergo","'$address'","recv_aergo"],
+ ["assert","%call_succeeded%","=",true],
+ ["get balance","'$address'"],
+ ["assert","%last_result%","=","1.25 aergo"],
+ ["try call + send","1 aergo","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRB","recv_aergo"],
+ ["assert","%call_succeeded%","=",false]
+]'
 
 
 # MULTICALL ON ACCOUNT ------------------------------------------

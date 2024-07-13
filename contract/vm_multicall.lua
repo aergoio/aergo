@@ -11,8 +11,8 @@ action = {
   -- contract call
   call = function (...) return contract.call(...) end,
   ["call + send"] = function (amount,...) return contract.call.value(amount)(...) end,
-  ["try call"] = function (...) return {pcall(contract.call,...)} end,
-  ["try call + send"] = function (amount,...) return {pcall(contract.call.value(amount),...)} end,
+  ["try call"] = function (...) return try_call(contract.call,...) end,
+  ["try call + send"] = function (amount,...) return try_call(contract.call.value(amount),...) end,
 
   -- aergo balance and transfer
   ["get balance"] = function (address) return bignum.number(contract.balance(address)) end,
@@ -64,6 +64,12 @@ action = {
   assert = function (...) assert(eval(...),"assertion failed: " .. json.encode({...})) end,
 
 }
+
+function try_call(fn, ...)
+  local success, result = pcall(fn, ...)
+  vars['call_succeeded'] = success
+  return result
+end
 
 function process_arg(arg)
   if type(arg) == 'string' then
