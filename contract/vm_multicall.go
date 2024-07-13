@@ -224,6 +224,10 @@ function eval(...)
   local v2 = args[3]
   local neg = false
   local matches = false
+  -- if v1 is a bignum and v2 is a string, convert v2 to a bignum
+  if bignum.isbignum(v1) and type(v2) == 'string' then
+    v2 = to_bignum(v2)
+  end
   if string.sub(op,1,1) == "!" then
     neg = true
     op = string.sub(op, 2)
@@ -306,6 +310,16 @@ function convert_bignum(x, token)
   if #x == 0 then x = '0' end
   -- convert to big number
   return bignum.number(x)
+end
+
+function to_bignum(x)
+  -- if there is a space, separate the amount and the symbol
+  local amount, symbol = string.match(x, '([^%s]+)%s+(.+)')
+  if amount and symbol then
+    return convert_bignum(amount, symbol)
+  else
+    return bignum.number(x)
+  end
 end
 
 abi.register(execute)
