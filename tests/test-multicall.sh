@@ -293,21 +293,21 @@ multicall "ac1" '[
 multicall "ac1" '[
  ["let","s","the amount is 12345"],
  ["find","%s%","%d+"],
- ["to number","%last_result%"],
+ ["to number"],
  ["return","%last_result%"]
 ]' '' '12345'
 
 multicall "ac1" '[
  ["let","s","rate: 55 10%"],
  ["find","%s%","(%d+)%%"],
- ["to number","%last_result%"],
+ ["to number"],
  ["return","%last_result%"]
 ]' '' '10'
 
 multicall "ac1" '[
  ["let","s","rate: 12%"],
  ["find","%s%","%s*(%d+)%%"],
- ["to number","%last_result%"],
+ ["to number"],
  ["return","%last_result%"]
 ]' '' '12'
 
@@ -1270,7 +1270,7 @@ echo balance=$balance4
 
 multicall "ac4" '[
  ["get balance"],
- ["to string","%last_result%"],
+ ["to string"],
  ["assert","%last_result%","=","'$balance4'"],
  ["return","%last_result%"]
 ]' '' '"'$balance4'"'
@@ -1303,7 +1303,7 @@ multicall "ac1" '[
  ["assert","%last_result%","=","'$balance4after'"],
 
  ["get balance"],
- ["to string","%last_result%"],
+ ["to string"],
  ["assert","%last_result%","=","'$balance1after'"],
 
  ["return","%last_result%"]

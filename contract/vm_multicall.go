@@ -65,11 +65,11 @@ action = {
   replace = function (...) return string.gsub(...) end,
 
   -- conversions
-  ["to big number"] = function (x) return bignum.number(x) end,
-  ["to number"] = function (x) return tonumber(x) end,
-  ["to string"] = function (x) return tostring(x) end,     -- bignum to string
-  ["to json"]   = function (x) return json.encode(x) end,
-  ["from json"] = function (x) return json.decode(x) end,  -- create tables
+  ["to big number"] = function (x) if x==nil then x=vars['last_result'] end; return bignum.number(x) end,
+  ["to number"] = function (x) if x==nil then x=vars['last_result'] end; return tonumber(x) end,
+  ["to string"] = function (x) if x==nil then x=vars['last_result'] end; return tostring(x) end,
+  ["to json"]   = function (x) if x==nil then x=vars['last_result'] end; return json.encode(x) end,
+  ["from json"] = function (x) if x==nil then x=vars['last_result'] end; return json.decode(x) end,
 
   -- assertion
   assert = function (...) assert(eval(...),"assertion failed: " .. json.encode({...})) end,

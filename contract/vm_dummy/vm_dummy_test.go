@@ -4948,21 +4948,21 @@ func TestComposableTransactions(t *testing.T) {
 		multicall(t, bc, "ac1", `[
 		 ["let","s","the amount is 12345"],
 		 ["find","%s%","%d+"],
-		 ["to number","%last_result%"],
+		 ["to number"],
 		 ["return","%last_result%"]
 		]`, ``, `12345`)
 
 		multicall(t, bc, "ac1", `[
 		 ["let","s","rate: 55 10%"],
 		 ["find","%s%","(%d+)%%"],
-		 ["to number","%last_result%"],
+		 ["to number"],
 		 ["return","%last_result%"]
 		]`, ``, `10`)
 
 		multicall(t, bc, "ac1", `[
 		 ["let","s","rate: 12%"],
 		 ["find","%s%","%s*(%d+)%%"],
-		 ["to number","%last_result%"],
+		 ["to number"],
 		 ["return","%last_result%"]
 		]`, ``, `12`)
 
@@ -5929,7 +5929,7 @@ func TestComposableTransactions(t *testing.T) {
 		 ["get balance"],
 		 ["assert","%last_result%","=","7000000000000000000"],
 
-		 ["to string","%last_result%"],
+		 ["to string"],
 		 ["return","%last_result%"]
 		]`, ``, `"7000000000000000000"`)
 
