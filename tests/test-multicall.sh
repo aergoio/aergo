@@ -1106,12 +1106,14 @@ multicall "ac3" '[
 
 multicall "ac1" '[
  ["get balance","'$address'"],
- ["assert","%last_result%","=","0"],
+ ["store result as","balance before"],
  ["try call + send","0.25 aergo","'$address'","recv_aergo"],
  ["assert","%call_succeeded%","=",true],
  ["try call + send","1 aergo","'$address'","recv_aergo"],
  ["assert","%call_succeeded%","=",true],
  ["get balance","'$address'"],
+ ["store result as","balance after"],
+ ["subtract","%balance after%","%balance before%"],
  ["assert","%last_result%","=","1.25 aergo"],
  ["try call + send","1 aergo","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRB","recv_aergo"],
  ["assert","%call_succeeded%","=",false]
