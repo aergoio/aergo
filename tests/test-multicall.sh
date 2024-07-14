@@ -1130,7 +1130,7 @@ multicall "ac1" '[
 
 multicall "ac3" '[
  ["try call","'$address'","set_name","1st"],
- ["assert","%call_succeeded%","=",true],
+ ["assert","%call_succeeded%"],
 
  ["try call","'$address'","get_name"],
  ["assert","%call_succeeded%","=",true],
@@ -1153,7 +1153,7 @@ multicall "ac1" '[
  ["get balance","'$address'"],
  ["store result as","balance before"],
  ["try call + send","0.25 aergo","'$address'","recv_aergo"],
- ["assert","%call_succeeded%","=",true],
+ ["assert","%call_succeeded%"],
  ["try call + send","1 aergo","'$address'","recv_aergo"],
  ["assert","%call_succeeded%","=",true],
  ["get balance","'$address'"],

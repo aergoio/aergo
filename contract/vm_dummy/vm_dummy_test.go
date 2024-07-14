@@ -5786,7 +5786,7 @@ func TestComposableTransactions(t *testing.T) {
 
 		multicall(t, bc, "ac3", `[
 		 ["try call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","set_name","1st"],
-		 ["assert","%call_succeeded%","=",true],
+		 ["assert","%call_succeeded%"],
 
 		 ["try call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","get_name"],
 		 ["assert","%call_succeeded%","=",true],
@@ -5809,7 +5809,7 @@ func TestComposableTransactions(t *testing.T) {
 		 ["get balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
 		 ["assert","%last_result%","=","0"],
 		 ["try call + send","0.25 aergo","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","recv_aergo"],
-		 ["assert","%call_succeeded%","=",true],
+		 ["assert","%call_succeeded%"],
 		 ["try call + send","1 aergo","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","recv_aergo"],
 		 ["assert","%call_succeeded%","=",true],
 		 ["get balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],

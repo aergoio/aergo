@@ -228,6 +228,9 @@ end
 
 function eval(...)
   local args = {...}
+  if #args == 1 and type(args[1]) == 'boolean' then
+    return args[1]
+  end
   local v1 = args[1]
   local op = args[2]
   local v2 = args[3]
