@@ -25,7 +25,7 @@ action = {
 
   -- variables
   let = function (x,y,z) if z then y = convert_bignum(y,z) end vars[x] = y end,
-  ["store result as"] = function (n) vars[n] = vars['last_result'] end,
+  ["store result as"] = function (n) vars[n] = vars['last result'] end,
 
   -- tables
   get = function (o,k) return o[k] end,
@@ -65,11 +65,11 @@ action = {
   replace = function (...) return string.gsub(...) end,
 
   -- conversions
-  ["to big number"] = function (x) if x==nil then x=vars['last_result'] end; return bignum.number(x) end,
-  ["to number"] = function (x) if x==nil then x=vars['last_result'] end; return tonumber(x) end,
-  ["to string"] = function (x) if x==nil then x=vars['last_result'] end; return tostring(x) end,
-  ["to json"]   = function (x) if x==nil then x=vars['last_result'] end; return json.encode(x) end,
-  ["from json"] = function (x) if x==nil then x=vars['last_result'] end; return json.decode(x) end,
+  ["to big number"] = function (x) if x==nil then x=vars['last result'] end; return bignum.number(x) end,
+  ["to number"] = function (x) if x==nil then x=vars['last result'] end; return tonumber(x) end,
+  ["to string"] = function (x) if x==nil then x=vars['last result'] end; return tostring(x) end,
+  ["to json"]   = function (x) if x==nil then x=vars['last result'] end; return json.encode(x) end,
+  ["from json"] = function (x) if x==nil then x=vars['last result'] end; return json.decode(x) end,
 
   -- assertion
   assert = function (...) assert(eval(...),"assertion failed: " .. json.encode({...})) end,
@@ -78,7 +78,7 @@ action = {
 
 function try_call(fn, ...)
   local success, result = pcall(fn, ...)
-  vars['call_succeeded'] = success
+  vars['call succeeded'] = success
   return result
 end
 
@@ -137,7 +137,7 @@ function execute(calls)
     if fn and if_on then
       local result = fn(unpack(args))
       if not skip[cmd] then
-        vars['last_result'] = result
+        vars['last result'] = result
       end
 
     -- if elif else end
