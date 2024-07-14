@@ -48,8 +48,14 @@ action = {
   ["multiply"] = function (x,y) return x*y end,
   ["divide"] = function (x,y) return x/y end,
   ["remainder"] = function (x,y) return x%y end,
-  pow = function (x,y) return x^y end,
-  sqrt = function (x) return bignum.sqrt(x) end,  -- use pow(0.5) for numbers
+  ["exponentiate"] = function (x,y) return x^y end,
+  ["square root"] = function (x)
+    if bignum.isbignum(x) then
+      return bignum.sqrt(x)
+    else
+      return x ^ 0.5
+    end
+  end,
 
   -- strings
   ["combine"] = function (...) return table.concat({...}) end,
