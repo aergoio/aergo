@@ -1033,6 +1033,51 @@ multicall "ac3" '[
  ["assert","%last_result%","=","test2"]
 ]'
 
+multicall "ac3" '[
+ ["call","'$address'","sender"],
+ ["assert","%last_result%","=","%my account address%"],
+ ["call","'$address'","is_contract","%my account address%"],
+ ["assert","%last_result%","=",false],
+ ["call","'$address'","set","account","%my account address%"],
+ ["call","'$address'","get","account"],
+ ["assert","%last_result%","=","%my account address%"]
+]'
+
+# CALL + SEND
+
+multicall "ac3" '[
+ ["get balance","%my account address%"],
+ ["store result as","my balance before"],
+ ["get balance","'$address'"],
+ ["store result as","contract balance before"],
+ ["call + send","0.25 aergo","'$address'","resend_to","%my account address%"],
+ ["assert","%last_result%","=","250000000000000000"],
+ ["get balance","%my account address%"],
+ ["assert","%last_result%","=","%my balance before%"],
+ ["get balance","'$address'"],
+ ["assert","%last_result%","=","%contract balance before%"]
+]'
+
+multicall "ac3" '[
+ ["get balance","%my account address%"],
+ ["store result as","my balance before"],
+ ["get balance","'$address'"],
+ ["store result as","contract balance before"],
+
+ ["let","amount","1.5","aergo"],
+ ["call + send","%amount%","'$address'","recv_aergo"],
+
+ ["assert","%my aergo balance%","<","%my balance before%"],
+ ["get balance","'$address'"],
+ ["assert","%last_result%",">","%contract balance before%"],
+
+ ["call","'$address'","send_to","%my account address%","%amount%"],
+
+ ["assert","%my aergo balance%","=","%my balance before%"],
+ ["get balance","'$address'"],
+ ["assert","%last_result%","=","%contract balance before%"]
+]'
+
 
 # CALL LOOP
 

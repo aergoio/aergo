@@ -96,7 +96,9 @@ end
 
 function get_arg_value(varname, default)
   local value = default
-  if varname == "my aergo balance" then
+  if varname == "my account address" then
+    value = system.getContractID()
+  elseif varname == "my aergo balance" then
     value = action["get balance"]()
   elseif vars[varname] ~= nil then
     value = vars[varname]

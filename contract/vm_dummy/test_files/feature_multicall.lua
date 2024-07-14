@@ -87,4 +87,15 @@ function recv_aergo()
   -- does nothing
 end
 
-abi.payable(recv_aergo)
+function resend_to(address)
+  local amount = system.getAmount()
+  contract.send(address, amount)
+  return amount
+end
+
+function send_to(address, amount)
+  contract.send(address, amount)
+end
+
+abi.payable(recv_aergo, resend_to)
+abi.register(send_to)

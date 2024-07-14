@@ -5689,6 +5689,51 @@ func TestComposableTransactions(t *testing.T) {
 		 ["assert","%last_result%","=","test2"]
 		]`)
 
+		multicall(t, bc, "ac3", `[
+		 ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","sender"],
+		 ["assert","%last_result%","=","%my account address%"],
+		 ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","is_contract","%my account address%"],
+		 ["assert","%last_result%","=",false],
+		 ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","set","account","%my account address%"],
+		 ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","get","account"],
+		 ["assert","%last_result%","=","%my account address%"]
+		]`)
+
+		// CALL + SEND
+
+		multicall(t, bc, "ac3", `[
+		 ["get balance","%my account address%"],
+		 ["store result as","my balance before"],
+		 ["get balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
+		 ["store result as","contract balance before"],
+		 ["call + send","0.25 aergo","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","resend_to","%my account address%"],
+		 ["assert","%last_result%","=","250000000000000000"],
+		 ["get balance","%my account address%"],
+		 ["assert","%last_result%","=","%my balance before%"],
+		 ["get balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
+		 ["assert","%last_result%","=","%contract balance before%"]
+		]`)
+
+		multicall(t, bc, "ac3", `[
+		 ["get balance","%my account address%"],
+		 ["store result as","my balance before"],
+		 ["get balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
+		 ["store result as","contract balance before"],
+
+		 ["let","amount","1.5","aergo"],
+		 ["call + send","%amount%","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","recv_aergo"],
+
+		 ["assert","%my aergo balance%","<","%my balance before%"],
+		 ["get balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
+		 ["assert","%last_result%",">","%contract balance before%"],
+
+		 ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","send_to","%my account address%","%amount%"],
+
+		 ["assert","%my aergo balance%","=","%my balance before%"],
+		 ["get balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
+		 ["assert","%last_result%","=","%contract balance before%"]
+		]`)
+
 
 		// CALL LOOP
 
