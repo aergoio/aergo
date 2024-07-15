@@ -4,7 +4,7 @@
 
 vars = {}
 
-skip = {store=true,let=true,set=true,insert=true,assert=true,send=true}
+skip = {['store result as']=true,let=true,set=true,insert=true,assert=true,send=true}
 
 action = {
 
