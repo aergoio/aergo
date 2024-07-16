@@ -4842,17 +4842,6 @@ func TestComposableTransactions(t *testing.T) {
 		]`, ``, `0`)
 
 
-		// get keys
-
-		multicall(t, bc, "ac1", `[
-		 ["let","obj",{"one":1,"two":2,"three":3}],
-		 ["get keys","%obj%"],
-		 ["store result as","keys"],
-		 ["get size","%keys%"],
-		 ["return","%last result%","%keys%"]
-		]`, ``, `[3,["one","three","two"]]`)
-
-
 
 
 		// BIGNUM
@@ -4902,27 +4891,10 @@ func TestComposableTransactions(t *testing.T) {
 		 ["store result as","a"],
 
 		 ["to big number","2"],
-		 ["exponentiate","%a%","%last result%"],
-		 ["square root","%last result%"],
-		 ["store result as","a"],
-
-		 ["to big number","2"],
 		 ["remainder","%a%","10000"],
 
 		 ["return","%last result%"]
 		]`, ``, `{"_bignum":"1234"}`)
-
-		multicall(t, bc, "ac1", `[
-		 ["to big number","25"],
-		 ["square root","%last result%"],
-		 ["return","%last result%"]
-		]`, ``, `{"_bignum":"5"}`)
-
-		multicall(t, bc, "ac1", `[
-		 ["let","a",25],
-		 ["square root","%a%"],
-		 ["return","%last result%"]
-		]`, ``, `5`)
 
 
 
@@ -5405,18 +5377,6 @@ func TestComposableTransactions(t *testing.T) {
 		 ["loop"],
 		 ["return","%r%"]
 		]`, ``, `31`)
-
-
-		multicall(t, bc, "ac1", `[
-		 ["let","str",""],
-		 ["let","obj",{"one":1,"two":2,"three":3}],
-		 ["get keys","%obj%"],
-		 ["for each","key","in","%last result%"],
-		 ["combine","%str%","%key%"],
-		 ["store result as","str"],
-		 ["loop"],
-		 ["return","%str%"]
-		]`, ``, `"onethreetwo"`)
 
 
 

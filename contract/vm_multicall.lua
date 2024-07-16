@@ -28,14 +28,6 @@ action = {
   insert = function (...) table.insert(...) end,   -- inserts at the end if no pos informed
   remove = function (...) return table.remove(...) end,   -- returns the removed item
   ["get size"] = function (x) return #x end,
-  ["get keys"] = function (obj)
-      local list = {}
-      for key,_ in pairs(obj) do
-        list[#list + 1] = key
-      end
-      table.sort(list)  -- for a deterministic output
-      return list
-    end,
 
   -- math
   add = function (x,y) return x+y end,
@@ -43,14 +35,6 @@ action = {
   ["multiply"] = function (x,y) return x*y end,
   ["divide"] = function (x,y) return x/y end,
   ["remainder"] = function (x,y) return x%y end,
-  ["exponentiate"] = function (x,y) return x^y end,
-  ["square root"] = function (x)
-    if bignum.isbignum(x) then
-      return bignum.sqrt(x)
-    else
-      return x ^ 0.5
-    end
-  end,
 
   -- strings
   ["combine"] = function (...) return table.concat({...}) end,
@@ -162,7 +146,7 @@ function execute(calls)
       elseif args[3] == "in" then
         for_var2 = args[2]
         for_obj = args[4]
-        for_list = action["get keys"](for_obj)
+        for_list = get_keys(for_obj)
         vars[for_var2] = for_obj[for_list[1]]
       else
         assert(false, "for each: invalid syntax")
@@ -332,6 +316,15 @@ function to_bignum(x)
   else
     return bignum.number(x)
   end
+end
+
+function get_keys(obj)
+  local list = {}
+  for key,_ in pairs(obj) do
+    list[#list + 1] = key
+  end
+  table.sort(list)  -- for a deterministic output
+  return list
 end
 
 abi.register(execute)
