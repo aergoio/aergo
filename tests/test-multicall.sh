@@ -45,6 +45,29 @@ echo "-- create accounts --"
 ../bin/aergocli account import --keystore . --password bmttest --if 47djKu2o5NshYhMtPsu62GektW7C1nKaxVNgnJUJWMKDr77gjv2aHSom1aZjrwwqQNKGKRaFv
 ../bin/aergocli account import --keystore . --password bmttest --if 47G3YUtkcLQGWX2wQMTTFTvyf2ZRTQz1ZdEMaX26FcXqMRhNF2J8KVSrhY1MrZuVvTgaMWmDC
 
+account0=AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R
+
+account1=AmNLhiVVdLxbPW5NxpLibqoLdobc2TaKVk8bwrPn5VXz6gUSLvke
+account2=AmLhv6rvLEMoL5MLws1tNTyiYYyzTx4JGjaPAugzqabpjxxWyP34
+account3=AmPfKfrbSjbHD77JjpEvdktgH3w6sbWRhhwFmFAyi1ZSsiePs7XP
+account4=AmLaPgDNg3tsebXSU19bftkr1XxvmySWGusEti9SaHoKDJEZNjSw
+
+if [ "$consensus" != "sbp" ]; then
+	# send 20 aergo to each address
+	accounts=($account1 $account2 $account3 $account4)
+	for account in "${accounts[@]}"; do
+		echo "sending 20 aergo to $account ..."
+
+		txhash=$(../bin/aergocli --keystore . --password bmttest \
+			sendtx --from $account0 --to $account --amount 20aergo \
+			| jq .hash | sed 's/"//g')
+
+		get_receipt $txhash
+
+		status=$(cat receipt.json | jq .status | sed 's/"//g')
+		assert_equals "$status"   "SUCCESS"
+	done
+fi
 
 
 function multicall() {
