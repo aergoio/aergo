@@ -329,7 +329,7 @@ multicall "ac1" '[
  ["let","b","medium"],
  ["else"],
  ["let","b","low"],
- ["end"],
+ ["end if"],
  ["let","c","after"],
  ["return","%b%","%c%"]
 ]' '' '["big","after"]'
@@ -342,7 +342,7 @@ multicall "ac1" '[
  ["let","b","medium"],
  ["else"],
  ["let","b","low"],
- ["end"],
+ ["end if"],
  ["let","c","after"],
  ["return","%b%","%c%"]
 ]' '' '["medium","after"]'
@@ -355,7 +355,7 @@ multicall "ac1" '[
  ["let","b","medium"],
  ["else"],
  ["let","b","low"],
- ["end"],
+ ["end if"],
  ["let","c","after"],
  ["return","%b%","%c%"]
 ]' '' '["low","after"]'
@@ -368,7 +368,7 @@ multicall "ac1" '[
  ["return","medium"],
  ["else"],
  ["return","low"],
- ["end"],
+ ["end if"],
  ["return","after"]
 ]' '' '"big"'
 
@@ -380,7 +380,7 @@ multicall "ac1" '[
  ["return","medium"],
  ["else"],
  ["return","low"],
- ["end"],
+ ["end if"],
  ["return","after"]
 ]' '' '"medium"'
 
@@ -392,7 +392,7 @@ multicall "ac1" '[
  ["return","medium"],
  ["else"],
  ["return","low"],
- ["end"],
+ ["end if"],
  ["return","after"]
 ]' '' '"low"'
 
@@ -406,7 +406,7 @@ multicall "ac1" '[
  ["let","b","equal"],
  ["else"],
  ["let","b","diff"],
- ["end"],
+ ["end if"],
  ["return","%b%"]
 ]' '' '"equal"'
 
@@ -419,7 +419,7 @@ multicall "ac1" '[
  ["let","b","equal"],
  ["else"],
  ["let","b","diff"],
- ["end"],
+ ["end if"],
  ["return","%b%"]
 ]' '' '"diff"'
 
@@ -432,7 +432,7 @@ multicall "ac1" '[
  ["let","b","bigger"],
  ["else"],
  ["let","b","lower"],
- ["end"],
+ ["end if"],
  ["return","%b%"]
 ]' '' '"bigger"'
 
@@ -445,7 +445,7 @@ multicall "ac1" '[
  ["let","b","bigger"],
  ["else"],
  ["let","b","lower"],
- ["end"],
+ ["end if"],
  ["return","%b%"]
 ]' '' '"lower"'
 
@@ -461,7 +461,7 @@ multicall "ac1" '[
  ["let","b","correct"],
  ["else"],
  ["let","b","wrong 2"],
- ["end"],
+ ["end if"],
  ["return","%b%"]
 ]' '' '"correct"'
 
@@ -476,7 +476,7 @@ multicall "ac1" '[
  ["let","b","correct"],
  ["else"],
  ["let","b","wrong 2"],
- ["end"],
+ ["end if"],
  ["return","%b%"]
 ]' '' '"correct"'
 
@@ -495,7 +495,7 @@ multicall "ac1" '[
  ["let","b","correct"],
  ["else"],
  ["let","b","wrong 3"],
- ["end"],
+ ["end if"],
  ["return","%b%"]
 ]' '' '"correct"'
 
@@ -510,107 +510,107 @@ multicall "ac1" '[
 
  ["if","%a%",">","%b%","or","%a%","<","%c%"],
  ["format","%s%s","%last result%","1"],
- ["end"],
+ ["end if"],
 
  ["if","%a%","=","%b%","or","%a%","=","%c%"],
  ["format","%s%s","%last result%","2"],
- ["end"],
+ ["end if"],
 
  ["if","%a%","<","%b%","or","%a%","<","%c%"],
  ["format","%s%s","%last result%","3"],
- ["end"],
+ ["end if"],
 
  ["if","%a%",">","%b%","or","%a%",">","%c%"],
  ["format","%s%s","%last result%","4"],
- ["end"],
+ ["end if"],
 
  ["if","%a%","<","%b%","or","%a%",">","%c%"],
  ["format","%s%s","%last result%","5"],
- ["end"],
+ ["end if"],
 
  ["if","%a%","!=","%b%","or","%a%","=","%c%"],
  ["format","%s%s","%last result%","6"],
- ["end"],
+ ["end if"],
 
  ["if","%a%","=","%b%","or","%a%","!=","%c%"],
  ["format","%s%s","%last result%","7"],
- ["end"],
+ ["end if"],
 
 
  ["if","%a%",">=","%b%","and","%a%","<=","%c%"],
  ["format","%s%s","%last result%","8"],
- ["end"],
+ ["end if"],
 
  ["if","%a%",">=","%c%","and","%a%","<=","%b%"],
  ["format","%s%s","%last result%","9"],
- ["end"],
+ ["end if"],
 
  ["if","%b%",">=","%a%","and","%b%","<=","%c%"],
  ["format","%s%s","%last result%","A"],
- ["end"],
+ ["end if"],
 
  ["if","%b%",">=","%c%","and","%b%","<=","%a%"],
  ["format","%s%s","%last result%","B"],
- ["end"],
+ ["end if"],
 
  ["if","%c%",">=","%a%","and","%c%","<=","%b%"],
  ["format","%s%s","%last result%","C"],
- ["end"],
+ ["end if"],
 
  ["if","%c%",">=","%b%","and","%c%","<=","%a%"],
  ["format","%s%s","%last result%","D"],
- ["end"],
+ ["end if"],
 
 
  ["if","%a%",">=","%b%","and","%a%","<=","%c%","or",1,"=",0],
  ["format","%s%s","%last result%","E"],
- ["end"],
+ ["end if"],
 
  ["if","%a%",">=","%b%","and","%a%","<=","%c%","or",1,"=",1],
  ["format","%s%s","%last result%","F"],
- ["end"],
+ ["end if"],
 
  ["if","%a%",">=","%b%","and","%a%","<=","%c%","and",1,"=",0],
  ["format","%s%s","%last result%","G"],
- ["end"],
+ ["end if"],
 
  ["if","%a%",">=","%b%","and","%a%","<=","%c%","and",1,"=",1],
  ["format","%s%s","%last result%","H"],
- ["end"],
+ ["end if"],
 
 
  ["if","%a%",">=","%c%","and","%a%","<=","%b%","or",1,"=",0],
  ["format","%s%s","%last result%","I"],
- ["end"],
+ ["end if"],
 
  ["if","%a%",">=","%c%","and","%a%","<=","%b%","or",1,"=",1],
  ["format","%s%s","%last result%","J"],
- ["end"],
+ ["end if"],
 
  ["if","%a%",">=","%c%","and","%a%","<=","%b%","and",1,"=",0],
  ["format","%s%s","%last result%","K"],
- ["end"],
+ ["end if"],
 
  ["if","%a%",">=","%c%","and","%a%","<=","%b%","and",1,"=",1],
  ["format","%s%s","%last result%","L"],
- ["end"],
+ ["end if"],
 
 
  ["if",1,"=",0,"or","%a%",">=","%b%","and","%a%","<=","%c%"],
  ["format","%s%s","%last result%","M"],
- ["end"],
+ ["end if"],
 
  ["if",1,"=",1,"or","%a%",">=","%b%","and","%a%","<=","%c%"],
  ["format","%s%s","%last result%","N"],
- ["end"],
+ ["end if"],
 
  ["if",1,"=",0,"or","%a%",">=","%c%","and","%a%","<=","%b%"],
  ["format","%s%s","%last result%","O"],
- ["end"],
+ ["end if"],
 
  ["if",1,"=",1,"or","%a%",">=","%c%","and","%a%","<=","%b%"],
  ["format","%s%s","%last result%","P"],
- ["end"],
+ ["end if"],
 
 
  ["return","%last result%"]
@@ -741,7 +741,7 @@ multicall "ac1" '[
  ["if","%item%","<",30],
  ["add","%r%","%item%"],
  ["store result as","r"],
- ["end"],
+ ["end if"],
  ["loop"],
  ["return","%r%"]
 ]' '' '31'
@@ -821,7 +821,7 @@ multicall "ac1" '[
  ["store result as","c"],
  ["if","%n%","=",5],
  ["let","n",500],
- ["end"],
+ ["end if"],
  ["loop"],
  ["return","%c%"]
 ]' '' '5'
@@ -832,7 +832,7 @@ multicall "ac1" '[
  ["add","%last result%",1],
  ["if","%n%","=",475],
  ["let","n",2],
- ["end"],
+ ["end if"],
  ["loop"],
  ["return","%last result%"]
 ]' '' '6'
@@ -844,7 +844,7 @@ multicall "ac1" '[
  ["store result as","c"],
  ["if","%n%","=",5],
  ["break"],
- ["end"],
+ ["end if"],
  ["loop"],
  ["return","%c%"]
 ]' '' '5'
@@ -865,7 +865,7 @@ multicall "ac1" '[
  ["add","%last result%",1],
  ["if","%n%","=",475],
  ["break"],
- ["end"],
+ ["end if"],
  ["loop"],
  ["return","%last result%"]
 ]' '' '6'
@@ -898,7 +898,7 @@ multicall "ac1" '[
  ["for each","item","in","%list%"],
  ["if","%item%","=","three"],
  ["break"],
- ["end"],
+ ["end if"],
  ["insert","%names%","%item%"],
  ["loop"],
  ["return","%names%"]
@@ -920,7 +920,7 @@ multicall "ac1" '[
  ["for each","key","value","in","%obj%"],
  ["if","%value%","=",false],
  ["break"],
- ["end"],
+ ["end if"],
  ["insert","%names%","%key%"],
  ["loop"],
  ["return","%names%"]
@@ -944,7 +944,7 @@ multicall "ac1" '[
  ["let","v",123],
  ["if","%v%",">",100],
  ["return"],
- ["end"],
+ ["end if"],
  ["let","v",500],
  ["return","%v%"]
 ]' '' ''
@@ -953,7 +953,7 @@ multicall "ac1" '[
  ["let","v",123],
  ["if","%v%",">",200],
  ["return"],
- ["end"],
+ ["end if"],
  ["let","v",500],
  ["return","%v%"]
 ]' '' '500'
@@ -968,7 +968,7 @@ multicall "ac1" '[
  ["call","%c%","get","n"],
  ["if","%last result%",">=",5],
  ["return","%last result%"],
- ["end"],
+ ["end if"],
  ["loop"]
 ]' '' '5'
 

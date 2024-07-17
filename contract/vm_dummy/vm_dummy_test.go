@@ -4961,7 +4961,7 @@ func TestComposableTransactions(t *testing.T) {
 		 ["let","b","medium"],
 		 ["else"],
 		 ["let","b","low"],
-		 ["end"],
+		 ["end if"],
 		 ["let","c","after"],
 		 ["return","%b%","%c%"]
 		]`, ``, `["big","after"]`)
@@ -4974,7 +4974,7 @@ func TestComposableTransactions(t *testing.T) {
 		 ["let","b","medium"],
 		 ["else"],
 		 ["let","b","low"],
-		 ["end"],
+		 ["end if"],
 		 ["let","c","after"],
 		 ["return","%b%","%c%"]
 		]`, ``, `["medium","after"]`)
@@ -4987,7 +4987,7 @@ func TestComposableTransactions(t *testing.T) {
 		 ["let","b","medium"],
 		 ["else"],
 		 ["let","b","low"],
-		 ["end"],
+		 ["end if"],
 		 ["let","c","after"],
 		 ["return","%b%","%c%"]
 		]`, ``, `["low","after"]`)
@@ -5000,7 +5000,7 @@ func TestComposableTransactions(t *testing.T) {
 		 ["return","medium"],
 		 ["else"],
 		 ["return","low"],
-		 ["end"],
+		 ["end if"],
 		 ["return","after"]
 		]`, ``, `"big"`)
 
@@ -5012,7 +5012,7 @@ func TestComposableTransactions(t *testing.T) {
 		 ["return","medium"],
 		 ["else"],
 		 ["return","low"],
-		 ["end"],
+		 ["end if"],
 		 ["return","after"]
 		]`, ``, `"medium"`)
 
@@ -5024,7 +5024,7 @@ func TestComposableTransactions(t *testing.T) {
 		 ["return","medium"],
 		 ["else"],
 		 ["return","low"],
-		 ["end"],
+		 ["end if"],
 		 ["return","after"]
 		]`, ``, `"low"`)
 
@@ -5038,7 +5038,7 @@ func TestComposableTransactions(t *testing.T) {
 		 ["let","b","equal"],
 		 ["else"],
 		 ["let","b","diff"],
-		 ["end"],
+		 ["end if"],
 		 ["return","%b%"]
 		]`, ``, `"equal"`)
 
@@ -5051,7 +5051,7 @@ func TestComposableTransactions(t *testing.T) {
 		 ["let","b","equal"],
 		 ["else"],
 		 ["let","b","diff"],
-		 ["end"],
+		 ["end if"],
 		 ["return","%b%"]
 		]`, ``, `"diff"`)
 
@@ -5064,7 +5064,7 @@ func TestComposableTransactions(t *testing.T) {
 		 ["let","b","bigger"],
 		 ["else"],
 		 ["let","b","lower"],
-		 ["end"],
+		 ["end if"],
 		 ["return","%b%"]
 		]`, ``, `"bigger"`)
 
@@ -5077,7 +5077,7 @@ func TestComposableTransactions(t *testing.T) {
 		 ["let","b","bigger"],
 		 ["else"],
 		 ["let","b","lower"],
-		 ["end"],
+		 ["end if"],
 		 ["return","%b%"]
 		]`, ``, `"lower"`)
 
@@ -5093,7 +5093,7 @@ func TestComposableTransactions(t *testing.T) {
 		 ["let","b","correct"],
 		 ["else"],
 		 ["let","b","wrong 2"],
-		 ["end"],
+		 ["end if"],
 		 ["return","%b%"]
 		]`, ``, `"correct"`)
 
@@ -5108,7 +5108,7 @@ func TestComposableTransactions(t *testing.T) {
 		 ["let","b","correct"],
 		 ["else"],
 		 ["let","b","wrong 2"],
-		 ["end"],
+		 ["end if"],
 		 ["return","%b%"]
 		]`, ``, `"correct"`)
 
@@ -5127,7 +5127,7 @@ func TestComposableTransactions(t *testing.T) {
 		 ["let","b","correct"],
 		 ["else"],
 		 ["let","b","wrong 3"],
-		 ["end"],
+		 ["end if"],
 		 ["return","%b%"]
 		]`, ``, `"correct"`)
 
@@ -5142,107 +5142,107 @@ func TestComposableTransactions(t *testing.T) {
 
 		 ["if","%a%",">","%b%","or","%a%","<","%c%"],
 		 ["format","%s%s","%last result%","1"],
-		 ["end"],
+		 ["end if"],
 
 		 ["if","%a%","=","%b%","or","%a%","=","%c%"],
 		 ["format","%s%s","%last result%","2"],
-		 ["end"],
+		 ["end if"],
 
 		 ["if","%a%","<","%b%","or","%a%","<","%c%"],
 		 ["format","%s%s","%last result%","3"],
-		 ["end"],
+		 ["end if"],
 
 		 ["if","%a%",">","%b%","or","%a%",">","%c%"],
 		 ["format","%s%s","%last result%","4"],
-		 ["end"],
+		 ["end if"],
 
 		 ["if","%a%","<","%b%","or","%a%",">","%c%"],
 		 ["format","%s%s","%last result%","5"],
-		 ["end"],
+		 ["end if"],
 
 		 ["if","%a%","!=","%b%","or","%a%","=","%c%"],
 		 ["format","%s%s","%last result%","6"],
-		 ["end"],
+		 ["end if"],
 
 		 ["if","%a%","=","%b%","or","%a%","!=","%c%"],
 		 ["format","%s%s","%last result%","7"],
-		 ["end"],
+		 ["end if"],
 
 
 		 ["if","%a%",">=","%b%","and","%a%","<=","%c%"],
 		 ["format","%s%s","%last result%","8"],
-		 ["end"],
+		 ["end if"],
 
 		 ["if","%a%",">=","%c%","and","%a%","<=","%b%"],
 		 ["format","%s%s","%last result%","9"],
-		 ["end"],
+		 ["end if"],
 
 		 ["if","%b%",">=","%a%","and","%b%","<=","%c%"],
 		 ["format","%s%s","%last result%","A"],
-		 ["end"],
+		 ["end if"],
 
 		 ["if","%b%",">=","%c%","and","%b%","<=","%a%"],
 		 ["format","%s%s","%last result%","B"],
-		 ["end"],
+		 ["end if"],
 
 		 ["if","%c%",">=","%a%","and","%c%","<=","%b%"],
 		 ["format","%s%s","%last result%","C"],
-		 ["end"],
+		 ["end if"],
 
 		 ["if","%c%",">=","%b%","and","%c%","<=","%a%"],
 		 ["format","%s%s","%last result%","D"],
-		 ["end"],
+		 ["end if"],
 
 
 		 ["if","%a%",">=","%b%","and","%a%","<=","%c%","or",1,"=",0],
 		 ["format","%s%s","%last result%","E"],
-		 ["end"],
+		 ["end if"],
 
 		 ["if","%a%",">=","%b%","and","%a%","<=","%c%","or",1,"=",1],
 		 ["format","%s%s","%last result%","F"],
-		 ["end"],
+		 ["end if"],
 
 		 ["if","%a%",">=","%b%","and","%a%","<=","%c%","and",1,"=",0],
 		 ["format","%s%s","%last result%","G"],
-		 ["end"],
+		 ["end if"],
 
 		 ["if","%a%",">=","%b%","and","%a%","<=","%c%","and",1,"=",1],
 		 ["format","%s%s","%last result%","H"],
-		 ["end"],
+		 ["end if"],
 
 
 		 ["if","%a%",">=","%c%","and","%a%","<=","%b%","or",1,"=",0],
 		 ["format","%s%s","%last result%","I"],
-		 ["end"],
+		 ["end if"],
 
 		 ["if","%a%",">=","%c%","and","%a%","<=","%b%","or",1,"=",1],
 		 ["format","%s%s","%last result%","J"],
-		 ["end"],
+		 ["end if"],
 
 		 ["if","%a%",">=","%c%","and","%a%","<=","%b%","and",1,"=",0],
 		 ["format","%s%s","%last result%","K"],
-		 ["end"],
+		 ["end if"],
 
 		 ["if","%a%",">=","%c%","and","%a%","<=","%b%","and",1,"=",1],
 		 ["format","%s%s","%last result%","L"],
-		 ["end"],
+		 ["end if"],
 
 
 		 ["if",1,"=",0,"or","%a%",">=","%b%","and","%a%","<=","%c%"],
 		 ["format","%s%s","%last result%","M"],
-		 ["end"],
+		 ["end if"],
 
 		 ["if",1,"=",1,"or","%a%",">=","%b%","and","%a%","<=","%c%"],
 		 ["format","%s%s","%last result%","N"],
-		 ["end"],
+		 ["end if"],
 
 		 ["if",1,"=",0,"or","%a%",">=","%c%","and","%a%","<=","%b%"],
 		 ["format","%s%s","%last result%","O"],
-		 ["end"],
+		 ["end if"],
 
 		 ["if",1,"=",1,"or","%a%",">=","%c%","and","%a%","<=","%b%"],
 		 ["format","%s%s","%last result%","P"],
-		 ["end"],
+		 ["end if"],
 
 
 		 ["return","%last result%"]
@@ -5373,7 +5373,7 @@ func TestComposableTransactions(t *testing.T) {
 		 ["if","%item%","<",30],
 		 ["add","%r%","%item%"],
 		 ["store result as","r"],
-		 ["end"],
+		 ["end if"],
 		 ["loop"],
 		 ["return","%r%"]
 		]`, ``, `31`)
@@ -5453,7 +5453,7 @@ func TestComposableTransactions(t *testing.T) {
 		 ["store result as","c"],
 		 ["if","%n%","=",5],
 		 ["let","n",500],
-		 ["end"],
+		 ["end if"],
 		 ["loop"],
 		 ["return","%c%"]
 		]`, ``, `5`)
@@ -5464,7 +5464,7 @@ func TestComposableTransactions(t *testing.T) {
 		 ["add","%last result%",1],
 		 ["if","%n%","=",475],
 		 ["let","n",2],
-		 ["end"],
+		 ["end if"],
 		 ["loop"],
 		 ["return","%last result%"]
 		]`, ``, `6`)
@@ -5476,7 +5476,7 @@ func TestComposableTransactions(t *testing.T) {
 		 ["store result as","c"],
 		 ["if","%n%","=",5],
 		 ["break"],
-		 ["end"],
+		 ["end if"],
 		 ["loop"],
 		 ["return","%c%"]
 		]`, ``, `5`)
@@ -5497,7 +5497,7 @@ func TestComposableTransactions(t *testing.T) {
 		 ["add","%last result%",1],
 		 ["if","%n%","=",475],
 		 ["break"],
-		 ["end"],
+		 ["end if"],
 		 ["loop"],
 		 ["return","%last result%"]
 		]`, ``, `6`)
@@ -5530,7 +5530,7 @@ func TestComposableTransactions(t *testing.T) {
 		 ["for each","item","in","%list%"],
 		 ["if","%item%","=","three"],
 		 ["break"],
-		 ["end"],
+		 ["end if"],
 		 ["insert","%names%","%item%"],
 		 ["loop"],
 		 ["return","%names%"]
@@ -5552,7 +5552,7 @@ func TestComposableTransactions(t *testing.T) {
 		 ["for each","key","value","in","%obj%"],
 		 ["if","%value%","=",false],
 		 ["break"],
-		 ["end"],
+		 ["end if"],
 		 ["insert","%names%","%key%"],
 		 ["loop"],
 		 ["return","%names%"]
@@ -5576,7 +5576,7 @@ func TestComposableTransactions(t *testing.T) {
 		 ["let","v",123],
 		 ["if","%v%",">",100],
 		 ["return"],
-		 ["end"],
+		 ["end if"],
 		 ["let","v",500],
 		 ["return","%v%"]
 		]`, ``, ``)
@@ -5585,7 +5585,7 @@ func TestComposableTransactions(t *testing.T) {
 		 ["let","v",123],
 		 ["if","%v%",">",200],
 		 ["return"],
-		 ["end"],
+		 ["end if"],
 		 ["let","v",500],
 		 ["return","%v%"]
 		]`, ``, `500`)
@@ -5600,7 +5600,7 @@ func TestComposableTransactions(t *testing.T) {
 		 ["call","%c%","get","n"],
 		 ["if","%last result%",">=",5],
 		 ["return","%last result%"],
-		 ["end"],
+		 ["end if"],
 		 ["loop"]
 		]`, ``, `5`)
 

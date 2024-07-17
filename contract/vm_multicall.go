@@ -137,7 +137,7 @@ function execute(calls)
       end
     elseif cmd == "else" then
       if_on = (not if_on) and (not if_done)
-    elseif cmd == "end" then
+    elseif cmd == "end if" then
       if_on = true
 
     -- for foreach break loop
