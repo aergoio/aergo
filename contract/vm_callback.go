@@ -1120,7 +1120,9 @@ func luaDeployContract(
 		} else if len(codeABI) == 0 {
 			return -1, C.CString("[Contract.LuaDeployContract]: not found code")
 		}
-		sourceCode = contractState.GetSourceCode()
+		if ctx.blockInfo.ForkVersion >= 4 {
+			sourceCode = contractState.GetSourceCode()
+		}
 	}
 
 	// compile contract code if not found
@@ -1139,7 +1141,9 @@ func luaDeployContract(
 			}
 			return -1, C.CString("[Contract.LuaDeployContract]compile error:" + err.Error())
 		}
-		sourceCode = []byte(contractStr)
+		if ctx.blockInfo.ForkVersion >= 4 {
+			sourceCode = []byte(contractStr)
+		}
 	}
 
 	err = ctx.addUpdateSize(int64(len(codeABI) + len(sourceCode)))

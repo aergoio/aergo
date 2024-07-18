@@ -31,7 +31,7 @@ func (cs *ContractState) SetCode(sourceCode []byte, bytecode []byte) error {
 	// update the contract bytecode
 	cs.code = bytecode
 
-	if sourceCode != nil {
+	if len(sourceCode) > 0 {
 		// hash the source code
 		sourceCodeHash := common.Hasher(sourceCode)
 		// save the source code to the database
