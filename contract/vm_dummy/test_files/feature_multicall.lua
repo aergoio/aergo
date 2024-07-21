@@ -93,9 +93,21 @@ function resend_to(address)
   return amount
 end
 
+function resend_and_fail(address)
+  local amount = system.getAmount()
+  contract.send(address, amount)
+  assert(false, "this call should fail")
+  return amount
+end
+
 function send_to(address, amount)
   contract.send(address, amount)
 end
 
-abi.payable(recv_aergo, resend_to)
-abi.register(send_to)
+function send_and_fail(address, amount)
+  contract.send(address, amount)
+  assert(false, "this call should fail")
+end
+
+abi.payable(recv_aergo, resend_to, resend_and_fail)
+abi.register(send_to, send_and_fail)

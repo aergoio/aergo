@@ -4420,82 +4420,98 @@ func TestPcallStateRollback3(t *testing.T) {
 func testStateRollback(t *testing.T, bc *DummyChain, script string, expected_state map[string]int, expected_amount map[string]int64) {
 	t.Helper()
 
-	err := bc.ConnectBlock(
-		NewLuaTxCall("user", "A", 0, `{"Name":"set","Args":["x",0]}`),
-		NewLuaTxCall("user", "B", 0, `{"Name":"set","Args":["x",0]}`),
-		NewLuaTxCall("user", "C", 0, `{"Name":"set","Args":["x",0]}`),
-		NewLuaTxCall("user", "B", 0, `{"Name":"send_back","Args":["A"]}`),
-		NewLuaTxCall("user", "C", 0, `{"Name":"send_back","Args":["A"]}`),
-	)
-	require.NoErrorf(t, err, "failed to reset")
+	for n := 1; n <= 2; n++ {
 
-	account, _ := bc.GetAccountState("A")
-	if account.GetBalanceBigInt().Int64() != 3 {
-		amount := uint64(3 - account.GetBalanceBigInt().Int64())
-		err = bc.ConnectBlock(
-			NewLuaTxSendBig("user", "A", types.NewAmount(amount, types.Aer)),
+		err := bc.ConnectBlock(
+			NewLuaTxCall("user", "A", 0, `{"Name":"set","Args":["x",0]}`),
+			NewLuaTxCall("user", "B", 0, `{"Name":"set","Args":["x",0]}`),
+			NewLuaTxCall("user", "C", 0, `{"Name":"set","Args":["x",0]}`),
+			NewLuaTxCall("user", "B", 0, `{"Name":"send_back","Args":["A"]}`),
+			NewLuaTxCall("user", "C", 0, `{"Name":"send_back","Args":["A"]}`),
 		)
-		require.NoErrorf(t, err, "failed to send")
-	}
+		require.NoErrorf(t, err, "failed to reset")
 
-	names := make(map[string]int64)
-	names["A"] = 3
-	names["B"] = 0
-	names["C"] = 0
-	for name, amount := range names {
-		account, _ := bc.GetAccountState(name)
-		assert.Equal(t, amount, account.GetBalanceBigInt().Int64(), "balance of "+name+" is not reset")
-		err = bc.Query(name, `{"Name":"get", "Args":["x"]}`, "", "0")
-		require.NoErrorf(t, err, "failed to query on reset")
-	}
+		account, _ := bc.GetAccountState("A")
+		if account.GetBalanceBigInt().Int64() != 3 {
+			amount := uint64(3 - account.GetBalanceBigInt().Int64())
+			err = bc.ConnectBlock(
+				NewLuaTxSendBig("user", "A", types.NewAmount(amount, types.Aer)),
+			)
+			require.NoErrorf(t, err, "failed to send")
+		}
 
-	script = strings.ReplaceAll(script, "'", "\"")
-	tx := NewLuaTxCall("user", "A", 0, fmt.Sprintf(`{"Name":"test", "Args":[%s]}`, script))
-	err = bc.ConnectBlock(tx)
-	//require.NoErrorf(t, err, "failed to call tx")
-	//receipt := bc.GetReceipt(tx.Hash())
-	//assert.Equal(t, ``, receipt.GetRet(), "receipt ret error")
-	//fmt.Printf("events: %v\n", receipt.GetEvents())
+		names := make(map[string]int64)
+		names["A"] = 3
+		names["B"] = 0
+		names["C"] = 0
+		for name, amount := range names {
+			account, _ := bc.GetAccountState(name)
+			assert.Equal(t, amount, account.GetBalanceBigInt().Int64(), "balance of "+name+" is not reset")
+			err = bc.Query(name, `{"Name":"get", "Args":["x"]}`, "", "0")
+			require.NoErrorf(t, err, "failed to query on reset")
+		}
 
-	for contract, value := range expected_state {
-		err = bc.Query(contract, `{"Name":"get", "Args":["x"]}`, "", fmt.Sprintf("%d", value))
-		require.NoErrorf(t, err, "query failed")
-	}
+		script = strings.ReplaceAll(script, "'", "\"")
+		var tx LuaTxTester
+		if n == 1 {
+			tx = NewLuaTxCall("user", "A", 0, fmt.Sprintf(`{"Name":"test", "Args":[%s]}`, script))
+		} else {
+			tx = NewLuaTxMultiCall("user", fmt.Sprintf(`[["call","%s","test",%s]]`, nameToAddress("A"), script))
+		}
+		err = bc.ConnectBlock(tx)
+		//require.NoErrorf(t, err, "failed to call tx")
+		//receipt := bc.GetReceipt(tx.Hash())
+		//assert.Equal(t, ``, receipt.GetRet(), "receipt ret error")
+		//fmt.Printf("events: %v\n", receipt.GetEvents())
 
-	for name, amount := range expected_amount {
-		account, err := bc.GetAccountState(name)
-		require.NoErrorf(t, err, "failed to get account state")
-		assert.Equal(t, amount, account.GetBalanceBigInt().Int64(), "balance is different")
+		for contract, value := range expected_state {
+			err = bc.Query(contract, `{"Name":"get", "Args":["x"]}`, "", fmt.Sprintf("%d", value))
+			require.NoErrorf(t, err, "query failed")
+		}
+
+		for name, amount := range expected_amount {
+			account, err := bc.GetAccountState(name)
+			require.NoErrorf(t, err, "failed to get account state")
+			assert.Equal(t, amount, account.GetBalanceBigInt().Int64(), "balance is different")
+		}
 	}
 }
 
 func testDbStateRollback(t *testing.T, bc *DummyChain, script string, expected map[string]int) {
 	t.Helper()
 
-	err := bc.ConnectBlock(
-		NewLuaTxCall("user", "A", 0, `{"Name":"db_reset"}`),
-		NewLuaTxCall("user", "B", 0, `{"Name":"db_reset"}`),
-		NewLuaTxCall("user", "C", 0, `{"Name":"db_reset"}`),
-	)
-	require.NoErrorf(t, err, "failed to reset")
+	for n := 1; n <= 2; n++ {
 
-	names := []string{"A", "B", "C"}
-	for _, name := range names {
-		err = bc.Query(name, `{"Name":"db_get"}`, "", "0")
-		require.NoErrorf(t, err, "failed to query on reset")
-	}
+		err := bc.ConnectBlock(
+			NewLuaTxCall("user", "A", 0, `{"Name":"db_reset"}`),
+			NewLuaTxCall("user", "B", 0, `{"Name":"db_reset"}`),
+			NewLuaTxCall("user", "C", 0, `{"Name":"db_reset"}`),
+		)
+		require.NoErrorf(t, err, "failed to reset")
 
-	script = strings.ReplaceAll(script, "'", "\"")
-	tx := NewLuaTxCall("user", "A", 0, fmt.Sprintf(`{"Name":"test", "Args":[%s]}`, script))
-	err = bc.ConnectBlock(tx)
-	//require.NoErrorf(t, err, "failed to call tx")
-	//receipt := bc.GetReceipt(tx.Hash())
-	//assert.Equal(t, ``, receipt.GetRet(), "receipt ret error")
-	//fmt.Printf("events: %v\n", receipt.GetEvents())
+		names := []string{"A", "B", "C"}
+		for _, name := range names {
+			err = bc.Query(name, `{"Name":"db_get"}`, "", "0")
+			require.NoErrorf(t, err, "failed to query on reset")
+		}
 
-	for contract, value := range expected {
-		err = bc.Query(contract, `{"Name":"db_get"}`, "", fmt.Sprintf("%d", value))
-		require.NoErrorf(t, err, "query failed")
+		script = strings.ReplaceAll(script, "'", "\"")
+		var tx LuaTxTester
+		if n == 1 {
+			tx = NewLuaTxCall("user", "A", 0, fmt.Sprintf(`{"Name":"test", "Args":[%s]}`, script))
+		} else {
+			tx = NewLuaTxMultiCall("user", fmt.Sprintf(`[["call","%s","test",%s]]`, nameToAddress("A"), script))
+		}
+		err = bc.ConnectBlock(tx)
+		//require.NoErrorf(t, err, "failed to call tx")
+		//receipt := bc.GetReceipt(tx.Hash())
+		//assert.Equal(t, ``, receipt.GetRet(), "receipt ret error")
+		//fmt.Printf("events: %v\n", receipt.GetEvents())
+
+		for contract, value := range expected {
+			err = bc.Query(contract, `{"Name":"db_get"}`, "", fmt.Sprintf("%d", value))
+			require.NoErrorf(t, err, "query failed")
+		}
 	}
 }
 
@@ -5776,6 +5792,40 @@ func TestComposableTransactions(t *testing.T) {
 		 ["assert","%last result%","=","1.25 aergo"],
 		 ["try call + send","1 aergo","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRB","recv_aergo"],
 		 ["assert","%call succeeded%","=",false]
+		]`)
+
+		// ac1: AmgMPiyZYr19kQ1kHFNiGenez1CRTBqNWqppj6gGZGEP6qszDGe1
+		// ac2: AmgeSw3M3V3orBMjf1j98kGne4WycnmQWVTJe6MYNrQ2wuVz3Li2
+
+		multicall(t, bc, "ac1", `[
+		 ["let","balance before","%my aergo balance%"],
+		 ["get balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
+		 ["assert","%last result%","=","1.25 aergo"],
+
+		 ["try call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","send_and_fail","AmgMPiyZYr19kQ1kHFNiGenez1CRTBqNWqppj6gGZGEP6qszDGe1","0.5 aergo"],
+		 ["assert","%call succeeded%","=",false],
+		 ["get balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
+		 ["assert","%last result%","=","1.25 aergo"],
+		 ["assert","%my aergo balance%","=","%balance before%"],
+
+		 ["try call + send","0.25 aergo","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","resend_and_fail","AmgMPiyZYr19kQ1kHFNiGenez1CRTBqNWqppj6gGZGEP6qszDGe1"],
+		 ["assert","%call succeeded%","=",false],
+		 ["get balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
+		 ["assert","%last result%","=","1.25 aergo"],
+		 ["assert","%my aergo balance%","=","%balance before%"],
+
+		 ["try call + send","0.25 aergo","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","resend_and_fail","AmgeSw3M3V3orBMjf1j98kGne4WycnmQWVTJe6MYNrQ2wuVz3Li2"],
+		 ["assert","%call succeeded%","=",false],
+		 ["get balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
+		 ["assert","%last result%","=","1.25 aergo"],
+		 ["assert","%my aergo balance%","=","%balance before%"],
+
+		 ["try call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","send_to","AmgMPiyZYr19kQ1kHFNiGenez1CRTBqNWqppj6gGZGEP6qszDGe1","0.5 aergo"],
+		 ["assert","%call succeeded%"],
+		 ["get balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
+		 ["assert","%last result%","=","0.75 aergo"],
+		 ["subtract","%my aergo balance%","%balance before%"],
+		 ["assert","%last result%","=","0.5 aergo"]
 		]`)
 
 
