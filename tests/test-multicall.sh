@@ -1102,7 +1102,7 @@ multicall "ac1" '[
 
 
 
-# TRY CALL
+# TRY CALL (PCALL)
 
 multicall "ac1" '[
  ["try call","'$address'","works"],
@@ -1130,7 +1130,7 @@ multicall "ac3" '[
 ]' '' '"1st"'
 
 
-# TRY CALL + SEND
+# TRY CALL + SEND (PCALL)
 
 multicall "ac1" '[
  ["get balance","'$address'"],
@@ -1146,6 +1146,37 @@ multicall "ac1" '[
  ["try call + send","1 aergo","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRB","recv_aergo"],
  ["assert","%call succeeded%","=",false]
 ]'
+
+multicall "ac1" '[
+	["let","balance before","%my aergo balance%"],
+	["get balance","'$address'"],
+	["assert","%last result%","=","1.25 aergo"],
+
+	["try call","'$address'","send_and_fail","AmNLhiVVdLxbPW5NxpLibqoLdobc2TaKVk8bwrPn5VXz6gUSLvke","0.5 aergo"],
+	["assert","%call succeeded%","=",false],
+	["get balance","'$address'"],
+	["assert","%last result%","=","1.25 aergo"],
+	["assert","%my aergo balance%","=","%balance before%"],
+
+	["try call + send","0.25 aergo","'$address'","resend_and_fail","AmNLhiVVdLxbPW5NxpLibqoLdobc2TaKVk8bwrPn5VXz6gUSLvke"],
+	["assert","%call succeeded%","=",false],
+	["get balance","'$address'"],
+	["assert","%last result%","=","1.25 aergo"],
+	["assert","%my aergo balance%","=","%balance before%"],
+
+	["try call + send","0.25 aergo","'$address'","resend_and_fail","AmLhv6rvLEMoL5MLws1tNTyiYYyzTx4JGjaPAugzqabpjxxWyP34"],
+	["assert","%call succeeded%","=",false],
+	["get balance","'$address'"],
+	["assert","%last result%","=","1.25 aergo"],
+	["assert","%my aergo balance%","=","%balance before%"],
+
+	["try call","'$address'","send_to","AmNLhiVVdLxbPW5NxpLibqoLdobc2TaKVk8bwrPn5VXz6gUSLvke","0.5 aergo"],
+	["assert","%call succeeded%"],
+	["get balance","'$address'"],
+	["assert","%last result%","=","0.75 aergo"],
+	["subtract","%my aergo balance%","%balance before%"],
+	["assert","%last result%","=","0.5 aergo"]
+]' '' ''
 
 
 # MULTICALL ON ACCOUNT ------------------------------------------
