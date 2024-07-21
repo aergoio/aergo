@@ -1148,34 +1148,35 @@ multicall "ac1" '[
 ]'
 
 multicall "ac1" '[
-	["let","balance before","%my aergo balance%"],
+	["let","my balance before","%my aergo balance%"],
 	["get aergo balance","'$address'"],
-	["assert","%last result%","=","1.25 aergo"],
+	["let","contract balance before","%last result%"],
 
 	["try call","'$address'","send_and_fail","AmNLhiVVdLxbPW5NxpLibqoLdobc2TaKVk8bwrPn5VXz6gUSLvke","0.5 aergo"],
 	["assert","%call succeeded%","=",false],
 	["get aergo balance","'$address'"],
-	["assert","%last result%","=","1.25 aergo"],
-	["assert","%my aergo balance%","=","%balance before%"],
+	["assert","%last result%","=","%contract balance before%"],
+	["assert","%my aergo balance%","=","%my balance before%"],
 
 	["try call + send","0.25 aergo","'$address'","resend_and_fail","AmNLhiVVdLxbPW5NxpLibqoLdobc2TaKVk8bwrPn5VXz6gUSLvke"],
 	["assert","%call succeeded%","=",false],
 	["get aergo balance","'$address'"],
-	["assert","%last result%","=","1.25 aergo"],
-	["assert","%my aergo balance%","=","%balance before%"],
+	["assert","%last result%","=","%contract balance before%"],
+	["assert","%my aergo balance%","=","%my balance before%"],
 
 	["try call + send","0.25 aergo","'$address'","resend_and_fail","AmLhv6rvLEMoL5MLws1tNTyiYYyzTx4JGjaPAugzqabpjxxWyP34"],
 	["assert","%call succeeded%","=",false],
 	["get aergo balance","'$address'"],
-	["assert","%last result%","=","1.25 aergo"],
-	["assert","%my aergo balance%","=","%balance before%"],
+	["assert","%last result%","=","%contract balance before%"],
+	["assert","%my aergo balance%","=","%my balance before%"],
 
-	["try call","'$address'","send_to","AmNLhiVVdLxbPW5NxpLibqoLdobc2TaKVk8bwrPn5VXz6gUSLvke","0.5 aergo"],
+	["try call","'$address'","send_to","AmNLhiVVdLxbPW5NxpLibqoLdobc2TaKVk8bwrPn5VXz6gUSLvke","0.125 aergo"],
 	["assert","%call succeeded%"],
 	["get aergo balance","'$address'"],
-	["assert","%last result%","=","0.75 aergo"],
-	["subtract","%my aergo balance%","%balance before%"],
-	["assert","%last result%","=","0.5 aergo"]
+	["subtract","%contract balance before%","%last result%"],
+	["assert","%last result%","=","0.125 aergo"],
+	["subtract","%my aergo balance%","%my balance before%"],
+	["assert","%last result%","=","0.125 aergo"]
 ]' '' ''
 
 
