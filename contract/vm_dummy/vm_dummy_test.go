@@ -5678,35 +5678,35 @@ func TestComposableTransactions(t *testing.T) {
 		// CALL + SEND
 
 		multicall(t, bc, "ac3", `[
-		 ["get balance","%my account address%"],
+		 ["get aergo balance","%my account address%"],
 		 ["store result as","my balance before"],
-		 ["get balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
+		 ["get aergo balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
 		 ["store result as","contract balance before"],
 		 ["call + send","0.25 aergo","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","resend_to","%my account address%"],
 		 ["assert","%last result%","=","250000000000000000"],
-		 ["get balance","%my account address%"],
+		 ["get aergo balance","%my account address%"],
 		 ["assert","%last result%","=","%my balance before%"],
-		 ["get balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
+		 ["get aergo balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
 		 ["assert","%last result%","=","%contract balance before%"]
 		]`)
 
 		multicall(t, bc, "ac3", `[
-		 ["get balance","%my account address%"],
+		 ["get aergo balance","%my account address%"],
 		 ["store result as","my balance before"],
-		 ["get balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
+		 ["get aergo balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
 		 ["store result as","contract balance before"],
 
 		 ["let","amount","1.5","aergo"],
 		 ["call + send","%amount%","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","recv_aergo"],
 
 		 ["assert","%my aergo balance%","<","%my balance before%"],
-		 ["get balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
+		 ["get aergo balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
 		 ["assert","%last result%",">","%contract balance before%"],
 
 		 ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","send_to","%my account address%","%amount%"],
 
 		 ["assert","%my aergo balance%","=","%my balance before%"],
-		 ["get balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
+		 ["get aergo balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
 		 ["assert","%last result%","=","%contract balance before%"]
 		]`)
 
@@ -5782,13 +5782,13 @@ func TestComposableTransactions(t *testing.T) {
 		// TRY CALL + SEND
 
 		multicall(t, bc, "ac1", `[
-		 ["get balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
+		 ["get aergo balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
 		 ["assert","%last result%","=","0"],
 		 ["try call + send","0.25 aergo","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","recv_aergo"],
 		 ["assert","%call succeeded%"],
 		 ["try call + send","1 aergo","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","recv_aergo"],
 		 ["assert","%call succeeded%","=",true],
-		 ["get balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
+		 ["get aergo balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
 		 ["assert","%last result%","=","1.25 aergo"],
 		 ["try call + send","1 aergo","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRB","recv_aergo"],
 		 ["assert","%call succeeded%","=",false]
@@ -5799,30 +5799,30 @@ func TestComposableTransactions(t *testing.T) {
 
 		multicall(t, bc, "ac1", `[
 		 ["let","balance before","%my aergo balance%"],
-		 ["get balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
+		 ["get aergo balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
 		 ["assert","%last result%","=","1.25 aergo"],
 
 		 ["try call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","send_and_fail","AmgMPiyZYr19kQ1kHFNiGenez1CRTBqNWqppj6gGZGEP6qszDGe1","0.5 aergo"],
 		 ["assert","%call succeeded%","=",false],
-		 ["get balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
+		 ["get aergo balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
 		 ["assert","%last result%","=","1.25 aergo"],
 		 ["assert","%my aergo balance%","=","%balance before%"],
 
 		 ["try call + send","0.25 aergo","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","resend_and_fail","AmgMPiyZYr19kQ1kHFNiGenez1CRTBqNWqppj6gGZGEP6qszDGe1"],
 		 ["assert","%call succeeded%","=",false],
-		 ["get balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
+		 ["get aergo balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
 		 ["assert","%last result%","=","1.25 aergo"],
 		 ["assert","%my aergo balance%","=","%balance before%"],
 
 		 ["try call + send","0.25 aergo","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","resend_and_fail","AmgeSw3M3V3orBMjf1j98kGne4WycnmQWVTJe6MYNrQ2wuVz3Li2"],
 		 ["assert","%call succeeded%","=",false],
-		 ["get balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
+		 ["get aergo balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
 		 ["assert","%last result%","=","1.25 aergo"],
 		 ["assert","%my aergo balance%","=","%balance before%"],
 
 		 ["try call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","send_to","AmgMPiyZYr19kQ1kHFNiGenez1CRTBqNWqppj6gGZGEP6qszDGe1","0.5 aergo"],
 		 ["assert","%call succeeded%"],
-		 ["get balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
+		 ["get aergo balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
 		 ["assert","%last result%","=","0.75 aergo"],
 		 ["subtract","%my aergo balance%","%balance before%"],
 		 ["assert","%last result%","=","0.5 aergo"]
@@ -5925,18 +5925,18 @@ func TestComposableTransactions(t *testing.T) {
 		]`, ``, `{"_bignum":"6000000000000000000"}`)
 
 		multicall(t, bc, "ac2", `[
-		 ["get balance"],
+		 ["get aergo balance"],
 		 ["assert","%last result%","=","10000000000000000000"],
 
-		 ["get balance","AmgHyfkUt5iuXJKZNTrdthtXWLLJCrKWdJ6H6Yshn6ZR285Wr2Hc"],
+		 ["get aergo balance","AmgHyfkUt5iuXJKZNTrdthtXWLLJCrKWdJ6H6Yshn6ZR285Wr2Hc"],
 		 ["assert","%last result%","=","0"],
 
 		 ["send","AmgHyfkUt5iuXJKZNTrdthtXWLLJCrKWdJ6H6Yshn6ZR285Wr2Hc","3000000000000000000"],
 
-		 ["get balance","AmgHyfkUt5iuXJKZNTrdthtXWLLJCrKWdJ6H6Yshn6ZR285Wr2Hc"],
+		 ["get aergo balance","AmgHyfkUt5iuXJKZNTrdthtXWLLJCrKWdJ6H6Yshn6ZR285Wr2Hc"],
 		 ["assert","%last result%","=","3000000000000000000"],
 
-		 ["get balance"],
+		 ["get aergo balance"],
 		 ["assert","%last result%","=","7000000000000000000"],
 
 		 ["to string"],

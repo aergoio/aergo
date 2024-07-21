@@ -15,7 +15,7 @@ action = {
   ["try call + send"] = function (amount,...) return try_call(contract.call.value(amount),...) end,
 
   -- aergo balance and transfer
-  ["get balance"] = function (address) return bignum.number(contract.balance(address)) end,
+  ["get aergo balance"] = function (address) return bignum.number(contract.balance(address)) end,
   send = function (address,amount) return contract.send(address, amount) end,
 
   -- variables
@@ -25,7 +25,7 @@ action = {
   -- tables
   get = function (o,k) return o[k] end,
   set = function (o,k,v) o[k] = v end,
-  insert = function (...) table.insert(...) end,   -- inserts at the end if no pos informed
+  insert = function (...) table.insert(...) end,   -- inserts at the end if no position is informed
   remove = function (...) return table.remove(...) end,   -- returns the removed item
   ["get size"] = function (x) return #x end,
 
@@ -78,7 +78,7 @@ function get_arg_value(varname, default)
   if varname == "my account address" then
     value = system.getContractID()
   elseif varname == "my aergo balance" then
-    value = action["get balance"]()
+    value = action["get aergo balance"]()
   elseif vars[varname] ~= nil then
     value = vars[varname]
   end

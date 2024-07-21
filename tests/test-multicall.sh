@@ -1029,35 +1029,35 @@ multicall "ac3" '[
 # CALL + SEND
 
 multicall "ac3" '[
- ["get balance","%my account address%"],
+ ["get aergo balance","%my account address%"],
  ["store result as","my balance before"],
- ["get balance","'$address'"],
+ ["get aergo balance","'$address'"],
  ["store result as","contract balance before"],
  ["call + send","0.25 aergo","'$address'","resend_to","%my account address%"],
  ["assert","%last result%","=","250000000000000000"],
- ["get balance","%my account address%"],
+ ["get aergo balance","%my account address%"],
  ["assert","%last result%","=","%my balance before%"],
- ["get balance","'$address'"],
+ ["get aergo balance","'$address'"],
  ["assert","%last result%","=","%contract balance before%"]
 ]'
 
 multicall "ac3" '[
- ["get balance","%my account address%"],
+ ["get aergo balance","%my account address%"],
  ["store result as","my balance before"],
- ["get balance","'$address'"],
+ ["get aergo balance","'$address'"],
  ["store result as","contract balance before"],
 
  ["let","amount","1.5","aergo"],
  ["call + send","%amount%","'$address'","recv_aergo"],
 
  ["assert","%my aergo balance%","<","%my balance before%"],
- ["get balance","'$address'"],
+ ["get aergo balance","'$address'"],
  ["assert","%last result%",">","%contract balance before%"],
 
  ["call","'$address'","send_to","%my account address%","%amount%"],
 
  ["assert","%my aergo balance%","=","%my balance before%"],
- ["get balance","'$address'"],
+ ["get aergo balance","'$address'"],
  ["assert","%last result%","=","%contract balance before%"]
 ]'
 
@@ -1133,13 +1133,13 @@ multicall "ac3" '[
 # TRY CALL + SEND (PCALL)
 
 multicall "ac1" '[
- ["get balance","'$address'"],
+ ["get aergo balance","'$address'"],
  ["store result as","balance before"],
  ["try call + send","0.25 aergo","'$address'","recv_aergo"],
  ["assert","%call succeeded%"],
  ["try call + send","1 aergo","'$address'","recv_aergo"],
  ["assert","%call succeeded%","=",true],
- ["get balance","'$address'"],
+ ["get aergo balance","'$address'"],
  ["store result as","balance after"],
  ["subtract","%balance after%","%balance before%"],
  ["assert","%last result%","=","1.25 aergo"],
@@ -1149,30 +1149,30 @@ multicall "ac1" '[
 
 multicall "ac1" '[
 	["let","balance before","%my aergo balance%"],
-	["get balance","'$address'"],
+	["get aergo balance","'$address'"],
 	["assert","%last result%","=","1.25 aergo"],
 
 	["try call","'$address'","send_and_fail","AmNLhiVVdLxbPW5NxpLibqoLdobc2TaKVk8bwrPn5VXz6gUSLvke","0.5 aergo"],
 	["assert","%call succeeded%","=",false],
-	["get balance","'$address'"],
+	["get aergo balance","'$address'"],
 	["assert","%last result%","=","1.25 aergo"],
 	["assert","%my aergo balance%","=","%balance before%"],
 
 	["try call + send","0.25 aergo","'$address'","resend_and_fail","AmNLhiVVdLxbPW5NxpLibqoLdobc2TaKVk8bwrPn5VXz6gUSLvke"],
 	["assert","%call succeeded%","=",false],
-	["get balance","'$address'"],
+	["get aergo balance","'$address'"],
 	["assert","%last result%","=","1.25 aergo"],
 	["assert","%my aergo balance%","=","%balance before%"],
 
 	["try call + send","0.25 aergo","'$address'","resend_and_fail","AmLhv6rvLEMoL5MLws1tNTyiYYyzTx4JGjaPAugzqabpjxxWyP34"],
 	["assert","%call succeeded%","=",false],
-	["get balance","'$address'"],
+	["get aergo balance","'$address'"],
 	["assert","%last result%","=","1.25 aergo"],
 	["assert","%my aergo balance%","=","%balance before%"],
 
 	["try call","'$address'","send_to","AmNLhiVVdLxbPW5NxpLibqoLdobc2TaKVk8bwrPn5VXz6gUSLvke","0.5 aergo"],
 	["assert","%call succeeded%"],
-	["get balance","'$address'"],
+	["get aergo balance","'$address'"],
 	["assert","%last result%","=","0.75 aergo"],
 	["subtract","%my aergo balance%","%balance before%"],
 	["assert","%last result%","=","0.5 aergo"]
@@ -1283,7 +1283,7 @@ balance4=$(parse_balance $balance4)
 echo balance=$balance4
 
 multicall "ac4" '[
- ["get balance"],
+ ["get aergo balance"],
  ["to string"],
  ["assert","%last result%","=","'$balance4'"],
  ["return","%last result%"]
@@ -1302,21 +1302,21 @@ balance4after=$(echo "$balance4 + $amount" | bc)
 balance1after=$(echo "$balance1 - $amount" | bc)
 
 multicall "ac1" '[
- ["get balance"],
+ ["get aergo balance"],
  ["to string","%last result%"],
  ["assert","%last result%","=","'$balance1'"],
 
- ["get balance","AmLaPgDNg3tsebXSU19bftkr1XxvmySWGusEti9SaHoKDJEZNjSw"],
+ ["get aergo balance","AmLaPgDNg3tsebXSU19bftkr1XxvmySWGusEti9SaHoKDJEZNjSw"],
  ["to string","%last result%"],
  ["assert","%last result%","=","'$balance4'"],
 
  ["send","AmLaPgDNg3tsebXSU19bftkr1XxvmySWGusEti9SaHoKDJEZNjSw","'$amount'"],
 
- ["get balance","AmLaPgDNg3tsebXSU19bftkr1XxvmySWGusEti9SaHoKDJEZNjSw"],
+ ["get aergo balance","AmLaPgDNg3tsebXSU19bftkr1XxvmySWGusEti9SaHoKDJEZNjSw"],
  ["to string","%last result%"],
  ["assert","%last result%","=","'$balance4after'"],
 
- ["get balance"],
+ ["get aergo balance"],
  ["to string"],
  ["assert","%last result%","=","'$balance1after'"],
 
