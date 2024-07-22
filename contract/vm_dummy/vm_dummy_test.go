@@ -6201,8 +6201,62 @@ func TestContractMulticall(t *testing.T) {
 
 		execute_block(t, bc, []*luaTxCall{tx1, tx2, tx3}, []string{``, `222`, `null`})
 
-
 		call(t, bc, "ac1", 0, "caller", "get_value", `["num"]`, ``, `222`)
+
+
+		// test state recovery - normal atomic txn
+
+		tx1 = build_contract_multicall_tx("ac1", "caller", "multicall_and_check", `[
+			["assert","%my aergo balance%","=","0.875 aergo"],
+			["get aergo balance","AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9"],
+			["assert","%last result%","=","0.125 aergo"],
+
+			["send","AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9","0.125 aergo"],
+			["assert","%my aergo balance%","=","0.75 aergo"],
+			["get aergo balance","AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9"],
+			["assert","%last result%","=","0.25 aergo"],
+
+			["call","AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9","fails"],
+
+			["return","%my aergo balance%","%last result%"]
+		]`)
+		tx2 = build_call_tx("ac1", "caller", "get_balance", `[]`)
+		tx3 = build_call_tx("ac1", "c1", "get_aergo_balance", `[]`)
+
+		tx1 = tx1.Fail("this call should fail")
+
+		execute_block(t, bc, []*luaTxCall{tx1, tx2, tx3}, []string{`[Contract.LuaDelegateCallContract] call error: [Contract.LuaCallContract] call err: AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9:0: this call should fail`, `"875000000000000000"`, `"125000000000000000"`})
+
+
+		// test state recovery - pcall
+
+		tx1 = build_contract_multicall_tx("ac1", "caller", "multicall_and_check", `[
+			["assert","%my aergo balance%","=","0.875 aergo"],
+			["get aergo balance","AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9"],
+			["assert","%last result%","=","0.125 aergo"],
+
+			["try call","AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9","send_and_fail","AmgtL32d1M56xGENKDnDqXFzkrYJwWidzSMtay3F8fFDU1VAEdvK","0.125 aergo"],
+
+			["assert","%my aergo balance%","=","0.875 aergo"],
+			["get aergo balance","AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9"],
+			["assert","%last result%","=","0.125 aergo"],
+
+			["return","%my aergo balance%","%last result%"]
+		]`)
+		tx2 = build_call_tx("ac1", "caller", "get_balance", `[]`)
+		tx3 = build_call_tx("ac1", "c1", "get_aergo_balance", `[]`)
+		tx4 := build_call_tx("ac1", "c3", "get_aergo_balance", `[]`)
+
+		execute_block(t, bc, []*luaTxCall{tx1, tx2, tx3, tx4}, []string{`[{"_bignum":"875000000000000000"},{"_bignum":"125000000000000000"}]`, `"875000000000000000"`, `"125000000000000000"`, `"0"`})
+
+		state, err = bc.GetAccountState("caller")
+		assert.Equalf(t, int64(875000000000000000), state.GetBalanceBigInt().Int64(), "balance error")
+
+		state, err = bc.GetAccountState("c1")
+		assert.Equalf(t, int64(125000000000000000), state.GetBalanceBigInt().Int64(), "balance error")
+
+		state, err = bc.GetAccountState("c3")
+		assert.Equalf(t, int64(0), state.GetBalanceBigInt().Int64(), "balance error")
 
 	}
 
