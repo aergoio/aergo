@@ -4743,6 +4743,66 @@ func call(t *testing.T, bc *DummyChain,
 
 }
 
+func contract_multicall(t *testing.T, bc *DummyChain,
+          account string, contract string, function string, script string,
+          expectedError string, expectedResult string) {
+
+	t.Helper()
+
+	// escape the script JSON string
+	callinfo := fmt.Sprintf(`{"Name":"%s", "Args":[%s]}`, function, strconv.Quote(script))
+
+	tx := NewLuaTxCall(account, contract, 0, callinfo).Fail(expectedError)
+
+	err := bc.ConnectBlock(tx)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if expectedError == "" && expectedResult != "" {
+		receipt := bc.GetReceipt(tx.Hash())
+		if receipt.GetRet() != expectedResult {
+			t.Errorf("call invalid result - expected: %s  got: %s", expectedResult, receipt.GetRet())
+		}
+	}
+
+}
+
+func build_call_tx(account string, contract string, function string, args string) *luaTxCall {
+	callinfo := fmt.Sprintf(`{"Name":"%s", "Args":%s}`, function, args)
+	return NewLuaTxCall(account, contract, 0, callinfo)
+}
+
+func build_contract_multicall_tx(account string, contract string, function string, script string) *luaTxCall {
+	callinfo := fmt.Sprintf(`{"Name":"%s", "Args":[%s]}`, function, strconv.Quote(script))
+	return NewLuaTxCall(account, contract, 0, callinfo)
+}
+
+func execute_block(t *testing.T, bc *DummyChain, txns []*luaTxCall, expectedResults []string) {
+	t.Helper()
+
+	// Convert []*luaTxCall to []LuaTxTester
+	luaTxTesters := make([]LuaTxTester, len(txns))
+	for i, tx := range txns {
+		luaTxTesters[i] = LuaTxTester(tx)
+	}
+
+	err := bc.ConnectBlock(luaTxTesters...)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	for i, tx := range txns {
+		receipt := bc.GetReceipt(tx.Hash())
+		if receipt.GetRet() != expectedResults[i] {
+			t.Errorf("call invalid result - expected: %s  got: %s", expectedResults[i], receipt.GetRet())
+		}
+	}
+
+}
+
 func TestComposableTransactions(t *testing.T) {
 	code := readLuaCode(t, "feature_multicall.lua")
 
@@ -6018,6 +6078,134 @@ func TestComposableTransactions(t *testing.T) {
 		]`, ``, `"AmgMPiyZYr19kQ1kHFNiGenez1CRTBqNWqppj6gGZGEP6qszDGe1"`)
 
 	}
+}
+
+func TestContractMulticall(t *testing.T) {
+	code1 := readLuaCode(t, "feature_multicall_contract.lua")
+	code2 := readLuaCode(t, "feature_multicall.lua")
+
+	for version := min_version_multicall; version <= max_version; version++ {
+		bc, err := LoadDummyChain(SetHardForkVersion(version))
+		require.NoErrorf(t, err, "failed to create dummy chain")
+		defer bc.Release()
+
+		err = bc.ConnectBlock(
+			NewLuaTxAccount("ac0", 10, types.Aergo),
+			NewLuaTxAccount("ac1", 10, types.Aergo),
+			NewLuaTxAccount("ac2", 10, types.Aergo),
+			NewLuaTxAccount("ac3", 10, types.Aergo),
+
+			NewLuaTxDeploy("ac0", "caller", 0, code1),
+			NewLuaTxDeploy("ac0", "c1", 0, code2),
+			NewLuaTxDeploy("ac0", "c2", 0, code2),
+			NewLuaTxDeploy("ac0", "c3", 0, code2),
+		)
+		if err != nil {
+			t.Error(err)
+		}
+
+		// ac1: AmgMPiyZYr19kQ1kHFNiGenez1CRTBqNWqppj6gGZGEP6qszDGe1
+		// ac2: AmgeSw3M3V3orBMjf1j98kGne4WycnmQWVTJe6MYNrQ2wuVz3Li2
+
+		// caller: AmggmgtWPXtsDkC5hkYYx2iYaWfGs8D4ZvZNwxwdm4gxGSDaCqKn
+		// c1: AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9
+		// c2: Amh8PekqkDmLiwE6FUX6JejjWk3R54cmTaa1Tc1VHZmTRJMruWe4
+		// c3: AmgtL32d1M56xGENKDnDqXFzkrYJwWidzSMtay3F8fFDU1VAEdvK
+
+		// simple script, no state change
+		contract_multicall(t, bc, "ac1", "caller", "multicall", `[
+			["add",11,22],
+			["return","%last result%"]
+		]`, ``, `33`)
+
+		// state change
+		call(t, bc, "ac1", 0, "caller", "set_value", `["num",111]`, ``, ``)
+		call(t, bc, "ac1", 0, "caller", "get_value", `["num"]`, ``, `111`)
+
+		// check balance
+		state, err := bc.GetAccountState("caller")
+		assert.Equalf(t, uint64(0), state.GetBalanceBigInt().Uint64(), "balance error")
+
+		contract_multicall(t, bc, "ac1", "caller", "multicall", `[
+			["return","%my aergo balance%"]
+		]`, ``, `{"_bignum":"0"}`)
+
+		// transfer aergo to the 'caller' contract
+		call(t, bc, "ac1", types.NewAmount(1,types.Aergo).Uint64(), "caller", "recv_aergo", `[]`, ``, ``)
+
+		// use the multicall contract in a delegated call
+		contract_multicall(t, bc, "ac1", "caller", "multicall_and_check", `[
+			["assert","%my aergo balance%","=","1 aergo"],
+			["call + send","0.125 aergo","AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9","recv_aergo"],
+			["assert","%my aergo balance%","=","0.875 aergo"],
+			["get aergo balance","AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9"],
+			["assert","%last result%","=","0.125 aergo"],
+			["return","%my aergo balance%","%last result%"]
+		]`, ``, `[{"_bignum":"875000000000000000"},{"_bignum":"125000000000000000"}]`)
+
+		// check the state of the 2 contracts
+
+		state, err = bc.GetAccountState("caller")
+		assert.Equalf(t, int64(875000000000000000), state.GetBalanceBigInt().Int64(), "balance error")
+
+		state, err = bc.GetAccountState("AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9")
+		assert.Equalf(t, int64(125000000000000000), state.GetBalanceBigInt().Int64(), "balance error")
+
+		contract_multicall(t, bc, "ac1", "caller", "multicall", `[
+			["assert","%my aergo balance%","=","0.875 aergo"],
+			["get aergo balance","AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9"],
+			["assert","%last result%","=","0.125 aergo"],
+			["return","%my aergo balance%","%last result%"]
+		]`, ``, `[{"_bignum":"875000000000000000"},{"_bignum":"125000000000000000"}]`)
+
+		// send the aergo back to the 'caller' contract
+		call(t, bc, "ac1", 0, "c1", "send_to", `["AmggmgtWPXtsDkC5hkYYx2iYaWfGs8D4ZvZNwxwdm4gxGSDaCqKn","0.125 aergo"]`, ``, ``)
+
+		contract_multicall(t, bc, "ac1", "caller", "multicall", `[
+			["assert","%my aergo balance%","=","1 aergo"],
+			["get aergo balance","AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9"],
+			["assert","%last result%","=","0 aergo"],
+			["return","%my aergo balance%","%last result%"]
+		]`, ``, `[{"_bignum":"1000000000000000000"},{"_bignum":"0"}]`)
+
+
+		// make sure that the called contract state is not replaced by the multicall contract
+
+		// transfer tokens to other contract and:
+		// - check amounts on the same transaction (in the multicall contract)
+		// - check amounts on the same transaction (in the caller contract, after returning from the multicall contract)
+		// - check amounts on the same block (another transaction)
+		// - check amounts on the next block
+		// and different ABI on all 3 contracts
+
+		tx1 := build_contract_multicall_tx("ac1", "caller", "multicall_and_check", `[
+			["send","AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9","0.125 aergo"],
+			["assert","%my aergo balance%","=","0.875 aergo"],
+			["get aergo balance","AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9"],
+			["assert","%last result%","=","0.125 aergo"],
+			["return","%my aergo balance%","%last result%"]
+		]`)
+		tx2 := build_call_tx("ac1", "caller", "get_balance", `[]`)
+		tx3 := build_call_tx("ac1", "c1", "get_aergo_balance", `[]`)
+
+		execute_block(t, bc, []*luaTxCall{tx1, tx2, tx3}, []string{`[{"_bignum":"875000000000000000"},{"_bignum":"125000000000000000"}]`, `"875000000000000000"`, `"125000000000000000"`})
+
+
+		// now the same with just delegate call (no multicall)
+
+		call(t, bc, "ac1", 0, "caller", "get_value", `["num"]`, ``, `111`)
+
+		tx1 = build_call_tx("ac1", "caller", "delegate_call", `["AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9","set","num",222]`)
+		tx2 = build_call_tx("ac1", "caller", "get_value", `["num"]`)
+		tx3 = build_call_tx("ac1", "c1", "get", `["num"]`)
+
+		execute_block(t, bc, []*luaTxCall{tx1, tx2, tx3}, []string{``, `222`, `null`})
+
+
+		call(t, bc, "ac1", 0, "caller", "get_value", `["num"]`, ``, `222`)
+
+	}
+
 }
 
 // ----------------------------------------------------------------------------

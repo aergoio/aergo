@@ -833,7 +833,7 @@ func Call(
 
 	// get contract
 	if ctx.isMultiCall {
-		bytecode = getMultiCallContract(contractState)
+		bytecode = getMultiCallContractCode(contractState)
 	} else {
 		bytecode = getContractCode(contractState, ctx.bs)
 	}
@@ -1262,14 +1262,23 @@ func getCode(contractState *statedb.ContractState, bs *state.BlockState) ([]byte
 	var code []byte
 	var err error
 
+	if contractState.IsMultiCall() {
+		return getMultiCallCode(contractState), nil
+	}
+
+	// try to get the code from the blockstate cache
 	code = bs.GetCode(contractState.GetAccountID())
 	if code != nil {
 		return code, nil
 	}
+
+	// get the code from the contract state
 	code, err = contractState.GetCode()
 	if err != nil {
 		return nil, err
 	}
+
+	// add the code to the blockstate cache
 	bs.AddCode(contractState.GetAccountID(), code)
 
 	return code, nil
@@ -1287,7 +1296,15 @@ func getContractCode(contractState *statedb.ContractState, bs *state.BlockState)
 	return luacUtil.LuaCode(code).ByteCode()
 }
 
-func getMultiCallContract(contractState *statedb.ContractState) []byte {
+func getMultiCallContractCode(contractState *statedb.ContractState) []byte {
+	code := getMultiCallCode(contractState)
+	if code == nil {
+		return nil
+	}
+	return luacUtil.LuaCode(code).ByteCode()
+}
+
+func getMultiCallCode(contractState *statedb.ContractState) []byte {
 	if multicall_compiled == nil {
 		// compile the Lua code used to execute multicall txns
 		var err error
@@ -1299,16 +1316,21 @@ func getMultiCallContract(contractState *statedb.ContractState) []byte {
 	}
 	// set and return the compiled code
 	contractState.SetMultiCallCode(multicall_compiled)
-	return multicall_compiled.ByteCode()
+	return multicall_compiled
 }
 
 func GetABI(contractState *statedb.ContractState, bs *state.BlockState) (*types.ABI, error) {
 	var abi *types.ABI
 
-	abi = bs.GetABI(contractState.GetAccountID())
-	if abi != nil {
-		return abi, nil
+	if !contractState.IsMultiCall() {  // or IsBuiltinContract()
+		// try to get the ABI from the blockstate cache
+		abi = bs.GetABI(contractState.GetAccountID())
+		if abi != nil {
+			return abi, nil
+		}
 	}
+
+	// get the ABI from the contract state
 	code, err := getCode(contractState, bs)
 	if err != nil {
 		return nil, err
@@ -1326,7 +1348,12 @@ func GetABI(contractState *statedb.ContractState, bs *state.BlockState) (*types.
 	if err = jsonIter.Unmarshal(rawAbi, abi); err != nil {
 		return nil, err
 	}
-	bs.AddABI(contractState.GetAccountID(), abi)
+
+	if !contractState.IsMultiCall() {  // or IsBuiltinContract()
+		// add the ABI to the blockstate cache
+		bs.AddABI(contractState.GetAccountID(), abi)
+	}
+
 	return abi, nil
 }
 

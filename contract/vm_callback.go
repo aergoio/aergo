@@ -344,29 +344,54 @@ func luaDelegateCallContract(L *LState, service C.int, contractId *C.char,
 		return -1, C.CString("[Contract.LuaDelegateCallContract] contract state not found")
 	}
 
+	var isMultiCall bool
+	var cid []byte
+	var err error
+
 	// get the contract address
-	cid, err := getAddressNameResolved(contractIdStr, ctx.bs)
-	if err != nil {
-		return -1, C.CString("[Contract.LuaDelegateCallContract] invalid contractId: " + err.Error())
+	if contractIdStr == "multicall" {
+		isMultiCall = true
+		argsStr = fnameStr
+		fnameStr = "execute"
+		cid = ctx.curContract.contractId
+	} else {
+		cid, err = getAddressNameResolved(contractIdStr, ctx.bs)
+		if err != nil {
+			return -1, C.CString("[Contract.LuaDelegateCallContract] invalid contractId: " + err.Error())
+		}
 	}
 	aid := types.ToAccountID(cid)
 
 	// get the contract state
-	contractState, err := getOnlyContractState(ctx, cid)
+	var contractState *statedb.ContractState
+	if isMultiCall {
+		contractState = statedb.GetMultiCallState(cid, ctx.curContract.callState.ctrState.State)
+	} else {
+		contractState, err = getOnlyContractState(ctx, cid)
+	}
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDelegateCallContract]getContractState error" + err.Error())
 	}
 
-	// check if the contract exists
-	bytecode := getContractCode(contractState, ctx.bs)
+	// get the contract code
+	var bytecode []byte
+	if isMultiCall {
+		bytecode = getMultiCallContractCode(contractState)
+	} else {
+		bytecode = getContractCode(contractState, ctx.bs)
+	}
 	if bytecode == nil {
 		return -1, C.CString("[Contract.LuaDelegateCallContract] cannot find contract " + contractIdStr)
 	}
 
 	// read the arguments for the contract call
 	var ci types.CallInfo
-	ci.Name = fnameStr
-	err = getCallInfo(&ci.Args, []byte(argsStr), cid)
+	if isMultiCall {
+		err = getMultiCallInfo(&ci, []byte(argsStr))
+	} else {
+		ci.Name = fnameStr
+		err = getCallInfo(&ci.Args, []byte(argsStr), cid)
+	}
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDelegateCallContract] invalid arguments: " + err.Error())
 	}

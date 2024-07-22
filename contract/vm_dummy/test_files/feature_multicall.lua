@@ -87,6 +87,10 @@ function recv_aergo()
   -- does nothing
 end
 
+function default()
+  -- does nothing
+end
+
 function resend_to(address)
   local amount = system.getAmount()
   contract.send(address, amount)
@@ -109,5 +113,10 @@ function send_and_fail(address, amount)
   assert(false, "this call should fail")
 end
 
-abi.payable(recv_aergo, resend_to, resend_and_fail)
+function get_aergo_balance()
+  return contract.balance()
+end
+
+abi.payable(recv_aergo, default, resend_to, resend_and_fail)
 abi.register(send_to, send_and_fail)
+abi.register_view(get_aergo_balance)
