@@ -30,6 +30,11 @@ status=$(cat receipt.json | jq .status | sed 's/"//g')
 address3=$(cat receipt.json | jq .contractAddress | sed 's/"//g')
 assert_equals "$status" "CREATED"
 
+deploy ../contract/vm_dummy/test_files/feature_multicall_contract.lua
+get_receipt $txhash
+status=$(cat receipt.json | jq .status | sed 's/"//g')
+address4=$(cat receipt.json | jq .contractAddress | sed 's/"//g')
+assert_equals "$status" "CREATED"
 
 
 echo "-- create accounts --"
@@ -54,7 +59,7 @@ account4=AmLaPgDNg3tsebXSU19bftkr1XxvmySWGusEti9SaHoKDJEZNjSw
 
 if [ "$consensus" != "sbp" ]; then
 	# send 20 aergo to each address
-	accounts=($account1 $account2 $account3 $account4)
+	accounts=($account1 $account2 $account3 $account4 $address4)
 	for account in "${accounts[@]}"; do
 		echo "sending 20 aergo to $account ..."
 
@@ -90,6 +95,8 @@ function get_account_address() {
 		account=$address2
 	elif [ "$account" == "c4" ]; then
 		account=$address3
+	elif [ "$account" == "caller" ]; then
+		account=$address4
 	fi
 	echo $account
 }
@@ -133,6 +140,22 @@ function call() {
 		check_result "$txhash" "$expected_error" "$expected_result"
 	fi
 
+}
+
+function contract_multicall() {
+	account=$1
+	contract=$2
+	method=$3
+	args=$4
+	expected_error=$5
+	expected_result=$6
+
+	# escape and quote the args
+	args=$(echo "$args" | jq -R -s '.')
+	# include within []
+	args="[$args]"
+
+	call "$account" "$contract" "$method" "$args" "$expected_error" "$expected_result"
 }
 
 function multicall() {
@@ -1383,6 +1406,106 @@ multicall "ac1" '[
 
  ["return","%last result%"]
 ]' '' '"'$balance1after'"'
+
+
+
+# test the multicall contract in a delegated call
+
+account_state=$(../bin/aergocli getstate --address $address4)
+echo $account_state
+balance1=$(echo $account_state | jq .balance | sed 's/"//g')
+balance1=$(parse_balance $balance1)
+echo balance=$balance1
+
+account_state=$(../bin/aergocli getstate --address $address2)
+echo $account_state
+balance2=$(echo $account_state | jq .balance | sed 's/"//g')
+balance2=$(parse_balance $balance2)
+echo balance=$balance2
+
+amount=125000000000000000
+
+balance1after=$(echo "$balance1 - $amount" | bc)
+balance2after=$(echo "$balance2 + $amount" | bc)
+
+contract_multicall "ac1" "caller" "multicall" '[
+	["assert","%my aergo balance%","=","'$balance1'"],
+	["get aergo balance","'$address2'"],
+	["assert","%last result%","=","'$balance2'"],
+
+	["call + send","0.125 aergo","'$address2'","recv_aergo"],
+
+	["assert","%my aergo balance%","=","'$balance1after'"],
+	["get aergo balance","'$address2'"],
+	["assert","%last result%","=","'$balance2after'"],
+
+	["return","%my aergo balance%","%last result%"]
+]' '' '[{"_bignum":"'$balance1after'"},{"_bignum":"'$balance2after'"}]'
+
+
+# test state recovery - normal atomic txn
+
+account_state=$(../bin/aergocli getstate --address $address4)
+echo $account_state
+balance1=$(echo $account_state | jq .balance | sed 's/"//g')
+balance1=$(parse_balance $balance1)
+echo balance=$balance1
+
+account_state=$(../bin/aergocli getstate --address $address2)
+echo $account_state
+balance2=$(echo $account_state | jq .balance | sed 's/"//g')
+balance2=$(parse_balance $balance2)
+echo balance=$balance2
+
+amount=125000000000000000
+
+balance1after=$(echo "$balance1 - $amount" | bc)
+balance2after=$(echo "$balance2 + $amount" | bc)
+
+contract_multicall "ac1" "caller" "multicall" '[
+	["assert","%my aergo balance%","=","'$balance1'"],
+	["get aergo balance","'$address2'"],
+	["assert","%last result%","=","'$balance2'"],
+
+	["send","'$address2'","0.125 aergo"],
+
+	["assert","%my aergo balance%","=","'$balance1after'"],
+	["get aergo balance","'$address2'"],
+	["assert","%last result%","=","'$balance2after'"],
+
+	["call","'$address2'","fails"],
+
+	["return","%my aergo balance%","%last result%"]
+]' 'this call should fail' ''
+
+
+# test state recovery - pcall
+
+account_state=$(../bin/aergocli getstate --address $address4)
+echo $account_state
+balance1=$(echo $account_state | jq .balance | sed 's/"//g')
+balance1=$(parse_balance $balance1)
+echo balance=$balance1
+
+account_state=$(../bin/aergocli getstate --address $address2)
+echo $account_state
+balance2=$(echo $account_state | jq .balance | sed 's/"//g')
+balance2=$(parse_balance $balance2)
+echo balance=$balance2
+
+contract_multicall "ac1" "caller" "multicall" '[
+	["assert","%my aergo balance%","=","'$balance1'"],
+	["get aergo balance","'$address2'"],
+	["assert","%last result%","=","'$balance2'"],
+
+	["try call","'$address2'","send_and_fail","AmgtL32d1M56xGENKDnDqXFzkrYJwWidzSMtay3F8fFDU1VAEdvK","0.125 aergo"],
+
+	["assert","%my aergo balance%","=","'$balance1'"],
+	["get aergo balance","'$address2'"],
+	["assert","%last result%","=","'$balance2'"],
+
+	["return","%my aergo balance%","%last result%"]
+]' '' '[{"_bignum":"'$balance1'"},{"_bignum":"'$balance2'"}]'
 
 
 
