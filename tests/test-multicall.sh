@@ -70,18 +70,8 @@ if [ "$consensus" != "sbp" ]; then
 fi
 
 
-function multicall() {
+function get_account_address() {
 	account=$1
-	script=$2
-	expected_error=$3
-	expected_result=$4
-
-	echo " "
-	echo "-- multicall --"
-
-	echo "script=$script"
-	echo "expected_result=$expected_result"
-
 	if [ "$account" == "ac0" ]; then
 		account=AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R
 	elif [ "$account" == "ac1" ]; then
@@ -92,10 +82,87 @@ function multicall() {
 		account=AmPfKfrbSjbHD77JjpEvdktgH3w6sbWRhhwFmFAyi1ZSsiePs7XP
 	elif [ "$account" == "ac4" ]; then
 		account=AmLaPgDNg3tsebXSU19bftkr1XxvmySWGusEti9SaHoKDJEZNjSw
+	elif [ "$account" == "c1" ]; then
+		account=$address
+	elif [ "$account" == "c2" ]; then
+		account=$address1
+	elif [ "$account" == "c3" ]; then
+		account=$address2
+	elif [ "$account" == "c4" ]; then
+		account=$address3
 	fi
+	echo $account
+}
+
+function call() {
+	account=$1
+	contract=$2
+	method=$3
+	args=$4
+	expected_error=$5
+	expected_result=$6
+
+	echo " "
+	echo "-- call --"
+
+	echo "$contract $method $args"
+	if [ -n "$expected_error" ]; then
+		echo "expected_error=$expected_error"
+	else
+		echo "expected_result=$expected_result"
+	fi
+
+	account=$(get_account_address $account)
+	contract=$(get_account_address $contract)
+
+	set +e
+	result=$(../bin/aergocli --keystore . --password bmttest \
+	  contract call $account $contract $method "$args" 2>&1)
+	set -e
+
+	# if result starts with "Error"
+	if [[ $result == "Error"* ]]; then
+		if [ -n "$expected_error" ]; then
+			assert_contains "$result" "$expected_error"
+		else
+			echo "error=$result"
+			exit 1
+		fi
+	else
+		txhash=$(echo "$result" | jq .hash | sed 's/"//g')
+		check_result "$txhash" "$expected_error" "$expected_result"
+	fi
+
+}
+
+function multicall() {
+	account=$1
+	script=$2
+	expected_error=$3
+	expected_result=$4
+
+	echo " "
+	echo "-- multicall --"
+
+	echo "script=$script"
+	if [ -n "$expected_error" ]; then
+		echo "expected_error=$expected_error"
+	else
+		echo "expected_result=$expected_result"
+	fi
+
+	account=$(get_account_address $account)
 
 	txhash=$(../bin/aergocli --keystore . --password bmttest \
 	  contract multicall $account "$script" | jq .hash | sed 's/"//g')
+
+	check_result "$txhash" "$expected_error" "$expected_result"
+}
+
+function check_result() {
+	txhash=$1
+	expected_error=$2
+	expected_result=$3
 
 	get_receipt $txhash
 
@@ -119,6 +186,8 @@ function multicall() {
 		assert_equals "$ret"      "$expected_result"
 	fi
 }
+
+
 
 multicall "ac1" '[
  ["call","'$address'","get_dict"],
@@ -1182,15 +1251,6 @@ multicall "ac1" '[
 
 # MULTICALL ON ACCOUNT ------------------------------------------
 
-
-# deploy ac0 0 c1 test.lua
-# deploy ac0 0 c2 test.lua
-# deploy ac0 0 c3 test.lua
-
-# c1: AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9
-# c2: Amh8PekqkDmLiwE6FUX6JejjWk3R54cmTaa1Tc1VHZmTRJMruWe4
-# c3: AmgtL32d1M56xGENKDnDqXFzkrYJwWidzSMtay3F8fFDU1VAEdvK
-
 multicall "ac0" '[
  ["call","'$address1'","set_name","testing multicall"],
  ["call","'$address2'","set_name","contract 2"],
@@ -1323,3 +1383,77 @@ multicall "ac1" '[
 
  ["return","%last result%"]
 ]' '' '"'$balance1after'"'
+
+
+
+# SECURITY CHECKS
+
+# it should not be possible to call the code from another account
+
+# a. from an account (via multicall, using the 'call' command)
+
+multicall "ac1" '[
+ ["call","AmLhv6rvLEMoL5MLws1tNTyiYYyzTx4JGjaPAugzqabpjxxWyP34","execute",[["add",11,22],["return","%last result%"]]],
+ ["return","%last result%"]
+]' 'nd contract' ''
+
+
+# b. from an account (via a call tx)
+
+call "ac1" "ac1" "execute" '[[["add",11,22],["return","%last result%"]]]' 'nd contract' ''
+
+call "ac1" "ac2" "execute" '[[["add",11,22],["return","%last result%"]]]' 'nd contract' ''
+
+
+# c. from a contract (calling back)
+
+multicall "ac1" '[
+ ["call","'$address1'","call","AmNLhiVVdLxbPW5NxpLibqoLdobc2TaKVk8bwrPn5VXz6gUSLvke","execute",[["add",11,22],["return","%last result%"]]],
+ ["return","%last result%"]
+]' 'nd contract' ''
+
+
+# d. from a contract (calling another account)
+
+multicall "ac1" '[
+ ["call","'$address1'","call","AmLhv6rvLEMoL5MLws1tNTyiYYyzTx4JGjaPAugzqabpjxxWyP34","execute",[["add",11,22],["return","%last result%"]]],
+ ["return","%last result%"]
+]' 'nd contract' ''
+
+
+# e. from a contract (via a call txn)
+
+call "ac1" "c2" "call" '["AmNLhiVVdLxbPW5NxpLibqoLdobc2TaKVk8bwrPn5VXz6gUSLvke","execute",[["add",11,22],["return","%last result%"]]]' 'nd contract' ''
+
+call "ac1" "c2" "call" '["AmLhv6rvLEMoL5MLws1tNTyiYYyzTx4JGjaPAugzqabpjxxWyP34","execute",[["add",11,22],["return","%last result%"]]]' 'nd contract' ''
+
+
+# system.isContract() should return false on user accounts
+
+call "ac1" "c2" "is_contract" '["AmNLhiVVdLxbPW5NxpLibqoLdobc2TaKVk8bwrPn5VXz6gUSLvke"]' '' 'false'
+
+call "ac1" "c2" "is_contract" '["AmLhv6rvLEMoL5MLws1tNTyiYYyzTx4JGjaPAugzqabpjxxWyP34"]' '' 'false'
+
+multicall "ac1" '[
+ ["call","'$address1'","is_contract","AmNLhiVVdLxbPW5NxpLibqoLdobc2TaKVk8bwrPn5VXz6gUSLvke"],
+ ["assert","%last result%","=",false],
+ ["return","%last result%"]
+]' '' 'false'
+
+multicall "ac1" '[
+ ["call","'$address1'","is_contract","AmLhv6rvLEMoL5MLws1tNTyiYYyzTx4JGjaPAugzqabpjxxWyP34"],
+ ["assert","%last result%","=",false],
+ ["return","%last result%"]
+]' '' 'false'
+
+
+# on a contract called by multicall, the system.getSender() and system.getOrigin() must be the same
+
+multicall "ac1" '[
+ ["call","'$address1'","sender"],
+ ["store result as","sender"],
+ ["call","'$address1'","origin"],
+ ["store result as","origin"],
+ ["assert","%sender%","=","%origin%"],
+ ["return","%sender%"]
+]' '' '"AmNLhiVVdLxbPW5NxpLibqoLdobc2TaKVk8bwrPn5VXz6gUSLvke"'
