@@ -36,8 +36,8 @@ import (
 
 
 
-//export luaSetDB
-func luaSetDB(L *LState, key unsafe.Pointer, keyLen C.int, value *C.char) *C.char {
+//export luaSetVariable
+func luaSetVariable(L *LState, key unsafe.Pointer, keyLen C.int, value *C.char) *C.char {
 	args := []string{C.GoBytes(key, keyLen), C.GoString(value)}
 	result, err := sendRequest("set", args)
 	if err != nil {
@@ -52,8 +52,8 @@ func luaSetDB(L *LState, key unsafe.Pointer, keyLen C.int, value *C.char) *C.cha
 	return nil
 }
 
-//export luaGetDB
-func luaGetDB(L *LState, key unsafe.Pointer, keyLen C.int, blkno *C.char) (*C.char, *C.char) {
+//export luaGetVariable
+func luaGetVariable(L *LState, key unsafe.Pointer, keyLen C.int, blkno *C.char) (*C.char, *C.char) {
 	args := []string{C.GoBytes(key, keyLen), C.GoString(blkno)}
 	result, err := sendRequest("get", args)
 	if err != nil {
@@ -68,8 +68,8 @@ func luaGetDB(L *LState, key unsafe.Pointer, keyLen C.int, blkno *C.char) (*C.ch
 	return nil, nil
 }
 
-//export luaDelDB
-func luaDelDB(L *LState, key unsafe.Pointer, keyLen C.int) *C.char {
+//export luaDelVariable
+func luaDelVariable(L *LState, key unsafe.Pointer, keyLen C.int) *C.char {
 	args := []string{C.GoBytes(key, keyLen)}
 	result, err := sendRequest("del", args)
 	if err != nil {
@@ -644,16 +644,16 @@ func LuaGetDbHandleSnap(L *LState, snap *C.char) *C.char {
 	callState := curContract.callState
 
 	if stateSet.isQuery != true {
-		return C.CString("[Contract.LuaSetDbSnap] not permitted in transaction")
+		return C.CString("[Contract.luaGetDBSnap] not permitted in transaction")
 	}
 
 	if callState.tx != nil {
-		return C.CString("[Contract.LuaSetDbSnap] transaction already started")
+		return C.CString("[Contract.luaGetDBSnap] transaction already started")
 	}
 
 	rp, err := strconv.ParseUint(C.GoString(snap), 10, 64)
 	if err != nil {
-		return C.CString("[Contract.LuaSetDbSnap] snapshot is not valid" + C.GoString(snap))
+		return C.CString("[Contract.luaGetDBSnap] snapshot is not valid" + C.GoString(snap))
 	}
 
 	aid := types.ToAccountID(curContract.contractId)
