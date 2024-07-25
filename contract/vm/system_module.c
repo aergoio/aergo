@@ -57,7 +57,7 @@ int setItemWithPrefix(lua_State *L) {
 
 	lua_gasuse_mul(L, GAS_SDATA, strlen(jsonValue));
 
-	if ((errStr = luaSetDB(L, service, dbKey, keylen, jsonValue)) != NULL) {
+	if ((errStr = luaSetVariable(L, service, dbKey, keylen, jsonValue)) != NULL) {
 		free(jsonValue);
 		strPushAndRelease(L, errStr);
 		luaL_throwerror(L);
@@ -99,7 +99,7 @@ int getItemWithPrefix(lua_State *L) {
 	}
 	dbKey = getDbKey(L, &keylen);
 
-	ret = luaGetDB(L, service, dbKey, keylen, blkno);
+	ret = luaGetVariable(L, service, dbKey, keylen, blkno);
 	if (ret.r1 != NULL) {
 		strPushAndRelease(L, ret.r1);
 		luaL_throwerror(L);
@@ -139,7 +139,7 @@ int delItemWithPrefix(lua_State *L) {
 	luaL_checkstring(L, 1);
 	luaL_checkstring(L, 2);
 	dbKey = getDbKey(L, &keylen);
-	ret = luaDelDB(L, service, dbKey, keylen);
+	ret = luaDelVariable(L, service, dbKey, keylen);
 	if (ret != NULL) {
 		strPushAndRelease(L, ret);
 		luaL_throwerror(L);
@@ -205,7 +205,7 @@ static int getCreator(lua_State *L) {
 
 	lua_gasuse(L, 500);
 
-	ret = luaGetDB(L, service, "Creator", keylen, 0);
+	ret = luaGetVariable(L, service, "Creator", keylen, 0);
 	if (ret.r1 != NULL) {
 		strPushAndRelease(L, ret.r1);
 		luaL_throwerror(L);
