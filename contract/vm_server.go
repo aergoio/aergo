@@ -129,6 +129,22 @@ func (ce *executor) MessageLoop() (result string, err error) {
 
 }
 
+// sends a message to the VM instance
+func (ce *executor) SendMessage(msg string) (err error) {
+	return sendMessage(ce.vmInstance.conn, msg)
+}
+
+// waits for a message from the VM instance
+func (ce *executor) WaitForMessage() (msg string, err error) {
+
+	if ce.ctx.callDepth == 1 {
+		// define a global deadline for contract execution
+		ce.ctx.deadline = time.Now().Add(ce.ctx.timeout)
+	}
+
+	return waitForMessage(ce.vmInstance.conn, ce.ctx.deadline)
+}
+
 // process the command from the VM instance
 func (ce *executor) ProcessCommand(command string, args []string) (result string, err error) {
 
