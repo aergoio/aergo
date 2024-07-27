@@ -1,4 +1,4 @@
-package contract
+package msg
 
 import (
 	"bytes"
@@ -54,34 +54,23 @@ func DeserializeMessage(data []byte) ([]string, error) {
 	return strings, nil
 }
 
-// SendMessage sends a message to the VM instance
-func (ce *executor) SendMessage(msg string) (err error) {
+func sendMessage(conn net.Conn, msg string) (err error) {
 
 	// send the length prefix
 	lengthBytes := make([]byte, 4)
 	binary.LittleEndian.PutUint32(lengthBytes, uint32(len(msg)))
-	_, err := ce.vmInstance.conn.Write(lengthBytes)
+	_, err := conn.Write(lengthBytes)
 	if err != nil {
 		return err
 	}
 
 	// send the message
-	_, err = ce.vmInstance.conn.Write([]byte(msg))
+	_, err = conn.Write([]byte(msg))
 	if err != nil {
 		return err
 	}
 
 	return nil
-}
-
-func (ce *executor) WaitForMessage() (msg string, err error) {
-
-	if ce.ctx.callDepth == 1 {
-		// define a global deadline for contract execution
-		ce.ctx.deadline = time.Now().Add(ce.ctx.timeout)
-	}
-
-	return waitForMessage(ce.vmInstance.conn, ce.ctx.deadline)
 }
 
 // waitForMessage waits for a full message (length prefix + data) from the abstract domain socket
