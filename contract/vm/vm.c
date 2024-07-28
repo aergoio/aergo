@@ -493,19 +493,6 @@ const char *vm_copy_result(lua_State *L, lua_State *target, int cnt) {
 	return NULL;
 }
 
-sqlite3 *vm_get_db(lua_State *L) {
-	int service;
-	sqlite3 *db;
-
-	service = getLuaExecContext(L);
-	db = luaGetDbHandle(service);
-	if (db == NULL) {
-		lua_pushstring(L, "can't open a database connection");
-		luaL_throwerror(L);
-	}
-	return db;
-}
-
 void vm_get_abi_function(lua_State *L, char *fname) {
 	lua_getfield(L, LUA_GLOBALSINDEX, "abi");
 	lua_getfield(L, -1, "call");

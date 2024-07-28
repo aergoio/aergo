@@ -238,15 +238,26 @@ func (ce *executor) ProcessCommand(command string, args []string) (result string
 
 	// db
 
-	case "dbOpen":
-		return ctx.handleDbOpen(args)
-	case "dbClose":
-		return ctx.handleDbClose(args)
-	case "dbQuery":
-		return ctx.handleDbQuery(args)
 	case "dbExec":
 		return ctx.handleDbExec(args)
-
+	case "dbQuery":
+		return ctx.handleDbQuery(args)
+	case "dbPrepare":
+		return ctx.handleDbPrepare(args)
+	case "stmtExec":
+		return ctx.handleStmtExec(args)
+	case "stmtQuery":
+		return ctx.handleStmtQuery(args)
+	case "stmtColumnInfo":
+		return ctx.handleStmtColumnInfo(args)
+	case "rsNext":
+		return ctx.handleRsNext(args)
+	case "rsGet":
+		return ctx.handleRsGet(args)
+	case "rsClose":
+		return ctx.handleRsClose(args)
+	case "lastInsertRowid":
+		return ctx.handleLastInsertRowid(args)
 
 	// internal
 
@@ -324,12 +335,6 @@ func (ce *executor) processUsedGas(usedGasStr string) (err error) {
 
 	return nil
 }
-
-
-
-
-
-luaGetDbHandle(ctx) *C.sqlite3
 
 
 
