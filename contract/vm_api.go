@@ -8,6 +8,8 @@ package contract
 #include <string.h>
 #include "vm.h"
 #include "bignum_module.h"
+#include "db_module.h"
+#include "db_msg.h"
 
 struct proof {
 	void *data;
@@ -802,6 +804,39 @@ func (ctx *vmContext) handleGetDbHandle() *C.sqlite3 {
 	return cs.tx.getHandle()
 }
 
+//export luaGetDbHandle
+func luaGetDbHandle(service C.int) *C.sqlite3 {
+	ctx := contexts[service]
+	curContract := ctx.curContract
+	cs := curContract.callState
+	if cs.tx != nil {
+		return cs.tx.getHandle()
+	}
+	var tx sqlTx
+	var err error
+
+	aid := types.ToAccountID(curContract.contractId)
+	if ctx.isQuery == true {
+		tx, err = beginReadOnly(aid.String(), curContract.rp)
+	} else {
+		tx, err = beginTx(aid.String(), curContract.rp)
+	}
+	if err != nil {
+		sqlLgr.Error().Err(err).Msg("Begin SQL Transaction")
+		return nil
+	}
+	if ctx.isQuery == false {
+		err = tx.savepoint()
+		if err != nil {
+			sqlLgr.Error().Err(err).Msg("Begin SQL Transaction")
+			return nil
+		}
+	}
+	cs.tx = tx
+	return cs.tx.getHandle()
+}
+
+
 func checkHexString(data string) bool {
 	if len(data) >= 2 && data[0] == '0' && (data[1] == 'x' || data[1] == 'X') {
 		return true
@@ -1252,13 +1287,6 @@ func (ctx *vmContext) handleDeployContract(args []string) (int, error) {
 	// set the remaining gas or gas limit from the parent contract
 	ce.remainingGas = gasLimit
 
-	if ctx.blockInfo.ForkVersion < 2 {
-		// create a sql database for the contract
-		if db := luaGetDbHandle(ctx); db == nil {
-			return -1, errors.New("[Contract.Deploy] DB err: cannot open a database")
-		}
-	}
-
 	// increment the nonce of the creator
 	senderState.SetNonce(senderState.Nonce() + 1)
 
@@ -1567,9 +1595,189 @@ func (ctx *vmContext) handleGovernance(args []string) (result string, err error)
 }
 
 
-
-
 ////////////////////////////////////////////////////////////////////////////////
+
+func (ctx *vmContext) handleDbExec(args []string) (result string, err error) {
+	if len(args) != 2 {
+		return "", errors.New("[DB.Exec] invalid number of arguments")
+	}
+	sql := args[0]
+	params := args[1]
+
+	var cReq C.request
+	cReq.service = C.int(ctx.service)
+	C.handle_db_exec(&cReq, C.CString(sql), C.CString(params), C.int(len(params)))
+
+	result, err = processResult(&cReq)
+}
+
+func (ctx *vmContext) handleDbQuery(args []string) (result string, err error) {
+	if len(args) != 2 {
+		return "", errors.New("[DB.Query] invalid number of arguments")
+	}
+	sql := args[0]
+	params := args[1]
+
+	var cReq C.request
+	cReq.service = C.int(ctx.service)
+	C.handle_db_query(&cReq, C.CString(sql), C.CString(params), C.int(len(params)))
+
+	result, err = processResult(&cReq)
+}
+
+func (ctx *vmContext) handleDbPrepare(args []string) (result string, err error) {
+	if len(args) != 1 {
+		return "", errors.New("[DB.Prepare] invalid number of arguments")
+	}
+	sql := args[0]
+
+	var cReq C.request
+	cReq.service = C.int(ctx.service)
+	C.handle_db_prepare(&cReq, C.CString(sql))
+
+	result, err = processResult(&cReq)
+}
+
+//stmtExec
+func (ctx *vmContext) handleStmtExec(args []string) (result string, err error) {
+	if len(args) != 2 {
+		return "", errors.New("[DB.StmtExec] invalid number of arguments")
+	}
+	stmt_id, err := strconv.Atoi(args[0])
+	if err != nil {
+		return "", errors.New("[DB.StmtExec] invalid statement id")
+	}
+	params := args[1]
+
+	var cReq C.request
+	cReq.service = C.int(ctx.service)
+	C.handle_stmt_exec(&cReq, C.int(stmt_id), C.CString(params), C.int(len(params)))
+
+	result, err = processResult(&cReq)
+}
+
+//stmtQuery
+func (ctx *vmContext) handleStmtQuery(args []string) (result string, err error) {
+	if len(args) != 2 {
+		return "", errors.New("[DB.StmtQuery] invalid number of arguments")
+	}
+	stmt_id, err := strconv.Atoi(args[0])
+	if err != nil {
+		return "", errors.New("[DB.StmtQuery] invalid statement id")
+	}
+	params := args[1]
+
+	var cReq C.request
+	cReq.service = C.int(ctx.service)
+	C.handle_stmt_query(&cReq, C.int(stmt_id), C.CString(params), C.int(len(params)))
+	result, err = processResult(&cReq)
+}
+
+//stmtColumnInfo
+func (ctx *vmContext) handleStmtColumnInfo(args []string) (result string, err error) {
+	if len(args) != 1 {
+		return "", errors.New("[DB.StmtColumnInfo] invalid number of arguments")
+	}
+	stmt_id, err := strconv.Atoi(args[0])
+	if err != nil {
+		return "", errors.New("[DB.StmtColumnInfo] invalid statement id")
+	}
+
+	var cReq C.request
+	cReq.service = C.int(ctx.service)
+	C.handle_stmt_column_info(&cReq, C.int(stmt_id))
+	result, err = processResult(&cReq)
+}
+
+//rsNext
+func (ctx *vmContext) handleRsNext(args []string) (result string, err error) {
+	if len(args) != 1 {
+		return "", errors.New("[DB.RsNext] invalid number of arguments")
+	}
+	query_id, err := strconv.Atoi(args[0])
+	if err != nil {
+		return "", errors.New("[DB.RsNext] invalid query id")
+	}
+
+	var cReq C.request
+	cReq.service = C.int(ctx.service)
+	C.handle_rs_next(&cReq, C.int(query_id))
+	result, err = processResult(&cReq)
+}
+
+//rsGet
+func (ctx *vmContext) handleRsGet(args []string) (result string, err error) {
+	if len(args) != 1 {
+		return "", errors.New("[DB.RsGet] invalid number of arguments")
+	}
+	col_id, err := strconv.Atoi(args[0])
+	if err != nil {
+		return "", errors.New("[DB.RsGet] invalid column id")
+	}
+
+	var cReq C.request
+	cReq.service = C.int(ctx.service)
+	C.handle_rs_get(&cReq, C.int(col_id))
+	result, err = processResult(&cReq)
+}
+
+//rsColumnInfo
+func (ctx *vmContext) handleRsColumnInfo(args []string) (result string, err error) {
+	if len(args) != 1 {
+		return "", errors.New("[DB.RsColumnInfo] invalid number of arguments")
+	}
+	col_id, err := strconv.Atoi(args[0])
+	if err != nil {
+		return "", errors.New("[DB.RsColumnInfo] invalid column id")
+	}
+
+	var cReq C.request
+	cReq.service = C.int(ctx.service)
+	C.handle_rs_column_info(&cReq, C.int(col_id))
+	result, err = processResult(&cReq)
+}
+
+//rsClose
+func (ctx *vmContext) handleRsClose(args []string) (result string, err error) {
+	if len(args) != 1 {
+		return "", errors.New("[DB.RsClose] invalid number of arguments")
+	}
+	query_id, err := strconv.Atoi(args[0])
+	if err != nil {
+		return "", errors.New("[DB.RsClose] invalid query id")
+	}
+
+	var cReq C.request
+	cReq.service = C.int(ctx.service)
+	C.handle_rs_close(&cReq, C.int(query_id))
+	result, err = processResult(&cReq)
+}
+
+//lastInsertRowid
+func (ctx *vmContext) handleLastInsertRowid(args []string) (result string, err error) {
+	var cReq C.request
+	cReq.service = C.int(ctx.service)
+	C.handle_last_insert_rowid(&cReq)
+	result, err = processResult(&cReq)
+}
+
+func processResult(cReq *C.request) (result string, err error) {
+	result = C.GoStringN(cReq.result.ptr, cReq.result.len)
+	errstr := C.GoString(cReq.error)
+
+	if cReq.result != nil {
+		C.free(unsafe.Pointer(cReq.result))
+	}
+	if cReq.error != nil {
+		C.free(unsafe.Pointer(cReq.error))
+		err = errors.New(errstr)
+	}
+
+	return result, err
+}
+
+
+
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 

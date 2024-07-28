@@ -291,38 +291,6 @@ func luaGetPrevBlockHash(L *LState) *C.char {
 	return C.CString(result)
 }
 
-//export luaGetDbHandle
-func luaGetDbHandle(service C.int) *C.sqlite3 {
-	ctx := contexts[service]
-	curContract := ctx.curContract
-	cs := curContract.callState
-	if cs.tx != nil {
-		return cs.tx.getHandle()
-	}
-	var tx sqlTx
-	var err error
-
-	aid := types.ToAccountID(curContract.contractId)
-	if ctx.isQuery == true {
-		tx, err = beginReadOnly(aid.String(), curContract.rp)
-	} else {
-		tx, err = beginTx(aid.String(), curContract.rp)
-	}
-	if err != nil {
-		sqlLgr.Error().Err(err).Msg("Begin SQL Transaction")
-		return nil
-	}
-	if ctx.isQuery == false {
-		err = tx.savepoint()
-		if err != nil {
-			sqlLgr.Error().Err(err).Msg("Begin SQL Transaction")
-			return nil
-		}
-	}
-	cs.tx = tx
-	return cs.tx.getHandle()
-}
-
 func checkHexString(data string) bool {
 	if len(data) >= 2 && data[0] == '0' && (data[1] == 'x' || data[1] == 'X') {
 		return true
