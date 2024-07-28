@@ -580,23 +580,7 @@ func luaGovernance(L *LState, gType C.char, arg *C.char) *C.char {
 	return C.CString(result)
 }
 
-//export luaViewStart
-func luaViewStart(service C.int) {
-	ctx := contexts[service]
-	ctx.nestedView++
-}
 
-//export luaViewEnd
-func luaViewEnd(service C.int) {
-	ctx := contexts[service]
-	ctx.nestedView--
-}
-
-//export luaCheckView
-func luaCheckView(service C.int) C.int {
-	ctx := contexts[service]
-	return C.int(ctx.nestedView)
-}
 
 // luaCheckTimeout checks whether the block creation timeout occurred.
 //

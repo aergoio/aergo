@@ -19,10 +19,6 @@ const char *VM_INST_COUNT = "__INST_COUNT_";
 const int VM_TIMEOUT_INST_COUNT = 200;
 
 extern int luaopen_utf8(lua_State *L);
-extern void (*lj_internal_view_start)(lua_State *);
-extern void (*lj_internal_view_end)(lua_State *);
-void vm_internal_view_start(lua_State *L);
-void vm_internal_view_end(lua_State *L);
 
 int getLuaExecContext(lua_State *L) {
 	int service = luaL_service(L);
@@ -286,11 +282,6 @@ void vm_closestates(lua_State *s[], int count) {
 			lua_close(s[i]);
 }
 
-void initViewFunction() {
-	lj_internal_view_start = vm_internal_view_start;
-	lj_internal_view_end = vm_internal_view_end;
-}
-
 bool vm_is_hardfork(lua_State *L, int version) {
 	int v = luaL_hardforkversion(L);
 	return v >= version;
@@ -519,14 +510,6 @@ void vm_get_abi_function(lua_State *L, char *fname) {
 	lua_getfield(L, LUA_GLOBALSINDEX, "abi");
 	lua_getfield(L, -1, "call");
 	lua_pushstring(L, fname);
-}
-
-void vm_internal_view_start(lua_State *L) {
-	luaViewStart(getLuaExecContext(L));
-}
-
-void vm_internal_view_end(lua_State *L) {
-	luaViewEnd(getLuaExecContext(L));
 }
 
 int vm_instcount(lua_State *L) {
