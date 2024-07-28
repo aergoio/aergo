@@ -33,6 +33,7 @@ import (
 
 	"github.com/aergoio/aergo-lib/log"
 	luacUtil "github.com/aergoio/aergo/v2/cmd/aergoluac/util"
+	"github.com/aergoio/aergo/v2/contract/msg"
 	"github.com/aergoio/aergo/v2/fee"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/internal/enc/hex"
@@ -911,6 +912,7 @@ func CheckFeeDelegation(contractAddress []byte, bs *state.BlockState, bi *types.
 // Contract Code
 ////////////////////////////////////////////////////////////////////////////////
 
+// only called by a deploy transaction
 func setContract(contractState *statedb.ContractState, contractAddress, payload []byte, ctx *vmContext) ([]byte, []byte, error) {
 	codePayload := luacUtil.LuaCodePayload(payload)
 	if _, err := codePayload.IsValidFormat(); err != nil {
@@ -940,10 +942,9 @@ func setContract(contractState *statedb.ContractState, contractAddress, payload 
 	bytecode := getContract(contractState, nil)
 	if bytecode == nil {
 		err = fmt.Errorf("cannot deploy contract %s", types.EncodeAddress(contractAddress))
-		ctrLgr.Warn().Str("error", "cannot load contract").Str(
-			"contract",
-			types.EncodeAddress(contractAddress),
-		).Msg("deploy")
+		ctrLgr.Warn().Str("error", "cannot load contract")
+			.Str("contract", types.EncodeAddress(contractAddress))
+			.Msg("deploy")
 		return nil, nil, err
 	}
 
@@ -1003,36 +1004,32 @@ func GetABI(contractState *statedb.ContractState, bs *state.BlockState) (*types.
 	return abi, nil
 }
 
+// send the source code to a VM instance, to be compiled
+func Compile(code string, hasParent bool) (luacUtil.LuaCode, error) {
 
-// TODO: send the source code to a VM instance to compile
-
-func Compile(code string, parent *LState) (luacUtil.LuaCode, error) {
-	L := luacUtil.NewLState()
-	if L == nil {
-		return nil, ErrVmStart
+	// get a connection to an unused VM instance
+	vmInstance := GetVmInstance()
+	if vmInstance == nil {
+		err = ErrVmStart
+		ctrLgr.Error().Err(err).Msg("get vm instance for compilation")
+		return nil, err
 	}
-	defer luacUtil.CloseLState(L)
+	defer FreeVmInstance(vmInstance)
 
-	if parent != nil {
-		var lState = (*LState)(L)
-		if cErrMsg := C.vm_copy_service(lState, parent); cErrMsg != nil {
-			if C.luaL_hasuncatchablerror(lState) != C.int(0) {
-				C.luaL_setuncatchablerror(parent)
-			}
-			errMsg := C.GoString(cErrMsg)
-			return nil, errors.New(errMsg)
-		}
-		C.luaL_set_hardforkversion(lState, C.luaL_hardforkversion(parent))
-		C.vm_set_timeout_hook(lState)
-	}
+	// build the message
+	message := SerializeMessage("compile", code, strconv.FormatBool(hasParent))
 
-	byteCodeAbi, err := luacUtil.Compile(L, code)
+	// send the execution request to the VM instance
+	err := msg.SendMessage(vmInstance.conn, message)
 	if err != nil {
-		if parent != nil && C.luaL_hasuncatchablerror((*LState)(L)) != C.int(0) {
-			C.luaL_setuncatchablerror(parent)
-		}
 		return nil, err
 	}
 
-	return byteCodeAbi, nil
+	deadline := time.Now().Add(ce.ctx.timeout)
+	byteCodeAbi, err := msg.WaitForMessage(vmInstance.conn, deadline)
+	if err != nil {
+		return nil, err
+	}
+
+	return luacUtil.LuaCode(byteCodeAbi), nil
 }
