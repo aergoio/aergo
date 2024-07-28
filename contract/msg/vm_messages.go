@@ -54,7 +54,7 @@ func DeserializeMessage(data []byte) ([]string, error) {
 	return strings, nil
 }
 
-func sendMessage(conn net.Conn, msg string) (err error) {
+func SendMessage(conn net.Conn, msg string) (err error) {
 
 	// send the length prefix
 	lengthBytes := make([]byte, 4)
@@ -73,11 +73,13 @@ func sendMessage(conn net.Conn, msg string) (err error) {
 	return nil
 }
 
-// waitForMessage waits for a full message (length prefix + data) from the abstract domain socket
-func waitForMessage(conn net.Conn, deadline time.Time) (msg string, err error) {
+// waits for a full message (length prefix + data) from the abstract domain socket
+func WaitForMessage(conn net.Conn, deadline time.Time) (msg string, err error) {
 
-	// define the deadline for the connection
-	conn.SetReadDeadline(deadline)
+	if !deadline.IsZero() {
+		// define the deadline for the connection
+		conn.SetReadDeadline(deadline)
+	}
 
 	// read the length prefix
 	length := make([]byte, 4)
