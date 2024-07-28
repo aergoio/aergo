@@ -448,7 +448,7 @@ func isPublic() C.int {
 }
 
 //export luaRandomInt
-func luaRandomInt(min, max C.int) C.int {
+func luaRandomInt(L *LState, min, max C.int) C.int {
 	args := []string{C.GoString(min), C.GoString(max)}
 	result, err := sendRequest("randomInt", args)
 	if err != nil {
