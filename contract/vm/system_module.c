@@ -8,18 +8,18 @@
 
 #define STATE_DB_KEY_PREFIX "_"
 
-extern int getLuaExecContext(lua_State *L);
+extern void checkLuaExecContext(lua_State *L);
 
 static int systemPrint(lua_State *L) {
 	char *jsonValue;
-	int service = getLuaExecContext(L);
+	checkLuaExecContext(L);
 
 	lua_gasuse(L, 100);
 	jsonValue = lua_util_get_json_from_stack(L, 1, lua_gettop(L), true);
 	if (jsonValue == NULL) {
 		luaL_throwerror(L);
 	}
-	luaPrint(L, service, jsonValue);
+	luaPrint(L, jsonValue);
 	free(jsonValue);
 	return 0;
 }
@@ -38,7 +38,7 @@ static char *getDbKey(lua_State *L, int *len) {
 int setItemWithPrefix(lua_State *L) {
 	char *dbKey;
 	char *jsonValue;
-	int service = getLuaExecContext(L);
+	checkLuaExecContext(L);
 	char *errStr;
 	int keylen;
 
@@ -57,7 +57,7 @@ int setItemWithPrefix(lua_State *L) {
 
 	lua_gasuse_mul(L, GAS_SDATA, strlen(jsonValue));
 
-	if ((errStr = luaSetVariable(L, service, dbKey, keylen, jsonValue)) != NULL) {
+	if ((errStr = luaSetVariable(L, dbKey, keylen, jsonValue)) != NULL) {
 		free(jsonValue);
 		strPushAndRelease(L, errStr);
 		luaL_throwerror(L);
@@ -75,7 +75,7 @@ int setItem(lua_State *L) {
 
 int getItemWithPrefix(lua_State *L) {
 	char *dbKey;
-	int service = getLuaExecContext(L);
+	checkLuaExecContext(L);
 	char *jsonValue;
 	char *blkno = NULL;
 	struct luaGetDB_return ret;
@@ -99,7 +99,7 @@ int getItemWithPrefix(lua_State *L) {
 	}
 	dbKey = getDbKey(L, &keylen);
 
-	ret = luaGetVariable(L, service, dbKey, keylen, blkno);
+	ret = luaGetVariable(L, dbKey, keylen, blkno);
 	if (ret.r1 != NULL) {
 		strPushAndRelease(L, ret.r1);
 		luaL_throwerror(L);
@@ -129,7 +129,7 @@ int getItem(lua_State *L) {
 
 int delItemWithPrefix(lua_State *L) {
 	char *dbKey;
-	int service = getLuaExecContext(L);
+	checkLuaExecContext(L);
 	char *jsonValue;
 	char *ret;
 	int keylen;
@@ -139,7 +139,7 @@ int delItemWithPrefix(lua_State *L) {
 	luaL_checkstring(L, 1);
 	luaL_checkstring(L, 2);
 	dbKey = getDbKey(L, &keylen);
-	ret = luaDelVariable(L, service, dbKey, keylen);
+	ret = luaDelVariable(L, dbKey, keylen);
 	if (ret != NULL) {
 		strPushAndRelease(L, ret);
 		luaL_throwerror(L);
@@ -148,64 +148,64 @@ int delItemWithPrefix(lua_State *L) {
 }
 
 static int getSender(lua_State *L) {
-	int service = getLuaExecContext(L);
+	checkLuaExecContext(L);
 	char *sender;
 
 	lua_gasuse(L, 1000);
 
-	sender = luaGetSender(L, service);
+	sender = luaGetSender(L);
 	strPushAndRelease(L, sender);
 	return 1;
 }
 
 static int getTxhash(lua_State *L) {
-	int service = getLuaExecContext(L);
+	checkLuaExecContext(L);
 	char *hash;
 
 	lua_gasuse(L, 500);
 
-	hash = luaGetTxHash(L, service);
+	hash = luaGetTxHash(L);
 	strPushAndRelease(L, hash);
 	return 1;
 }
 
 static int getBlockHeight(lua_State *L) {
-	int service = getLuaExecContext(L);
+	checkLuaExecContext(L);
 
 	lua_gasuse(L, 300);
 
-	lua_pushinteger(L, luaGetBlockNo(L, service));
+	lua_pushinteger(L, luaGetBlockNo(L));
 	return 1;
 }
 
 static int getTimestamp(lua_State *L) {
-	int service = getLuaExecContext(L);
+	checkLuaExecContext(L);
 
 	lua_gasuse(L, 300);
 
-	lua_pushinteger(L, luaGetTimeStamp(L, service));
+	lua_pushinteger(L, luaGetTimeStamp(L));
 	return 1;
 }
 
 static int getContractID(lua_State *L) {
-	int service = getLuaExecContext(L);
+	checkLuaExecContext(L);
 	char *id;
 
 	lua_gasuse(L, 1000);
 
-	id = luaGetContractId(L, service);
+	id = luaGetContractId(L);
 	strPushAndRelease(L, id);
 	return 1;
 }
 
 static int getCreator(lua_State *L) {
-	int service = getLuaExecContext(L);
+	checkLuaExecContext(L);
 	struct luaGetDB_return ret;
 	int keylen = 7;
 
 	lua_gasuse(L, 500);
 
-	ret = luaGetVariable(L, service, "Creator", keylen, 0);
+	ret = luaGetVariable(L, "Creator", keylen, 0);
 	if (ret.r1 != NULL) {
 		strPushAndRelease(L, ret.r1);
 		luaL_throwerror(L);
@@ -218,34 +218,34 @@ static int getCreator(lua_State *L) {
 }
 
 static int getAmount(lua_State *L) {
-	int service = getLuaExecContext(L);
+	checkLuaExecContext(L);
 	char *amount;
 
 	lua_gasuse(L, 300);
 
-	amount = luaGetAmount(L, service);
+	amount = luaGetAmount(L);
 	strPushAndRelease(L, amount);
 	return 1;
 }
 
 static int getOrigin(lua_State *L) {
-	int service = getLuaExecContext(L);
+	checkLuaExecContext(L);
 	char *origin;
 
 	lua_gasuse(L, 1000);
 
-	origin = luaGetOrigin(L, service);
+	origin = luaGetOrigin(L);
 	strPushAndRelease(L, origin);
 	return 1;
 }
 
 static int getPrevBlockHash(lua_State *L) {
-	int service = getLuaExecContext(L);
+	checkLuaExecContext(L);
 	char *hash;
 
 	lua_gasuse(L, 500);
 
-	hash = luaGetPrevBlockHash(L, service);
+	hash = luaGetPrevBlockHash(L);
 	strPushAndRelease(L, hash);
 	return 1;
 }
@@ -392,7 +392,7 @@ static int os_difftime(lua_State *L) {
 /* end of datetime functions */
 
 static int lua_random(lua_State *L) {
-	int service = getLuaExecContext(L);
+	checkLuaExecContext(L);
 	int min, max;
 
 	lua_gasuse(L, 100);
@@ -403,7 +403,7 @@ static int lua_random(lua_State *L) {
 		if (max < 1) {
 			luaL_error(L, "system.random: the maximum value must be greater than zero");
 		}
-		lua_pushinteger(L, luaRandomInt(1, max, service));
+		lua_pushinteger(L, luaRandomInt(L, 1, max));
 		break;
 	case 2:
 		min = luaL_checkint(L, 1);
@@ -414,7 +414,7 @@ static int lua_random(lua_State *L) {
 		if (min > max) {
 			luaL_error(L, "system.random: the maximum value must be greater than the minimum value");
 		}
-		lua_pushinteger(L, luaRandomInt(min, max, service));
+		lua_pushinteger(L, luaRandomInt(L, min, max));
 		break;
 	default:
 		luaL_error(L, "system.random: 1 or 2 arguments required");
@@ -475,13 +475,13 @@ static int toAddress(lua_State *L) {
 
 static int is_contract(lua_State *L) {
 	char *contract;
-	int service = getLuaExecContext(L);
+	checkLuaExecContext(L);
 	struct luaIsContract_return ret;
 
 	lua_gasuse(L, 100);
 
 	contract = (char *)luaL_checkstring(L, 1);
-	ret = luaIsContract(L, service, contract);
+	ret = luaIsContract(L, contract);
 	if (ret.r1 != NULL) {
 		strPushAndRelease(L, ret.r1);
 		luaL_throwerror(L);
@@ -495,10 +495,10 @@ static int is_contract(lua_State *L) {
 }
 
 static int is_fee_delegation(lua_State *L) {
-	int service = getLuaExecContext(L);
+	checkLuaExecContext(L);
 	struct luaIsFeeDelegation_return ret;
 
-	ret = luaIsFeeDelegation(L, service);
+	ret = luaIsFeeDelegation(L);
 	if (ret.r1 != NULL) {
 		strPushAndRelease(L, ret.r1);
 		luaL_throwerror(L);

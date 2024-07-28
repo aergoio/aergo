@@ -12,7 +12,7 @@
 #define RESOURCE_PSTMT_KEY "_RESOURCE_PSTMT_KEY_"
 #define RESOURCE_RS_KEY "_RESOURCE_RS_KEY_"
 
-extern int getLuaExecContext(lua_State *L);
+extern void checkLuaExecContext(lua_State *L);
 
 static int append_resource(lua_State *L, const char *key, void *data) {
 	int refno;
@@ -335,7 +335,7 @@ static int db_pstmt_query(lua_State *L) {
 		luaL_error(L, "invalid prepared statement");
 	}
 
-	getLuaExecContext(L);
+	checkLuaExecContext(L);
 
 	add_int(args, pstmt->id);
 
@@ -404,7 +404,7 @@ static int db_pstmt_column_info(lua_State *L) {
 	response resp = {0}, *response = &resp;
 	db_pstmt_t *pstmt = get_db_pstmt(L, 1);
 
-	getLuaExecContext(L);
+	checkLuaExecContext(L);
 
 	add_int(args, pstmt->id);
 
@@ -423,7 +423,7 @@ static int db_pstmt_column_info(lua_State *L) {
 
 static int db_pstmt_bind_param_cnt(lua_State *L) {
 	db_pstmt_t *pstmt = get_db_pstmt(L, 1);
-	getLuaExecContext(L);
+	checkLuaExecContext(L);
 
 	lua_pushinteger(L, sqlite3_bind_parameter_count(pstmt->s));
 
@@ -484,7 +484,7 @@ static int db_query(lua_State *L) {
 	const char *sql;
 	int rc;
 
-	getLuaExecContext(L);
+	checkLuaExecContext(L);
 
 	sql = luaL_checkstring(L, 1);
 	add_string(args, sql);
@@ -525,7 +525,7 @@ static int db_prepare(lua_State *L) {
 	const char *sql;
 	db_pstmt_t *pstmt;
 
-	getLuaExecContext(L);
+	checkLuaExecContext(L);
 
 	sql = luaL_checkstring(L, 1);
 	add_string(args, sql);
@@ -552,9 +552,10 @@ static int db_prepare(lua_State *L) {
 /*
 static int db_get_snapshot(lua_State *L) {
 	char *snapshot;
-	int service = getLuaExecContext(L);
 
-	snapshot = LuaGetDbSnapshot(service);
+	checkLuaExecContext(L);
+
+	snapshot = LuaGetDbSnapshot(L);
 	strPushAndRelease(L, snapshot);
 
 	return 1;
@@ -563,9 +564,10 @@ static int db_get_snapshot(lua_State *L) {
 static int db_open_with_snapshot(lua_State *L) {
 	char *snapshot = (char *) luaL_checkstring(L, 1);
 	char *errStr;
-	int service = getLuaExecContext(L);
 
-	errStr = LuaGetDbHandleSnap(service, snapshot);
+	checkLuaExecContext(L);
+
+	errStr = LuaGetDbHandleSnap(L, snapshot);
 	if (errStr != NULL) {
 		strPushAndRelease(L, errStr);
 		luaL_throwerror(L);

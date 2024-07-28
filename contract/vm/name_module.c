@@ -4,16 +4,17 @@
 #include "util.h"
 #include "_cgo_export.h"
 
-extern int getLuaExecContext(lua_State *L);
+extern void checkLuaExecContext(lua_State *L);
 
 static int resolve(lua_State *L) {
 	char *name, *ret;
-	int service = getLuaExecContext(L);
+
+	checkLuaExecContext(L);
 
 	lua_gasuse(L, 100);
 
 	name = (char *)luaL_checkstring(L, 1);
-	ret = luaNameResolve(L, service, name);
+	ret = luaNameResolve(L, name);
 
 	if (ret == NULL) {
 		lua_pushnil(L);

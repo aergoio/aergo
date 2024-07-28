@@ -5,7 +5,7 @@
 #include "bignum_module.h"
 #include "_cgo_export.h"
 
-extern int getLuaExecContext(lua_State *L);
+extern void checkLuaExecContext(lua_State *L);
 
 static const char *contract_str = "contract";
 static const char *call_str = "call";
@@ -90,9 +90,10 @@ static int moduleCall(lua_State *L) {
 	char *fname;
 	char *json_args;
 	struct luaCallContract_return ret;
-	int service = getLuaExecContext(L);
 	lua_Integer gas;
 	char *amount;
+
+	checkLuaExecContext(L);
 
 	if (lua_gettop(L) == 2) {
 		lua_gasuse(L, 300);
@@ -117,7 +118,7 @@ static int moduleCall(lua_State *L) {
 	lua_pop(L, 2);
 	contract = (char *)luaL_checkstring(L, 2);
 	if (lua_gettop(L) == 2) {
-		char *errStr = luaSendAmount(L, service, contract, amount);
+		char *errStr = luaSendAmount(L, contract, amount);
 		reset_amount_info(L);
 		if (errStr != NULL) {
 			strPushAndRelease(L, errStr);
@@ -132,7 +133,7 @@ static int moduleCall(lua_State *L) {
 		luaL_throwerror(L);
 	}
 
-	ret = luaCallContract(L, service, contract, fname, json_args, amount, gas);
+	ret = luaCallContract(L, contract, fname, json_args, amount, gas);
 	if (ret.r1 != NULL) {
 		free(json_args);
 		reset_amount_info(L);
@@ -153,8 +154,9 @@ static int moduleDelegateCall(lua_State *L) {
 	char *fname;
 	char *json_args;
 	struct luaDelegateCallContract_return ret;
-	int service = getLuaExecContext(L);
 	lua_Integer gas;
+
+	checkLuaExecContext(L);
 
 	lua_gasuse(L, 2000);
 
@@ -173,7 +175,7 @@ static int moduleDelegateCall(lua_State *L) {
 		reset_amount_info(L);
 		luaL_throwerror(L);
 	}
-	ret = luaDelegateCallContract(L, service, contract, fname, json_args, gas);
+	ret = luaDelegateCallContract(L, contract, fname, json_args, gas);
 	if (ret.r1 != NULL) {
 		free(json_args);
 		reset_amount_info(L);
@@ -189,9 +191,10 @@ static int moduleDelegateCall(lua_State *L) {
 static int moduleSend(lua_State *L) {
 	char *contract;
 	char *errStr;
-	int service = getLuaExecContext(L);
 	char *amount;
 	bool needfree = false;
+
+	checkLuaExecContext(L);
 
 	lua_gasuse(L, 300);
 
@@ -218,7 +221,7 @@ static int moduleSend(lua_State *L) {
 		luaL_error(L, "invalid input");
 	}
 
-	errStr = luaSendAmount(L, service, contract, amount);
+	errStr = luaSendAmount(L, contract, amount);
 
 	if (needfree) {
 		free(amount);
@@ -232,9 +235,10 @@ static int moduleSend(lua_State *L) {
 
 static int moduleBalance(lua_State *L) {
 	char *contract;
-	int service = getLuaExecContext(L);
 	struct luaGetBalance_return balance;
 	int nArg;
+
+	checkLuaExecContext(L);
 
 	lua_gasuse(L, 300);
 
@@ -255,7 +259,7 @@ static int moduleBalance(lua_State *L) {
 		if (mode != -1) {
 			struct luaGetStaking_return ret;
 			const char *errMsg;
-			ret = luaGetStaking(service, contract);
+			ret = luaGetStaking(L, contract);
 			if (ret.r2 != NULL) {
 				strPushAndRelease(L, ret.r2);
 				luaL_throwerror(L);
@@ -273,7 +277,7 @@ static int moduleBalance(lua_State *L) {
 		}
 	}
 
-	balance = luaGetBalance(L, service, contract);
+	balance = luaGetBalance(L, contract);
 	if (balance.r1 != NULL) {
 		strPushAndRelease(L, balance.r1);
 		luaL_throwerror(L);
@@ -284,15 +288,19 @@ static int moduleBalance(lua_State *L) {
 }
 
 static int modulePcall(lua_State *L) {
-	int argc = lua_gettop(L) - 1;
-	int service = getLuaExecContext(L);
-	int num_events = luaGetEventCount(L, service);
 	struct luaSetRecoveryPoint_return start_seq;
+	int argc;
+	int num_events;
 	int ret;
+
+	checkLuaExecContext(L);
+
+	argc = lua_gettop(L) - 1;
+	num_events = luaGetEventCount(L);
 
 	lua_gasuse(L, 300);
 
-	start_seq = luaSetRecoveryPoint(L, service);
+	start_seq = luaSetRecoveryPoint(L);
 	if (start_seq.r0 < 0) {
 		strPushAndRelease(L, start_seq.r1);
 		luaL_throwerror(L);
@@ -308,11 +316,11 @@ static int modulePcall(lua_State *L) {
 		lua_insert(L, 1);
 		// drop the events
 		if (vm_is_hardfork(L, 4)) {
-			luaDropEvent(L, service, num_events);
+			luaDropEvent(L, num_events);
 		}
 		// revert the contract state
 		if (start_seq.r0 > 0) {
-			char *errStr = luaClearRecovery(L, service, start_seq.r0, true);
+			char *errStr = luaClearRecovery(L, start_seq.r0, true);
 			if (errStr != NULL) {
 				strPushAndRelease(L, errStr);
 				luaL_throwerror(L);
@@ -327,10 +335,10 @@ static int modulePcall(lua_State *L) {
 
 	// release the recovery point
 	if (start_seq.r0 == 1) {
-		char *errStr = luaClearRecovery(L, service, start_seq.r0, false);
+		char *errStr = luaClearRecovery(L, start_seq.r0, false);
 		if (errStr != NULL) {
 			if (vm_is_hardfork(L, 4)) {
-				luaDropEvent(L, service, num_events);
+				luaDropEvent(L, num_events);
 			}
 			strPushAndRelease(L, errStr);
 			luaL_throwerror(L);
@@ -350,8 +358,9 @@ static int moduleDeploy(lua_State *L) {
 	char *fname;
 	char *json_args;
 	struct luaDeployContract_return ret;
-	int service = getLuaExecContext(L);
 	char *amount;
+
+	checkLuaExecContext(L);
 
 	lua_gasuse(L, 5000);
 
@@ -372,7 +381,7 @@ static int moduleDeploy(lua_State *L) {
 		luaL_throwerror(L);
 	}
 
-	ret = luaDeployContract(L, service, contract, json_args, amount);
+	ret = luaDeployContract(L, contract, json_args, amount);
 	if (ret.r0 < 0) {
 		free(json_args);
 		reset_amount_info(L);
@@ -392,8 +401,9 @@ static int moduleDeploy(lua_State *L) {
 static int moduleEvent(lua_State *L) {
 	char *event_name;
 	char *json_args;
-	int service = getLuaExecContext(L);
 	char *errStr;
+
+	checkLuaExecContext(L);
 
 	lua_gasuse(L, 500);
 
@@ -406,7 +416,8 @@ static int moduleEvent(lua_State *L) {
 	if (json_args == NULL) {
 		luaL_throwerror(L);
 	}
-	errStr = luaEvent(L, service, event_name, json_args);
+
+	errStr = luaEvent(L, event_name, json_args);
 	if (errStr != NULL) {
 		strPushAndRelease(L, errStr);
 		luaL_throwerror(L);
@@ -417,9 +428,10 @@ static int moduleEvent(lua_State *L) {
 
 static int governance(lua_State *L, char type) {
 	char *ret;
-	int service = getLuaExecContext(L);
 	char *arg;
 	bool needfree = false;
+
+	checkLuaExecContext(L);
 
 	lua_gasuse(L, 500);
 
@@ -455,7 +467,8 @@ static int governance(lua_State *L, char type) {
 		}
 		needfree = true;
 	}
-	ret = luaGovernance(L, service, type, arg);
+
+	ret = luaGovernance(L, type, arg);
 	if (needfree) {
 		free(arg);
 	}
