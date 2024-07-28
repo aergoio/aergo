@@ -14,6 +14,20 @@ package vm  // or main
  #include "bignum_module.h"
 */
 import "C"
+import (
+	"errors"
+	"fmt"
+	"os"
+	"reflect"
+	"sort"
+	"strings"
+	"unsafe"
+
+	"github.com/aergoio/aergo/v2/contract/msg"
+	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/cmd/aergoluac/luac"
+	"github.com/aergoio/aergo/v2/cmd/aergoluac/util"
+)
 
 
 
@@ -337,9 +351,47 @@ func minusCallCount(ctx *vmContext, curCount, deduc C.int) C.int {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+func Compile(code string, hasParent bool) ([]byte, error) {
+	L := luac.NewLState()
+	if L == nil {
+		return nil, ErrVmStart
+	}
+	defer luac.CloseLState(L)
+
+	if hasParent {
+		var lState = (*LState)(L)
+		if cErrMsg := C.vm_copy_service(lState, parent); cErrMsg != nil {
+			// if there is an uncatchable error, return it to the parent
+			if C.luaL_hasuncatchablerror(lState) != C.int(0) {
+				err = errors.New("uncatchable: " + err.Error())
+			}
+			errMsg := C.GoString(cErrMsg)
+			return nil, errors.New(errMsg)
+		}
+		// set the hardfork version
+		C.luaL_set_hardforkversion(lState, C.luaL_hardforkversion(parent))
+		// set the timeout hook
+		C.vm_set_timeout_hook(lState)
+	}
+
+	byteCodeAbi, err := luac.Compile(L, code)
+	if err != nil {
+		// if there is an uncatchable error, return it to the parent
+		if hasParent && C.luaL_hasuncatchablerror((*LState)(L)) != C.int(0) {
+			err = errors.New("uncatchable: " + err.Error())
+		}
+		return nil, err
+	}
+
+	return byteCodeAbi.Bytes(), nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+/*
 
 	if ctx.blockInfo.ForkVersion >= 2 {
 		C.luaL_set_hardforkversion(ce.L, C.int(ctx.blockInfo.ForkVersion))
 	}
 
-
+*/
