@@ -1623,19 +1623,13 @@ func isPublic() C.int {
 
 
 
-//export luaViewStart
-func luaViewStart(ctx *vmContext) {
-	ctx.nestedView++
-}
 
-//export luaViewEnd
-func luaViewEnd(ctx *vmContext) {
-	ctx.nestedView--
-}
+// this is only used at server side, by db_module.c
 
-//export luaCheckView
-func luaCheckView(ctx *vmContext) int {
-	return int(ctx.nestedView)
+//export luaIsView
+func luaIsView(service C.int) C.bool {
+	ctx := contexts[service]
+	return C.bool(ctx.nestedView > 0)
 }
 
 

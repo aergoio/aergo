@@ -149,13 +149,6 @@ func (ce *executor) call(instLimit C.int, target *LState) (ret C.int) {
 
 	defer ce.refreshRemainingGas()
 
-	if ce.isView == true {
-		ce.ctx.nestedView++
-		defer func() {
-			ce.ctx.nestedView--
-		}()
-	}
-
 	ce.vmLoadCall()
 	if ce.err != nil {
 		return 0

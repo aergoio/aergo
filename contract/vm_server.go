@@ -39,6 +39,13 @@ func (ce *executor) convertArgsToJSON() (string, error) {
 
 func (ce *executor) call(instLimit int) (result string, err error) {
 
+	if ce.isView == true {
+		ce.ctx.nestedView++
+		defer func() {
+			ce.ctx.nestedView--
+		}()
+	}
+
 	// what to send:
 	// - bytecode: ce.code []byte
 	// - function name: ce.fname string
