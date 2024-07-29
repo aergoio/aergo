@@ -306,22 +306,25 @@ func (ctx *vmContext) handleCall(args []string) (result string, err error) {
 
 	// check if the contract call failed
 	if ce.err != nil {
+		// revert the contract to the previous state
 		err := clearRecovery(ctx, seq, true)
 		if err != nil {
 			return "", errors.New("[Contract.Call] recovery err: " + err.Error())
 		}
+		// log some info
 		if ctx.traceFile != nil {
 			_, _ = ctx.traceFile.WriteString(fmt.Sprintf("recovery snapshot: %d\n", seq))
 		}
+		// in case of timeout, return the original error message
 		switch ceErr := ce.err.(type) {
 		case *VmTimeoutError:
 			return "", errors.New(ceErr.Error())
 		default:
 			return "", errors.New("[Contract.Call] call err: " + ceErr.Error())
-
 		}
 	}
 
+	// release the recovery point
 	if seq == 1 {
 		err := clearRecovery(ctx, seq, false)
 		if err != nil {
@@ -421,13 +424,16 @@ func (ctx *vmContext) handleDelegateCall(args []string) (result string, err erro
 
 	// check if the contract call failed
 	if ce.err != nil {
+		// revert the contract to the previous state
 		err := clearRecovery(ctx, seq, true)
 		if err != nil {
 			return "", errors.New("[Contract.DelegateCall] recovery error: " + err.Error())
 		}
+		// log some info
 		if ctx.traceFile != nil {
 			_, _ = ctx.traceFile.WriteString(fmt.Sprintf("recovery snapshot: %d\n", seq))
 		}
+		// in case of timeout, return the original error message
 		switch ceErr := ce.err.(type) {
 		case *VmTimeoutError:
 			return "", errors.New(ceErr.Error())
@@ -436,6 +442,7 @@ func (ctx *vmContext) handleDelegateCall(args []string) (result string, err erro
 		}
 	}
 
+	// release the recovery point
 	if seq == 1 {
 		err := clearRecovery(ctx, seq, false)
 		if err != nil {
@@ -578,8 +585,13 @@ func (ctx *vmContext) handleSend(args []string) (result string, err error) {
 			if ctx.traceFile != nil {
 				_, _ = ctx.traceFile.WriteString(fmt.Sprintf("recovery snapshot: %d\n", seq))
 			}
-			// return the error message
-			return "", errors.New("[Contract.Send] call err: " + ce.err.Error())
+			// in case of timeout, return the original error message
+			switch ceErr := ce.err.(type) {
+			case *VmTimeoutError:
+				return "", errors.New(ceErr.Error())
+			default:
+				return "", errors.New("[Contract.Send] call err: " + ce.err.Error())
+			}
 		}
 
 		// release the recovery point
@@ -1178,7 +1190,7 @@ func (ctx *vmContext) handleDeployContract(args []string) (int, error) {
 	codeOrAddress, args, amount := args[0], args[1], args[2]
 
 	if ctx.isQuery || ctx.nestedView > 0 {
-		return -1, errors.New("[Contract.Deploy] send not permitted in query")
+		return -1, errors.New("[Contract.Deploy] deploy not permitted in query")
 	}
 	bs := ctx.bs
 
@@ -1333,7 +1345,7 @@ func (ctx *vmContext) handleDeployContract(args []string) (int, error) {
 
 		// check if the execution was successful
 		if ce.err != nil {
-			// rollback the recovery point
+			// revert the contract to the previous state
 			err := clearRecovery(ctx, seq, true)
 			if err != nil {
 				return -1, errors.New("[Contract.Deploy] recovery error: " + err.Error())
@@ -1342,11 +1354,17 @@ func (ctx *vmContext) handleDeployContract(args []string) (int, error) {
 			if ctx.traceFile != nil {
 				_, _ = ctx.traceFile.WriteString(fmt.Sprintf("recovery snapshot: %d\n", seq))
 			}
-			// return the error message
-			return -1, errors.New("[Contract.Deploy] call err: " + ce.err.Error())
+			// in case of timeout, return the original error message
+			switch ceErr := ce.err.(type) {
+			case *VmTimeoutError:
+				return -1, errors.New(ceErr.Error())
+			default:
+				return -1, errors.New("[Contract.Deploy] call err: " + ce.err.Error())
+			}
 		}
 	}
 
+	// release the recovery point
 	if seq == 1 {
 		err := clearRecovery(ctx, seq, false)
 		if err != nil {
@@ -1552,13 +1570,16 @@ func (ctx *vmContext) handleGovernance(args []string) (result string, err error)
 		return "", errors.New("[Contract.Governance] error: " + err.Error())
 	}
 
+	// create a recovery point
 	seq, err := setRecoveryPoint(aid, ctx, senderState, scsState, zeroBig, false, false)
 	if err != nil {
 		return "", errors.New("[Contract.Governance] database error: " + err.Error())
 	}
 
+	// execute the system transaction
 	events, err := system.ExecuteSystemTx(scsState.ctrState, &txBody, senderState, receiverState, ctx.blockInfo)
 	if err != nil {
+		// revert the contract to the previous state
 		rErr := clearRecovery(ctx, seq, true)
 		if rErr != nil {
 			return "", errors.New("[Contract.Governance] recovery error: " + rErr.Error())
@@ -1566,6 +1587,7 @@ func (ctx *vmContext) handleGovernance(args []string) (result string, err error)
 		return "", errors.New("[Contract.Governance] error: " + err.Error())
 	}
 
+	// release the recovery point
 	if seq == 1 {
 		err := clearRecovery(ctx, seq, false)
 		if err != nil {
@@ -1573,6 +1595,7 @@ func (ctx *vmContext) handleGovernance(args []string) (result string, err error)
 		}
 	}
 
+	// add the events to the context
 	ctx.eventCount += int32(len(events))
 	ctx.events = append(ctx.events, events...)
 
