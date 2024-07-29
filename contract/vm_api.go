@@ -1167,25 +1167,23 @@ func (ctx *vmContext) handleDeployContract(args []string) (int, error) {
 		if err != nil {
 			return -1, errors.New("[Contract.Deploy] " + err.Error())
 		} else if len(code) == 0 {
-			return -1, errors.New("[Contract.Deploy]: not found code")
+			return -1, errors.New("[Contract.Deploy] not found code")
 		}
 	}
 
+	//! maybe not needed on hardfork 5, if using Lua for new contracts
+	// but it could at least check the code for validity
+
 	// compile contract code if not found
 	if len(code) == 0 {
-		if ctx.blockInfo.ForkVersion >= 2 {
-			code, err = Compile(codeOrAddress, L)
-		} else {
-			code, err = Compile(codeOrAddress, nil)
-		}
+		code, err = Compile(codeOrAddress, true)
 		if err != nil {
-			if C.L_hasuncatchablerror(L) != C.int(0) &&
-				C.ERR_BF_TIMEOUT == err.Error() {
-				return -1, errors.New(C.ERR_BF_TIMEOUT)
+			// check if string contains timeout error
+			if isUncatchableError(err) && strings.Contains(err.Error(), C.ERR_BF_TIMEOUT) {
+				return -1, err  //errors.New(C.ERR_BF_TIMEOUT)
 			} else if err == ErrVmStart {
 				return -1, errors.New("[Contract.Deploy] get luaState error")
 			}
-
 			return -1, errors.New("[Contract.Deploy] compile error: " + err.Error())
 		}
 	}
