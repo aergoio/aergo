@@ -1,9 +1,6 @@
 package contract
 
 /*
-#cgo CFLAGS: -I${SRCDIR}/../libtool/include/luajit-2.1
-#cgo LDFLAGS: ${SRCDIR}/../libtool/lib/libluajit-5.1.a -lm
-
 #include <stdlib.h>
 #include <string.h>
 #include "vm.h"
