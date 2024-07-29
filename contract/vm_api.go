@@ -1806,34 +1806,23 @@ func luaIsView(service C.int) C.bool {
 
 
 
-// luaCheckTimeout checks whether the block creation timeout occurred.
+// checks whether the block creation timeout occurred
 //
-//export luaCheckTimeout
-func luaCheckTimeout(service C.int) C.int {
+func checkTimeout(service int) bool {
 
-	if service < BlockFactory {
-		// Originally, MaxVmService was used instead of maxContext. service
-		// value can be 2 and decremented by MaxVmService(=2) during VM loading.
-		// That means the value of service becomes zero after the latter
-		// adjustment.
-		//
-		// This make the VM check block timeout in a unwanted situation. If that
-		// happens during the chain service is connecting block, the block chain
-		// becomes out of sync.
-		service = service + C.int(maxContext)
-	}
-
+	// only check timeout for the block factory
 	if service != BlockFactory {
-		return 0
+		return false
 	}
 
 	ctx := contexts[service]
 	select {
 	case <-ctx.execCtx.Done():
-		return 1
+		return true
 	default:
-		return 0
+		return false
 	}
+
 }
 
 //export LuaGetDbHandleSnap

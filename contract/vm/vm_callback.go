@@ -550,34 +550,14 @@ func luaGovernance(L *LState, gType C.char, arg *C.char) *C.char {
 
 
 
-// luaCheckTimeout checks whether the block creation timeout occurred.
+// checks whether the block creation timeout occurred
 //
 //export luaCheckTimeout
-func luaCheckTimeout(service C.int) C.int {
-
-	if service < BlockFactory {
-		// Originally, MaxVmService was used instead of maxContext. service
-		// value can be 2 and decremented by MaxVmService(=2) during VM loading.
-		// That means the value of service becomes zero after the latter
-		// adjustment.
-		//
-		// This make the VM check block timeout in a unwanted situation. If that
-		// happens during the chain service is connecting block, the block chain
-		// becomes out of sync.
-		service = service + C.int(maxContext)
-	}
-
-	if service != BlockFactory {
-		return 0
-	}
-
-	ctx := contexts[service]
-	select {
-	case <-ctx.execCtx.Done():
+func luaCheckTimeout() C.int {
+	if timedout {
 		return 1
-	default:
-		return 0
 	}
+	return 0
 }
 
 //export luaIsFeeDelegation
