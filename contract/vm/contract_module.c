@@ -298,14 +298,22 @@ static int modulePcall(lua_State *L) {
 
 	lua_gasuse(L, 300);
 
+	// create a recovery point
 	start_seq = luaSetRecoveryPoint(L);
 	if (start_seq.r0 < 0) {
 		strPushAndRelease(L, start_seq.r1);
 		luaL_throwerror(L);
 	}
 
+	// call the function
 	ret = lua_pcall(L, argc, LUA_MULTRET, 0);
 	if (ret != 0) {
+		// revert the contract state
+		char *errStr = luaClearRecovery(L, start_seq.r0, true);
+		if (errStr != NULL) {
+			strPushAndRelease(L, errStr);
+			luaL_throwerror(L);
+		}
 		// if out of memory, throw error
 		if (ret == LUA_ERRMEM) {
 			luaL_throwerror(L);
@@ -313,12 +321,7 @@ static int modulePcall(lua_State *L) {
 		// add 'success = false' as the first returned value
 		lua_pushboolean(L, false);
 		lua_insert(L, 1);
-		// revert the contract state
-		char *errStr = luaClearRecovery(L, start_seq.r0, true);
-		if (errStr != NULL) {
-			strPushAndRelease(L, errStr);
-			luaL_throwerror(L);
-		}
+		// return the 2 values
 		return 2;
 	}
 
