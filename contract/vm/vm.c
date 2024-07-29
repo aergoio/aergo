@@ -21,9 +21,9 @@ const int VM_TIMEOUT_INST_COUNT = 200;
 extern int luaopen_utf8(lua_State *L);
 
 void checkLuaExecContext(lua_State *L) {
-	int service = luaL_service(L);
-	if (service < 0)
-		luaL_error(L, "not permitted state referencing at global scope");
+	if (luaL_is_loading(L)) {
+		luaL_error(L, "state referencing not permitted at global scope");
+	}
 }
 
 #ifdef MEASURE
@@ -317,20 +317,11 @@ const char *vm_loadcall(lua_State *L) {
 	return NULL;
 }
 
-const char *vm_copy_service(lua_State *Ldest, lua_State *Lsource) {
-	int service;
-	service = luaL_service(Lsource);
-	if (service < 0) {
-		return "not permitted state referencing at global scope";
-	}
-	luaL_set_service(Ldest, service);
-	return NULL;
-}
-
-const char *vm_loadbuff(lua_State *L, const char *code, size_t sz, char *hex_id, int service) {
+const char *vm_loadbuff(lua_State *L, const char *code, size_t sz, char *hex_id) {
 	int err;
 
-	luaL_set_service(L, service);
+	// mark as running on global scope
+	luaL_set_loading(L, true);
 
 	err = luaL_loadbuffer(L, code, sz, hex_id);
 	if (err != 0) {

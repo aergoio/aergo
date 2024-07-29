@@ -17,7 +17,7 @@ lua_State *vm_newstate(int hardfork_version);
 void vm_closestates(lua_State *s[], int count);
 int vm_autoload(lua_State *L, char *func_name);
 void vm_remove_constructor(lua_State *L);
-const char *vm_loadbuff(lua_State *L, const char *code, size_t sz, char *hex_id, int service);
+const char *vm_loadbuff(lua_State *L, const char *code, size_t sz, char *hex_id);
 const char *vm_pcall(lua_State *L, int argc, int *nresult);
 const char *vm_get_json_ret(lua_State *L, int nresult, int *err);
 const char *vm_copy_result(lua_State *L, lua_State *target, int cnt);
@@ -30,7 +30,6 @@ void vm_set_timeout_hook(lua_State *L);
 void vm_set_timeout_count_hook(lua_State *L, int limit);
 int vm_instcount(lua_State *L);
 void vm_setinstcount(lua_State *L, int count);
-const char *vm_copy_service(lua_State *L, lua_State *main);
 const char *vm_loadcall(lua_State *L);
 
 #endif /* _VM_H */
