@@ -305,7 +305,7 @@ func (ctx *vmContext) handleCall(args []string) (result string, err error) {
 
 	// check if the contract call failed
 	if ce.err != nil {
-		err := clearRecovery(L, ctx, seq, true)
+		err := clearRecovery(ctx, seq, true)
 		if err != nil {
 			return "", errors.New("[Contract.Call] recovery err: " + err.Error())
 		}
@@ -322,7 +322,7 @@ func (ctx *vmContext) handleCall(args []string) (result string, err error) {
 	}
 
 	if seq == 1 {
-		err := clearRecovery(L, ctx, seq, false)
+		err := clearRecovery(ctx, seq, false)
 		if err != nil {
 			return "", errors.New("[Contract.Call] recovery err: " + err.Error())
 		}
@@ -395,7 +395,7 @@ func (ctx *vmContext) handleDelegateCall(args []string) (result string, err erro
 
 	// check if the contract call failed
 	if ce.err != nil {
-		err := clearRecovery(L, ctx, seq, true)
+		err := clearRecovery(ctx, seq, true)
 		if err != nil {
 			return "", errors.New("[Contract.DelegateCall] recovery error: " + err.Error())
 		}
@@ -411,7 +411,7 @@ func (ctx *vmContext) handleDelegateCall(args []string) (result string, err erro
 	}
 
 	if seq == 1 {
-		err := clearRecovery(L, ctx, seq, false)
+		err := clearRecovery(ctx, seq, false)
 		if err != nil {
 			return "", errors.New("[Contract.DelegateCall] recovery error: " + err.Error())
 		}
@@ -543,8 +543,8 @@ func (ctx *vmContext) handleSend(args []string) (result string, err error) {
 
 		// check if the contract call failed
 		if ce.err != nil {
-			// recover to the previous state
-			err := clearRecovery(L, ctx, seq, true)
+			// revert the contract to the previous state
+			err := clearRecovery(ctx, seq, true)
 			if err != nil {
 				return "", errors.New("[Contract.Send] recovery err: " + err.Error())
 			}
@@ -556,8 +556,9 @@ func (ctx *vmContext) handleSend(args []string) (result string, err error) {
 			return "", errors.New("[Contract.Send] call err: " + ce.err.Error())
 		}
 
+		// release the recovery point
 		if seq == 1 {
-			err := clearRecovery(L, ctx, seq, false)
+			err := clearRecovery(ctx, seq, false)
 			if err != nil {
 				return "", errors.New("[Contract.Send] recovery err: " + err.Error())
 			}
@@ -619,16 +620,16 @@ func (ctx *vmContext) handleSetRecoveryPoint() (result string, err error) {
 	return strconv.Itoa(seq), nil
 }
 
-func clearRecovery(L *LState, ctx *vmContext, start int, error bool) error {
+func clearRecovery(ctx *vmContext, start int, revert bool) error {
 	item := ctx.lastRecoveryEntry
 	for {
-		if error {
-			if item.recovery(ctx.bs) != nil {
+		if revert {
+			if item.revertState(ctx.bs) != nil {
 				return errors.New("database error")
 			}
 		}
 		if item.seq == start {
-			if error || item.prev == nil {
+			if revert || item.prev == nil {
 				ctx.lastRecoveryEntry = item.prev
 			}
 			return nil
@@ -648,16 +649,16 @@ func (ctx *vmContext) handleClearRecovery(args []string) (result string, err err
 	if err != nil {
 		return "", errors.New("[Contract.ClearRecovery] invalid start")
 	}
-	failed, err := strconv.ParseBool(args[1])
+	revert, err := strconv.ParseBool(args[1])
 	if err != nil {
-		return "", errors.New("[Contract.ClearRecovery] invalid failed")
+		return "", errors.New("[Contract.ClearRecovery] invalid revert")
 	}
-	err = clearRecovery(L, ctx, start, failed)
+	err = clearRecovery(ctx, start, revert)
 	if err != nil {
 		return "", err
 	}
-	if ctx.traceFile != nil && failed == true {
-		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("pcall recovery snapshot : %d\n", start))
+	if ctx.traceFile != nil && revert == true {
+		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("pcall recovery snapshot: %d\n", start))
 	}
 	return "", nil
 }
@@ -1296,7 +1297,7 @@ func (ctx *vmContext) handleDeployContract(args []string) (int, error) {
 		// check if the execution was successful
 		if ce.err != nil {
 			// rollback the recovery point
-			err := clearRecovery(L, ctx, seq, true)
+			err := clearRecovery(ctx, seq, true)
 			if err != nil {
 				return -1, errors.New("[Contract.Deploy] recovery error: " + err.Error())
 			}
@@ -1310,7 +1311,7 @@ func (ctx *vmContext) handleDeployContract(args []string) (int, error) {
 	}
 
 	if seq == 1 {
-		err := clearRecovery(L, ctx, seq, false)
+		err := clearRecovery(ctx, seq, false)
 		if err != nil {
 			return -1, errors.New("[Contract.Deploy] recovery error: " + err.Error())
 		}
@@ -1378,32 +1379,6 @@ func (ctx *vmContext) handleEvent(args []string) (result string, err error) {
 	)
 	ctx.eventCount++
 	return "", nil
-}
-
-func (ctx *vmContext) handleGetEventCount() int {
-	eventCount := ctx.eventCount
-	if ctrLgr.IsDebugEnabled() {
-		ctrLgr.Debug().Int32("eventCount", eventCount).Msg("get event count")
-	}
-	return int(eventCount)
-}
-
-func (ctx *vmContext) handleDropEvent(args []string) {
-	if len(args) != 1 {
-		return
-	}
-	from, err := strconv.Atoi(args[0])
-	if err != nil {
-		return
-	}
-	// Drop all the events after the given index.
-	if ctrLgr.IsDebugEnabled() {
-		ctrLgr.Debug().Int32("from", int32(from)).Int("len", len(ctx.events)).Msg("drop events")
-	}
-	if from >= 0 {
-		ctx.events = ctx.events[:from]
-		ctx.eventCount = int32(len(ctx.events))
-	}
 }
 
 func (ctx *vmContext) handleToPubkey(args []string) (result string, err error) {
@@ -1547,7 +1522,7 @@ func (ctx *vmContext) handleGovernance(args []string) (result string, err error)
 
 	events, err := system.ExecuteSystemTx(scsState.ctrState, &txBody, senderState, receiverState, ctx.blockInfo)
 	if err != nil {
-		rErr := clearRecovery(L, ctx, seq, true)
+		rErr := clearRecovery(ctx, seq, true)
 		if rErr != nil {
 			return "", errors.New("[Contract.Governance] recovery error: " + rErr.Error())
 		}
@@ -1555,7 +1530,7 @@ func (ctx *vmContext) handleGovernance(args []string) (result string, err error)
 	}
 
 	if seq == 1 {
-		err := clearRecovery(L, ctx, seq, false)
+		err := clearRecovery(ctx, seq, false)
 		if err != nil {
 			return "", errors.New("[Contract.Governance] recovery error: " + err.Error())
 		}
