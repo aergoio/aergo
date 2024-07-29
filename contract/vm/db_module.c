@@ -549,35 +549,47 @@ static int db_prepare(lua_State *L) {
 	return 1;
 }
 
-/*
 static int db_get_snapshot(lua_State *L) {
-	char *snapshot;
+	response resp = {0}, *response = &resp;
 
 	checkLuaExecContext(L);
 
-	snapshot = LuaGetDbSnapshot(L);
-	strPushAndRelease(L, snapshot);
+	send_vm_api_request(L, "dbGetSnapshot", NULL, response);
+	if (response->error) {
+		lua_pushfstring(L, "get_snapshot failed: %s", response->error);
+		free_response(response);
+		lua_error(L);
+	}
 
+	lua_pushstring(L, get_string(response->result, 1));
+	free_response(response);
 	return 1;
 }
 
 static int db_open_with_snapshot(lua_State *L) {
+	buffer buf = {0}, *args = &buf;
+	response resp = {0}, *response = &resp;
 	char *snapshot = (char *) luaL_checkstring(L, 1);
-	char *errStr;
 
 	checkLuaExecContext(L);
 
-	errStr = LuaGetDbHandleSnap(L, snapshot);
-	if (errStr != NULL) {
-		strPushAndRelease(L, errStr);
-		luaL_throwerror(L);
+	add_string(args, snapshot);
+	send_vm_api_request(L, "dbOpenWithSnapshot", args, response);
+	free_buffer(args);
+	if (response->error) {
+		lua_pushfstring(L, "open_with_snapshot failed: %s", response->error);
+		free_response(response);
+		lua_error(L);
 	}
-	return 1;
+	free_response(response);
+
+	return 0;
 }
-*/
 
 static int db_last_insert_rowid(lua_State *L) {
 	response resp = {0}, *response = &resp;
+
+	checkLuaExecContext(L);
 
 	send_vm_api_request(L, "lastInsertRowid", NULL, response);
 	if (response->error) {

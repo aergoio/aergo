@@ -511,30 +511,26 @@ sqlite3 *vm_get_db(int service) {
 	return db;
 }
 
-/*
-static int db_get_snapshot(lua_State *L) {
+void handle_db_get_snapshot(request *req) {
 	char *snapshot;
-	int service = checkLuaExecContext(L);
+	checkLuaExecContext(req->service);
 
 	snapshot = LuaGetDbSnapshot(service);
-	strPushAndRelease(L, snapshot);
-
-	return 1;
+	add_string(req->result, snapshot);
 }
 
-static int db_open_with_snapshot(lua_State *L) {
-	char *snapshot = (char *) luaL_checkstring(L, 1);
+void handle_db_open_with_snapshot(request *req, char *snapshot) {
 	char *errStr;
-	int service = checkLuaExecContext(L);
+	checkLuaExecContext(req->service);
 
-	errStr = LuaGetDbHandleSnap(service, snapshot);
+	errStr = LuaGetDbHandleSnap(req->service, snapshot);
 	if (errStr != NULL) {
-		strPushAndRelease(L, errStr);
-		luaL_throwerror(L);
+		set_error(req, errStr);
+		return;
 	}
-	return 1;
+
+	add_string(req->result, "ok");
 }
-*/
 
 void handle_last_insert_rowid(request *req) {
 	checkLuaExecContext(req->service);

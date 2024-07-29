@@ -258,6 +258,10 @@ func (ce *executor) ProcessCommand(command string, args []string) (result string
 		return ctx.handleRsClose(args)
 	case "lastInsertRowid":
 		return ctx.handleLastInsertRowid(args)
+	case "dbOpenWithSnapshot":
+		return ctx.handleDbOpenWithSnapshot(args)
+	case "dbGetSnapshot":
+		return ctx.handleDbGetSnapshot(args)
 
 	// internal
 

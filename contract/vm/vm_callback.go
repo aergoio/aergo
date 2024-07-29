@@ -576,14 +576,6 @@ func LuaGetDbHandleSnap(L *LState, snap *C.char) *C.char {
 	return nil
 }
 
-//export LuaGetDbSnapshot
-func LuaGetDbSnapshot(service C.int) *C.char {
-	stateSet := contexts[service]
-	curContract := stateSet.curContract
-
-	return C.CString(strconv.FormatUint(curContract.rp, 10))
-}
-
 //export luaGetStaking
 func luaGetStaking(L *LState, addr *C.char) (*C.char, C.lua_Integer, *C.char) {
 	args := []string{C.GoString(addr)}

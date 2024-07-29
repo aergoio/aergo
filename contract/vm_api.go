@@ -810,36 +810,6 @@ func (ctx *vmContext) handleGetTimeStamp() (result string, err error) {
 
 
 
-func (ctx *vmContext) handleGetDbHandle() *C.sqlite3 {
-	curContract := ctx.curContract
-	cs := curContract.callState
-	if cs.tx != nil {
-		return cs.tx.getHandle()
-	}
-	var tx sqlTx
-	var err error
-
-	aid := types.ToAccountID(curContract.contractId)
-	if ctx.isQuery == true {
-		tx, err = beginReadOnly(aid.String(), curContract.rp)
-	} else {
-		tx, err = beginTx(aid.String(), curContract.rp)
-	}
-	if err != nil {
-		sqlLgr.Error().Err(err).Msg("Begin SQL Transaction")
-		return nil
-	}
-	if ctx.isQuery == false {
-		err = tx.savepoint()
-		if err != nil {
-			sqlLgr.Error().Err(err).Msg("Begin SQL Transaction")
-			return nil
-		}
-	}
-	cs.tx = tx
-	return cs.tx.getHandle()
-}
-
 //export luaGetDbHandle
 func luaGetDbHandle(service C.int) *C.sqlite3 {
 	ctx := contexts[service]
@@ -1785,6 +1755,27 @@ func (ctx *vmContext) handleLastInsertRowid(args []string) (result string, err e
 	result, err = processResult(&cReq)
 }
 
+//dbOpenWithSnapshot
+func (ctx *vmContext) handleDbOpenWithSnapshot(args []string) (result string, err error) {
+	if len(args) != 1 {
+		return "", errors.New("[DB.DbOpenWithSnapshot] invalid number of arguments")
+	}
+	snapshot := args[0]
+
+	var cReq C.request
+	cReq.service = C.int(ctx.service)
+	C.handle_db_open_with_snapshot(&cReq, C.CString(snapshot))
+	result, err = processResult(&cReq)
+}
+
+//dbGetSnapshot
+func (ctx *vmContext) handleDbGetSnapshot(args []string) (result string, err error) {
+	var cReq C.request
+	cReq.service = C.int(ctx.service)
+	C.handle_db_get_snapshot(&cReq)
+	result, err = processResult(&cReq)
+}
+
 func processResult(cReq *C.request) (result string, err error) {
 	result = C.GoStringN(cReq.result.ptr, cReq.result.len)
 	errstr := C.GoString(cReq.error)
@@ -1850,7 +1841,8 @@ func checkTimeout(service int) bool {
 }
 
 //export LuaGetDbHandleSnap
-func LuaGetDbHandleSnap(ctx *vmContext, snap *C.char) *C.char {
+func LuaGetDbHandleSnap(service C.int, snapshot *C.char) *C.char {
+	ctx := contexts[service]
 
 	curContract := ctx.curContract
 	callState := curContract.callState
@@ -1863,9 +1855,9 @@ func LuaGetDbHandleSnap(ctx *vmContext, snap *C.char) *C.char {
 		return "", errors.New("[Contract.SetDbSnap] transaction already started")
 	}
 
-	rp, err := strconv.ParseUint(C.GoString(snap), 10, 64)
+	rp, err := strconv.ParseUint(C.GoString(snapshot), 10, 64)
 	if err != nil {
-		return "", errors.New("[Contract.SetDbSnap] snapshot is not valid" + C.GoString(snap))
+		return "", errors.New("[Contract.SetDbSnap] snapshot is not valid: " + C.GoString(snapshot))
 	}
 
 	aid := types.ToAccountID(curContract.contractId)
@@ -1879,7 +1871,8 @@ func LuaGetDbHandleSnap(ctx *vmContext, snap *C.char) *C.char {
 }
 
 //export LuaGetDbSnapshot
-func LuaGetDbSnapshot(ctx *vmContext) *C.char {
+func LuaGetDbSnapshot(service C.int) *C.char {
+	ctx := contexts[service]
 	return C.CString(strconv.FormatUint(ctx.curContract.rp, 10))
 }
 
