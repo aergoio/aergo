@@ -270,13 +270,15 @@ func (ce *executor) vmLoadCode(id []byte) {
 	}
 	defer C.free(unsafe.Pointer(chunkId))
 
-	if cErrMsg := C.vm_loadbuff(
+	// load the contract code. whatever execution happens at limited global scope
+	cErrMsg := C.vm_loadbuff(
 		ce.L,
 		(*C.char)(unsafe.Pointer(&ce.code[0])),
 		C.size_t(len(ce.code)),
 		chunkId,
-		ce.ctx.service - C.int(maxContext),
-	); cErrMsg != nil {
+	)
+
+	if cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
 		ce.err = errors.New(errMsg)
 		ctrLgr.Debug().Err(ce.err).Str("contract", types.EncodeAddress(id)).Msg("failed to load code")
@@ -293,7 +295,8 @@ func (ce *executor) vmLoadCall() {
 			ce.err = errors.New(errMsg)
 		}
 	}
-	C.luaL_set_service(ce.L, ce.ctx.service)
+	// mark as running a call
+	C.luaL_set_loading(ce.L, C.bool(false))
 }
 
 
@@ -360,16 +363,10 @@ func Compile(code string, hasParent bool) ([]byte, error) {
 
 	if hasParent {
 		var lState = (*LState)(L)
-		if cErrMsg := C.vm_copy_service(lState, parent); cErrMsg != nil {
-			// if there is an uncatchable error, return it to the parent
-			if C.luaL_hasuncatchablerror(lState) != C.int(0) {
-				err = errors.New("uncatchable: " + err.Error())
-			}
-			errMsg := C.GoString(cErrMsg)
-			return nil, errors.New(errMsg)
-		}
+		// mark as running a call
+		C.luaL_set_loading(lState, C.bool(false))
 		// set the hardfork version
-		C.luaL_set_hardforkversion(lState, C.luaL_hardforkversion(parent))
+		//C.luaL_set_hardforkversion(lState, 5)
 		// set the timeout hook
 		C.vm_set_timeout_hook(lState)
 	}
