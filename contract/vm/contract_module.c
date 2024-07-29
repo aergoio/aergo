@@ -290,13 +290,11 @@ static int moduleBalance(lua_State *L) {
 static int modulePcall(lua_State *L) {
 	struct luaSetRecoveryPoint_return start_seq;
 	int argc;
-	int num_events;
 	int ret;
 
 	checkLuaExecContext(L);
 
 	argc = lua_gettop(L) - 1;
-	num_events = luaGetEventCount(L);
 
 	lua_gasuse(L, 300);
 
@@ -306,7 +304,8 @@ static int modulePcall(lua_State *L) {
 		luaL_throwerror(L);
 	}
 
-	if ((ret = lua_pcall(L, argc, LUA_MULTRET, 0)) != 0) {
+	ret = lua_pcall(L, argc, LUA_MULTRET, 0);
+	if (ret != 0) {
 		// if out of memory, throw error
 		if (ret == LUA_ERRMEM) {
 			luaL_throwerror(L);
@@ -314,17 +313,11 @@ static int modulePcall(lua_State *L) {
 		// add 'success = false' as the first returned value
 		lua_pushboolean(L, false);
 		lua_insert(L, 1);
-		// drop the events
-		if (vm_is_hardfork(L, 4)) {
-			luaDropEvent(L, num_events);
-		}
 		// revert the contract state
-		if (start_seq.r0 > 0) {
-			char *errStr = luaClearRecovery(L, start_seq.r0, true);
-			if (errStr != NULL) {
-				strPushAndRelease(L, errStr);
-				luaL_throwerror(L);
-			}
+		char *errStr = luaClearRecovery(L, start_seq.r0, true);
+		if (errStr != NULL) {
+			strPushAndRelease(L, errStr);
+			luaL_throwerror(L);
 		}
 		return 2;
 	}
@@ -337,9 +330,6 @@ static int modulePcall(lua_State *L) {
 	if (start_seq.r0 == 1) {
 		char *errStr = luaClearRecovery(L, start_seq.r0, false);
 		if (errStr != NULL) {
-			if (vm_is_hardfork(L, 4)) {
-				luaDropEvent(L, num_events);
-			}
 			strPushAndRelease(L, errStr);
 			luaL_throwerror(L);
 		}

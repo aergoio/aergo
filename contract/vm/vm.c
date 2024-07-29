@@ -98,7 +98,6 @@ static void preloadModules(lua_State *L) {
 static int pcall(lua_State *L) {
 	int argc = lua_gettop(L);
 	checkLuaExecContext(L);
-	int num_events = luaGetEventCount(L);
 	struct luaSetRecoveryPoint_return start_seq;
 	int ret;
 
@@ -120,10 +119,13 @@ static int pcall(lua_State *L) {
 	// call the function
 	ret = lua_pcall(L, argc - 1, LUA_MULTRET, 0);
 
-	// if failed, drop the events
-	if (ret != 0) {
-		if (vm_is_hardfork(L, 4)) {
-			luaDropEvent(L, num_events);
+	// release the recovery point (on success) or revert the contract state (on error)
+	if (start_seq.r0 > 0) {
+		bool is_error = (ret != 0);
+		char *errStr = luaClearRecovery(L, start_seq.r0, is_error);
+		if (errStr != NULL) {
+			strPushAndRelease(L, errStr);
+			luaL_throwerror(L);
 		}
 	}
 
@@ -136,19 +138,6 @@ static int pcall(lua_State *L) {
 	lua_pushboolean(L, ret == 0);
 	lua_insert(L, 1);
 
-	// release the recovery point (on success) or revert the contract state (on error)
-	if (start_seq.r0 > 0) {
-		bool is_error = (ret != 0);
-		char *errStr = luaClearRecovery(L, start_seq.r0, is_error);
-		if (errStr != NULL) {
-			if (vm_is_hardfork(L, 4)) {
-				luaDropEvent(L, num_events);
-			}
-			strPushAndRelease(L, errStr);
-			luaL_throwerror(L);
-		}
-	}
-
 	// return the number of items in the stack
 	return lua_gettop(L);
 }
@@ -158,7 +147,6 @@ static int pcall(lua_State *L) {
 static int xpcall(lua_State *L) {
 	int argc = lua_gettop(L);
 	checkLuaExecContext(L);
-	int num_events = luaGetEventCount(L);
 	struct luaSetRecoveryPoint_return start_seq;
 	int ret, errfunc;
 
@@ -198,10 +186,13 @@ static int xpcall(lua_State *L) {
 	// call the function
 	ret = lua_pcall(L, argc - 2, LUA_MULTRET, errfunc);
 
-	// if failed, drop the events
-	if (ret != 0) {
-		if (vm_is_hardfork(L, 4)) {
-			luaDropEvent(L, num_events);
+	// release the recovery point (on success) or revert the contract state (on error)
+	if (start_seq.r0 > 0) {
+		bool is_error = (ret != 0);
+		char *errStr = luaClearRecovery(L, start_seq.r0, is_error);
+		if (errStr != NULL) {
+			strPushAndRelease(L, errStr);
+			luaL_throwerror(L);
 		}
 	}
 
@@ -210,6 +201,7 @@ static int xpcall(lua_State *L) {
 		luaL_throwerror(L);
 	}
 
+/*
 	// ensure the stack has 1 free slot
 	if (!lua_checkstack(L, 1)) {
 		// return: false, "stack overflow"
@@ -218,23 +210,11 @@ static int xpcall(lua_State *L) {
 		lua_pushliteral(L, "stack overflow");
 		return 2;
 	}
+*/
 
 	// store the status at the bottom of the stack, replacing the error handler
 	lua_pushboolean(L, ret == 0);
 	lua_replace(L, 1);
-
-	// release the recovery point (on success) or revert the contract state (on error)
-	if (start_seq.r0 > 0) {
-		bool is_error = (ret != 0);
-		char *errStr = luaClearRecovery(L, start_seq.r0, is_error);
-		if (errStr != NULL) {
-			if (vm_is_hardfork(L, 4)) {
-				luaDropEvent(L, num_events);
-			}
-			strPushAndRelease(L, errStr);
-			luaL_throwerror(L);
-		}
-	}
 
 	// return the number of items in the stack
 	return lua_gettop(L);

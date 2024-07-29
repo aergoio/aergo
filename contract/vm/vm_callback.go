@@ -476,28 +476,6 @@ func luaEvent(L *LState, eventName *C.char, arguments *C.char) *C.char {
 	return nil
 }
 
-//export luaGetEventCount
-func luaGetEventCount(L *LState) C.int {
-	eventCount := contexts[service].eventCount
-	if ctrLgr.IsDebugEnabled() {
-		ctrLgr.Debug().Int32("eventCount", eventCount).Msg("get event count")
-	}
-	return C.int(eventCount)
-}
-
-//export luaDropEvent
-func luaDropEvent(L *LState, from C.int) {
-	// Drop all the events after the given index.
-	ctx := contexts[service]
-	if ctrLgr.IsDebugEnabled() {
-		ctrLgr.Debug().Int32("from", int32(from)).Int("len", len(ctx.events)).Msg("drop events")
-	}
-	if from >= 0 {
-		ctx.events = ctx.events[:from]
-		ctx.eventCount = int32(len(ctx.events))
-	}
-}
-
 //export luaToPubkey
 func luaToPubkey(L *LState, address *C.char) *C.char {
 	args := []string{C.GoString(address)}

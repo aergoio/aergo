@@ -266,11 +266,6 @@ func (ce *executor) ProcessCommand(command string, args []string) (result string
 	case "clearRecovery":
 		return ctx.handleClearRecovery(args)
 
-	case "getEventCount":
-		return ctx.handleGetEventCount(args)
-	case "dropEvent":
-		return ctx.handleDropEvent(args)
-
 
 	default:
 		return errors.New("invalid command: " + command)
