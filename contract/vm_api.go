@@ -301,8 +301,7 @@ func (ctx *vmContext) handleCall(args []string) (result string, err error) {
 	}()
 
 	// execute the contract call
-	defer setInstCount(ctx, L, ce.L)
-	ret := ce.call(minusCallCount(ctx, C.vm_instcount(L), luaCallCountDeduc), L)
+	ret := ce.call()
 
 	// check if the contract call failed
 	if ce.err != nil {
@@ -419,8 +418,7 @@ func (ctx *vmContext) handleDelegateCall(args []string) (result string, err erro
 	}
 
 	// execute the contract call
-	defer setInstCount(ctx, L, ce.L)
-	ret := ce.call(minusCallCount(ctx, C.vm_instcount(L), luaCallCountDeduc), L)
+	ret := ce.call()
 
 	// check if the contract call failed
 	if ce.err != nil {
@@ -571,8 +569,7 @@ func (ctx *vmContext) handleSend(args []string) (result string, err error) {
 		}()
 
 		// execute the contract call
-		defer setInstCount(ctx, L, ce.L)
-		ce.call(minusCallCount(ctx, C.vm_instcount(L), luaCallCountDeduc), L)
+		ce.call()
 
 		// check if the contract call failed
 		if ce.err != nil {
@@ -638,7 +635,6 @@ func (ctx *vmContext) handlePrint(args []string) {
 	if len(args) != 1 {
 		return
 	}
-	setInstMinusCount(ctx, L, 1000)
 	ctrLgr.Info().Str("Contract SystemPrint", types.EncodeAddress(ctx.curContract.contractId)).Msg(args[0])
 }
 
@@ -923,7 +919,6 @@ func (ctx *vmContext) handleECVerify(args []string) (result string, err error) {
 	if err != nil {
 		return "", errors.New("[Contract.EcVerify] invalid signature format: " + err.Error())
 	}
-	setInstMinusCount(ctx, L, 10000)
 
 	var pubKey *btcec.PublicKey
 	var verifyResult bool
@@ -1340,8 +1335,7 @@ func (ctx *vmContext) handleDeployContract(args []string) (int, error) {
 
 	if ce != nil {
 		// run the constructor
-		defer setInstCount(ce.ctx, L, ce.L)
-		ret += ce.call(minusCallCount(ctx, C.vm_instcount(L), luaCallCountDeduc), L)
+		ret += ce.call()
 
 		// check if the execution was successful
 		if ce.err != nil {
