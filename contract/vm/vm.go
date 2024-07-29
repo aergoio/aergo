@@ -148,10 +148,10 @@ func (ce *executor) call(instLimit C.int, target *LState) (ret C.int) {
 
 	defer func() {
 		if ret == 0 && target != nil {
-			if C.luaL_hasuncatchablerror(ce.L) != C.int(0) {
+			if bool(C.luaL_hasuncatchablerror(ce.L)) {
 				C.luaL_setuncatchablerror(target)
 			}
-			if C.luaL_hassyserror(ce.L) != C.int(0) {
+			if bool(C.luaL_hassyserror(ce.L)) {
 				C.luaL_setsyserror(target)
 			}
 		}
@@ -201,10 +201,10 @@ func (ce *executor) call(instLimit C.int, target *LState) (ret C.int) {
 
 	if cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
-		if C.luaL_hassyserror(ce.L) != C.int(0) {
+		if bool(C.luaL_hassyserror(ce.L)) {
 			ce.err = newVmSystemError(errors.New(errMsg))
 		} else {
-			isUncatchable := C.luaL_hasuncatchablerror(ce.L) != C.int(0)
+			isUncatchable := bool(C.luaL_hasuncatchablerror(ce.L))
 			if isUncatchable && (errMsg == C.ERR_BF_TIMEOUT || errMsg == vmTimeoutErrMsg) {
 				ce.err = &VmTimeoutError{}
 			} else {
@@ -288,7 +288,7 @@ func (ce *executor) vmLoadCode(id []byte) {
 func (ce *executor) vmLoadCall() {
 	if cErrMsg := C.vm_loadcall(ce.L); cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
-		isUncatchable := C.luaL_hasuncatchablerror(ce.L) != C.int(0)
+		isUncatchable := bool(C.luaL_hasuncatchablerror(ce.L))
 		if isUncatchable && (errMsg == C.ERR_BF_TIMEOUT || errMsg == vmTimeoutErrMsg) {
 			ce.err = &VmTimeoutError{}
 		} else {
@@ -360,9 +360,9 @@ func Compile(code string, hasParent bool) ([]byte, error) {
 		return nil, ErrVmStart
 	}
 	defer luac.CloseLState(L)
+	var lState = (*LState)(L)
 
 	if hasParent {
-		var lState = (*LState)(L)
 		// mark as running a call
 		C.luaL_set_loading(lState, C.bool(false))
 		// set the hardfork version
@@ -374,7 +374,7 @@ func Compile(code string, hasParent bool) ([]byte, error) {
 	byteCodeAbi, err := luac.Compile(L, code)
 	if err != nil {
 		// if there is an uncatchable error, return it to the parent
-		if hasParent && C.luaL_hasuncatchablerror((*LState)(L)) != C.int(0) {
+		if hasParent && bool(C.luaL_hasuncatchablerror(lState)) {
 			err = errors.New("uncatchable: " + err.Error())
 		}
 		return nil, err
