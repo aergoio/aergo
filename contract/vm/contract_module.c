@@ -134,14 +134,12 @@ static int moduleCall(lua_State *L) {
 	}
 
 	ret = luaCallContract(L, contract, fname, json_args, amount, gas);
+	free(json_args);
+	reset_amount_info(L);
 	if (ret.r1 != NULL) {
-		free(json_args);
-		reset_amount_info(L);
 		strPushAndRelease(L, ret.r1);
 		luaL_throwerror(L);
 	}
-	free(json_args);
-	reset_amount_info(L);
 	return ret.r0;
 }
 
@@ -175,16 +173,14 @@ static int moduleDelegateCall(lua_State *L) {
 		reset_amount_info(L);
 		luaL_throwerror(L);
 	}
+
 	ret = luaDelegateCallContract(L, contract, fname, json_args, gas);
+	free(json_args);
+	reset_amount_info(L);
 	if (ret.r1 != NULL) {
-		free(json_args);
-		reset_amount_info(L);
 		strPushAndRelease(L, ret.r1);
 		luaL_throwerror(L);
 	}
-	free(json_args);
-	reset_amount_info(L);
-
 	return ret.r0;
 }
 
@@ -375,19 +371,17 @@ static int moduleDeploy(lua_State *L) {
 	}
 
 	ret = luaDeployContract(L, contract, json_args, amount);
-	if (ret.r0 < 0) {
-		free(json_args);
-		reset_amount_info(L);
-		strPushAndRelease(L, ret.r1);
-		luaL_throwerror(L);
-	}
-
 	free(json_args);
 	reset_amount_info(L);
+	// push the returned value, either the contract address or the error message
 	strPushAndRelease(L, ret.r1);
-	if (ret.r0 > 1) {
+	if (ret.r0 < 0) {
+		luaL_throwerror(L);
+	} else if (ret.r0 > 1) {
+		// insert the contract address before the other returned values
 		lua_insert(L, -ret.r0);
 	}
+	// return the number of items in the stack
 	return ret.r0;
 }
 
@@ -411,11 +405,11 @@ static int moduleEvent(lua_State *L) {
 	}
 
 	errStr = luaEvent(L, event_name, json_args);
+	free(json_args);
 	if (errStr != NULL) {
 		strPushAndRelease(L, errStr);
 		luaL_throwerror(L);
 	}
-	free(json_args);
 	return 0;
 }
 
