@@ -353,6 +353,43 @@ static bool lua_util_dump_json(lua_State *L, int idx, sbuff_t *sbuf, bool json_f
 
 static int json_to_lua(lua_State *L, char **start, bool check, bool is_bignum);
 
+// the input is like an array but without the [] characters
+static int json_args_to_lua(lua_State *L, char *json, bool check) {
+	int count = 0;
+	while(*json != '\0') {
+		if (json_to_lua(L, &json, check, false) != 0) {
+			return -1;
+		}
+		if (*json == ',') {
+			++json;
+		} else if(*json != '\0') {
+			return -1;
+		}
+		++count;
+	}
+	return count;
+}
+
+static int json_array_to_lua(lua_State *L, char *json, bool check) {
+	int count = 0;
+	if (*json != '[') {
+		return -1;
+	}
+	++json;
+	while(*json != ']') {
+		if (json_to_lua(L, &json, check, false) != 0) {
+			return -1;
+		}
+		if (*json == ',') {
+			++json;
+		} else if(*json != ']') {
+			return -1;
+		}
+		++count;
+	}
+	return count;
+}
+
 static int json_array_to_lua_table(lua_State *L, char **start, bool check) {
 	char *json = (*start) + 1;
 	int index = 1;

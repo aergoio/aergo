@@ -8,26 +8,7 @@ import (
 	"unsafe"
 )
 
-
-// convert the ce.ci.Args to []string
-func (ce *executor) convertArgs() ([]string, error) {
-	args := make([]string, len(ce.ci.Args))
-	for i, arg := range ce.ci.Args {
-		args[i] = fmt.Sprintf("%v", arg)
-	}
-	return args, nil
-}
-
-// convert the ce.ci.Args to a single string (JSON array)
-func (ce *executor) convertArgsToJSON() (string, error) {
-	args, err := ce.convertArgs()
-	if err != nil {
-		return "", err
-	}
-	return json.Marshal(args)
-}
-
-// convert the ce.ci.Args to a single string (JSON array)
+// convert the arguments to a single string containing the JSON array
 func (ce *executor) convertArgsToJSON() (string, error) {
 	args, err := json.Marshal(ce.ci.Args)
 	if err != nil {
@@ -35,7 +16,6 @@ func (ce *executor) convertArgsToJSON() (string, error) {
 	}
 	return string(args), nil
 }
-
 
 func (ce *executor) call() (result string, err error) {
 
@@ -55,8 +35,10 @@ func (ce *executor) call() (result string, err error) {
 	// - amount: ce.ctx.curContract.amount.String() string
 	// - isFeeDelegation: ce.ctx.isFeeDelegation bool
 
-// max uint64: 18446744073709551615
-
+	fname := ce.fname
+	if ce.isAutoload == true {
+		fname = "autoload:" + ce.fname
+	}
 	// convert the parameters to strings
 	args, err := ce.convertArgsToJSON()
 	if err != nil {
@@ -69,7 +51,7 @@ func (ce *executor) call() (result string, err error) {
 	isFeeDelegation := strconv.FormatBool(ce.ctx.isFeeDelegation)
 
 	// build the message
-	msg := SerializeMessage("execute", string(ce.code), ce.fname, args, gas, sender, amount, isFeeDelegation)
+	msg := SerializeMessage("execute", string(ce.code), fname, args, gas, sender, amount, isFeeDelegation)
 
 	// send the execution request to the VM instance
 	err := ce.SendMessage(msg)
@@ -89,6 +71,7 @@ func (ce *executor) call() (result string, err error) {
 	}
 
 	// return the result from the VM instance
+	ce.jsonRet = result
 	return result, nil
 
 	// when a message arrives, process it
