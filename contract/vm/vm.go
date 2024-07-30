@@ -29,13 +29,70 @@ import (
 	"github.com/aergoio/aergo/v2/cmd/aergoluac/util"
 )
 
+// TODO: update the struct
+type executor struct {
+	L          *LState
+	contractId []byte
+	code       []byte
+	fname      string
+	args       string
+	numArgs    C.int
+	isAutoload bool
+	jsonRet    string
+	err        error
+	preErr     error
+}
 
+
+func newExecutor(
+	contractId []byte,
+	bytecode []byte,
+	fname string,
+	args string,
+) *executor {
+
+	ce := &executor{
+		contractId: contractId,
+		code: bytecode,
+	}
+
+	if ctx.IsGasSystem() {
+		ce.setGas()
+	}
+
+	ce.vmLoadCode(contractId)
+	if ce.err != nil {
+		return ce
+	}
+
+	// if fname starts with "autoload:" then it is an autoload function
+	if strings.HasPrefix(fname, "autoload:") {
+		ce.isAutoload = true
+		fname = fname[9:]
+	}
+	ce.fname = fname
+	ce.args = args
+
+
+	return ce
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Lua
 ////////////////////////////////////////////////////////////////////////////////
 
+// push the arguments to the stack
 func (ce *executor) pushArgs() {
+	args := C.CString(ce.args)
+	ce.numArgs = C.json_array_to_lua(ce.L, args);
+	C.free(unsafe.Pointer(args))
+	if ce.numArgs == -1 {
+		ce.err = errors.New("invalid arguments")
+	}
+}
+
+/*
+func (ce *executor) processArgs() {
 	for _, v := range ce.ci.Args {
 		if err := pushValue(ce.L, v); err != nil {
 			ce.err = err
@@ -141,10 +198,16 @@ func toLuaTable(L *LState, tab map[string]interface{}) error {
 	}
 	return nil
 }
+*/
 
 ////////////////////////////////////////////////////////////////////////////////
 
 func (ce *executor) call(instLimit C.int, target *LState) (ret C.int) {
+
+	hasParent := false
+	if target != nil {
+		hasParent = true
+	}
 
 	defer func() {
 		if ret == 0 && target != nil {
@@ -173,14 +236,16 @@ func (ce *executor) call(instLimit C.int, target *LState) (ret C.int) {
 	}
 
 	if ce.isAutoload {
-		if loaded := vmAutoload(ce.L, ce.fname); !loaded {
+		// used for constructor and check_delegation functions
+		if loaded := vmAutoloadFunction(ce.L, ce.fname); !loaded {
 			if ce.fname != constructor {
 				ce.err = errors.New(fmt.Sprintf("contract autoload failed %s : %s",
-					types.EncodeAddress(ce.ctx.curContract.contractId), ce.fname))
+					types.EncodeAddress(ce.contractId), ce.fname))
 			}
 			return 0
 		}
 	} else {
+		// used for normal function
 		C.vm_remove_constructor(ce.L)
 		resolvedName := C.CString(ce.fname)
 		C.vm_get_abi_function(ce.L, resolvedName)
@@ -190,9 +255,12 @@ func (ce *executor) call(instLimit C.int, target *LState) (ret C.int) {
 	ce.pushArgs()
 	if ce.err != nil {
 		ctrLgr.Debug().Err(ce.err)
-		              .Stringer("contract", types.LogAddr(ce.ctx.curContract.contractId))
+		              .Stringer("contract", types.LogAddr(ce.contractId))
 		              .Msg("invalid argument")
 		return 0
+	}
+	if !ce.isAutoload {
+		ce.numArgs = ce.numArgs + 1
 	}
 
 	ce.setCountHook(instLimit)
@@ -213,32 +281,24 @@ func (ce *executor) call(instLimit C.int, target *LState) (ret C.int) {
 		}
 		ctrLgr.Debug().Err(ce.err).Stringer(
 			"contract",
-			types.LogAddr(ce.ctx.curContract.contractId),
+			types.LogAddr(ce.contractId),
 		).Msg("contract is failed")
 		return 0
 	}
 
-	if target == nil {
-		var errRet C.int
-		retMsg := C.GoString(C.vm_get_json_ret(ce.L, nRet, &errRet))
-		if errRet == 1 {
-			ce.err = errors.New(retMsg)
-		} else {
-			ce.jsonRet = retMsg
-		}
+	// convert the result to json
+	var errRet C.int
+	retMsg := C.GoString(C.vm_get_json_ret(ce.L, nRet, C.bool(hasParent), &errRet))
+	if errRet == 1 {
+		ce.err = errors.New(retMsg)
 	} else {
-		if c2ErrMsg := C.vm_copy_result(ce.L, target, nRet); c2ErrMsg != nil {
-			errMsg := C.GoString(c2ErrMsg)
-			ce.err = errors.New(errMsg)
-			ctrLgr.Debug().Err(ce.err).Stringer(
-				"contract",
-				types.LogAddr(ce.ctx.curContract.contractId),
-			).Msg("failed to move results")
-		}
+		ce.jsonRet = retMsg
 	}
 
+// this can be moved to server side
 	if ce.ctx.traceFile != nil {
-		address := types.EncodeAddress(ce.ctx.curContract.contractId)
+		// write the contract code to a file in the temp directory
+		address := types.EncodeAddress(ce.contractId)
 		codeFile := fmt.Sprintf("%s%s%s.code", os.TempDir(), string(os.PathSeparator), address)
 		if _, err := os.Stat(codeFile); os.IsNotExist(err) {
 			f, err := os.OpenFile(codeFile, os.O_WRONLY|os.O_CREATE, 0644)
@@ -247,27 +307,23 @@ func (ce *executor) call(instLimit C.int, target *LState) (ret C.int) {
 				_ = f.Close()
 			}
 		}
-		_, _ = ce.ctx.traceFile.WriteString(fmt.Sprintf("contract %s used fee: %s\n",
-			address, ce.ctx.usedFee().String()))
+		// write the used fee to the trace file
+		str := fmt.Sprintf("contract %s used fee: %s\n", address, ce.ctx.usedFee().String())
+		_, _ = ce.ctx.traceFile.WriteString(str)
 	}
 
 	return nRet
 }
 
-func vmAutoload(L *LState, funcName string) bool {
-	s := C.CString(funcName)
-	loaded := C.vm_autoload(L, s)
-	C.free(unsafe.Pointer(s))
+func vmAutoloadFunction(L *LState, funcName string) bool {
+	fname := C.CString(funcName)
+	loaded := C.vm_autoload(L, fname)
+	C.free(unsafe.Pointer(fname))
 	return loaded != C.int(0)
 }
 
 func (ce *executor) vmLoadCode(id []byte) {
-	var chunkId *C.char
-	if ce.ctx.blockInfo.ForkVersion >= 3 {
-		chunkId = C.CString("@" + types.EncodeAddress(id))
-	} else {
-		chunkId = C.CString(hex.Encode(id))
-	}
+	chunkId := C.CString("@" + types.EncodeAddress(id))
 	defer C.free(unsafe.Pointer(chunkId))
 
 	// load the contract code. whatever execution happens at limited global scope
@@ -354,6 +410,30 @@ func minusCallCount(ctx *vmContext, curCount, deduc C.int) C.int {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+func Execute(
+	code string,
+	fname string,
+	args string,
+	gas uint64,
+	sender string,
+	amount *big.Int,
+	isFeeDelegation bool,
+) (string, error) {
+
+	ex := newExecutor(
+		[]byte(address),
+		[]byte(code),
+		fname,
+		args,
+	)
+
+
+
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 func Compile(code string, hasParent bool) ([]byte, error) {
 	L := luac.NewLState()
 	if L == nil {
@@ -382,13 +462,3 @@ func Compile(code string, hasParent bool) ([]byte, error) {
 
 	return byteCodeAbi.Bytes(), nil
 }
-
-////////////////////////////////////////////////////////////////////////////////
-
-/*
-
-	if ctx.blockInfo.ForkVersion >= 2 {
-		C.luaL_set_hardforkversion(ce.L, C.int(ctx.blockInfo.ForkVersion))
-	}
-
-*/

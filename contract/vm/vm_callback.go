@@ -88,7 +88,7 @@ func luaDelVariable(L *LState, key unsafe.Pointer, keyLen C.int) *C.char {
 func luaCallContract(L *LState,
 	contractId *C.char, fname *C.char, arguments *C.char,
 	amount *C.char, gas uint64,
-) (C.int, *C.char) {
+) (*C.char, *C.char) {
 
 	contractAddress := C.GoString(contractId)
 	fnameStr := C.GoString(fname)
@@ -102,15 +102,15 @@ func luaCallContract(L *LState,
 		if isUncatchable(err) {
 			C.luaL_setuncatchablerror(L)
 		}
-		return -1, C.CString(err.Error())
+		return nil, C.CString(err.Error())
 	}
-	return C.int(result), nil
+	return C.CString(result), nil
 }
 
 //export luaDelegateCallContract
 func luaDelegateCallContract(L *LState
 	contractId *C.char, fname *C.char, arguments *C.char, gas uint64
-) (C.int, *C.char) {
+) (*C.char, *C.char) {
 
 	contractAddress := C.GoString(contractId)
 	fnameStr := C.GoString(fname)
@@ -123,9 +123,9 @@ func luaDelegateCallContract(L *LState
 		if isUncatchable(err) {
 			C.luaL_setuncatchablerror(L)
 		}
-		return -1, C.CString(err.Error())
+		return nil, C.CString(err.Error())
 	}
-	return C.int(result), nil
+	return C.CString(result), nil
 }
 
 //export luaSendAmount
@@ -138,7 +138,8 @@ func luaSendAmount(L *LState, contractId *C.char, amount *C.char) *C.char {
 		}
 		return C.CString(err.Error())
 	}
-	return C.CString(result)
+	// it does not return the result
+	return nil
 }
 
 //export luaPrint
@@ -421,7 +422,7 @@ func luaDeployContract(
 	contract *C.char,
 	arguments *C.char,
 	amount *C.char,
-) (C.int, *C.char) {
+) (*C.char, *C.char) {
 
 	contractStr := C.GoString(contract)
 	argsStr := C.GoString(arguments)
@@ -433,9 +434,9 @@ func luaDeployContract(
 		if isUncatchable(err) {
 			C.luaL_setuncatchablerror(L)
 		}
-		return -1, C.CString(err.Error())
+		return nil, C.CString(err.Error())
 	}
-	return C.int(result), nil
+	return C.CString(result), nil
 }
 
 //export isPublic

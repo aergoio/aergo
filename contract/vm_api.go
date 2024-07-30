@@ -331,7 +331,8 @@ func (ctx *vmContext) handleCall(args []string) (result string, err error) {
 		}
 	}
 
-	return ret, nil
+	// return the result
+	return ce.jsonRet, nil
 }
 
 func (ctx *vmContext) handleDelegateCall(args []string) (result string, err error) {
@@ -448,7 +449,8 @@ func (ctx *vmContext) handleDelegateCall(args []string) (result string, err erro
 		}
 	}
 
-	return ret, nil
+	// return the result
+	return ce.jsonRet, nil
 }
 
 func getAddressNameResolved(account string, bs *state.BlockState) ([]byte, error) {
@@ -631,11 +633,12 @@ func (ctx *vmContext) handleSend(args []string) (result string, err error) {
 	return "", nil
 }
 
-func (ctx *vmContext) handlePrint(args []string) {
+func (ctx *vmContext) handlePrint(args []string) (result string, err error) {
 	if len(args) != 1 {
-		return
+		return "", errors.New("[Contract.Print] invalid number of arguments")
 	}
 	ctrLgr.Info().Str("Contract SystemPrint", types.EncodeAddress(ctx.curContract.contractId)).Msg(args[0])
+	return "", nil
 }
 
 func (ctx *vmContext) handleSetRecoveryPoint() (result string, err error) {
@@ -647,13 +650,13 @@ func (ctx *vmContext) handleSetRecoveryPoint() (result string, err error) {
 	if curContract.callState.ctrState.IsMultiCall() {
 		return 0, nil
 	}
-	seq, err := setRecoveryPoint(types.ToAccountID(curContract.contractId), ctx, nil,
-		curContract.callState, zeroBig, false, false)
+	aid := types.ToAccountID(curContract.contractId)
+	seq, err := setRecoveryPoint(aid, ctx, nil, curContract.callState, zeroBig, false, false)
 	if err != nil {
-		return "", errors.New("[Contract.pcall] database error: " + err.Error())
+		return "", errors.New("[SetRecoveryPoint] database error: " + err.Error())
 	}
 	if ctx.traceFile != nil {
-		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[Pcall] snapshot set %d\n", seq))
+		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[pcall] snapshot set %d\n", seq))
 	}
 	return strconv.Itoa(seq), nil
 }
@@ -1148,14 +1151,14 @@ func parseAndConvert(subStr, unit string, mulUnit *big.Int, fullStr string) (*bi
 	return amountBig, nil
 }
 
-func (ctx *vmContext) handleDeployContract(args []string) (int, error) {
+func (ctx *vmContext) handleDeploy(args []string) (result string, err error) {
 	if len(args) != 3 {
-		return -1, errors.New("[Contract.Deploy] invalid number of arguments")
+		return "", errors.New("[Contract.Deploy] invalid number of arguments")
 	}
 	codeOrAddress, args, amount := args[0], args[1], args[2]
 
 	if ctx.isQuery || ctx.nestedView > 0 {
-		return -1, errors.New("[Contract.Deploy] deploy not permitted in query")
+		return "", errors.New("[Contract.Deploy] deploy not permitted in query")
 	}
 	bs := ctx.bs
 
@@ -1169,14 +1172,14 @@ func (ctx *vmContext) handleDeployContract(args []string) (int, error) {
 		// check if contract exists
 		contractState, err := getOnlyContractState(ctx, cid)
 		if err != nil {
-			return -1, errors.New("[Contract.Deploy] " + err.Error())
+			return "", errors.New("[Contract.Deploy] " + err.Error())
 		}
 		// read the contract code
 		codeABI, err = contractState.GetCode()
 		if err != nil {
-			return -1, errors.New("[Contract.Deploy] " + err.Error())
+			return "", errors.New("[Contract.Deploy] " + err.Error())
 		} else if len(codeABI) == 0 {
-			return -1, errors.New("[Contract.Deploy] not found code")
+			return "", errors.New("[Contract.Deploy] not found code")
 		}
 		if ctx.blockInfo.ForkVersion >= 4 {
 			sourceCode = contractState.GetSourceCode()
@@ -1192,11 +1195,11 @@ func (ctx *vmContext) handleDeployContract(args []string) (int, error) {
 		if err != nil {
 			// check if string contains timeout error
 			if isUncatchableError(err) && strings.Contains(err.Error(), C.ERR_BF_TIMEOUT) {
-				return -1, err  //errors.New(C.ERR_BF_TIMEOUT)
+				return "", err  //errors.New(C.ERR_BF_TIMEOUT)
 			} else if err == ErrVmStart {
-				return -1, errors.New("[Contract.Deploy] get luaState error")
+				return "", errors.New("[Contract.Deploy] get luaState error")
 			}
-			return -1, errors.New("[Contract.Deploy] compile error: " + err.Error())
+			return "", errors.New("[Contract.Deploy] compile error: " + err.Error())
 		}
 		if ctx.blockInfo.ForkVersion >= 4 {
 			sourceCode = []byte(contractStr)
@@ -1205,18 +1208,18 @@ func (ctx *vmContext) handleDeployContract(args []string) (int, error) {
 
 	err = ctx.addUpdateSize(int64(len(codeABI) + len(sourceCode)))
 	if err != nil {
-		return -1, errors.New("[Contract.Deploy] " + err.Error())
+		return "", errors.New("[Contract.Deploy] " + err.Error())
 	}
 
 	// create account for the contract
 	creator := ctx.curContract.callState.accState
 	newContract, err := state.CreateAccountState(CreateContractID(ctx.curContract.contractId, creator.Nonce()), bs.StateDB)
 	if err != nil {
-		return -1, errors.New("[Contract.Deploy] " + err.Error())
+		return "", errors.New("[Contract.Deploy] " + err.Error())
 	}
 	contractState, err := statedb.OpenContractState(newContract.ID(), newContract.State(), bs.StateDB)
 	if err != nil {
-		return -1, errors.New("[Contract.Deploy] " + err.Error())
+		return "", errors.New("[Contract.Deploy] " + err.Error())
 	}
 
 	cs := &callState{isCallback: true, isDeploy: true, ctrState: contractState, accState: newContract}
@@ -1225,14 +1228,14 @@ func (ctx *vmContext) handleDeployContract(args []string) (int, error) {
 	// read the amount transferred to the contract
 	amountBig, err := transformAmount(amount, ctx.blockInfo.ForkVersion)
 	if err != nil {
-		return -1, errors.New("[Contract.Deploy] value not proper format: " + err.Error())
+		return "", errors.New("[Contract.Deploy] value not proper format: " + err.Error())
 	}
 
 	// read the arguments for the constructor call
 	var ci types.CallInfo
 	err = getCallInfo(&ci.Args, []byte(args), newContract.ID())
 	if err != nil {
-		return -1, errors.New("[Contract.Deploy] invalid args: " + err.Error())
+		return "", errors.New("[Contract.Deploy] invalid args: " + err.Error())
 	}
 
 	// send the amount to the contract
@@ -1240,14 +1243,14 @@ func (ctx *vmContext) handleDeployContract(args []string) (int, error) {
 	receiverState := cs.accState
 	if amountBig.Cmp(zeroBig) > 0 {
 		if rv := sendBalance(senderState, receiverState, amountBig); rv != nil {
-			return -1, errors.New("[Contract.Deploy] " + rv.Error())
+			return "", errors.New("[Contract.Deploy] " + rv.Error())
 		}
 	}
 
 	// create a recovery point
 	seq, err := setRecoveryPoint(newContract.AccountID(), ctx, senderState, cs, amountBig, false, true)
 	if err != nil {
-		return -1, errors.New("[System.DeployContract] DB err: " + err.Error())
+		return "", errors.New("[System.DeployContract] DB err: " + err.Error())
 	}
 
 	// log some info
@@ -1272,26 +1275,26 @@ func (ctx *vmContext) handleDeployContract(args []string) (int, error) {
 	// save the contract code
 	err = contractState.SetCode(sourceCode, codeABI)
 	if err != nil {
-		return -1, errors.New("[Contract.Deploy] " + err.Error())
+		return "", errors.New("[Contract.Deploy] " + err.Error())
 	}
 
 	// save the contract creator
 	err = contractState.SetData(dbkey.CreatorMeta(), []byte(types.EncodeAddress(prevContract.contractId)))
 	if err != nil {
-		return -1, errors.New("[Contract.Deploy] " + err.Error())
+		return "", errors.New("[Contract.Deploy] " + err.Error())
 	}
 
 	// get the remaining gas or gas limit from the parent contract
 	gasLimit, err := ctx.checkRemainingGas(gas)
 	if err != nil {
-		return -1, errors.New("[Contract.Call] " + err.Error())
+		return "", errors.New("[Contract.Call] " + err.Error())
 	}
 
 	// create a new executor
 	ce := newExecutor(bytecode, newContract.ID(), ctx, &ci, amountBig, true, false, contractState)
 	defer ce.close()  // close the executor and the VM instance
 	if ce.err != nil {
-		return -1, errors.New("[Contract.Deploy] newExecutor Error: " + ce.err.Error())
+		return "", errors.New("[Contract.Deploy] newExecutor Error: " + ce.err.Error())
 	}
 
 	// set the remaining gas or gas limit from the parent contract
@@ -1301,18 +1304,17 @@ func (ctx *vmContext) handleDeployContract(args []string) (int, error) {
 	senderState.SetNonce(senderState.Nonce() + 1)
 
 	addr := types.EncodeAddress(newContract.ID())
-	ret := 1
 
 	if ce != nil {
 		// run the constructor
-		ret += ce.call()
+		ce.call()
 
 		// check if the execution was successful
 		if ce.err != nil {
 			// revert the contract to the previous state
 			err := clearRecovery(ctx, seq, true)
 			if err != nil {
-				return -1, errors.New("[Contract.Deploy] recovery error: " + err.Error())
+				return "", errors.New("[Contract.Deploy] recovery error: " + err.Error())
 			}
 			// log some info
 			if ctx.traceFile != nil {
@@ -1321,9 +1323,9 @@ func (ctx *vmContext) handleDeployContract(args []string) (int, error) {
 			// in case of timeout, return the original error message
 			switch ceErr := ce.err.(type) {
 			case *VmTimeoutError:
-				return -1, errors.New(ceErr.Error())
+				return "", errors.New(ceErr.Error())
 			default:
-				return -1, errors.New("[Contract.Deploy] call err: " + ce.err.Error())
+				return "", errors.New("[Contract.Deploy] call err: " + ce.err.Error())
 			}
 		}
 	}
@@ -1332,11 +1334,16 @@ func (ctx *vmContext) handleDeployContract(args []string) (int, error) {
 	if seq == 1 {
 		err := clearRecovery(ctx, seq, false)
 		if err != nil {
-			return -1, errors.New("[Contract.Deploy] recovery error: " + err.Error())
+			return "", errors.New("[Contract.Deploy] recovery error: " + err.Error())
 		}
 	}
 
-	return ret, addr
+	// the result already contains a JSON array
+	result = ce.jsonRet
+	// insert the contract address before the other returned values
+	result = `["` + addr + `",` + result[1:]
+
+	return result, nil
 }
 
 func setRandomSeed(ctx *vmContext) {
@@ -1352,22 +1359,22 @@ func setRandomSeed(ctx *vmContext) {
 	ctx.seed = rand.New(randSrc)
 }
 
-func (ctx *vmContext) handleRandomInt(args []string) int {
+func (ctx *vmContext) handleRandomInt(args []string) (result string, err error) {
 	if len(args) != 2 {
-		return -1
+		return "", errors.New("[Contract.RandomInt] invalid number of arguments")
 	}
 	min, err := strconv.Atoi(args[0])
 	if err != nil {
-		return -1
+		return "", errors.New("[Contract.RandomInt] invalid min")
 	}
 	max, err := strconv.Atoi(args[1])
 	if err != nil {
-		return -1
+		return "", errors.New("[Contract.RandomInt] invalid max")
 	}
 	if ctx.seed == nil {
 		setRandomSeed(ctx)
 	}
-	return ctx.seed.Intn(max+1-min) + min
+	return strconv.Itoa(ctx.seed.Intn(max+1-min) + min), nil
 }
 
 func (ctx *vmContext) handleEvent(args []string) (result string, err error) {

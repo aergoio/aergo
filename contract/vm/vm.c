@@ -408,12 +408,12 @@ const char *vm_pcall(lua_State *L, int argc, int *nresult) {
 	return NULL;
 }
 
-const char *vm_get_json_ret(lua_State *L, int nresult, int *err) {
+const char *vm_get_json_ret(lua_State *L, int nresult, bool has_parent, int *err) {
 	int top;
 	char *json_ret;
 
 	top = lua_gettop(L);
-	json_ret = lua_util_get_json_from_stack(L, top - nresult + 1, top, true);
+	json_ret = lua_util_get_json_from_stack(L, top - nresult + 1, top, !has_parent);
 
 	if (json_ret == NULL) {
 		*err = 1;

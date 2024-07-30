@@ -84,7 +84,7 @@ type vmContext struct {
 	node              string
 	confirmed         bool
 	isQuery           bool
-	nestedView        int32 // indicates which parent called the contract in view (read-only mode)
+	nestedView        int32 // indicates whether the parent called the contract in view (read-only) mode
 	isFeeDelegation   bool
 	isMultiCall       bool
 	service           int
@@ -106,7 +106,6 @@ type executor struct {
 	vmInstance *VmInstance
 	code       []byte
 	err        error
-	numArgs    C.int
 	ci         *types.CallInfo
 	fname      string
 	ctx        *vmContext
@@ -377,7 +376,6 @@ func newExecutor(
 		ce.isView = f.View
 		ce.fname = constructor
 		ce.isAutoload = true
-		ce.numArgs = C.int(len(ci.Args))
 	} else if isFeeDelegation {
 		_, err := resolveFunction(ctrState, ctx.bs, checkFeeDelegationFn, false)
 		if err != nil {
@@ -388,7 +386,6 @@ func newExecutor(
 		ce.isView = true
 		ce.fname = checkFeeDelegationFn
 		ce.isAutoload = true
-		ce.numArgs = C.int(len(ci.Args))
 	} else {
 		f, err := resolveFunction(ctrState, ctx.bs, ci.Name, isCreate)
 		if err != nil {
@@ -404,7 +401,6 @@ func newExecutor(
 		}
 		ce.isView = f.View
 		ce.fname = f.Name
-		ce.numArgs = C.int(len(ci.Args) + 1)  // FIXME: +1 ?
 	}
 	ce.ci = ci
 
