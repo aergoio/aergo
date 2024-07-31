@@ -90,7 +90,7 @@ func (ctx *vmContext) handleSetVariable(args []string) (result string, err error
 		return "", err
 	}
 	if err := ctx.addUpdateSize(int64(types.HashIDLength + len(value))); err != nil {
-		C.luaL_setuncatchablerror(L)
+		err = errors.New("uncatchable: " + err.Error())
 		return "", err
 	}
 	if ctx.traceFile != nil {
@@ -172,7 +172,7 @@ func (ctx *vmContext) handleDelVariable(args []string) (result string, err error
 		return "", err
 	}
 	if err := ctx.addUpdateSize(int64(32)); err != nil {
-		C.luaL_setuncatchablerror(L)
+		err = errors.New("uncatchable: " + err.Error())
 		return "", err
 	}
 	if ctx.traceFile != nil {
@@ -1160,7 +1160,7 @@ func (ctx *vmContext) handleDeploy(args []string) (result string, err error) {
 		code, err = Compile(codeOrAddress, true)
 		if err != nil {
 			// check if string contains timeout error
-			if isUncatchableError(err) && strings.Contains(err.Error(), C.ERR_BF_TIMEOUT) {
+			if strings.Contains(err.Error(), C.ERR_BF_TIMEOUT) {
 				return "", err  //errors.New(C.ERR_BF_TIMEOUT)
 			} else if err == ErrVmStart {
 				return "", errors.New("[Contract.Deploy] get luaState error")

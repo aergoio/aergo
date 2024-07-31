@@ -7,27 +7,20 @@
 extern void checkLuaExecContext(lua_State *L);
 
 static int resolve(lua_State *L) {
-	char *name, *ret;
+	luaNameResolve_return ret;
+	char *name;
 
 	checkLuaExecContext(L);
-
 	lua_gasuse(L, 100);
 
 	name = (char *)luaL_checkstring(L, 1);
+
 	ret = luaNameResolve(L, name);
-
-	if (ret == NULL) {
-		lua_pushnil(L);
-	} else {
-		// if the returned string starts with `[`, it's an error
-		if (ret[0] == '[') {
-			strPushAndRelease(L, ret);
-			luaL_throwerror(L);
-		} else {
-			strPushAndRelease(L, ret);
-		}
+	if (ret.r1 != NULL) {
+		strPushAndRelease(L, ret.r1);
+		luaL_throwerror(L);
 	}
-
+	strPushAndRelease(L, ret.r0);
 	return 1;
 }
 

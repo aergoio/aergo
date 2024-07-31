@@ -41,13 +41,7 @@ func luaSetVariable(L *LState, key unsafe.Pointer, keyLen C.int, value *C.char) 
 	args := []string{C.GoBytes(key, keyLen), C.GoString(value)}
 	result, err := sendRequest("set", args)
 	if err != nil {
-		if isUncatchable(err) {
-			C.luaL_setuncatchablerror(L)
-		}
-		return C.CString(err.Error())
-	}
-	if len(result) > 0 {
-		return C.CString(result)
+		return handleError(L, err)
 	}
 	return nil
 }
@@ -57,10 +51,7 @@ func luaGetVariable(L *LState, key unsafe.Pointer, keyLen C.int, blkno *C.char) 
 	args := []string{C.GoBytes(key, keyLen), C.GoString(blkno)}
 	result, err := sendRequest("get", args)
 	if err != nil {
-		if isUncatchable(err) {
-			C.luaL_setuncatchablerror(L)
-		}
-		return nil, C.CString(err.Error())
+		return nil, handleError(L, err)
 	}
 	if len(result) > 0 {
 		return C.CString(result), nil
@@ -73,13 +64,7 @@ func luaDelVariable(L *LState, key unsafe.Pointer, keyLen C.int) *C.char {
 	args := []string{C.GoBytes(key, keyLen)}
 	result, err := sendRequest("del", args)
 	if err != nil {
-		if isUncatchable(err) {
-			C.luaL_setuncatchablerror(L)
-		}
-		return C.CString(err.Error())
-	}
-	if len(result) > 0 {
-		return C.CString(result)
+		return handleError(L, err)
 	}
 	return nil
 }
@@ -99,10 +84,7 @@ func luaCallContract(L *LState,
 	args := []string{contractAddress, fnameStr, argsStr, amountStr, gasStr}
 	result, err := sendRequest("call", args)
 	if err != nil {
-		if isUncatchable(err) {
-			C.luaL_setuncatchablerror(L)
-		}
-		return nil, C.CString(err.Error())
+		return nil, handleError(L, err)
 	}
 	return C.CString(result), nil
 }
@@ -120,10 +102,7 @@ func luaDelegateCallContract(L *LState
 	args := []string{contractAddress, fnameStr, argsStr, gasStr}
 	result, err := sendRequest("delegate-call", args)
 	if err != nil {
-		if isUncatchable(err) {
-			C.luaL_setuncatchablerror(L)
-		}
-		return nil, C.CString(err.Error())
+		return nil, handleError(L, err)
 	}
 	return C.CString(result), nil
 }
@@ -133,10 +112,7 @@ func luaSendAmount(L *LState, contractId *C.char, amount *C.char) *C.char {
 	args := []string{C.GoString(contractId), C.GoString(amount)}
 	result, err := sendRequest("send", args)
 	if err != nil {
-		if isUncatchable(err) {
-			C.luaL_setuncatchablerror(L)
-		}
-		return C.CString(err.Error())
+		return handleError(L, err)
 	}
 	// it does not return the result
 	return nil
@@ -147,12 +123,9 @@ func luaPrint(L *LState, arguments *C.char) {
 	args := []string{C.GoString(arguments)}
 	result, err := sendRequest("print", args)
 	if err != nil {
-		if isUncatchable(err) {
-			C.luaL_setuncatchablerror(L)
-		}
-		return C.CString(err.Error())
+		return handleError(L, err)
 	}
-	return C.CString(result)
+	return nil
 }
 
 //export luaSetRecoveryPoint
@@ -160,10 +133,7 @@ func luaSetRecoveryPoint(L *LState) (C.int, *C.char) {
 	args := []string{}
 	result, err := sendRequest("setRecoveryPoint", args)
 	if err != nil {
-		if isUncatchable(err) {
-			C.luaL_setuncatchablerror(L)
-		}
-		return -1, C.CString(err.Error())
+		return -1, handleError(L, err)
 	}
 	return C.int(result), nil
 }
@@ -173,12 +143,9 @@ func luaClearRecovery(L *LState, start int, isError bool) *C.char {
 	args := []string{fmt.Sprintf("%d", start), fmt.Sprintf("%d", int(isError))}
 	result, err := sendRequest("clearRecovery", args)
 	if err != nil {
-		if isUncatchable(err) {
-			C.luaL_setuncatchablerror(L)
-		}
-		return C.CString(err.Error())
+		return handleError(L, err)
 	}
-	return C.CString(result)
+	return nil
 }
 
 //export luaGetBalance
@@ -186,10 +153,7 @@ func luaGetBalance(L *LState, contractId *C.char) (*C.char, *C.char) {
 	args := []string{C.GoString(contractId)}
 	result, err := sendRequest("balance", args)
 	if err != nil {
-		if isUncatchable(err) {
-			C.luaL_setuncatchablerror(L)
-		}
-		return nil, C.CString(err.Error())
+		return nil, handleError(L, err)
 	}
 	return C.CString(result), nil
 }
@@ -202,55 +166,46 @@ func luaGetSender(L *LState) *C.char {
 }
 
 //export luaGetTxHash
-func luaGetTxHash(L *LState) *C.char {
+func luaGetTxHash(L *LState) (*C.char, *C.char) {
 	args := []string{}
 	result, err := sendRequest("getTxHash", args)
 	if err != nil {
-		if isUncatchable(err) {
-			C.luaL_setuncatchablerror(L)
-		}
-		return C.CString(err.Error())
+		return nil, handleError(L, err)
 	}
-	return C.CString(result)
+	return C.CString(result), nil
 }
 
 //export luaGetBlockNo
-func luaGetBlockNo(L *LState) C.lua_Integer {
+func luaGetBlockNo(L *LState) (C.lua_Integer, *C.char) {
 	args := []string{}
 	result, err := sendRequest("getBlockNo", args)
 	if err != nil {
-		if isUncatchable(err) {
-			C.luaL_setuncatchablerror(L)
-		}
-		return C.lua_Integer(0)
+		return C.lua_Integer(0), handleError(L, err)
 	}
-	return C.lua_Integer(result)
+	blockNo, err := strconv.ParseInt(result, 10, 64)
+	if err != nil {
+		return C.lua_Integer(0), C.CString(fmt.Sprintf("Failed to parse block number: %v", err))
+	}
+	return C.lua_Integer(blockNo), nil
 }
 
 //export luaGetTimeStamp
-func luaGetTimeStamp(L *LState) C.lua_Integer {
+func luaGetTimeStamp(L *LState) (C.lua_Integer, *C.char) {
 	args := []string{}
 	result, err := sendRequest("getTimeStamp", args)
 	if err != nil {
-		if isUncatchable(err) {
-			C.luaL_setuncatchablerror(L)
-		}
-		return C.lua_Integer(0)
+		return C.lua_Integer(0), handleError(L, err)
 	}
-	return C.lua_Integer(result)
+	timestamp, err := strconv.ParseInt(result, 10, 64)
+	if err != nil {
+		return C.lua_Integer(0), C.CString(fmt.Sprintf("Failed to parse timestamp: %v", err))
+	}
+	return C.lua_Integer(timestamp), nil
 }
 
 //export luaGetContractId
 func luaGetContractId(L *LState) *C.char {
-	args := []string{}
-	result, err := sendRequest("getContractId", args)
-	if err != nil {
-		if isUncatchable(err) {
-			C.luaL_setuncatchablerror(L)
-		}
-		return C.CString(err.Error())
-	}
-	return C.CString(result)
+	return C.CString(ctx.curContract.contractId)
 }
 
 //export luaGetAmount
@@ -258,38 +213,29 @@ func luaGetAmount(L *LState) *C.char {
 	args := []string{}
 	result, err := sendRequest("getAmount", args)
 	if err != nil {
-		if isUncatchable(err) {
-			C.luaL_setuncatchablerror(L)
-		}
-		return C.CString(err.Error())
+		return nil, handleError(L, err)
 	}
 	return C.CString(result)
 }
 
 //export luaGetOrigin
-func luaGetOrigin(L *LState) *C.char {
+func luaGetOrigin(L *LState) (*C.char, *C.char) {
 	args := []string{}
 	result, err := sendRequest("getOrigin", args)
 	if err != nil {
-		if isUncatchable(err) {
-			C.luaL_setuncatchablerror(L)
-		}
-		return C.CString(err.Error())
+		return nil, handleError(L, err)
 	}
-	return C.CString(result)
+	return C.CString(result), nil
 }
 
 //export luaGetPrevBlockHash
-func luaGetPrevBlockHash(L *LState) *C.char {
+func luaGetPrevBlockHash(L *LState) (*C.char, *C.char) {
 	args := []string{}
 	result, err := sendRequest("getPrevBlockHash", args)
 	if err != nil {
-		if isUncatchable(err) {
-			C.luaL_setuncatchablerror(L)
-		}
-		return C.CString(err.Error())
+		return nil, handleError(L, err)
 	}
-	return C.CString(result)
+	return C.CString(result), nil
 }
 
 func checkHexString(data string) bool {
@@ -305,10 +251,7 @@ func luaCryptoSha256(L *LState, arg unsafe.Pointer, argLen C.int) (*C.char, *C.c
 	args := []string{string(data)}
 	result, err := sendRequest("sha256", args)
 	if err != nil {
-		if isUncatchable(err) {
-			C.luaL_setuncatchablerror(L)
-		}
-		return nil, C.CString(err.Error())
+		return nil, handleError(L, err)
 	}
 	return C.CString(result), nil
 }
@@ -325,10 +268,7 @@ func luaECVerify(L *LState, msg *C.char, sig *C.char, addr *C.char) (C.int, *C.c
 	args := []string{C.GoString(msg), C.GoString(sig), C.GoString(addr)}
 	result, err := sendRequest("ecVerify", args)
 	if err != nil {
-		if isUncatchable(err) {
-			C.luaL_setuncatchablerror(L)
-		}
-		return C.int(-1), C.CString(err.Error())
+		return C.int(-1), handleError(L, err)
 	}
 	return C.int(result), nil
 }
@@ -376,7 +316,7 @@ func luaCryptoVerifyProof(
 	value unsafe.Pointer,
 	hash unsafe.Pointer, hashLen C.int,
 	proof unsafe.Pointer, nProof C.int,
-) C.int {
+) (C.int, *C.char) {
 	// convert to bytes
 	k, _ := luaCryptoToBytes(key, keyLen)
 	v := luaCryptoRlpToBytes(value)
@@ -395,25 +335,19 @@ func luaCryptoVerifyProof(
 	args := []string{string(k), string(v), string(h), string(proofBytes)}
 	result, err := sendRequest("verifyEthStorageProof", args)
 	if err != nil {
-		if isUncatchable(err) {
-			C.luaL_setuncatchablerror(L)
-		}
-		return C.int(0)
+		return C.int(0), handleError(L, err)
 	}
-	return C.int(result)
+	return C.int(result), nil
 }
 
 //export luaCryptoKeccak256
-func luaCryptoKeccak256(data unsafe.Pointer, dataLen C.int) (unsafe.Pointer, int) {
+func luaCryptoKeccak256(L *LState, data unsafe.Pointer, dataLen C.int) (unsafe.Pointer, C.int, *C.char) {
 	args := []string{string(C.GoBytes(data, dataLen))}
 	result, err := sendRequest("keccak256", args)
 	if err != nil {
-		if isUncatchable(err) {
-			C.luaL_setuncatchablerror(L)
-		}
-		return nil, 0
+		return nil, 0, handleError(L, err)
 	}
-	return C.CBytes(result), len(result)
+	return C.CBytes(result), len(result), nil
 }
 
 //export luaDeployContract
@@ -431,17 +365,14 @@ func luaDeployContract(
 	args := []string{contractStr, argsStr, amountStr}
 	result, err := sendRequest("deploy", args)
 	if err != nil {
-		if isUncatchable(err) {
-			C.luaL_setuncatchablerror(L)
-		}
-		return nil, C.CString(err.Error())
+		return nil, handleError(L, err)
 	}
 	return C.CString(result), nil
 }
 
 //export isPublic
 func isPublic() C.int {
-	if PubNet {
+	if isPubNet {
 		return C.int(1)
 	} else {
 		return C.int(0)
@@ -449,16 +380,17 @@ func isPublic() C.int {
 }
 
 //export luaRandomInt
-func luaRandomInt(L *LState, min, max C.int) C.int {
+func luaRandomInt(L *LState, min, max C.int) (C.int, *C.char) {
 	args := []string{C.GoString(min), C.GoString(max)}
 	result, err := sendRequest("randomInt", args)
 	if err != nil {
-		if isUncatchable(err) {
-			C.luaL_setuncatchablerror(L)
-		}
-		return C.int(0)
+		return C.int(0), handleError(L, err)
 	}
-	return C.int(result)
+	value, err := strconv.ParseInt(result, 10, 64)
+	if err != nil {
+		return C.int(0), C.CString(err.Error())
+	}
+	return C.int(value), nil
 }
 
 //export luaEvent
@@ -466,35 +398,29 @@ func luaEvent(L *LState, eventName *C.char, arguments *C.char) *C.char {
 	args := []string{C.GoString(eventName), C.GoString(arguments)}
 	result, err := sendRequest("event", args)
 	if err != nil {
-		if isUncatchable(err) {
-			C.luaL_setuncatchablerror(L)
-		}
-		return C.CString(err.Error())
-	}
-	if len(result) > 0 {
-		return C.CString(result)
+		return handleError(L, err)
 	}
 	return nil
 }
 
 //export luaToPubkey
-func luaToPubkey(L *LState, address *C.char) *C.char {
+func luaToPubkey(L *LState, address *C.char) (*C.char, *C.char) {
 	args := []string{C.GoString(address)}
 	result, err := sendRequest("toPubkey", args)
 	if err != nil {
-		return C.CString(err.Error())
+		return nil, handleError(L, err)
 	}
-	return C.CString(result)
+	return C.CString(result), nil
 }
 
 //export luaToAddress
-func luaToAddress(L *LState, pubkey *C.char) *C.char {
+func luaToAddress(L *LState, pubkey *C.char) (*C.char, *C.char) {
 	args := []string{C.GoString(pubkey)}
 	result, err := sendRequest("toAddress", args)
 	if err != nil {
-		return C.CString(err.Error())
+		return nil, handleError(L, err)
 	}
-	return C.CString(result)
+	return C.CString(result), nil
 }
 
 //export luaIsContract
@@ -502,19 +428,19 @@ func luaIsContract(L *LState, contractId *C.char) (C.int, *C.char) {
 	args := []string{C.GoString(contractId)}
 	result, err := sendRequest("isContract", args)
 	if err != nil {
-		return -1, C.CString(err.Error())
+		return -1, handleError(L, err)
 	}
 	return C.int(result), nil
 }
 
 //export luaNameResolve
-func luaNameResolve(L *LState, name_or_address *C.char) *C.char {
+func luaNameResolve(L *LState, name_or_address *C.char) (*C.char, *C.char) {
 	args := []string{C.GoString(name_or_address)}
 	result, err := sendRequest("nameResolve", args)
 	if err != nil {
-		return C.CString(err.Error())
+		return nil, handleError(L, err)
 	}
-	return C.CString(result)
+	return C.CString(result), nil
 }
 
 //export luaGovernance
@@ -522,9 +448,9 @@ func luaGovernance(L *LState, gType C.char, arg *C.char) *C.char {
 	args := []string{C.GoString(gType), C.GoString(arg)}
 	result, err := sendRequest("governance", args)
 	if err != nil {
-		return C.CString(err.Error())
+		return handleError(L, err)
 	}
-	return C.CString(result)
+	return nil
 }
 
 
@@ -547,45 +473,28 @@ func luaIsFeeDelegation(L *LState) (C.int, *C.char) {
 	return 0, nil
 }
 
-//export LuaGetDbHandleSnap
-func LuaGetDbHandleSnap(L *LState, snap *C.char) *C.char {
-
-	stateSet := contexts[service]
-	curContract := stateSet.curContract
-	callState := curContract.callState
-
-	if stateSet.isQuery != true {
-		return C.CString("[Contract.luaGetDBSnap] not permitted in transaction")
-	}
-
-	if callState.tx != nil {
-		return C.CString("[Contract.luaGetDBSnap] transaction already started")
-	}
-
-	rp, err := strconv.ParseUint(C.GoString(snap), 10, 64)
-	if err != nil {
-		return C.CString("[Contract.luaGetDBSnap] snapshot is not valid" + C.GoString(snap))
-	}
-
-	aid := types.ToAccountID(curContract.contractId)
-	tx, err := beginReadOnly(aid.String(), rp)
-	if err != nil {
-		return C.CString("Error Begin SQL Transaction")
-	}
-
-	callState.tx = tx
-	return nil
-}
-
 //export luaGetStaking
 func luaGetStaking(L *LState, addr *C.char) (*C.char, C.lua_Integer, *C.char) {
 	args := []string{C.GoString(addr)}
 	result, err := sendRequest("getStaking", args)
 	if err != nil {
-		return nil, 0, C.CString(err.Error())
+		return nil, 0, handleError(L, err)
 	}
 	// extract amount and when from result
 	amount := result[0]
 	when := result[1]
 	return C.CString(amount), C.lua_Integer(when), nil
+}
+
+func handleError(L *LState, err error) *C.char {
+	errstr := err.Error()
+	if strings.HasPrefix(errstr, "uncatchable: ") {
+		errstr = errstr[len("uncatchable: "):]
+		C.luaL_setuncatchablerror(L)
+	}
+	if strings.HasPrefix(errstr, "syserror: ") {
+		errstr = errstr[len("syserror: "):]
+		C.luaL_setsyserror(L)
+	}
+	return C.CString(errstr)
 }
