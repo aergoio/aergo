@@ -38,10 +38,10 @@ static char *getDbKey(lua_State *L, int *len) {
 int setItemWithPrefix(lua_State *L) {
 	char *dbKey;
 	char *jsonValue;
-	checkLuaExecContext(L);
 	char *errStr;
 	int keylen;
 
+	checkLuaExecContext(L);
 	lua_gasuse(L, 100);
 
 	luaL_checkstring(L, 1);
@@ -57,12 +57,12 @@ int setItemWithPrefix(lua_State *L) {
 
 	lua_gasuse_mul(L, GAS_SDATA, strlen(jsonValue));
 
-	if ((errStr = luaSetVariable(L, dbKey, keylen, jsonValue)) != NULL) {
-		free(jsonValue);
+	errStr = luaSetVariable(L, dbKey, keylen, jsonValue);
+	free(jsonValue);
+	if (errStr != NULL) {
 		strPushAndRelease(L, errStr);
 		luaL_throwerror(L);
 	}
-	free(jsonValue);
 	return 0;
 }
 
@@ -75,12 +75,12 @@ int setItem(lua_State *L) {
 
 int getItemWithPrefix(lua_State *L) {
 	char *dbKey;
-	checkLuaExecContext(L);
 	char *jsonValue;
 	char *blkno = NULL;
 	struct luaGetDB_return ret;
 	int keylen;
 
+	checkLuaExecContext(L);
 	lua_gasuse(L, 100);
 
 	luaL_checkstring(L, 1);
@@ -129,11 +129,11 @@ int getItem(lua_State *L) {
 
 int delItemWithPrefix(lua_State *L) {
 	char *dbKey;
-	checkLuaExecContext(L);
 	char *jsonValue;
 	char *ret;
 	int keylen;
 
+	checkLuaExecContext(L);
 	lua_gasuse(L, 100);
 
 	luaL_checkstring(L, 1);
@@ -159,31 +159,47 @@ static int getSender(lua_State *L) {
 }
 
 static int getTxhash(lua_State *L) {
-	checkLuaExecContext(L);
-	char *hash;
+	luaGetTxHash_return ret;
 
+	checkLuaExecContext(L);
 	lua_gasuse(L, 500);
 
-	hash = luaGetTxHash(L);
-	strPushAndRelease(L, hash);
+	ret = luaGetTxHash(L);
+	if (ret.r1 != NULL) {
+		strPushAndRelease(L, ret.r1);
+		luaL_throwerror(L);
+	}
+	strPushAndRelease(L, ret.r0);
 	return 1;
 }
 
 static int getBlockHeight(lua_State *L) {
-	checkLuaExecContext(L);
+	luaGetBlockNo_return ret;
 
+	checkLuaExecContext(L);
 	lua_gasuse(L, 300);
 
-	lua_pushinteger(L, luaGetBlockNo(L));
+	ret = luaGetBlockNo(L);
+	if (ret.r1 != NULL) {
+		strPushAndRelease(L, ret.r1);
+		luaL_throwerror(L);
+	}
+	lua_pushinteger(L, ret.r0);
 	return 1;
 }
 
 static int getTimestamp(lua_State *L) {
-	checkLuaExecContext(L);
+	luaGetTimeStamp_return ret;
 
+	checkLuaExecContext(L);
 	lua_gasuse(L, 300);
 
-	lua_pushinteger(L, luaGetTimeStamp(L));
+	ret = luaGetTimeStamp(L);
+	if (ret.r1 != NULL) {
+		strPushAndRelease(L, ret.r1);
+		luaL_throwerror(L);
+	}
+	lua_pushinteger(L, ret.r0);
 	return 1;
 }
 
@@ -229,24 +245,32 @@ static int getAmount(lua_State *L) {
 }
 
 static int getOrigin(lua_State *L) {
-	checkLuaExecContext(L);
-	char *origin;
+	luaGetOrigin_return ret;
 
+	checkLuaExecContext(L);
 	lua_gasuse(L, 1000);
 
-	origin = luaGetOrigin(L);
-	strPushAndRelease(L, origin);
+	ret = luaGetOrigin(L);
+	if (ret.r1 != NULL) {
+		strPushAndRelease(L, ret.r1);
+		luaL_throwerror(L);
+	}
+	strPushAndRelease(L, ret.r0);
 	return 1;
 }
 
 static int getPrevBlockHash(lua_State *L) {
-	checkLuaExecContext(L);
-	char *hash;
+	luaGetPrevBlockHash_return ret;
 
+	checkLuaExecContext(L);
 	lua_gasuse(L, 500);
 
-	hash = luaGetPrevBlockHash(L);
-	strPushAndRelease(L, hash);
+	ret = luaGetPrevBlockHash(L);
+	if (ret.r1 != NULL) {
+		strPushAndRelease(L, ret.r1);
+		luaL_throwerror(L);
+	}
+	strPushAndRelease(L, ret.r0);
 	return 1;
 }
 /* datetime-related functions from lib_os.c. time(NULL) is replaced by blocktime(L) */
@@ -392,18 +416,20 @@ static int os_difftime(lua_State *L) {
 /* end of datetime functions */
 
 static int lua_random(lua_State *L) {
+	luaRandomInt_return ret;
+	int min, max, value;
+
 	checkLuaExecContext(L);
-	int min, max;
 
 	lua_gasuse(L, 100);
 
 	switch (lua_gettop(L)) {
 	case 1:
+		min = 1;
 		max = luaL_checkint(L, 1);
 		if (max < 1) {
 			luaL_error(L, "system.random: the maximum value must be greater than zero");
 		}
-		lua_pushinteger(L, luaRandomInt(L, 1, max));
 		break;
 	case 2:
 		min = luaL_checkint(L, 1);
@@ -414,18 +440,26 @@ static int lua_random(lua_State *L) {
 		if (min > max) {
 			luaL_error(L, "system.random: the maximum value must be greater than the minimum value");
 		}
-		lua_pushinteger(L, luaRandomInt(L, min, max));
 		break;
 	default:
 		luaL_error(L, "system.random: 1 or 2 arguments required");
 		break;
 	}
+
+	ret = luaRandomInt(L, min, max);
+	if (ret.r1 != NULL) {
+		strPushAndRelease(L, ret.r1);
+		luaL_throwerror(L);
+	}
+	lua_pushinteger(L, ret.r0);
 	return 1;
 }
 
 static int toPubkey(lua_State *L) {
-	char *address, *ret;
+	luaToPubkey_return ret;
+	char *address;
 
+	checkLuaExecContext(L);
 	lua_gasuse(L, 100);
 
 	// get the function argument
@@ -433,23 +467,17 @@ static int toPubkey(lua_State *L) {
 	// convert the address to public key
 	ret = luaToPubkey(L, address);
 
-	if (ret == NULL) {
-		lua_pushnil(L);
-	} else {
-		// if the returned string starts with `[`, it's an error
-		if (ret[0] == '[') {
-			strPushAndRelease(L, ret);
-			luaL_throwerror(L);
-		} else {
-			strPushAndRelease(L, ret);
-		}
+	if (ret.r1 != NULL) {
+		strPushAndRelease(L, ret.r1);
+		luaL_throwerror(L);
 	}
-
+	strPushAndRelease(L, ret.r0);
 	return 1;
 }
 
 static int toAddress(lua_State *L) {
-	char *pubkey, *ret;
+	luaToAddress_return ret;
+	char *pubkey;
 
 	lua_gasuse(L, 100);
 
@@ -458,26 +486,19 @@ static int toAddress(lua_State *L) {
 	// convert the public key to an address
 	ret = luaToAddress(L, pubkey);
 
-	if (ret == NULL) {
-		lua_pushnil(L);
-	} else {
-		// if the returned string starts with `[`, it's an error
-		if (ret[0] == '[') {
-			strPushAndRelease(L, ret);
-			luaL_throwerror(L);
-		} else {
-			strPushAndRelease(L, ret);
-		}
+	if (ret.r1 != NULL) {
+		strPushAndRelease(L, ret.r1);
+		luaL_throwerror(L);
 	}
-
+	strPushAndRelease(L, ret.r0);
 	return 1;
 }
 
 static int is_contract(lua_State *L) {
 	char *contract;
-	checkLuaExecContext(L);
 	struct luaIsContract_return ret;
 
+	checkLuaExecContext(L);
 	lua_gasuse(L, 100);
 
 	contract = (char *)luaL_checkstring(L, 1);

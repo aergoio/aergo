@@ -202,20 +202,16 @@ func toLuaTable(L *LState, tab map[string]interface{}) error {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-func (ce *executor) call(instLimit C.int, target *LState) (ret C.int) {
-
-	hasParent := false
-	if target != nil {
-		hasParent = true
-	}
+func (ce *executor) call(hasParent bool) (ret C.int) {
 
 	defer func() {
-		if ret == 0 && target != nil {
+		//if ret == 0 && hasParent {
+		if ce.err == nil && hasParent {
 			if bool(C.luaL_hasuncatchablerror(ce.L)) {
-				C.luaL_setuncatchablerror(target)
+				ce.err = errors.New("uncatchable: " + ce.err.Error())
 			}
 			if bool(C.luaL_hassyserror(ce.L)) {
-				C.luaL_setsyserror(target)
+				ce.err = errors.New("syserror: " + ce.err.Error())
 			}
 		}
 	}()
