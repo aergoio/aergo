@@ -1,4 +1,4 @@
-package contract
+package main
 
 /*
 #cgo CFLAGS: -I${SRCDIR}/../libtool/include/luajit-2.1
@@ -71,11 +71,11 @@ func luaDelVariable(L *LState, key unsafe.Pointer, keyLen C.int) *C.char {
 
 //export luaCallContract
 func luaCallContract(L *LState,
-	contractId *C.char, fname *C.char, arguments *C.char,
+	address *C.char, fname *C.char, arguments *C.char,
 	amount *C.char, gas uint64,
 ) (*C.char, *C.char) {
 
-	contractAddress := C.GoString(contractId)
+	contractAddress := C.GoString(address)
 	fnameStr := C.GoString(fname)
 	argsStr := C.GoString(arguments)
 	amountStr := C.GoString(amount)
@@ -91,10 +91,10 @@ func luaCallContract(L *LState,
 
 //export luaDelegateCallContract
 func luaDelegateCallContract(L *LState
-	contractId *C.char, fname *C.char, arguments *C.char, gas uint64
+	address *C.char, fname *C.char, arguments *C.char, gas uint64
 ) (*C.char, *C.char) {
 
-	contractAddress := C.GoString(contractId)
+	contractAddress := C.GoString(address)
 	fnameStr := C.GoString(fname)
 	argsStr := C.GoString(arguments)
 	gasStr := string((*[8]byte)(unsafe.Pointer(&gas))[:])
@@ -108,8 +108,8 @@ func luaDelegateCallContract(L *LState
 }
 
 //export luaSendAmount
-func luaSendAmount(L *LState, contractId *C.char, amount *C.char) *C.char {
-	args := []string{C.GoString(contractId), C.GoString(amount)}
+func luaSendAmount(L *LState, address *C.char, amount *C.char) *C.char {
+	args := []string{C.GoString(address), C.GoString(amount)}
 	result, err := sendRequest("send", args)
 	if err != nil {
 		return handleError(L, err)
@@ -149,8 +149,8 @@ func luaClearRecovery(L *LState, start int, isError bool) *C.char {
 }
 
 //export luaGetBalance
-func luaGetBalance(L *LState, contractId *C.char) (*C.char, *C.char) {
-	args := []string{C.GoString(contractId)}
+func luaGetBalance(L *LState, address *C.char) (*C.char, *C.char) {
+	args := []string{C.GoString(address)}
 	result, err := sendRequest("balance", args)
 	if err != nil {
 		return nil, handleError(L, err)
@@ -160,9 +160,7 @@ func luaGetBalance(L *LState, contractId *C.char) (*C.char, *C.char) {
 
 //export luaGetSender
 func luaGetSender(L *LState) *C.char {
-	ctx := contexts[service]
-	setInstMinusCount(ctx, L, 1000)
-	return C.CString(types.EncodeAddress(ctx.curContract.sender))
+	return C.CString(contractCaller)
 }
 
 //export luaGetTxHash
@@ -205,17 +203,17 @@ func luaGetTimeStamp(L *LState) (C.lua_Integer, *C.char) {
 
 //export luaGetContractId
 func luaGetContractId(L *LState) *C.char {
-	return C.CString(ctx.curContract.contractId)
+	return C.CString(contractAddress)
 }
 
 //export luaGetAmount
-func luaGetAmount(L *LState) *C.char {
+func luaGetAmount(L *LState) (*C.char, *C.char) {
 	args := []string{}
 	result, err := sendRequest("getAmount", args)
 	if err != nil {
 		return nil, handleError(L, err)
 	}
-	return C.CString(result)
+	return C.CString(result), nil
 }
 
 //export luaGetOrigin
@@ -424,8 +422,8 @@ func luaToAddress(L *LState, pubkey *C.char) (*C.char, *C.char) {
 }
 
 //export luaIsContract
-func luaIsContract(L *LState, contractId *C.char) (C.int, *C.char) {
-	args := []string{C.GoString(contractId)}
+func luaIsContract(L *LState, address *C.char) (C.int, *C.char) {
+	args := []string{C.GoString(address)}
 	result, err := sendRequest("isContract", args)
 	if err != nil {
 		return -1, handleError(L, err)
@@ -484,6 +482,49 @@ func luaGetStaking(L *LState, addr *C.char) (*C.char, C.lua_Integer, *C.char) {
 	amount := result[0]
 	when := result[1]
 	return C.CString(amount), C.lua_Integer(when), nil
+}
+
+//export luaSendRequest
+func luaSendRequest(L *LState, method *C.char, arguments *C.buffer, response *C.response) {
+	var args []string
+	if arguments != nil {
+		args = []string{C.GoStringN(arguments.ptr, arguments.len)}
+	} else {
+		args = []string{}
+	}
+	result, err := sendRequest(C.GoString(method), args)
+	if err != nil {
+		response.error = handleError(L, err)
+	} else {
+		response.result.ptr = C.CString(result)
+		response.result.len = C.int(len(result))
+	}
+}
+
+//sendRequest
+func sendRequest(method string, args []string) (result string, err error) {
+
+	// create new slice with the method and args
+	list := []string{method}
+	list = append(list, args...)
+
+	// build the message
+	message := SerializeMessage(list)
+
+	// send the execution request to the VM instance
+	err = msg.SendMessage(message)
+	if err != nil {
+		return "", err
+	}
+
+	// wait for the response
+	result, err = msg.WaitForMessage(conn, time.Time{})
+	if err != nil {
+		return "", err
+	}
+
+	// return the result
+	return result, nil
 }
 
 func handleError(L *LState, err error) *C.char {

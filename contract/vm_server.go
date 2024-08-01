@@ -27,6 +27,7 @@ func (ce *executor) call() (result string, err error) {
 	}
 
 	// what to send:
+	// - address: ce.ctx.curContract.address string
 	// - bytecode: ce.code []byte
 	// - function name: ce.fname string
 	// - args: ce.ci.Args []interface{}
@@ -35,6 +36,8 @@ func (ce *executor) call() (result string, err error) {
 	// - amount: ce.ctx.curContract.amount.String() string
 	// - isFeeDelegation: ce.ctx.isFeeDelegation bool
 
+	address := ce.ctx.curContract.address
+	bytecode := string(ce.code)
 	fname := ce.fname
 	if ce.isAutoload == true {
 		fname = "autoload:" + ce.fname
@@ -51,10 +54,10 @@ func (ce *executor) call() (result string, err error) {
 	isFeeDelegation := strconv.FormatBool(ce.ctx.isFeeDelegation)
 
 	// build the message
-	msg := SerializeMessage("execute", string(ce.code), fname, args, gas, sender, amount, isFeeDelegation)
+	message := SerializeMessage("execute", address, bytecode, fname, args, gas, sender, amount, isFeeDelegation)
 
 	// send the execution request to the VM instance
-	err := ce.SendMessage(msg)
+	err = ce.SendMessage(message)
 	if err != nil {
 		return "", err
 	}
@@ -326,13 +329,7 @@ func (ce *executor) processUsedGas(usedGasStr string) (err error) {
 // hardfork version + IsPublic + abstract domain socket name + secret key
 
 // sent when a contract is called:
-// sender + amount + timestamp + IsFeeDelegation
-
-luaGetSender(ctx) *C.char
-luaGetAmount(ctx) *C.char
-luaIsFeeDelegation(ctx) (C.int, *C.char)
-
-
+// sender + IsFeeDelegation
 
 
 // in the case of timeout:

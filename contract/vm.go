@@ -5,16 +5,6 @@
 
 package contract
 
-/*
-
- #include <stdlib.h>
- #include <string.h>
- #include "vm.h"
- #include "bignum_module.h"
-*/
-
-//import "C"
-
 import (
 	"bytes"
 	"context"
@@ -45,8 +35,8 @@ import (
 )
 
 const (
-	callMaxInstLimit     = C.int(5000000)
-	queryMaxInstLimit    = callMaxInstLimit * C.int(10)
+	callMaxInstLimit     = 5000000
+	queryMaxInstLimit    = callMaxInstLimit * 10
 	dbUpdateMaxLimit     = fee.StateDbMaxUpdateSize
 	maxCallDepthOld      = 5
 	maxCallDepth         = 64
