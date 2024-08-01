@@ -234,13 +234,17 @@ static int getCreator(lua_State *L) {
 }
 
 static int getAmount(lua_State *L) {
-	checkLuaExecContext(L);
-	char *amount;
+	luaGetAmount_return ret;
 
+	checkLuaExecContext(L);
 	lua_gasuse(L, 300);
 
-	amount = luaGetAmount(L);
-	strPushAndRelease(L, amount);
+	ret = luaGetAmount(L);
+	if (ret.r1 != NULL) {
+		strPushAndRelease(L, ret.r1);
+		luaL_throwerror(L);
+	}
+	strPushAndRelease(L, ret.r0);
 	return 1;
 }
 

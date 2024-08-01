@@ -1,4 +1,4 @@
-package vm  // or main
+package main
 
 /*
  #cgo CFLAGS: -I${SRCDIR}/../libtool/include/luajit-2.1 -I${SRCDIR}/../libtool/include
@@ -29,10 +29,26 @@ import (
 	"github.com/aergoio/aergo/v2/cmd/aergoluac/util"
 )
 
-// TODO: update the struct
+type LState = C.lua_State   // C.struct_lua_State
+
+var lstate *LState          // *C.lua_State
+
+var contractAddress string
+var contractCaller string
+var contractGas uint64
+var contractIsFeeDelegation bool
+
+////////////////////////////////////////////////////////////////////////////////
+
+func InitializeVM() {
+	C.init_bignum()
+	lstate = C.vm_newstate(C.int(hardforkVersion))
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 type executor struct {
 	L          *LState
-	contractId []byte
 	code       []byte
 	fname      string
 	args       string
@@ -43,24 +59,22 @@ type executor struct {
 	preErr     error
 }
 
-
 func newExecutor(
-	contractId []byte,
 	bytecode []byte,
 	fname string,
 	args string,
 ) *executor {
 
 	ce := &executor{
-		contractId: contractId,
+		L: lstate,
 		code: bytecode,
 	}
 
-	if ctx.IsGasSystem() {
+	if IsGasSystem() {
 		ce.setGas()
 	}
 
-	ce.vmLoadCode(contractId)
+	ce.vmLoadCode()
 	if ce.err != nil {
 		return ce
 	}
@@ -206,7 +220,7 @@ func (ce *executor) call(hasParent bool) (ret C.int) {
 
 	defer func() {
 		//if ret == 0 && hasParent {
-		if ce.err == nil && hasParent {
+		if ce.err != nil && hasParent {
 			if bool(C.luaL_hasuncatchablerror(ce.L)) {
 				ce.err = errors.New("uncatchable: " + ce.err.Error())
 			}
@@ -236,7 +250,7 @@ func (ce *executor) call(hasParent bool) (ret C.int) {
 		if loaded := vmAutoloadFunction(ce.L, ce.fname); !loaded {
 			if ce.fname != constructor {
 				ce.err = errors.New(fmt.Sprintf("contract autoload failed %s : %s",
-					types.EncodeAddress(ce.contractId), ce.fname))
+					contractAddress, ce.fname))
 			}
 			return 0
 		}
@@ -250,9 +264,7 @@ func (ce *executor) call(hasParent bool) (ret C.int) {
 
 	ce.pushArgs()
 	if ce.err != nil {
-		ctrLgr.Debug().Err(ce.err)
-		              .Stringer("contract", types.LogAddr(ce.contractId))
-		              .Msg("invalid argument")
+		ctrLgr.Debug().Err(ce.err).Str("contract", contractAddress).Msg("invalid argument")
 		return 0
 	}
 	if !ce.isAutoload {
@@ -275,10 +287,7 @@ func (ce *executor) call(hasParent bool) (ret C.int) {
 				ce.err = errors.New(errMsg)
 			}
 		}
-		ctrLgr.Debug().Err(ce.err).Stringer(
-			"contract",
-			types.LogAddr(ce.contractId),
-		).Msg("contract is failed")
+		ctrLgr.Debug().Err(ce.err).Str("contract", contractAddress).Msg("contract execution failed")
 		return 0
 	}
 
@@ -318,8 +327,8 @@ func vmAutoloadFunction(L *LState, funcName string) bool {
 	return loaded != C.int(0)
 }
 
-func (ce *executor) vmLoadCode(id []byte) {
-	chunkId := C.CString("@" + types.EncodeAddress(id))
+func (ce *executor) vmLoadCode() {
+	chunkId := C.CString("@" + contractAddress)
 	defer C.free(unsafe.Pointer(chunkId))
 
 	// load the contract code. whatever execution happens at limited global scope
@@ -333,7 +342,7 @@ func (ce *executor) vmLoadCode(id []byte) {
 	if cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
 		ce.err = errors.New(errMsg)
-		ctrLgr.Debug().Err(ce.err).Str("contract", types.EncodeAddress(id)).Msg("failed to load code")
+		ctrLgr.Debug().Err(ce.err).Str("contract", contractAddress).Msg("failed to load code")
 	}
 }
 
@@ -407,21 +416,21 @@ func minusCallCount(ctx *vmContext, curCount, deduc C.int) C.int {
 ////////////////////////////////////////////////////////////////////////////////
 
 func Execute(
+	address string,
 	code string,
 	fname string,
 	args string,
 	gas uint64,
-	sender string,
-	amount *big.Int,
+	caller string,
 	isFeeDelegation bool,
 ) (string, error) {
 
-	ex := newExecutor(
-		[]byte(address),
-		[]byte(code),
-		fname,
-		args,
-	)
+	contractAddress = address
+	contractCaller = caller
+	contractGas = gas
+	contractIsFeeDelegation = isFeeDelegation
+
+	ex := newExecutor([]byte(code), fname, args)
 
 
 
