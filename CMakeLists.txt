@@ -25,6 +25,10 @@ add_custom_target(aergosvr GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS}
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     DEPENDS libtool)
 
+add_custom_target(aergovm GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X main.githash=`git describe --tags` -X main.gitRevision=`git rev-parse --short HEAD` -X main.gitBranch=`git rev-parse --symbolic-full-name --abbrev-ref HEAD`\" ./contract/vm/...
+    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+    DEPENDS libtool)
+
 add_custom_target(polaris GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X main.githash=`git describe --tags`\" ./cmd/polaris/...
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR})
 
