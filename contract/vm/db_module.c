@@ -6,8 +6,8 @@
 //#include "sqlcheck.h"
 #include "bignum_module.h"
 #include "util.h"
-#include "_cgo_export.h"
 #include "../db_msg.h"
+#include "_cgo_export.h"
 
 #define RESOURCE_PSTMT_KEY "_RESOURCE_PSTMT_KEY_"
 #define RESOURCE_RS_KEY "_RESOURCE_RS_KEY_"
@@ -31,6 +31,7 @@ static int append_resource(lua_State *L, const char *key, void *data) {
 typedef struct {
 	int id;
 	int closed;
+	int colcnt;
 	int refno;
 } db_pstmt_t;
 
@@ -45,7 +46,7 @@ typedef struct {
 } db_rs_t;
 
 
-static void send_vm_api_request(lua_State *L, const char *method, buffer *args, response *resp) {
+static void send_vm_api_request(lua_State *L, char *method, buffer *args, rresponse *resp) {
 	luaSendRequest(L, method, args, resp);
 }
 
@@ -62,7 +63,7 @@ static int db_rs_tostr(lua_State *L) {
 	if (rs->closed) {
 		lua_pushfstring(L, "resultset is closed");
 	} else {
-		lua_pushfstring(L, "resultset{handle=%p}", rs->s);
+		lua_pushfstring(L, "resultset{query_id=%d}", rs->query_id);
 	}
 	return 1;
 }
@@ -80,7 +81,7 @@ static void free_decltypes(db_rs_t *rs) {
 
 static int db_rs_get(lua_State *L) {
 	buffer buf = {0}, *req = &buf;
-	response resp = {0}, *response = &resp;
+	rresponse resp = {0}, *response = &resp;
 	db_rs_t *rs = get_db_rs(L, 1);
 	int rc, count=0;
 
@@ -100,7 +101,7 @@ static int db_rs_get(lua_State *L) {
 
 	char *ptr = NULL;
 	int len;
-	while (ptr = get_next_item(response->result, ptr, &len)) {
+	while (ptr = get_next_item(&response->result, ptr, &len)) {
 		char type = get_type(ptr, len);
 		ptr += 1; len -= 1;
 		switch (type) {
@@ -158,7 +159,7 @@ static void db_rs_close(lua_State *L, db_rs_t *rs, int remove) {
 
 static int db_rs_next(lua_State *L) {
 	buffer buf = {0}, *req = &buf;
-	response resp = {0}, *response = &resp;
+	rresponse resp = {0}, *response = &resp;
 	db_rs_t *rs = get_db_rs(L, 1);
 	int rc;
 
@@ -173,7 +174,7 @@ static int db_rs_next(lua_State *L) {
 		lua_error(L);
 	}
 
-	bool has_more = get_bool(response->result, 1);
+	bool has_more = get_bool(&response->result, 1);
 
 	if (has_more) {
 		lua_pushboolean(L, 1);
@@ -219,7 +220,7 @@ static int db_pstmt_tostr(lua_State *L) {
 	if (pstmt->closed) {
 		lua_pushfstring(L, "prepared statement is closed");
 	} else {
-		lua_pushfstring(L, "prepared statement{handle=%p}", pstmt->s);
+		lua_pushfstring(L, "prepared statement{id=%d}", pstmt->id);
 	}
 	return 1;
 }
@@ -249,7 +250,7 @@ static int add_parameters(lua_State *L, buffer *req) {
 			break;
 		case LUA_TSTRING:
 			s = lua_tolstring(L, n, &l);
-			add_string(params, s, l);
+			add_string_ex(params, s, l);
 			break;
 		case LUA_TBOOLEAN:
 			b = lua_toboolean(L, n);
@@ -295,7 +296,7 @@ static int add_parameters(lua_State *L, buffer *req) {
 
 static int db_pstmt_exec(lua_State *L) {
 	buffer buf = {0}, *args = &buf;
-	response resp = {0}, *response = &resp;
+	rresponse resp = {0}, *response = &resp;
 	int rc;
 	db_pstmt_t *pstmt = get_db_pstmt(L, 1);
 
@@ -319,14 +320,14 @@ static int db_pstmt_exec(lua_State *L) {
 		lua_error(L);
 	}
 
-	lua_pushinteger(L, get_int(response->result, 1));
+	lua_pushinteger(L, get_int(&response->result, 1));
 	free_response(response);
 	return 1;
 }
 
 static int db_pstmt_query(lua_State *L) {
 	buffer buf = {0}, *args = &buf;
-	response resp = {0}, *response = &resp;
+	rresponse resp = {0}, *response = &resp;
 	int rc;
 	db_pstmt_t *pstmt = get_db_pstmt(L, 1);
 	db_rs_t *rs;
@@ -357,21 +358,21 @@ static int db_pstmt_query(lua_State *L) {
 	rs = (db_rs_t *) lua_newuserdata(L, sizeof(db_rs_t));
 	luaL_getmetatable(L, DB_RS_ID);
 	lua_setmetatable(L, -2);
-	rs->query_id = get_int(response->result, 1);
+	rs->query_id = get_int(&response->result, 1);
 	rs->closed = 0;
 	rs->refno = append_resource(L, RESOURCE_RS_KEY, (void *)rs);
 
-	process_columns(L, rs, response->result);
+	process_columns(L, rs, &response->result);
 
 	free_response(response);
 	return 1;
 }
 
-static void get_column_meta(lua_State *L, buffer *result) {
+static void get_column_meta(lua_State *L, bytes *result) {
 	bytes names, types;
 	get_bytes(result, 1, &names);
 	get_bytes(result, 2, &types);
-	int colcnt = get_count(names);
+	int colcnt = get_count(&names);
 	int i;
 
 	lua_createtable(L, 0, 2);
@@ -386,11 +387,11 @@ static void get_column_meta(lua_State *L, buffer *result) {
 	}
 
 	for (i = 0; i < colcnt; i++) {
-		char *name = get_string(names, i);
+		char *name = get_string(&names, i);
 		lua_pushstring(L, name);
 		lua_rawseti(L, -3, i+1);
 
-		char *decltype = get_string(types, i);
+		char *decltype = get_string(&types, i);
 		lua_pushstring(L, decltype);
 		lua_rawseti(L, -2, i+1);
 	}
@@ -401,7 +402,7 @@ static void get_column_meta(lua_State *L, buffer *result) {
 
 static int db_pstmt_column_info(lua_State *L) {
 	buffer buf = {0}, *args = &buf;
-	response resp = {0}, *response = &resp;
+	rresponse resp = {0}, *response = &resp;
 	db_pstmt_t *pstmt = get_db_pstmt(L, 1);
 
 	checkLuaExecContext(L);
@@ -416,7 +417,7 @@ static int db_pstmt_column_info(lua_State *L) {
 		lua_error(L);
 	}
 
-	get_column_meta(L, response->result);
+	get_column_meta(L, &response->result);
 	free_response(response);
 	return 1;
 }
@@ -424,9 +425,7 @@ static int db_pstmt_column_info(lua_State *L) {
 static int db_pstmt_bind_param_cnt(lua_State *L) {
 	db_pstmt_t *pstmt = get_db_pstmt(L, 1);
 	checkLuaExecContext(L);
-
-	lua_pushinteger(L, sqlite3_bind_parameter_count(pstmt->s));
-
+	lua_pushinteger(L, pstmt->colcnt);
 	return 1;
 }
 
@@ -451,7 +450,7 @@ static int db_pstmt_gc(lua_State *L) {
 
 static int db_exec(lua_State *L) {
 	buffer buf = {0}, *args = &buf;
-	response resp = {0}, *response = &resp;
+	rresponse resp = {0}, *response = &resp;
 	const char *sql;
 	int rc;
 
@@ -472,7 +471,7 @@ static int db_exec(lua_State *L) {
 		lua_error(L);
 	}
 
-	int changes = get_int(response->result, 1);
+	int changes = get_int(&response->result, 1);
 	lua_pushinteger(L, changes);
 	free_response(response);
 	return 1;
@@ -480,7 +479,8 @@ static int db_exec(lua_State *L) {
 
 static int db_query(lua_State *L) {
 	buffer buf = {0}, *args = &buf;
-	response resp = {0}, *response = &resp;
+	rresponse resp = {0}, *response = &resp;
+	db_rs_t *rs;
 	const char *sql;
 	int rc;
 
@@ -503,7 +503,7 @@ static int db_query(lua_State *L) {
 		lua_error(L);
 	}
 
-	int query_id = get_int(response->result, 1);
+	int query_id = get_int(&response->result, 1);
 
 	// store the query id on the structure
 	rs = (db_rs_t *) lua_newuserdata(L, sizeof(db_rs_t));
@@ -513,7 +513,7 @@ static int db_query(lua_State *L) {
 	rs->closed = 0;
 	rs->refno = append_resource(L, RESOURCE_RS_KEY, (void *)rs);
 
-	process_columns(L, rs, response->result);
+	process_columns(L, rs, &response->result);
 
 	free_response(response);
 	return 1;
@@ -521,7 +521,7 @@ static int db_query(lua_State *L) {
 
 static int db_prepare(lua_State *L) {
 	buffer buf = {0}, *args = &buf;
-	response resp = {0}, *response = &resp;
+	rresponse resp = {0}, *response = &resp;
 	const char *sql;
 	db_pstmt_t *pstmt;
 
@@ -542,7 +542,8 @@ static int db_prepare(lua_State *L) {
 	pstmt = (db_pstmt_t *) lua_newuserdata(L, sizeof(db_pstmt_t));
 	luaL_getmetatable(L, DB_PSTMT_ID);
 	lua_setmetatable(L, -2);
-	pstmt->id = get_int(response->result, 1);
+	pstmt->id = get_int(&response->result, 1);
+	pstmt->colcnt = get_int(&response->result, 2);
 	pstmt->closed = 0;
 	pstmt->refno = append_resource(L, RESOURCE_PSTMT_KEY, (void *)pstmt);
 
@@ -550,7 +551,7 @@ static int db_prepare(lua_State *L) {
 }
 
 static int db_get_snapshot(lua_State *L) {
-	response resp = {0}, *response = &resp;
+	rresponse resp = {0}, *response = &resp;
 
 	checkLuaExecContext(L);
 
@@ -561,14 +562,14 @@ static int db_get_snapshot(lua_State *L) {
 		lua_error(L);
 	}
 
-	lua_pushstring(L, get_string(response->result, 1));
+	lua_pushstring(L, get_string(&response->result, 1));
 	free_response(response);
 	return 1;
 }
 
 static int db_open_with_snapshot(lua_State *L) {
 	buffer buf = {0}, *args = &buf;
-	response resp = {0}, *response = &resp;
+	rresponse resp = {0}, *response = &resp;
 	char *snapshot = (char *) luaL_checkstring(L, 1);
 
 	checkLuaExecContext(L);
@@ -587,7 +588,7 @@ static int db_open_with_snapshot(lua_State *L) {
 }
 
 static int db_last_insert_rowid(lua_State *L) {
-	response resp = {0}, *response = &resp;
+	rresponse resp = {0}, *response = &resp;
 
 	checkLuaExecContext(L);
 
@@ -598,7 +599,7 @@ static int db_last_insert_rowid(lua_State *L) {
 		lua_error(L);
 	}
 
-	sqlite3_int64 id = get_int64(response->result, 1);
+	lua_Integer id = get_int64(&response->result, 1);
 
 	lua_pushinteger(L, id);
 	return 1;

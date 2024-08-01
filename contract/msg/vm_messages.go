@@ -3,7 +3,7 @@ package msg
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
+	"io"
 	"net"
 	"time"
 )
@@ -20,6 +20,22 @@ func SerializeMessage(strings ...string) []byte {
 		length := uint32(len(s))
 		binary.Write(&buf, binary.LittleEndian, length)
 		buf.WriteString(s)
+	}
+
+	return buf.Bytes()
+}
+
+func SerializeMessageBytes(args ...[]byte) []byte {
+	var buf bytes.Buffer
+
+	// write number of strings
+	binary.Write(&buf, binary.LittleEndian, uint32(len(args)))
+
+	// write each string's length and content
+	for _, b := range args {
+		length := uint32(len(b))
+		binary.Write(&buf, binary.LittleEndian, length)
+		buf.Write(b)
 	}
 
 	return buf.Bytes()
@@ -44,9 +60,15 @@ func DeserializeMessage(data []byte) ([]string, error) {
 			return nil, err
 		}
 
+		// get the current position
+		pos, err := buf.Seek(0, io.SeekCurrent)
+		if err != nil {
+			return nil, err
+		}
+
 		// create a slice that references the original buffer
-		strBytes := data[buf.Pos() : buf.Pos()+int(length)]
-		buf.Seek(int64(length), 1) // move the buffer position forward
+		strBytes := data[pos : pos+int64(length)]
+		buf.Seek(int64(length), io.SeekCurrent) // move the buffer position forward
 
 		strings = append(strings, string(strBytes))
 	}
@@ -54,18 +76,18 @@ func DeserializeMessage(data []byte) ([]string, error) {
 	return strings, nil
 }
 
-func SendMessage(conn net.Conn, msg string) (err error) {
+func SendMessage(conn net.Conn, message []byte) (err error) {
 
 	// send the length prefix
 	lengthBytes := make([]byte, 4)
-	binary.LittleEndian.PutUint32(lengthBytes, uint32(len(msg)))
-	_, err := conn.Write(lengthBytes)
+	binary.LittleEndian.PutUint32(lengthBytes, uint32(len(message)))
+	_, err = conn.Write(lengthBytes)
 	if err != nil {
 		return err
 	}
 
 	// send the message
-	_, err = conn.Write([]byte(msg))
+	_, err = conn.Write(message)
 	if err != nil {
 		return err
 	}
@@ -74,7 +96,7 @@ func SendMessage(conn net.Conn, msg string) (err error) {
 }
 
 // waits for a full message (length prefix + data) from the abstract domain socket
-func WaitForMessage(conn net.Conn, deadline time.Time) (msg string, err error) {
+func WaitForMessage(conn net.Conn, deadline time.Time) (msg []byte, err error) {
 
 	if !deadline.IsZero() {
 		// define the deadline for the connection
@@ -83,9 +105,9 @@ func WaitForMessage(conn net.Conn, deadline time.Time) (msg string, err error) {
 
 	// read the length prefix
 	length := make([]byte, 4)
-	_, err := conn.Read(length)
+	_, err = conn.Read(length)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	// use little endian to get the length
 	msgLength := binary.LittleEndian.Uint32(length)
@@ -93,7 +115,7 @@ func WaitForMessage(conn net.Conn, deadline time.Time) (msg string, err error) {
 	msg = make([]byte, msgLength)
 	_, err = conn.Read(msg)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	// return the message

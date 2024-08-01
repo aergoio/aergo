@@ -6,7 +6,6 @@
 #include <luajit.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include "sqlite3-binding.h"
 
 extern const char *construct_name;
 
@@ -21,7 +20,6 @@ const char *vm_loadbuff(lua_State *L, const char *code, size_t sz, char *hex_id)
 const char *vm_pcall(lua_State *L, int argc, int *nresult);
 const char *vm_get_json_ret(lua_State *L, int nresult, bool has_parent, int *err);
 const char *vm_copy_result(lua_State *L, lua_State *target, int cnt);
-sqlite3 *vm_get_db(lua_State *L);
 void vm_get_abi_function(lua_State *L, char *fname);
 void vm_set_count_hook(lua_State *L, int limit);
 void vm_db_release_resource(lua_State *L);

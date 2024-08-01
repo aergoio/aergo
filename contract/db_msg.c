@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
@@ -18,7 +19,7 @@ void set_error(request *req, char *format, ...) {
 // serialization
 
 // copy int32 to buffer, stored as little endian, for unaligned access
-void __attribute__((inline)) write_int(char *pdest, int value) {
+void write_int(char *pdest, int value) {
   unsigned char *source = (unsigned char *) &value;
   unsigned char *dest = (unsigned char *) pdest;
   dest[0] = source[0];
@@ -55,11 +56,26 @@ int64_t read_int64(char *p) {
   return value;
 }
 
+double read_double(char *p) {
+  double value;
+  unsigned char *source = (unsigned char *) p;
+  unsigned char *dest = (unsigned char *) &value;
+  dest[0] = source[0];
+  dest[1] = source[1];
+  dest[2] = source[2];
+  dest[3] = source[3];
+  dest[4] = source[4];
+  dest[5] = source[5];
+  dest[6] = source[6];
+  dest[7] = source[7];
+  return value;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // add item
 
 // add item with 4 bytes length
-void add_item(buffer *buf, char *data, int len) {
+void add_item(buffer *buf, const char *data, int len) {
   int item_size = 4 + len;
   if (item_size > buf->allocated) {
     // compute new size
@@ -79,14 +95,14 @@ void add_item(buffer *buf, char *data, int len) {
   }
   // store the length of the item
   //*(int *)(req->result + req->used_size) = len;
-  write_int32(buf->ptr + buf->len, len);
+  write_int(buf->ptr + buf->len, len);
   // copy item to buffer
   memcpy(buf->ptr + buf->len + 4, data, len);
   buf->len += item_size;
 }
 
 // now adding an additional byte for type
-void add_typed_item(buffer *buf, char type, char *data, int len) {
+void add_typed_item(buffer *buf, char type, const char *data, int len) {
   int item_size = 4 + 1 + len;
   if (item_size > buf->allocated) {
     // compute new size
@@ -105,7 +121,7 @@ void add_typed_item(buffer *buf, char type, char *data, int len) {
     }
   }
   // store the length of the item
-  write_int32(buf->ptr + buf->len, len);
+  write_int(buf->ptr + buf->len, len);
   // store the type of the item
   buf->ptr[buf->len + 4] = type;
   // copy item to buffer
@@ -115,9 +131,14 @@ void add_typed_item(buffer *buf, char type, char *data, int len) {
 
 // add items with type
 
-void add_string(buffer *buf, char *str) {
+void add_string(buffer *buf, const char *str) {
   if (str == NULL) str = "";
   add_typed_item(buf, 's', str, strlen(str));
+}
+
+void add_string_ex(buffer *buf, const char *str, int len) {
+  if (str == NULL) str = "";
+  add_typed_item(buf, 's', str, len);
 }
 
 void add_int(buffer *buf, int value) {
@@ -136,7 +157,7 @@ void add_bool(buffer *buf, bool value) {
 	add_typed_item(buf, 'b', (char *)&value, 1);
 }
 
-void add_bytes(buffer *buf, char *data, int len) {
+void add_bytes(buffer *buf, const char *data, int len) {
 	add_typed_item(buf, 's', data, len);
 }
 
@@ -176,13 +197,26 @@ char *get_item(bytes *data, int position, int *plen) {
   if (p + len > plimit) {
     return NULL;
   }
-  *plen = len;
+  if (plen != NULL) *plen = len;
   return p;
 }
 
+int get_count(bytes *data) {
+  int count = 0;
+  int len;
+  char *p = data->ptr;
+  while (p < data->ptr + data->len) {
+    len = read_int(p);
+    p += 4;
+    p += len;
+    count++;
+  }
+  return count;
+}
+
 // get string at position
-char *get_string(bytes *data, int position, int *plen) {
-  char *p = get_item(data, position, plen);
+char *get_string(bytes *data, int position) {
+  char *p = get_item(data, position, NULL);
   if (p == NULL) {
     return NULL;
   }
@@ -339,12 +373,6 @@ char get_type(char *ptr, int len) {
   return type;
 }
 
-double read_double(char *p) {
-  double value;
-  memcpy(&value, p, 8);
-  return value;
-}
-
 bool read_bool(char *p) {
   return *p;
 }
@@ -358,8 +386,11 @@ void free_buffer(buffer *buf) {
   }
 }
 
-void free_response(response *resp) {
-  free_buffer(resp->result);
+void free_response(rresponse *resp) {
+  if(resp->result.ptr != NULL) {
+    free(resp->result.ptr);
+    resp->result.ptr = NULL;
+  }
   if (resp->error != NULL) {
     free(resp->error);
     resp->error = NULL;

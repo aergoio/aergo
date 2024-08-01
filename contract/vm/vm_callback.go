@@ -1,12 +1,15 @@
 package main
 
 /*
-#cgo CFLAGS: -I${SRCDIR}/../libtool/include/luajit-2.1
-#cgo LDFLAGS: ${SRCDIR}/../libtool/lib/libluajit-5.1.a -lm
+#cgo CFLAGS: -I${SRCDIR}/../../libtool/include/luajit-2.1
+#cgo LDFLAGS: ${SRCDIR}/../../libtool/lib/libluajit-5.1.a -lm
 
 #include <stdlib.h>
 #include <string.h>
 #include "vm.h"
+#include "util.h"
+#include "db_module.h"
+#include "../db_msg.h"
 #include "bignum_module.h"
 
 struct proof {
@@ -25,21 +28,22 @@ struct rlp_obj {
 */
 import "C"
 import (
-	"bytes"
-	"crypto/sha256"
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 	"unsafe"
+	"time"
+
+	"github.com/aergoio/aergo/v2/internal/enc/hex"
+	"github.com/aergoio/aergo/v2/contract/msg"
 )
 
 
 
 //export luaSetVariable
-func luaSetVariable(L *LState, key unsafe.Pointer, keyLen C.int, value *C.char) *C.char {
-	args := []string{C.GoBytes(key, keyLen), C.GoString(value)}
-	result, err := sendRequest("set", args)
+func luaSetVariable(L *LState, key *C.char, keyLen C.int, value *C.char) *C.char {
+	args := []string{C.GoStringN(key, keyLen), C.GoString(value)}
+	_, err := sendRequest("set", args)
 	if err != nil {
 		return handleError(L, err)
 	}
@@ -47,8 +51,8 @@ func luaSetVariable(L *LState, key unsafe.Pointer, keyLen C.int, value *C.char) 
 }
 
 //export luaGetVariable
-func luaGetVariable(L *LState, key unsafe.Pointer, keyLen C.int, blkno *C.char) (*C.char, *C.char) {
-	args := []string{C.GoBytes(key, keyLen), C.GoString(blkno)}
+func luaGetVariable(L *LState, key *C.char, keyLen C.int, blkno *C.char) (*C.char, *C.char) {
+	args := []string{C.GoStringN(key, keyLen), C.GoString(blkno)}
 	result, err := sendRequest("get", args)
 	if err != nil {
 		return nil, handleError(L, err)
@@ -60,9 +64,9 @@ func luaGetVariable(L *LState, key unsafe.Pointer, keyLen C.int, blkno *C.char) 
 }
 
 //export luaDelVariable
-func luaDelVariable(L *LState, key unsafe.Pointer, keyLen C.int) *C.char {
-	args := []string{C.GoBytes(key, keyLen)}
-	result, err := sendRequest("del", args)
+func luaDelVariable(L *LState, key *C.char, keyLen C.int) *C.char {
+	args := []string{C.GoStringN(key, keyLen)}
+	_, err := sendRequest("del", args)
 	if err != nil {
 		return handleError(L, err)
 	}
@@ -90,8 +94,8 @@ func luaCallContract(L *LState,
 }
 
 //export luaDelegateCallContract
-func luaDelegateCallContract(L *LState
-	address *C.char, fname *C.char, arguments *C.char, gas uint64
+func luaDelegateCallContract(L *LState,
+	address *C.char, fname *C.char, arguments *C.char, gas uint64,
 ) (*C.char, *C.char) {
 
 	contractAddress := C.GoString(address)
@@ -110,7 +114,7 @@ func luaDelegateCallContract(L *LState
 //export luaSendAmount
 func luaSendAmount(L *LState, address *C.char, amount *C.char) *C.char {
 	args := []string{C.GoString(address), C.GoString(amount)}
-	result, err := sendRequest("send", args)
+	_, err := sendRequest("send", args)
 	if err != nil {
 		return handleError(L, err)
 	}
@@ -119,9 +123,9 @@ func luaSendAmount(L *LState, address *C.char, amount *C.char) *C.char {
 }
 
 //export luaPrint
-func luaPrint(L *LState, arguments *C.char) {
+func luaPrint(L *LState, arguments *C.char) *C.char {
 	args := []string{C.GoString(arguments)}
-	result, err := sendRequest("print", args)
+	_, err := sendRequest("print", args)
 	if err != nil {
 		return handleError(L, err)
 	}
@@ -135,13 +139,17 @@ func luaSetRecoveryPoint(L *LState) (C.int, *C.char) {
 	if err != nil {
 		return -1, handleError(L, err)
 	}
-	return C.int(result), nil
+	resultInt, err := strconv.ParseInt(result, 10, 64)
+	if err != nil {
+		return -1, C.CString(fmt.Sprintf("Failed to parse result: %v", err))
+	}
+	return C.int(resultInt), nil
 }
 
 //export luaClearRecovery
 func luaClearRecovery(L *LState, start int, isError bool) *C.char {
-	args := []string{fmt.Sprintf("%d", start), fmt.Sprintf("%d", int(isError))}
-	result, err := sendRequest("clearRecovery", args)
+	args := []string{fmt.Sprintf("%d", start), fmt.Sprintf("%t", isError)}
+	_, err := sendRequest("clearRecovery", args)
 	if err != nil {
 		return handleError(L, err)
 	}
@@ -268,7 +276,11 @@ func luaECVerify(L *LState, msg *C.char, sig *C.char, addr *C.char) (C.int, *C.c
 	if err != nil {
 		return C.int(-1), handleError(L, err)
 	}
-	return C.int(result), nil
+	resultInt, err := strconv.ParseInt(result, 10, 64)
+	if err != nil {
+		return C.int(-1), C.CString(fmt.Sprintf("Failed to parse result: %v", err))
+	}
+	return C.int(resultInt), nil
 }
 
 func luaCryptoToBytes(data unsafe.Pointer, dataLen C.int) ([]byte, bool) {
@@ -303,7 +315,7 @@ func luaCryptoRlpToBytes(data unsafe.Pointer) []byte {
 		list[i] = b
 	}
 	// serialize the list as a single byte array, including the type byte
-	ret := SerializeMessageBytes([]byte{byte(C.RLP_TLIST)}, list...)
+	ret := msg.SerializeMessageBytes(append([][]byte{[]byte{byte(C.RLP_TLIST)}}, list...)...)
 	return ret
 }
 
@@ -327,7 +339,7 @@ func luaCryptoVerifyProof(
 		proofElems[i] = string(data)
 	}
 	// convert the proof elements into a single byte array
-	proofBytes := SerializeMessage(proofElems...)
+	proofBytes := msg.SerializeMessage(proofElems...)
 
 	// send request
 	args := []string{string(k), string(v), string(h), string(proofBytes)}
@@ -335,17 +347,21 @@ func luaCryptoVerifyProof(
 	if err != nil {
 		return C.int(0), handleError(L, err)
 	}
-	return C.int(result), nil
+	resultInt, err := strconv.ParseInt(result, 10, 64)
+	if err != nil {
+		return C.int(0), C.CString(fmt.Sprintf("Failed to parse result: %v", err))
+	}
+	return C.int(resultInt), nil
 }
 
 //export luaCryptoKeccak256
-func luaCryptoKeccak256(L *LState, data unsafe.Pointer, dataLen C.int) (unsafe.Pointer, C.int, *C.char) {
-	args := []string{string(C.GoBytes(data, dataLen))}
+func luaCryptoKeccak256(L *LState, data *C.char, dataLen C.int) (unsafe.Pointer, C.int, *C.char) {
+	args := []string{C.GoStringN(data, dataLen)}
 	result, err := sendRequest("keccak256", args)
 	if err != nil {
 		return nil, 0, handleError(L, err)
 	}
-	return C.CBytes(result), len(result), nil
+	return C.CBytes([]byte(result)), C.int(len(result)), nil
 }
 
 //export luaDeployContract
@@ -379,7 +395,7 @@ func isPublic() C.int {
 
 //export luaRandomInt
 func luaRandomInt(L *LState, min, max C.int) (C.int, *C.char) {
-	args := []string{C.GoString(min), C.GoString(max)}
+	args := []string{fmt.Sprintf("%d", min), fmt.Sprintf("%d", max)}
 	result, err := sendRequest("randomInt", args)
 	if err != nil {
 		return C.int(0), handleError(L, err)
@@ -394,7 +410,7 @@ func luaRandomInt(L *LState, min, max C.int) (C.int, *C.char) {
 //export luaEvent
 func luaEvent(L *LState, eventName *C.char, arguments *C.char) *C.char {
 	args := []string{C.GoString(eventName), C.GoString(arguments)}
-	result, err := sendRequest("event", args)
+	_, err := sendRequest("event", args)
 	if err != nil {
 		return handleError(L, err)
 	}
@@ -428,7 +444,11 @@ func luaIsContract(L *LState, address *C.char) (C.int, *C.char) {
 	if err != nil {
 		return -1, handleError(L, err)
 	}
-	return C.int(result), nil
+	resultInt, err := strconv.ParseInt(result, 10, 64)
+	if err != nil {
+		return -1, C.CString(fmt.Sprintf("Failed to parse result: %v", err))
+	}
+	return C.int(resultInt), nil
 }
 
 //export luaNameResolve
@@ -443,8 +463,8 @@ func luaNameResolve(L *LState, name_or_address *C.char) (*C.char, *C.char) {
 
 //export luaGovernance
 func luaGovernance(L *LState, gType C.char, arg *C.char) *C.char {
-	args := []string{C.GoString(gType), C.GoString(arg)}
-	result, err := sendRequest("governance", args)
+	args := []string{fmt.Sprintf("%c", gType), C.GoString(arg)}
+	_, err := sendRequest("governance", args)
 	if err != nil {
 		return handleError(L, err)
 	}
@@ -464,11 +484,8 @@ func luaCheckTimeout() C.int {
 }
 
 //export luaIsFeeDelegation
-func luaIsFeeDelegation(L *LState) (C.int, *C.char) {
-	if ctx.isFeeDelegation {
-		return 1, nil
-	}
-	return 0, nil
+func luaIsFeeDelegation() C.bool {
+	return C.bool(contractIsFeeDelegation)
 }
 
 //export luaGetStaking
@@ -478,14 +495,18 @@ func luaGetStaking(L *LState, addr *C.char) (*C.char, C.lua_Integer, *C.char) {
 	if err != nil {
 		return nil, 0, handleError(L, err)
 	}
-	// extract amount and when from result
-	amount := result[0]
-	when := result[1]
+	// extract amount and when from result - result = staking.GetAmountBigInt().String() + "," + staking.When.String()
+	sep := strings.Index(result, ",")
+	amount := result[:sep]
+	when, err := strconv.ParseInt(result[sep+1:], 10, 64)
+	if err != nil {
+		return nil, 0, C.CString(fmt.Sprintf("Failed to parse 'when': %v", err))
+	}
 	return C.CString(amount), C.lua_Integer(when), nil
 }
 
 //export luaSendRequest
-func luaSendRequest(L *LState, method *C.char, arguments *C.buffer, response *C.response) {
+func luaSendRequest(L *LState, method *C.char, arguments *C.buffer, response *C.rresponse) {
 	var args []string
 	if arguments != nil {
 		args = []string{C.GoStringN(arguments.ptr, arguments.len)}
@@ -502,29 +523,29 @@ func luaSendRequest(L *LState, method *C.char, arguments *C.buffer, response *C.
 }
 
 //sendRequest
-func sendRequest(method string, args []string) (result string, err error) {
+func sendRequest(method string, args []string) (string, error) {
 
 	// create new slice with the method and args
 	list := []string{method}
 	list = append(list, args...)
 
 	// build the message
-	message := SerializeMessage(list)
+	message := msg.SerializeMessage(list...)
 
 	// send the execution request to the VM instance
-	err = msg.SendMessage(message)
+	err := msg.SendMessage(conn, message)
 	if err != nil {
 		return "", err
 	}
 
 	// wait for the response
-	result, err = msg.WaitForMessage(conn, time.Time{})
+	result, err := msg.WaitForMessage(conn, time.Time{})
 	if err != nil {
 		return "", err
 	}
 
 	// return the result
-	return result, nil
+	return string(result), nil
 }
 
 func handleError(L *LState, err error) *C.char {

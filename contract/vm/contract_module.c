@@ -143,7 +143,7 @@ static int moduleCall(lua_State *L) {
 		luaL_throwerror(L);
 	}
 	// push the returned values to the stack
-	int count = json_array_to_lua(L, ret.r0);
+	int count = lua_util_json_array_to_lua(L, ret.r0, true);
 	free(ret.r0);
 	// return the number of items in the stack
 	return count;
@@ -190,7 +190,7 @@ static int moduleDelegateCall(lua_State *L) {
 		luaL_throwerror(L);
 	}
 	// push the returned values to the stack
-	int count = json_array_to_lua(L, ret.r0);
+	int count = lua_util_json_array_to_lua(L, ret.r0, true);
 	free(ret.r0);
 	// return the number of items in the stack
 	return count;
@@ -392,7 +392,7 @@ static int moduleDeploy(lua_State *L) {
 		luaL_throwerror(L);
 	}
 	// push the returned values to the stack
-	int count = json_array_to_lua(L, ret.r0);
+	int count = lua_util_json_array_to_lua(L, ret.r0, true);
 	free(ret.r0);
 	// return the number of items in the stack
 	return count;

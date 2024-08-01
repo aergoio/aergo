@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strconv"
 	"unsafe"
+	"time"
+	"github.com/aergoio/aergo/v2/contract/msg"
 )
 
 // convert the arguments to a single string containing the JSON array
@@ -95,12 +97,12 @@ func (ce *executor) MessageLoop() (result string, err error) {
 
 	// wait for messages in a loop
 	for {
-		msg, err := ce.WaitForMessage()
+		message, err := ce.WaitForMessage()
 		if err != nil {
 			return "", err
 		}
 		// deserialize the message
-		args, err := DeserializeMessage(msg)
+		args, err := msg.DeserializeMessage(message)
 		if err != nil {
 			return "", err
 		}
@@ -110,11 +112,11 @@ func (ce *executor) MessageLoop() (result string, err error) {
 		result, err = ce.ProcessCommand(command, args)
 		if command == "return" {
 			return result, err
-		} else if err != nil {
-			return "", err
 		}
+		// serialize the response
+		response := msg.SerializeMessage(result, err.Error())
 		// send the response
-		err = ce.SendMessage(result)
+		err = ce.SendMessage(response)
 		if err != nil {
 			return "", err  // different type of error
 		}
@@ -123,12 +125,12 @@ func (ce *executor) MessageLoop() (result string, err error) {
 }
 
 // sends a message to the VM instance
-func (ce *executor) SendMessage(message string) (err error) {
+func (ce *executor) SendMessage(message []byte) (err error) {
 	return msg.SendMessage(ce.vmInstance.conn, message)
 }
 
 // waits for a message from the VM instance
-func (ce *executor) WaitForMessage() (string, error) {
+func (ce *executor) WaitForMessage() ([]byte, error) {
 
 	if ce.ctx.callDepth == 1 {
 		// define a global deadline for contract execution
