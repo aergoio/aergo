@@ -211,14 +211,14 @@ func spawnVmInstances(num int) {
 	// iterate over the instances that are connected
 	for _, vmInstance := range instancesToRead {
 		// wait for a message from the vm instance
-		msg, err := waitForMessage(vmInstance.conn, deadline)
+		message, err := msg.WaitForMessage(vmInstance.conn, deadline)
 		if err != nil {
 			ctrLgr.Error().Msgf("Failed to read incoming message: %v", err)
 			vmInstance.close()
 			continue
 		}
 		// check if the data is valid
-		if !isValidMessage(vmInstance, msg) {
+		if !isValidMessage(vmInstance, message) {
 			ctrLgr.Error().Msg("Invalid message received")
 			vmInstance.close()
 			continue

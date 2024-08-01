@@ -1,33 +1,35 @@
 package main
 
 /*
- #cgo CFLAGS: -I${SRCDIR}/../libtool/include/luajit-2.1 -I${SRCDIR}/../libtool/include
+ #cgo CFLAGS: -I${SRCDIR}/../../libtool/include/luajit-2.1 -I${SRCDIR}/../../libtool/include
  #cgo !windows CFLAGS: -DLJ_TARGET_POSIX
- #cgo darwin LDFLAGS: ${SRCDIR}/../libtool/lib/libluajit-5.1.a ${SRCDIR}/../libtool/lib/libgmp.dylib -lm
- #cgo windows LDFLAGS: ${SRCDIR}/../libtool/lib/libluajit-5.1.a ${SRCDIR}/../libtool/bin/libgmp-10.dll -lm
- #cgo !darwin,!windows LDFLAGS: ${SRCDIR}/../libtool/lib/libluajit-5.1.a -L${SRCDIR}/../libtool/lib64 -L${SRCDIR}/../libtool/lib -lgmp -lm
+ #cgo darwin LDFLAGS: ${SRCDIR}/../../libtool/lib/libluajit-5.1.a ${SRCDIR}/../../libtool/lib/libgmp.dylib -lm
+ #cgo windows LDFLAGS: ${SRCDIR}/../../libtool/lib/libluajit-5.1.a ${SRCDIR}/../../libtool/bin/libgmp-10.dll -lm
+ #cgo !darwin,!windows LDFLAGS: ${SRCDIR}/../../libtool/lib/libluajit-5.1.a -L${SRCDIR}/../../libtool/lib64 -L${SRCDIR}/../../libtool/lib -lgmp -lm
 
 
  #include <stdlib.h>
  #include <string.h>
  #include "vm.h"
+ #include "util.h"
  #include "bignum_module.h"
 */
 import "C"
 import (
 	"errors"
 	"fmt"
-	"os"
-	"reflect"
-	"sort"
+	//"reflect"
+	//"sort"
 	"strings"
 	"unsafe"
 
-	"github.com/aergoio/aergo/v2/contract/msg"
-	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/v2/cmd/aergoluac/luac"
-	"github.com/aergoio/aergo/v2/cmd/aergoluac/util"
 )
+
+const vmTimeoutErrMsg = "contract timeout during vm execution"
+
+var logger *log.Logger
 
 type LState = C.lua_State   // C.struct_lua_State
 
@@ -35,12 +37,13 @@ var lstate *LState          // *C.lua_State
 
 var contractAddress string
 var contractCaller string
-var contractGas uint64
+var contractGasLimit uint64
 var contractIsFeeDelegation bool
 
 ////////////////////////////////////////////////////////////////////////////////
 
 func InitializeVM() {
+	logger = log.NewLogger("contract")
 	C.init_bignum()
 	lstate = C.vm_newstate(C.int(hardforkVersion))
 }
@@ -70,9 +73,9 @@ func newExecutor(
 		code: bytecode,
 	}
 
-	if IsGasSystem() {
-		ce.setGas()
-	}
+	//if IsGasSystem() {
+	//	ce.setGas()
+	//}
 
 	ce.vmLoadCode()
 	if ce.err != nil {
@@ -98,7 +101,7 @@ func newExecutor(
 // push the arguments to the stack
 func (ce *executor) pushArgs() {
 	args := C.CString(ce.args)
-	ce.numArgs = C.json_array_to_lua(ce.L, args);
+	ce.numArgs = C.lua_util_json_array_to_lua(ce.L, args, C.bool(true));
 	C.free(unsafe.Pointer(args))
 	if ce.numArgs == -1 {
 		ce.err = errors.New("invalid arguments")
@@ -234,7 +237,7 @@ func (ce *executor) call(hasParent bool) (ret C.int) {
 		return 0
 	}
 
-	defer ce.refreshRemainingGas()
+	//defer ce.refreshRemainingGas()
 
 	ce.vmLoadCall()
 	if ce.err != nil {
@@ -248,7 +251,7 @@ func (ce *executor) call(hasParent bool) (ret C.int) {
 	if ce.isAutoload {
 		// used for constructor and check_delegation functions
 		if loaded := vmAutoloadFunction(ce.L, ce.fname); !loaded {
-			if ce.fname != constructor {
+			if ce.fname != "constructor" {
 				ce.err = errors.New(fmt.Sprintf("contract autoload failed %s : %s",
 					contractAddress, ce.fname))
 			}
@@ -264,30 +267,31 @@ func (ce *executor) call(hasParent bool) (ret C.int) {
 
 	ce.pushArgs()
 	if ce.err != nil {
-		ctrLgr.Debug().Err(ce.err).Str("contract", contractAddress).Msg("invalid argument")
+		logger.Debug().Err(ce.err).Str("contract", contractAddress).Msg("invalid argument")
 		return 0
 	}
 	if !ce.isAutoload {
 		ce.numArgs = ce.numArgs + 1
 	}
 
-	ce.setCountHook(instLimit)
+	//ce.setCountHook(instLimit)
 	nRet := C.int(0)
 	cErrMsg := C.vm_pcall(ce.L, ce.numArgs, &nRet)
 
 	if cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
-		if bool(C.luaL_hassyserror(ce.L)) {
-			ce.err = newVmSystemError(errors.New(errMsg))
+		if (errMsg == C.ERR_BF_TIMEOUT || errMsg == vmTimeoutErrMsg) {
+			ce.err = errors.New(vmTimeoutErrMsg)  // &VmTimeoutError{}
 		} else {
-			isUncatchable := bool(C.luaL_hasuncatchablerror(ce.L))
-			if isUncatchable && (errMsg == C.ERR_BF_TIMEOUT || errMsg == vmTimeoutErrMsg) {
-				ce.err = &VmTimeoutError{}
-			} else {
-				ce.err = errors.New(errMsg)
+			if bool(C.luaL_hassyserror(ce.L)) {
+				errMsg = "syserror: " + errMsg
 			}
+			if bool(C.luaL_hasuncatchablerror(ce.L)) {
+				errMsg = "uncatchable: " + errMsg
+			}
+			ce.err = errors.New(errMsg)
 		}
-		ctrLgr.Debug().Err(ce.err).Str("contract", contractAddress).Msg("contract execution failed")
+		logger.Debug().Err(ce.err).Str("contract", contractAddress).Msg("contract execution failed")
 		return 0
 	}
 
@@ -300,7 +304,7 @@ func (ce *executor) call(hasParent bool) (ret C.int) {
 		ce.jsonRet = retMsg
 	}
 
-// this can be moved to server side
+/*/ this can be moved to server side
 	if ce.ctx.traceFile != nil {
 		// write the contract code to a file in the temp directory
 		address := types.EncodeAddress(ce.contractId)
@@ -316,6 +320,7 @@ func (ce *executor) call(hasParent bool) (ret C.int) {
 		str := fmt.Sprintf("contract %s used fee: %s\n", address, ce.ctx.usedFee().String())
 		_, _ = ce.ctx.traceFile.WriteString(str)
 	}
+*/
 
 	return nRet
 }
@@ -342,7 +347,7 @@ func (ce *executor) vmLoadCode() {
 	if cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
 		ce.err = errors.New(errMsg)
-		ctrLgr.Debug().Err(ce.err).Str("contract", contractAddress).Msg("failed to load code")
+		logger.Debug().Err(ce.err).Str("contract", contractAddress).Msg("failed to load code")
 	}
 }
 
@@ -351,7 +356,7 @@ func (ce *executor) vmLoadCall() {
 		errMsg := C.GoString(cErrMsg)
 		isUncatchable := bool(C.luaL_hasuncatchablerror(ce.L))
 		if isUncatchable && (errMsg == C.ERR_BF_TIMEOUT || errMsg == vmTimeoutErrMsg) {
-			ce.err = &VmTimeoutError{}
+			ce.err = errors.New(vmTimeoutErrMsg) // &VmTimeoutError{}
 		} else {
 			ce.err = errors.New(errMsg)
 		}
@@ -365,13 +370,18 @@ func (ce *executor) vmLoadCall() {
 // GAS
 ////////////////////////////////////////////////////////////////////////////////
 
+/*
+func IsGasSystem() bool {
+	return contractGasLimit > 0
+}
+
 // set the remaining gas on the given LState
-func (ctx *vmContext) setRemainingGas(L *LState) {
-	if ctx.IsGasSystem() {
+func (ce *executor) setRemainingGas(L *LState) {
+	if IsGasSystem() {
 		C.lua_gasset(L, C.ulonglong(ctx.remainingGas))
 		//defer func() {
-			if ctrLgr.IsDebugEnabled() {
-				ctrLgr.Debug().Uint64("gas used", ce.ctx.usedGas()).Str("lua vm", "loaded").Msg("gas information")
+			if logger.IsDebugEnabled() {
+				logger.Debug().Uint64("gas used", ce.ctx.usedGas()).Str("lua vm", "loaded").Msg("gas information")
 			}
 		//}()
 	}
@@ -381,29 +391,31 @@ func (ce *executor) setGas() {
 	if ce == nil || ce.L == nil || ce.err != nil {
 		return
 	}
-	C.lua_gasset(ce.L, C.ulonglong(ce.ctx.remainingGas))
+	C.lua_gasset(ce.L, C.ulonglong(contractGasLimit))
 }
 
 func (ce *executor) gas() uint64 {
 	return uint64(C.lua_gasget(ce.L))
 }
+*/
 
 ////////////////////////////////////////////////////////////////////////////////
 
+/*
 func setInstCount(ctx *vmContext, parent *LState, child *LState) {
-	if !ctx.IsGasSystem() {
+	if !IsGasSystem() {
 		C.vm_setinstcount(parent, C.vm_instcount(child))
 	}
 }
 
 func setInstMinusCount(ctx *vmContext, L *LState, deduc C.int) {
-	if !ctx.IsGasSystem() {
+	if !IsGasSystem() {
 		C.vm_setinstcount(L, minusCallCount(ctx, C.vm_instcount(L), deduc))
 	}
 }
 
 func minusCallCount(ctx *vmContext, curCount, deduc C.int) C.int {
-	if ctx.IsGasSystem() {
+	if !IsGasSystem() {
 		return 0
 	}
 	remain := curCount - deduc
@@ -412,6 +424,7 @@ func minusCallCount(ctx *vmContext, curCount, deduc C.int) C.int {
 	}
 	return remain
 }
+*/
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -427,14 +440,14 @@ func Execute(
 
 	contractAddress = address
 	contractCaller = caller
-	contractGas = gas
+	contractGasLimit = gas
 	contractIsFeeDelegation = isFeeDelegation
 
 	ex := newExecutor([]byte(code), fname, args)
 
 
 
-
+	return ex.jsonRet, ex.err
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -442,7 +455,7 @@ func Execute(
 func Compile(code string, hasParent bool) ([]byte, error) {
 	L := luac.NewLState()
 	if L == nil {
-		return nil, ErrVmStart
+		return nil, errors.New("syserror: failed to create LState")
 	}
 	defer luac.CloseLState(L)
 	var lState = (*LState)(L)

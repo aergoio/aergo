@@ -370,7 +370,7 @@ static int json_args_to_lua(lua_State *L, char *json, bool check) {
 	return count;
 }
 
-static int json_array_to_lua(lua_State *L, char *json, bool check) {
+int lua_util_json_array_to_lua(lua_State *L, char *json, bool check) {
 	int count = 0;
 	if (*json != '[') {
 		return -1;
@@ -629,7 +629,7 @@ void minus_inst_count(lua_State *L, int count) {
 	}
 }
 
-int lua_util_json_to_lua(lua_State *L, char *json, bool check) {
+int lua_util_json_value_to_lua(lua_State *L, char *json, bool check) {
 	if (json_to_lua(L, &json, check, false) != 0) {
 		return -1;
 	}
@@ -736,7 +736,7 @@ static int lua_json_decode(lua_State *L) {
 
 	lua_gasuse(L, 50);
 	minus_inst_count(L, strlen(json));
-	if (lua_util_json_to_lua(L, json, true) != 0) {
+	if (lua_util_json_value_to_lua(L, json, true) != 0) {
 		free(json);
 		luaL_error(L, "not proper json format");
 	}

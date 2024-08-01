@@ -7,7 +7,7 @@
 extern void checkLuaExecContext(lua_State *L);
 
 static int resolve(lua_State *L) {
-	luaNameResolve_return ret;
+	struct luaNameResolve_return ret;
 	char *name;
 
 	checkLuaExecContext(L);

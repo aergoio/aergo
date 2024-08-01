@@ -3,8 +3,10 @@ package main
 import (
 	"fmt"
 	"strconv"
+	"encoding/binary"
 	"os"
 	"net"
+	"time"
 	"github.com/aergoio/aergo/v2/contract/msg"
 )
 
@@ -16,16 +18,18 @@ import (
 // global variables
 
 var hardforkVersion int
-var isPubNet int
+var isPubNet bool
 
 var secretKey string
 var conn *net.UnixConn
 var timedout bool
 
 
-func main(args []string){
+func main(){
   var socketName string
 	var err error
+
+	args := os.Args
 
 	// check if args are empty
 	if len(args) != 4 {
@@ -41,7 +45,7 @@ func main(args []string){
 	}
 
   // get PubNet from command line
-	isPubNet, err = strconv.Atoi(args[1])
+	isPubNet, err = strconv.ParseBool(args[1])
 	if err != nil {
 		fmt.Println("Error: Invalid PubNet")
 		return
@@ -76,13 +80,16 @@ func main(args []string){
 
 	// close the connection
 	conn.Close()
-  return 0
 }
 
 // connect to the server using an abstract unix domain socket (they start with a null byte)
-func connectToServer(socketName string) error {
-  conn, err := net.Dial("unix", "\x00"+socketName)
-  return err
+func connectToServer(socketName string) (err error) {
+  rawConn, err := net.Dial("unix", "\x00"+socketName)
+  if err != nil {
+    return err
+  }
+  conn = rawConn.(*net.UnixConn)
+  return nil
 }
 
 func MessageLoop() {
@@ -94,12 +101,12 @@ func MessageLoop() {
 			fmt.Printf("Error: failed to receive message: %v\n", err)
 			return
 		}
-		// decrypt the message
+		/*/ decrypt the message
 		message, err = msg.Decrypt(message, secretKey)
 		if err != nil {
 			fmt.Printf("Error: failed to decrypt message: %v\n", err)
 			return
-		}
+		} */
 		// deserialize the message
 		args, err := msg.DeserializeMessage(message)
 		if err != nil {
@@ -115,17 +122,13 @@ func MessageLoop() {
 		//	return "", err
 		//}
 		// serialize the result and error
-		response, err := msg.SerializeMessage(result, err)
-		if err != nil {
-			fmt.Printf("Error: failed to serialize message: %v\n", err)
-			return
-		}
-		// encrypt the response
+		response := msg.SerializeMessage(result, err.Error())
+		/*/ encrypt the response
 		response, err = msg.Encrypt(response, secretKey)
 		if err != nil {
 			fmt.Printf("Error: failed to encrypt message: %v\n", err)
 			return
-		}
+		} */
 		// send the response
 		err = msg.SendMessage(conn, response)
 		if err != nil {
@@ -144,19 +147,32 @@ func processCommand(command string, args []string) (string, error) {
 		code := args[1]
 		fname := args[2]
 		fargs := args[3]
-		gas := args[4]
+		gasStr := args[4]
 		caller := args[5]
-		isFeeDelegation := strconv.ParseBool(args[6])
+		isFeeDelegation, err := strconv.ParseBool(args[6])
+		if err != nil {
+			return "", err
+		}
+
+		var gas uint64
+		gasBytes := []byte(gasStr)
+		if len(gasBytes) != 8 {
+			return "", fmt.Errorf("invalid gas string length")
+		}
+		gas = binary.LittleEndian.Uint64(gasBytes)
 
 		res, err := Execute(address, code, fname, fargs, gas, caller, isFeeDelegation)
 		return res, err
 
 	case "compile":
 		code := args[0]
-		hasParent := strconv.ParseBool(args[1])
+		hasParent, err := strconv.ParseBool(args[1])
+		if err != nil {
+			return "", err
+		}
 
 		res, err := Compile(code, hasParent)
-		return res, err
+		return string(res), err
 
 	// if the contract is executing, this can only be received if using another thread
 	case "timeout":
@@ -166,8 +182,7 @@ func processCommand(command string, args []string) (string, error) {
 	case "exit":
 		os.Exit(0)
 
-	default:
-		return "", fmt.Errorf("unknown command: %s", command)
 	}
 
+	return "", fmt.Errorf("unknown command: %s", command)
 }

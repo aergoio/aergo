@@ -95,7 +95,7 @@ static struct rlp_obj *makeValue(lua_State *L, int n) {
 }
 
 static int crypto_verifyProof(lua_State *L) {
-	luaCryptoVerifyProof_return ret;
+	struct luaCryptoVerifyProof_return ret;
 	int argc = lua_gettop(L);
 	char *k, *h;
 	struct rlp_obj *v;
@@ -121,7 +121,7 @@ static int crypto_verifyProof(lua_State *L) {
 		proof[i-proofIndex].data = (char *) lua_tolstring(L, i, &proof[i-proofIndex].len);
 	}
 
-	ret = luaCryptoVerifyProof(k, kLen, v, h, hLen, proof, nProof);
+	ret = luaCryptoVerifyProof(L, k, kLen, v, h, hLen, proof, nProof);
 	if (ret.r1 != NULL) {
 		strPushAndRelease(L, ret.r1);
 		lua_error(L);
