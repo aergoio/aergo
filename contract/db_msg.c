@@ -5,7 +5,7 @@
 #include <stdbool.h>
 #include "db_msg.h"
 
-void set_error(request *req, char *format, ...) {
+void set_error(request *req, const char *format, ...) {
 	va_list args;
 	va_start(args, format);
 	vsnprintf(req->error, sizeof(req->error), format, args);

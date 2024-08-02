@@ -2,11 +2,13 @@ package contract
 
 /*
 #include <stdlib.h>
+#include <stdint.h>
+#include <stdbool.h>
 #include <string.h>
-#include "vm.h"
-#include "bignum_module.h"
-#include "db_module.h"
 #include "db_msg.h"
+#include "db_module.h"
+
+#define ERR_BF_TIMEOUT "contract timeout"
 
 struct proof {
 	void *data;
@@ -25,10 +27,11 @@ struct rlp_obj {
 import "C"
 import (
 	"bytes"
+	"math/big"
+	"math/rand"
 	"crypto/sha256"
 	"errors"
 	"fmt"
-	"math/big"
 	"strconv"
 	"strings"
 	"unsafe"
@@ -37,6 +40,7 @@ import (
 	"github.com/aergoio/aergo/v2/cmd/aergoluac/util"
 	"github.com/aergoio/aergo/v2/contract/name"
 	"github.com/aergoio/aergo/v2/contract/system"
+	"github.com/aergoio/aergo/v2/contract/msg"
 	"github.com/aergoio/aergo/v2/internal/common"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/internal/enc/hex"
@@ -109,7 +113,7 @@ func (ctx *vmContext) handleGetVariable(args []string) (result string, err error
 	}
 	key := []byte(args[0])
 	blkno := args[1]
-	if blkno != nil {
+	if len(blkno) > 0 {
 		bigNo, _ := new(big.Int).SetString(strings.TrimSpace(blkno), 10)
 		if bigNo == nil || bigNo.Sign() < 0 {
 			return "", errors.New("[System.GetVariable] invalid blockheight value :" + blkno)
@@ -214,7 +218,7 @@ func (ctx *vmContext) handleCall(args []string) (result string, err error) {
 	if len(args) != 5 {
 		return "", errors.New("[Contract.Call] invalid number of arguments")
 	}
-	contractAddress, fname, args, amount, gas := args[0], args[1], args[2], args[3], args[4]
+	contractAddress, fname, fargs, amount, gas := args[0], args[1], args[2], args[3], args[4]
 	// gas => remaining gas
 	// but it can also be the gas limit set by the caller contract
 
@@ -246,7 +250,7 @@ func (ctx *vmContext) handleCall(args []string) (result string, err error) {
 	// read the arguments for the contract call
 	var ci types.CallInfo
 	ci.Name = fname
-	err = getCallInfo(&ci.Args, []byte(args), cid)
+	err = getCallInfo(&ci.Args, []byte(fargs), cid)
 	if err != nil {
 		return "", errors.New("[Contract.Call] invalid arguments: " + err.Error())
 	}
@@ -300,7 +304,7 @@ func (ctx *vmContext) handleCall(args []string) (result string, err error) {
 	}()
 
 	// execute the contract call
-	ret := ce.call()
+	ce.call()
 
 	// check if the contract call failed
 	if ce.err != nil {
@@ -338,7 +342,7 @@ func (ctx *vmContext) handleDelegateCall(args []string) (result string, err erro
 	if len(args) != 4 {
 		return "", errors.New("[Contract.DelegateCall] invalid number of arguments")
 	}
-	contractAddress, fname, args, gas := args[0], args[1], args[2], args[3]
+	contractAddress, fname, fargs, gas := args[0], args[1], args[2], args[3]
 
 	// get the contract address
 	cid, err := getAddressNameResolved(contractAddress, ctx.bs)
@@ -362,7 +366,7 @@ func (ctx *vmContext) handleDelegateCall(args []string) (result string, err erro
 	// read the arguments for the contract call
 	var ci types.CallInfo
 	ci.Name = fname
-	err = getCallInfo(&ci.Args, []byte(args), cid)
+	err = getCallInfo(&ci.Args, []byte(fargs), cid)
 	if err != nil {
 		return "", errors.New("[Contract.DelegateCall] invalid arguments: " + err.Error())
 	}
@@ -393,7 +397,7 @@ func (ctx *vmContext) handleDelegateCall(args []string) (result string, err erro
 	}
 
 	// execute the contract call
-	ret := ce.call()
+	ce.call()
 
 	// check if the contract call failed
 	if ce.err != nil {
@@ -635,7 +639,7 @@ func clearRecovery(ctx *vmContext, start int, revert bool) error {
 	item := ctx.lastRecoveryEntry
 	for {
 		if revert {
-			if item.revertState(ctx.bs) != nil {
+			if item.revertState(ctx) != nil {
 				return errors.New("database error")
 			}
 		}
@@ -733,7 +737,7 @@ func (ctx *vmContext) getPrevBlockHash() string {
 }
 
 func (ctx *vmContext) getTimestamp() uint64 {
-	return ctx.blockInfo.Ts / 1e9
+	return uint64(ctx.blockInfo.Ts / 1e9)
 }
 
 
@@ -777,7 +781,7 @@ func (ctx *vmContext) handleGetPrevBlockHash() (result string, err error) {
 }
 
 func (ctx *vmContext) handleGetTimeStamp() (result string, err error) {
-	return strconv.Itoa(int(ctx.blockInfo.Ts / 1e9)), nil
+	return strconv.FormatInt(ctx.blockInfo.Ts / 1e9, 10), nil
 }
 
 
@@ -950,7 +954,10 @@ func cryptoBytesToRlpObject(data []byte) rlpObject {
 		return nil
 	}
 	// the type is a list. deserialize it
-	items := DeserializeMessageBytes(data)
+	items, err := msg.DeserializeMessage(data)
+	if err != nil {
+		return nil
+	}
 	// convert the items to rlpList
 	list := make(rlpList, len(items))
 	for i, item := range items {
@@ -966,9 +973,16 @@ func (ctx *vmContext) handleCryptoVerifyEthStorageProof(args []string) (result s
 	key := []byte(args[0])
 	value := cryptoBytesToRlpObject([]byte(args[1]))
 	hash := []byte(args[2])
-	proof := [][]byte(args[3])
+	proof, err := msg.DeserializeMessage([]byte(args[3]))
+	if err != nil {
+		return "", errors.New("[Contract.CryptoVerifyEthStorageProof] error deserializing proof: " + err.Error())
+	}
+	proofBytes := make([][]byte, len(proof))
+	for i, p := range proof {
+		proofBytes[i] = []byte(p)
+	}
 
-	if verifyEthStorageProof(key, value, hash, proof) {
+	if verifyEthStorageProof(key, value, hash, proofBytes) {
 		return "1", nil
 	}
 	return "0", nil
@@ -1125,7 +1139,7 @@ func (ctx *vmContext) handleDeploy(args []string) (result string, err error) {
 	if len(args) != 3 {
 		return "", errors.New("[Contract.Deploy] invalid number of arguments")
 	}
-	codeOrAddress, args, amount := args[0], args[1], args[2]
+	codeOrAddress, fargs, amount := args[0], args[1], args[2]
 
 	if ctx.isQuery || ctx.nestedView > 0 {
 		return "", errors.New("[Contract.Deploy] deploy not permitted in query")
@@ -1196,7 +1210,7 @@ func (ctx *vmContext) handleDeploy(args []string) (result string, err error) {
 
 	// read the arguments for the constructor call
 	var ci types.CallInfo
-	err = getCallInfo(&ci.Args, []byte(args), newContract.ID())
+	err = getCallInfo(&ci.Args, []byte(fargs), newContract.ID())
 	if err != nil {
 		return "", errors.New("[Contract.Deploy] invalid args: " + err.Error())
 	}
@@ -1344,7 +1358,7 @@ func (ctx *vmContext) handleEvent(args []string) (result string, err error) {
 	if len(args) != 2 {
 		return "", errors.New("[Contract.Event] invalid number of arguments")
 	}
-	eventName, args := args[0], args[1]
+	eventName, eventArgs := args[0], args[1]
 	if ctx.isQuery || ctx.nestedView > 0 {
 		return "", errors.New("[Contract.Event] event not permitted in query")
 	}
@@ -1354,7 +1368,7 @@ func (ctx *vmContext) handleEvent(args []string) (result string, err error) {
 	if len(eventName) > maxEventNameSize {
 		return "", errors.New(fmt.Sprintf("[Contract.Event] exceeded the maximum length of event name(%d)", maxEventNameSize))
 	}
-	if len(args) > maxEventArgSize {
+	if len(eventArgs) > maxEventArgSize {
 		return "", errors.New(fmt.Sprintf("[Contract.Event] exceeded the maximum length of event args(%d)", maxEventArgSize))
 	}
 	ctx.events = append(
@@ -1363,7 +1377,7 @@ func (ctx *vmContext) handleEvent(args []string) (result string, err error) {
 			ContractAddress: ctx.curContract.contractId,
 			EventIdx:        ctx.eventCount,
 			EventName:       eventName,
-			JsonArgs:        args,
+			JsonArgs:        eventArgs,
 		},
 	)
 	ctx.eventCount++
@@ -1460,21 +1474,21 @@ func (ctx *vmContext) handleGovernance(args []string) (result string, err error)
 	var payload []byte
 
 	switch gType {
-	case 'S', 'U':
+	case "S", "U":
 		var err error
 		amountBig, err = transformAmount(arg, ctx.blockInfo.ForkVersion)
 		if err != nil {
 			return "", errors.New("[Contract.Governance] invalid amount: " + err.Error())
 		}
-		if gType == 'S' {
+		if gType == "S" {
 			payload = []byte(fmt.Sprintf(`{"Name":"%s"}`, types.Opstake.Cmd()))
 		} else {
 			payload = []byte(fmt.Sprintf(`{"Name":"%s"}`, types.Opunstake.Cmd()))
 		}
-	case 'V':
+	case "V":
 		amountBig = zeroBig
 		payload = []byte(fmt.Sprintf(`{"Name":"%s","Args":%s}`, types.OpvoteBP.Cmd(), arg))
-	case 'D':
+	case "D":
 		amountBig = zeroBig
 		payload = []byte(fmt.Sprintf(`{"Name":"%s","Args":%s}`, types.OpvoteDAO.Cmd(), arg))
 	}
@@ -1534,7 +1548,7 @@ func (ctx *vmContext) handleGovernance(args []string) (result string, err error)
 	ctx.events = append(ctx.events, events...)
 
 	if ctx.lastRecoveryEntry != nil {
-		if gType == 'S' {
+		if gType == "S" {
 			seq, _ = setRecoveryPoint(aid, ctx, senderState, scsState, amountBig, true, false)
 			if ctx.traceFile != nil {
 				_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[GOVERNANCE]aid(%s)\n", aid.String()))
@@ -1543,7 +1557,7 @@ func (ctx *vmContext) handleGovernance(args []string) (result string, err error)
 				_, _ = ctx.traceFile.WriteString(fmt.Sprintf("After sender: %s receiver: %s\n",
 					senderState.Balance().String(), receiverState.Balance().String()))
 			}
-		} else if gType == 'U' {
+		} else if gType == "U" {
 			seq, _ = setRecoveryPoint(aid, ctx, receiverState, ctx.curContract.callState, amountBig, true, false)
 			if ctx.traceFile != nil {
 				_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[GOVERNANCE]aid(%s)\n", aid.String()))
@@ -1572,7 +1586,7 @@ func (ctx *vmContext) handleDbExec(args []string) (result string, err error) {
 	cReq.service = C.int(ctx.service)
 	C.handle_db_exec(&cReq, C.CString(sql), C.CString(params), C.int(len(params)))
 
-	result, err = processResult(&cReq)
+	return processResult(&cReq)
 }
 
 func (ctx *vmContext) handleDbQuery(args []string) (result string, err error) {
@@ -1586,7 +1600,7 @@ func (ctx *vmContext) handleDbQuery(args []string) (result string, err error) {
 	cReq.service = C.int(ctx.service)
 	C.handle_db_query(&cReq, C.CString(sql), C.CString(params), C.int(len(params)))
 
-	result, err = processResult(&cReq)
+	return processResult(&cReq)
 }
 
 func (ctx *vmContext) handleDbPrepare(args []string) (result string, err error) {
@@ -1599,7 +1613,7 @@ func (ctx *vmContext) handleDbPrepare(args []string) (result string, err error) 
 	cReq.service = C.int(ctx.service)
 	C.handle_db_prepare(&cReq, C.CString(sql))
 
-	result, err = processResult(&cReq)
+	return processResult(&cReq)
 }
 
 //stmtExec
@@ -1617,7 +1631,7 @@ func (ctx *vmContext) handleStmtExec(args []string) (result string, err error) {
 	cReq.service = C.int(ctx.service)
 	C.handle_stmt_exec(&cReq, C.int(stmt_id), C.CString(params), C.int(len(params)))
 
-	result, err = processResult(&cReq)
+	return processResult(&cReq)
 }
 
 //stmtQuery
@@ -1634,7 +1648,7 @@ func (ctx *vmContext) handleStmtQuery(args []string) (result string, err error) 
 	var cReq C.request
 	cReq.service = C.int(ctx.service)
 	C.handle_stmt_query(&cReq, C.int(stmt_id), C.CString(params), C.int(len(params)))
-	result, err = processResult(&cReq)
+	return processResult(&cReq)
 }
 
 //stmtColumnInfo
@@ -1650,7 +1664,7 @@ func (ctx *vmContext) handleStmtColumnInfo(args []string) (result string, err er
 	var cReq C.request
 	cReq.service = C.int(ctx.service)
 	C.handle_stmt_column_info(&cReq, C.int(stmt_id))
-	result, err = processResult(&cReq)
+	return processResult(&cReq)
 }
 
 //rsNext
@@ -1666,7 +1680,7 @@ func (ctx *vmContext) handleRsNext(args []string) (result string, err error) {
 	var cReq C.request
 	cReq.service = C.int(ctx.service)
 	C.handle_rs_next(&cReq, C.int(query_id))
-	result, err = processResult(&cReq)
+	return processResult(&cReq)
 }
 
 //rsGet
@@ -1682,9 +1696,10 @@ func (ctx *vmContext) handleRsGet(args []string) (result string, err error) {
 	var cReq C.request
 	cReq.service = C.int(ctx.service)
 	C.handle_rs_get(&cReq, C.int(col_id))
-	result, err = processResult(&cReq)
+	return processResult(&cReq)
 }
 
+/*
 //rsColumnInfo
 func (ctx *vmContext) handleRsColumnInfo(args []string) (result string, err error) {
 	if len(args) != 1 {
@@ -1698,9 +1713,11 @@ func (ctx *vmContext) handleRsColumnInfo(args []string) (result string, err erro
 	var cReq C.request
 	cReq.service = C.int(ctx.service)
 	C.handle_rs_column_info(&cReq, C.int(col_id))
-	result, err = processResult(&cReq)
+	return processResult(&cReq)
 }
+*/
 
+/*
 //rsClose
 func (ctx *vmContext) handleRsClose(args []string) (result string, err error) {
 	if len(args) != 1 {
@@ -1714,15 +1731,16 @@ func (ctx *vmContext) handleRsClose(args []string) (result string, err error) {
 	var cReq C.request
 	cReq.service = C.int(ctx.service)
 	C.handle_rs_close(&cReq, C.int(query_id))
-	result, err = processResult(&cReq)
+	return processResult(&cReq)
 }
+*/
 
 //lastInsertRowid
 func (ctx *vmContext) handleLastInsertRowid(args []string) (result string, err error) {
 	var cReq C.request
 	cReq.service = C.int(ctx.service)
 	C.handle_last_insert_rowid(&cReq)
-	result, err = processResult(&cReq)
+	return processResult(&cReq)
 }
 
 //dbOpenWithSnapshot
@@ -1735,7 +1753,7 @@ func (ctx *vmContext) handleDbOpenWithSnapshot(args []string) (result string, er
 	var cReq C.request
 	cReq.service = C.int(ctx.service)
 	C.handle_db_open_with_snapshot(&cReq, C.CString(snapshot))
-	result, err = processResult(&cReq)
+	return processResult(&cReq)
 }
 
 //dbGetSnapshot
@@ -1743,15 +1761,15 @@ func (ctx *vmContext) handleDbGetSnapshot(args []string) (result string, err err
 	var cReq C.request
 	cReq.service = C.int(ctx.service)
 	C.handle_db_get_snapshot(&cReq)
-	result, err = processResult(&cReq)
+	return processResult(&cReq)
 }
 
 func processResult(cReq *C.request) (result string, err error) {
 	result = C.GoStringN(cReq.result.ptr, cReq.result.len)
 	errstr := C.GoString(cReq.error)
 
-	if cReq.result != nil {
-		C.free(unsafe.Pointer(cReq.result))
+	if cReq.result.ptr != nil {
+		C.free(unsafe.Pointer(cReq.result.ptr))
 	}
 	if cReq.error != nil {
 		C.free(unsafe.Pointer(cReq.error))
@@ -1818,26 +1836,26 @@ func LuaGetDbHandleSnap(service C.int, snapshot *C.char) *C.char {
 	callState := curContract.callState
 
 	if ctx.isQuery != true {
-		return "", errors.New("[Contract.SetDbSnap] not permitted in transaction")
+		return C.CString("[Contract.SetDbSnap] not permitted in transaction")
 	}
 
 	if callState.tx != nil {
-		return "", errors.New("[Contract.SetDbSnap] transaction already started")
+		return C.CString("[Contract.SetDbSnap] transaction already started")
 	}
 
 	rp, err := strconv.ParseUint(C.GoString(snapshot), 10, 64)
 	if err != nil {
-		return "", errors.New("[Contract.SetDbSnap] snapshot is not valid: " + C.GoString(snapshot))
+		return C.CString("[Contract.SetDbSnap] snapshot is not valid: " + C.GoString(snapshot))
 	}
 
 	aid := types.ToAccountID(curContract.contractId)
 	tx, err := beginReadOnly(aid.String(), rp)
 	if err != nil {
-		return "", errors.New("Error Begin SQL Transaction")
+		return C.CString("[Contract.SetDbSnap] Error Begin SQL Transaction")
 	}
 
 	callState.tx = tx
-	return "", nil
+	return nil
 }
 
 //export LuaGetDbSnapshot
@@ -1871,7 +1889,7 @@ func (ctx *vmContext) handleGetStaking(args []string) (result string, err error)
 	}
 
 	// returns a string with the amount and when
-	result = staking.GetAmountBigInt().String() + "," + staking.When.String()
+	result = staking.GetAmountBigInt().String() + "," + strconv.FormatUint(staking.When, 10)
 	return result, nil
 }
 

@@ -8,25 +8,22 @@ package contract
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"encoding/json"
+	"strconv"
 	"errors"
 	"fmt"
 	"math/big"
 	"math/rand"
 	"os"
-	"reflect"
-	"sort"
 	"strings"
 	"sync"
 	"time"
-	"unsafe"
 
 	"github.com/aergoio/aergo-lib/log"
 	luacUtil "github.com/aergoio/aergo/v2/cmd/aergoluac/util"
 	"github.com/aergoio/aergo/v2/contract/msg"
 	"github.com/aergoio/aergo/v2/fee"
-	"github.com/aergoio/aergo/v2/internal/enc/base58"
-	"github.com/aergoio/aergo/v2/internal/enc/hex"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
@@ -214,7 +211,7 @@ func (ctx *vmContext) checkRemainingGas(gas string) (uint64, error) {
 }
 
 // get the total gas used by all contracts in the current transaction
-func (ctx *vmContext) usedGas() uint64 {
+func (ctx *vmContext) usedGasFn() uint64 {
 	if fee.IsZeroFee() || !ctx.IsGasSystem() {
 		return 0
 	}
@@ -224,7 +221,7 @@ func (ctx *vmContext) usedGas() uint64 {
 
 // get the contracts execution fee
 func (ctx *vmContext) usedFee() *big.Int {
-	return fee.TxExecuteFee(ctx.blockInfo.ForkVersion, ctx.bs.GasPrice, ctx.usedGas(), ctx.dbUpdateTotalSize)
+	return fee.TxExecuteFee(ctx.blockInfo.ForkVersion, ctx.bs.GasPrice, ctx.usedGasFn(), ctx.dbUpdateTotalSize)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -505,9 +502,7 @@ func getCallInfo(ci interface{}, args []byte, contractAddress []byte) error {
 	d.DisallowUnknownFields()
 	err := d.Decode(ci)
 	if err != nil {
-		ctrLgr.Debug().AnErr("error", err)
-			.Str("contract", types.EncodeAddress(contractAddress))
-			.Msg("invalid calling information")
+		ctrLgr.Debug().AnErr("error", err).Str("contract", types.EncodeAddress(contractAddress)).Msg("invalid calling information")
 	}
 	return err
 }
@@ -566,7 +561,7 @@ func Call(
 	ce.remainingGas = ctx.gasLimit
 
 	// execute the contract call
-	ce.call(callMaxInstLimit, nil)
+	ce.call()
 
 	// check if there is an error
 	err = ce.err
@@ -669,7 +664,7 @@ func Create(
 	ce.remainingGas = ctx.gasLimit
 
 	// call the constructor
-	ce.call(callMaxInstLimit, nil)
+	ce.call()
 
 	// check if the call failed
 	err = ce.err
@@ -799,7 +794,7 @@ func Query(contractAddress []byte, bs *state.BlockState, cdb ChainAccessor, cont
 	// set the gas limit from the transaction
 	ce.remainingGas = ctx.gasLimit
 
-	ce.call(queryMaxInstLimit, nil)
+	ce.call()
 
 	return []byte(ce.jsonRet), ce.err
 }
@@ -881,7 +876,7 @@ func CheckFeeDelegation(contractAddress []byte, bs *state.BlockState, bi *types.
 	// set the gas limit from the transaction
 	ce.remainingGas = ctx.gasLimit
 
-	ce.call(queryMaxInstLimit, nil)
+	ce.call()
 
 	if ce.err != nil {
 		return ce.err
@@ -911,7 +906,7 @@ func setContract(contractState *statedb.ContractState, contractAddress, payload 
 	if ctx.blockInfo.ForkVersion >= 4 {
 		// the payload must be lua code. compile it to bytecode
 		var err error
-		code, err = Compile(string(code), nil)
+		code, err = Compile(string(code), false)
 		if err != nil {
 			ctrLgr.Warn().Err(err).Str("contract", types.EncodeAddress(contractAddress)).Msg("deploy")
 			return nil, nil, err
@@ -928,9 +923,7 @@ func setContract(contractState *statedb.ContractState, contractAddress, payload 
 	bytecode := getContract(contractState, nil)
 	if bytecode == nil {
 		err = fmt.Errorf("cannot deploy contract %s", types.EncodeAddress(contractAddress))
-		ctrLgr.Warn().Str("error", "cannot load contract")
-			.Str("contract", types.EncodeAddress(contractAddress))
-			.Msg("deploy")
+		ctrLgr.Warn().Str("error", "cannot load contract").Str("contract", types.EncodeAddress(contractAddress)).Msg("deploy")
 		return nil, nil, err
 	}
 
@@ -996,14 +989,14 @@ func Compile(code string, hasParent bool) (luacUtil.LuaCode, error) {
 	// get a connection to an unused VM instance
 	vmInstance := GetVmInstance()
 	if vmInstance == nil {
-		err = ErrVmStart
+		err := ErrVmStart
 		ctrLgr.Error().Err(err).Msg("get vm instance for compilation")
 		return nil, err
 	}
 	defer FreeVmInstance(vmInstance)
 
 	// build the message
-	message := SerializeMessage("compile", code, strconv.FormatBool(hasParent))
+	message := msg.SerializeMessage("compile", code, strconv.FormatBool(hasParent))
 
 	// send the execution request to the VM instance
 	err := msg.SendMessage(vmInstance.conn, message)
@@ -1011,7 +1004,7 @@ func Compile(code string, hasParent bool) (luacUtil.LuaCode, error) {
 		return nil, err
 	}
 
-	deadline := time.Now().Add(ce.ctx.timeout)
+	deadline := time.Now().Add(ce.ctx.timeout)  //FIXME: timeout
 	byteCodeAbi, err := msg.WaitForMessage(vmInstance.conn, deadline)
 	if err != nil {
 		return nil, err

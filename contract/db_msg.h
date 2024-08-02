@@ -24,7 +24,7 @@ typedef struct {
 } rresponse;
 
 
-void set_error(request *req, char *format, ...);
+void set_error(request *req, const char *format, ...);
 void write_int(char *pdest, int value);
 int read_int(char *p);
 int64_t read_int64(char *p);

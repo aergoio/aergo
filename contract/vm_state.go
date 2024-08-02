@@ -91,7 +91,7 @@ type recoveryEntry struct {
 	prev          *recoveryEntry
 }
 
-func (re *recoveryEntry) revertState(bs *state.BlockState) error {
+func (re *recoveryEntry) revertState(ctx *vmContext) error {
 	var zero big.Int
 	cs := re.callState
 
@@ -121,7 +121,7 @@ func (re *recoveryEntry) revertState(bs *state.BlockState) error {
 	// restore the event count
 	if ctx.blockInfo.ForkVersion >= 4 {
 		ctx.events = ctx.events[:re.eventCount]
-		ctx.eventCount = re.eventCount
+		ctx.eventCount = int32(re.eventCount)
 	}
 
 	// restore the contract state
@@ -135,7 +135,7 @@ func (re *recoveryEntry) revertState(bs *state.BlockState) error {
 			if err != nil {
 				return newDbSystemError(err)
 			}
-			bs.RemoveCache(cs.ctrState.GetAccountID())
+			ctx.bs.RemoveCache(cs.ctrState.GetAccountID())
 		}
 	}
 
@@ -191,6 +191,7 @@ func setRecoveryPoint(
 		senderState,
 		nonce,
 		cs,
+		0,
 		onlySend,
 		isDeploy,
 		nil,

@@ -2,12 +2,13 @@ package contract
 
 import (
 	"encoding/json"
+	"encoding/binary"
 	"errors"
-	"fmt"
 	"strconv"
 	"unsafe"
 	"time"
 	"github.com/aergoio/aergo/v2/contract/msg"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 // convert the arguments to a single string containing the JSON array
@@ -19,7 +20,7 @@ func (ce *executor) convertArgsToJSON() (string, error) {
 	return string(args), nil
 }
 
-func (ce *executor) call() (result string, err error) {
+func (ce *executor) call() {
 
 	if ce.isView == true {
 		ce.ctx.nestedView++
@@ -29,7 +30,7 @@ func (ce *executor) call() (result string, err error) {
 	}
 
 	// what to send:
-	// - address: ce.ctx.curContract.address string
+	// - address: types.EncodeAddress(ce.ctx.curContract.contractId) string
 	// - bytecode: ce.code []byte
 	// - function name: ce.fname string
 	// - args: ce.ci.Args []interface{}
@@ -38,7 +39,7 @@ func (ce *executor) call() (result string, err error) {
 	// - amount: ce.ctx.curContract.amount.String() string
 	// - isFeeDelegation: ce.ctx.isFeeDelegation bool
 
-	address := ce.ctx.curContract.address
+	address := types.EncodeAddress(ce.ctx.curContract.contractId)
 	bytecode := string(ce.code)
 	fname := ce.fname
 	if ce.isAutoload == true {
@@ -47,7 +48,8 @@ func (ce *executor) call() (result string, err error) {
 	// convert the parameters to strings
 	args, err := ce.convertArgsToJSON()
 	if err != nil {
-		return "", err
+		ce.err = err
+		return
 	}
 	//gas := strconv.FormatUint(ce.remainingGas, 10)
 	gas := string((*[8]byte)(unsafe.Pointer(&ce.remainingGas))[:])
@@ -56,12 +58,13 @@ func (ce *executor) call() (result string, err error) {
 	isFeeDelegation := strconv.FormatBool(ce.ctx.isFeeDelegation)
 
 	// build the message
-	message := SerializeMessage("execute", address, bytecode, fname, args, gas, sender, amount, isFeeDelegation)
+	message := msg.SerializeMessage("execute", address, bytecode, fname, args, gas, sender, amount, isFeeDelegation)
 
 	// send the execution request to the VM instance
 	err = ce.SendMessage(message)
 	if err != nil {
-		return "", err
+		ce.err = err
+		return
 	}
 
 	// if this is the first call, wait messages in a loop
@@ -70,14 +73,14 @@ func (ce *executor) call() (result string, err error) {
 	//}
 
 	// wait for and process messages in a loop
-	result, err = ce.MessageLoop()
+	result, err := ce.MessageLoop()
 	if err != nil {
-		return "", err
+		ce.err = err
+		return
 	}
 
 	// return the result from the VM instance
 	ce.jsonRet = result
-	return result, nil
 
 	// when a message arrives, process it
 	// when the first VM finishes (or timeout occurs) return from this function
@@ -185,17 +188,17 @@ func (ce *executor) ProcessCommand(command string, args []string) (result string
 	case "isContract":
 		return ctx.handleIsContract(args)
 	case "getContractId":
-		return ctx.handleGetContractId(args)
+		return ctx.handleGetContractId()
 	case "getBlockNo":
-		return ctx.handleGetBlockNo(args)
+		return ctx.handleGetBlockNo()
 	case "getTimeStamp":
-		return ctx.handleGetTimeStamp(args)
+		return ctx.handleGetTimeStamp()
 	case "getPrevBlockHash":
-		return ctx.handleGetPrevBlockHash(args)
+		return ctx.handleGetPrevBlockHash()
 	case "getTxHash":
-		return ctx.handleGetTxHash(args)
+		return ctx.handleGetTxHash()
 	case "getOrigin":
-		return ctx.handleGetOrigin(args)
+		return ctx.handleGetOrigin()
 	case "random":
 		return ctx.handleRandomInt(args)
 	case "print":
@@ -242,8 +245,8 @@ func (ce *executor) ProcessCommand(command string, args []string) (result string
 		return ctx.handleRsNext(args)
 	case "rsGet":
 		return ctx.handleRsGet(args)
-	case "rsClose":
-		return ctx.handleRsClose(args)
+	//case "rsClose":
+	//	return ctx.handleRsClose(args)
 	case "lastInsertRowid":
 		return ctx.handleLastInsertRowid(args)
 	case "dbOpenWithSnapshot":
@@ -254,15 +257,13 @@ func (ce *executor) ProcessCommand(command string, args []string) (result string
 	// internal
 
 	case "setRecoveryPoint":
-		return ctx.handleSetRecoveryPoint(args)
+		return ctx.handleSetRecoveryPoint()
 	case "clearRecovery":
 		return ctx.handleClearRecovery(args)
 
-
-	default:
-		return errors.New("invalid command: " + command)
 	}
 
+	return "", errors.New("invalid command: " + command)
 
 }
 
@@ -273,8 +274,8 @@ func (ce *executor) handleReturnFromCall(args []string) (result string, err erro
 		return "", errors.New("[ReturnFromVM] invalid return value from contract")
 	}
 	result = args[0]   // JSON
-	errStr = args[1]   // error message
-	usedGas = args[2]  // used gas (from just 1 contract)
+	errStr := args[1]   // error message
+	usedGas := args[2]  // used gas (from just 1 contract)
 
 	// add the used gas and check if the execution ran out of gas
 	err = ce.processUsedGas(usedGas)

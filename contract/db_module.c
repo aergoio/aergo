@@ -3,24 +3,24 @@
 #include <ctype.h>
 #include <time.h>
 #include <sqlite3-binding.h>
-#include "vm.h"
 #include "sqlcheck.h"
-#include "bignum_module.h"
-#include "util.h"
+#include "db_module.h"
+#include "linkedlist.h"
 #include "_cgo_export.h"
-#include "db_msg.h"
 
 extern void checkLuaExecContext(int service);
 
-typedef struct {
+typedef struct stmt_t stmt_t;
+struct stmt_t{
 	stmt_t *next;
 	int id;
 	sqlite3 *db;
 	sqlite3_stmt *s;
 	int closed;
-} stmt_t;
+};
 
-typedef struct {
+typedef struct rs_t rs_t;
+struct rs_t{
 	rs_t *next;
 	int id;
 	sqlite3 *db;
@@ -29,7 +29,7 @@ typedef struct {
 	int nc;
 	int shared_stmt;
 	char **decltypes;
-} rs_t;
+};
 
 // list of stmt_t
 stmt_t *pstmt_list = NULL;
@@ -38,6 +38,16 @@ rs_t *rs_list = NULL;
 
 int last_id = 0;
 
+
+static void *malloc_zero(request *req, size_t size) {
+	void *ptr = malloc(size);
+	if (ptr == NULL) {
+		set_error(req, "out of memory");
+		return NULL;
+	}
+	memset(ptr, 0, size);
+	return ptr;
+}
 
 static int get_next_id() {
 	return ++last_id;
@@ -95,30 +105,30 @@ void handle_rs_get(request *req, int query_id) {
 		case SQLITE_INTEGER:
 			d = sqlite3_column_int64(rs->s, i);
 			if (strcmp(rs->decltypes[i], "boolean") == 0) {
-				add_bool(req->result, d != 0);
+				add_bool(&req->result, d != 0);
 			} else if (strcmp(rs->decltypes[i], "date") == 0 ||
 				         strcmp(rs->decltypes[i], "datetime") == 0 ||
 				         strcmp(rs->decltypes[i], "timestamp") == 0) {
 				char buf[80];
 				strftime(buf, 80, "%Y-%m-%d %H:%M:%S", gmtime((time_t *)&d));
-				add_string(req->result, buf);
+				add_string(&req->result, buf);
 			} else {
-				add_int64(req->result, d);
+				add_int64(&req->result, d);
 			}
 			break;
 		case SQLITE_FLOAT:
 			f = sqlite3_column_double(rs->s, i);
-			add_double(req->result, f);
+			add_double(&req->result, f);
 			break;
 		case SQLITE_TEXT:
 			n = sqlite3_column_bytes(rs->s, i);
 			s = sqlite3_column_text(rs->s, i);
-			add_string(req->result, s);
+			add_string(&req->result, s);
 			break;
 		case SQLITE_NULL:
 		/* fallthrough */
 		default: /* unsupported types */
-			add_null(req->result);
+			add_null(&req->result);
 		}
 	}
 
@@ -154,9 +164,9 @@ void handle_rs_next(request *req, int query_id) {
 	rc = sqlite3_step(rs->s);
 
 	if (rc == SQLITE_ROW) {
-		add_int(req->result, 1);
+		add_int(&req->result, 1);
 	} else if (rc == SQLITE_DONE) {
-		add_int(req->result, 0);
+		add_int(&req->result, 0);
 		rs_close(rs, 1);
 	} else {
 		rs_close(rs, 1);
@@ -180,12 +190,12 @@ static void process_columns(request *req, sqlite3_stmt *stmt, rs_t *rs) {
 		return;
 	}
 
-	add_int(req->result, column_count);
+	add_int(&req->result, column_count);
 
 	for (int i = 0; i < column_count; i++) {
 		char *decltype = dup_decltype(sqlite3_column_decltype(stmt, i));
 		rs->decltypes[i] = decltype;
-		add_string(req->result, decltype);
+		add_string(&req->result, decltype);
 	}
 
 }
@@ -256,27 +266,27 @@ static int bind_parameters(request *req, sqlite3 *db, sqlite3_stmt *pstmt, bytes
 	return 0;
 }
 
-int handle_stmt_exec(request *req, int pstmt_id, char *params_ptr, int params_len) {
+void handle_stmt_exec(request *req, int pstmt_id, char *params_ptr, int params_len) {
 	bytes params = {params_ptr, params_len};
-	sqlite3_stmt *pstmt = get_pstmt(pstmt_id);
+	stmt_t *pstmt = get_pstmt(pstmt_id);
 	int rc;
 
 	checkLuaExecContext(req->service);
 	if (luaIsView(req->service)) {
 		set_error(req, "not permitted in view function");
-		return -1;
+		return;
 	}
 
 	if (pstmt == NULL) {
 		set_error(req, "invalid pstmt id");
-		return -1;
+		return;
 	}
 
 	rc = bind_parameters(req, pstmt->db, pstmt->s, &params);
 	if (rc == -1) {
 		sqlite3_reset(pstmt->s);
 		sqlite3_clear_bindings(pstmt->s);
-		return -1;
+		return;
 	}
 
 	rc = sqlite3_step(pstmt->s);
@@ -284,14 +294,13 @@ int handle_stmt_exec(request *req, int pstmt_id, char *params_ptr, int params_le
 		set_error(req, sqlite3_errmsg(pstmt->db));
 		sqlite3_reset(pstmt->s);
 		sqlite3_clear_bindings(pstmt->s);
-		return -1;
+		return;
 	}
 
-	add_int64(req->result, sqlite3_changes(pstmt->db));
-	return 0;
+	add_int64(&req->result, sqlite3_changes(pstmt->db));
 }
 
-int handle_stmt_query(request *req, int pstmt_id, char *params_ptr, int params_len) {
+void handle_stmt_query(request *req, int pstmt_id, char *params_ptr, int params_len) {
 	bytes params = {params_ptr, params_len};
 	stmt_t *pstmt = get_pstmt(pstmt_id);
 	rs_t *rs;
@@ -301,22 +310,25 @@ int handle_stmt_query(request *req, int pstmt_id, char *params_ptr, int params_l
 
 	if (!sqlite3_stmt_readonly(pstmt->s)) {
 		set_error(req, "invalid sql command(permitted readonly)");
-		return -1;
+		return;
 	}
 
 	if (pstmt == NULL) {
 		set_error(req, "invalid pstmt id");
-		return -1;
+		return;
 	}
 
 	rc = bind_parameters(req, pstmt->db, pstmt->s, &params);
 	if (rc != 0) {
 		sqlite3_reset(pstmt->s);
 		sqlite3_clear_bindings(pstmt->s);
-		return -1;
+		return;
 	}
 
-	rs = (rs_t *) malloc_zero(sizeof(rs_t));
+	rs = (rs_t *) malloc_zero(req, sizeof(rs_t));
+	if (rs == NULL) {
+		return;
+	}
 	rs->id = get_next_id();
 	rs->db = pstmt->db;
 	rs->s = pstmt->s;
@@ -324,11 +336,10 @@ int handle_stmt_query(request *req, int pstmt_id, char *params_ptr, int params_l
 	rs->shared_stmt = 1;
 	llist_add(&rs_list, rs);
 
-	add_int(req->result, rs->id);
+	add_int(&req->result, rs->id);
 
 	process_columns(req, pstmt->s, rs);
 
-	return 0;
 }
 
 static void get_column_meta(request *req, sqlite3_stmt* stmt) {
@@ -341,34 +352,33 @@ static void get_column_meta(request *req, sqlite3_stmt* stmt) {
 	for (i = 0; i < colcnt; i++) {
 		name = sqlite3_column_name(stmt, i);
 		if (name == NULL) {
-			add_string(names, "");
+			add_string(&names, "");
 		} else {
-			add_string(names, name);
+			add_string(&names, name);
 		}
 
 		decltype = sqlite3_column_decltype(stmt, i);
 		if (decltype == NULL) {
-			add_string(types, "");
+			add_string(&types, "");
 		} else {
-			add_string(types, decltype);
+			add_string(&types, decltype);
 		}
 	}
 
-	add_bytes(req->result, names.ptr, names.len);
-	add_bytes(req->result, types.ptr, types.len);
+	add_bytes(&req->result, names.ptr, names.len);
+	add_bytes(&req->result, types.ptr, types.len);
 	free(names.ptr);
 	free(types.ptr);
 }
 
-static int handle_stmt_column_info(request *req, int pstmt_id) {
+void handle_stmt_column_info(request *req, int pstmt_id) {
 	checkLuaExecContext(req->service);
 	stmt_t *pstmt = get_pstmt(pstmt_id);
 	if (pstmt == NULL) {
 		set_error(req, "invalid pstmt id");
-		return -1;
+		return;
 	}
 	get_column_meta(req, pstmt->s);
-	return 0;
 }
 
 static void stmt_close(stmt_t *pstmt, int remove) {
@@ -382,7 +392,7 @@ static void stmt_close(stmt_t *pstmt, int remove) {
 	}
 }
 
-int handle_db_exec(request *req, const char *sql, char *params_ptr, int params_len) {
+void handle_db_exec(request *req, const char *sql, char *params_ptr, int params_len) {
 	bytes params = {params_ptr, params_len};
 	sqlite3 *db;
 	sqlite3_stmt *s;
@@ -391,39 +401,41 @@ int handle_db_exec(request *req, const char *sql, char *params_ptr, int params_l
 	checkLuaExecContext(req->service);
 	if (luaIsView(req->service)) {
 		set_error(req, "not permitted in view function");
-		return -1;
+		return;
 	}
 
 	if (!sqlcheck_is_permitted_sql(sql)) {
 		set_error(req, "invalid sql command: %s", sql);
-		return -1;
+		return;
 	}
 
-	db = vm_get_db(req->service);
+	db = vm_get_db(req);
+	if (db == NULL) {
+		return;
+	}
 
 	rc = sqlite3_prepare_v2(db, sql, -1, &s, NULL);
 	if (rc != SQLITE_OK) {
 		set_error(req, sqlite3_errmsg(db));
-		return -1;
+		return;
 	}
 
 	rc = bind_parameters(req, db, s, &params);
 	if (rc == -1) {
 		sqlite3_finalize(s);
-		return -1;
+		return;
 	}
 
 	rc = sqlite3_step(s);
 	if (rc != SQLITE_ROW && rc != SQLITE_OK && rc != SQLITE_DONE) {
 		set_error(req, sqlite3_errmsg(db));
 		sqlite3_finalize(s);
-		return -1;
+		return;
 	}
 	sqlite3_finalize(s);
 
-	add_int64(req->result, sqlite3_changes(db));
+	add_int64(&req->result, sqlite3_changes(db));
 
-	return 0;
 }
 
 void handle_db_query(request *req, const char *sql, char *params_ptr, int params_len) {
@@ -440,7 +452,11 @@ void handle_db_query(request *req, const char *sql, char *params_ptr, int params
 		return;
 	}
 
-	db = vm_get_db(req->service);
+	db = vm_get_db(req);
+	if (db == NULL) {
+		return;
+	}
+
 	rc = sqlite3_prepare_v2(db, sql, -1, &s, NULL);
 	if (rc != SQLITE_OK) {
 		set_error(req, sqlite3_errmsg(db));
@@ -450,11 +466,13 @@ void handle_db_query(request *req, const char *sql, char *params_ptr, int params
 	rc = bind_parameters(req, db, s, &params);
 	if (rc == -1) {
 		sqlite3_finalize(s);
-		set_error(req, lua_tostring(L, -1));
 		return;
 	}
 
-	rs = (rs_t *) malloc_zero(sizeof(rs_t));
+	rs = (rs_t *) malloc_zero(req, sizeof(rs_t));
+	if (rs == NULL) {
+		return;
+	}
 	rs->id = get_next_id();
 	rs->db = db;
 	rs->s = s;
@@ -462,7 +480,7 @@ void handle_db_query(request *req, const char *sql, char *params_ptr, int params
 	rs->shared_stmt = 0;
 	llist_add(&rs_list, rs);
 
-	add_int(req->result, rs->id);
+	add_int(&req->result, rs->id);
 
 	process_columns(req, s, rs);
 
@@ -481,32 +499,38 @@ void handle_db_prepare(request *req, const char *sql) {
 		return;
 	}
 
-	db = vm_get_db(req->service);
+	db = vm_get_db(req);
+	if (db == NULL) {
+		return;
+	}
+
 	rc = sqlite3_prepare_v2(db, sql, -1, &s, NULL);
 	if (rc != SQLITE_OK) {
 		set_error(req, sqlite3_errmsg(db));
 		return;
 	}
 
-	pstmt = (stmt_t *) malloc_zero(sizeof(stmt_t));
+	pstmt = (stmt_t *) malloc_zero(req, sizeof(stmt_t));
+	if (pstmt == NULL) {
+		return;
+	}
 	pstmt->id = get_next_id();
 	pstmt->db = db;
 	pstmt->s = s;
 	pstmt->closed = 0;
 	llist_add(&pstmt_list, pstmt);
 
-	add_int(req->result, pstmt->id);
-	add_int(req->result, sqlite3_bind_parameter_count(pstmt->s));
+	add_int(&req->result, pstmt->id);
+	add_int(&req->result, sqlite3_bind_parameter_count(pstmt->s));
 
 }
 
-sqlite3 *vm_get_db(int service) {
+sqlite3 *vm_get_db(request *req) {
 	sqlite3 *db;
-	checkLuaExecContext(service);
-	db = luaGetDbHandle(service);
+	checkLuaExecContext(req->service);
+	db = luaGetDbHandle(req->service);
 	if (db == NULL) {
-		lua_pushstring(L, "can't open a database connection");
-		luaL_throwerror(L);
+		set_error(req, "can't open a database connection");
 	}
 	return db;
 }
@@ -515,8 +539,8 @@ void handle_db_get_snapshot(request *req) {
 	char *snapshot;
 	checkLuaExecContext(req->service);
 
-	snapshot = LuaGetDbSnapshot(service);
-	add_string(req->result, snapshot);
+	snapshot = LuaGetDbSnapshot(req->service);
+	add_string(&req->result, snapshot);
 }
 
 void handle_db_open_with_snapshot(request *req, char *snapshot) {
@@ -526,17 +550,21 @@ void handle_db_open_with_snapshot(request *req, char *snapshot) {
 	errStr = LuaGetDbHandleSnap(req->service, snapshot);
 	if (errStr != NULL) {
 		set_error(req, errStr);
+		free(errStr);
 		return;
 	}
 
-	add_string(req->result, "ok");
+	add_string(&req->result, "ok");
 }
 
 void handle_last_insert_rowid(request *req) {
 	checkLuaExecContext(req->service);
-	sqlite3 *db = vm_get_db(req->service);
+	sqlite3 *db = vm_get_db(req);
+	if (db != NULL) {
+		return;
+	}
 	sqlite3_int64 id = sqlite3_last_insert_rowid(db);
-	add_int64(req->result, id);
+	add_int64(&req->result, id);
 }
 
 // TODO: this must be called when the VM call is done
