@@ -4,11 +4,14 @@ import (
 	"sync"
 	"net"
 	"fmt"
-	"math"
-	"crypto/rand"
+	"strconv"
+	"math/rand"
 	"os"
 	"os/exec"
 	"time"
+
+	"github.com/aergoio/aergo/v2/internal/enc/hex"
+	"github.com/aergoio/aergo/v2/contract/msg"
 )
 
 var maxInstances int
@@ -140,9 +143,17 @@ func spawnVmInstances(num int) {
 			i--
 			continue
 		}
+		unixListener, ok := listener.(*net.UnixListener)
+		if !ok {
+			ctrLgr.Error().Msg("Failed to assign listener to *net.UnixListener")
+			listener.Close()
+			// try again
+			i--
+			continue
+		}
 
 		// spawn the exernal VM executable process
-		cmd := exec.Command("vm/vm-lua", currentForkVersion, PubNet, socketName, secretKey)
+		cmd := exec.Command("./aergovm", strconv.Itoa(int(currentForkVersion)), map[bool]string{true: "1", false: "0"}[PubNet], socketName, hex.Encode(secretKey[:]))
 		err = cmd.Start()
 		if err != nil {
 			ctrLgr.Error().Msg("Failed to spawn external VM process")
@@ -160,7 +171,7 @@ func spawnVmInstances(num int) {
 			id:         id,
 			socketName: socketName,
 			secretKey:  secretKey,
-			listener:   listener,
+			listener:   unixListener,
 			conn:       nil,
 			pid:        pid,
 			used:       false,
@@ -178,7 +189,7 @@ func spawnVmInstances(num int) {
 	instancesToRead := []*VmInstance{}
 
 	// the timeout is 100 milliseconds for each vm instance
-	timeout := time.Millisecond * 100 * num
+	timeout := time.Millisecond * time.Duration(100 * num)
 	if timeout < time.Second {
 		timeout = time.Second
 	}
@@ -192,7 +203,8 @@ func spawnVmInstances(num int) {
 			// set a deadline for the accept call
 			vmInstance.listener.SetDeadline(deadline)
 			// wait for the incoming connection
-			vmInstance.conn, err = vmInstance.listener.Accept()
+			var err error
+			vmInstance.conn, err = vmInstance.listener.AcceptUnix()
 			if err == nil {
 				// connection accepted
 				instancesToRead = append(instancesToRead, vmInstance)
@@ -229,8 +241,9 @@ func spawnVmInstances(num int) {
 
 }
 
-func isValidMessage(vmInstance *VmInstance, msg string) bool {
+func isValidMessage(vmInstance *VmInstance, message []byte) bool {
 
+	//TODO: implement
 
 }
 

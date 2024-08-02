@@ -9,7 +9,6 @@
 
 extern const char *construct_name;
 
-#define FORK_V2 "_FORK_V2"
 #define ERR_BF_TIMEOUT "contract timeout"
 
 lua_State *vm_newstate(int hardfork_version);
