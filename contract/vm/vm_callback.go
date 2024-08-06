@@ -88,6 +88,12 @@ func luaCallContract(L *LState,
 
 	args := []string{contractAddress, fnameStr, argsStr, amountStr, gasStr}
 	result, err := sendRequest("call", args)
+
+	// extract the used gas from the result
+	usedGas, result := extractUsedGas(result)
+	// update the remaining gas
+	addConsumedGas(usedGas)
+
 	if err != nil {
 		return nil, handleError(L, err)
 	}
@@ -107,6 +113,12 @@ func luaDelegateCallContract(L *LState,
 
 	args := []string{contractAddress, fnameStr, argsStr, gasStr}
 	result, err := sendRequest("delegate-call", args)
+
+	// extract the used gas from the result
+	usedGas, result := extractUsedGas(result)
+	// update the remaining gas
+	addConsumedGas(usedGas)
+
 	if err != nil {
 		return nil, handleError(L, err)
 	}
@@ -118,7 +130,13 @@ func luaSendAmount(L *LState, address *C.char, amount *C.char) *C.char {
 	gasLimit := getGasLimit(0)
 	gasStr := string((*[8]byte)(unsafe.Pointer(&gasLimit))[:])
 	args := []string{C.GoString(address), C.GoString(amount), gasStr}
-	_, err := sendRequest("send", args)
+	result, err := sendRequest("send", args)
+
+	// extract the used gas from the result
+	usedGas, result := extractUsedGas(result)
+	// update the remaining gas
+	addConsumedGas(usedGas)
+
 	if err != nil {
 		return handleError(L, err)
 	}
@@ -384,6 +402,12 @@ func luaDeployContract(
 
 	args := []string{contractStr, argsStr, amountStr, gasStr}
 	result, err := sendRequest("deploy", args)
+
+	// extract the used gas from the result
+	usedGas, result := extractUsedGas(result)
+	// update the remaining gas
+	addConsumedGas(usedGas)
+
 	if err != nil {
 		return nil, handleError(L, err)
 	}

@@ -22,6 +22,7 @@ import (
 	//"sort"
 	"strings"
 	"unsafe"
+	"encoding/binary"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/v2/cmd/aergoluac/luac"
@@ -73,9 +74,7 @@ func newExecutor(
 		code: bytecode,
 	}
 
-	//if IsGasSystem() {
-	//	ce.setGas()
-	//}
+	setGas()
 
 	ce.vmLoadCode()
 	if ce.err != nil {
@@ -89,7 +88,6 @@ func newExecutor(
 	}
 	ce.fname = fname
 	ce.args = args
-
 
 	return ce
 }
@@ -372,36 +370,13 @@ func (ce *executor) vmLoadCall() {
 
 
 func IsGasSystem() bool {
-	return contractGasLimit > 0  // FIXME
+	return contractGasLimit > 0
 }
-
-/*
-// set the remaining gas on the given LState
-func (ce *executor) setRemainingGas(L *LState) {
-	if IsGasSystem() {
-		C.lua_gasset(L, C.ulonglong(ctx.remainingGas))
-		//defer func() {
-			if logger.IsDebugEnabled() {
-				logger.Debug().Uint64("gas used", ce.ctx.usedGas()).Str("lua vm", "loaded").Msg("gas information")
-			}
-		//}()
-	}
-}
-
-func (ce *executor) setGas() {
-	if ce == nil || ce.L == nil || ce.err != nil {
-		return
-	}
-	C.lua_gasset(ce.L, C.ulonglong(contractGasLimit))
-}
-
-func (ce *executor) gas() uint64 {
-	return uint64(C.lua_gasget(ce.L))
-}
-*/
 
 func setGas() {
-	C.lua_gasset(lstate, C.ulonglong(contractGasLimit))
+	if IsGasSystem() {
+		C.lua_gasset(lstate, C.ulonglong(contractGasLimit))
+	}
 }
 
 func getRemainingGas() uint64 {
@@ -413,6 +388,9 @@ func getUsedGas() uint64 {
 }
 
 func addConsumedGas(gas uint64) bool {
+	if !IsGasSystem() {
+		return true
+	}
 	remainingGas := getRemainingGas()
 	if gas > remainingGas {
 		return false
@@ -421,6 +399,17 @@ func addConsumedGas(gas uint64) bool {
 	C.lua_gasset(lstate, C.ulonglong(remainingGas))
 	return true
 }
+
+// extract the used gas from the result
+func extractUsedGas(result string) (uint64, string) {
+	if len(result) < 8 {
+		return 0, result
+	}
+	usedGas := binary.LittleEndian.Uint64([]byte(result[:8]))
+	result = result[8:]
+	return usedGas, result
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////
 
