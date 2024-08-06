@@ -83,7 +83,8 @@ func luaCallContract(L *LState,
 	fnameStr := C.GoString(fname)
 	argsStr := C.GoString(arguments)
 	amountStr := C.GoString(amount)
-	gasStr := string((*[8]byte)(unsafe.Pointer(&gas))[:])
+	gasLimit := getGasLimit(gas)
+	gasStr := string((*[8]byte)(unsafe.Pointer(&gasLimit))[:])
 
 	args := []string{contractAddress, fnameStr, argsStr, amountStr, gasStr}
 	result, err := sendRequest("call", args)
@@ -101,7 +102,8 @@ func luaDelegateCallContract(L *LState,
 	contractAddress := C.GoString(address)
 	fnameStr := C.GoString(fname)
 	argsStr := C.GoString(arguments)
-	gasStr := string((*[8]byte)(unsafe.Pointer(&gas))[:])
+	gasLimit := getGasLimit(gas)
+	gasStr := string((*[8]byte)(unsafe.Pointer(&gasLimit))[:])
 
 	args := []string{contractAddress, fnameStr, argsStr, gasStr}
 	result, err := sendRequest("delegate-call", args)
@@ -113,7 +115,9 @@ func luaDelegateCallContract(L *LState,
 
 //export luaSendAmount
 func luaSendAmount(L *LState, address *C.char, amount *C.char) *C.char {
-	args := []string{C.GoString(address), C.GoString(amount)}
+	gasLimit := getGasLimit(0)
+	gasStr := string((*[8]byte)(unsafe.Pointer(&gasLimit))[:])
+	args := []string{C.GoString(address), C.GoString(amount), gasStr}
 	_, err := sendRequest("send", args)
 	if err != nil {
 		return handleError(L, err)
@@ -375,8 +379,10 @@ func luaDeployContract(
 	contractStr := C.GoString(contract)
 	argsStr := C.GoString(arguments)
 	amountStr := C.GoString(amount)
+	gasLimit := getGasLimit(0)
+	gasStr := string((*[8]byte)(unsafe.Pointer(&gasLimit))[:])
 
-	args := []string{contractStr, argsStr, amountStr}
+	args := []string{contractStr, argsStr, amountStr, gasStr}
 	result, err := sendRequest("deploy", args)
 	if err != nil {
 		return nil, handleError(L, err)
@@ -505,6 +511,19 @@ func luaGetStaking(L *LState, addr *C.char) (*C.char, C.lua_Integer, *C.char) {
 	return C.CString(amount), C.lua_Integer(when), nil
 }
 
+func getGasLimit(definedGasLimit uint64) uint64 {
+
+	remainingGas := getRemainingGas()
+
+	if definedGasLimit > 0 && definedGasLimit < remainingGas {
+		// if specified via contract.call.gas(limit)(...)
+		return definedGasLimit
+	} else {
+		// if not specified, use the remaining gas from the transaction
+		return remainingGas
+	}
+}
+
 //export luaSendRequest
 func luaSendRequest(L *LState, method *C.char, arguments *C.buffer, response *C.rresponse) {
 	var args []string
@@ -525,15 +544,8 @@ func luaSendRequest(L *LState, method *C.char, arguments *C.buffer, response *C.
 //sendRequest
 func sendRequest(method string, args []string) (string, error) {
 
-	// create new slice with the method and args
-	list := []string{method}
-	list = append(list, args...)
-
-	// build the message
-	message := msg.SerializeMessage(list...)
-
 	// send the execution request to the VM instance
-	err := msg.SendMessage(conn, message)
+	err := sendApiMessage(method, args)
 	if err != nil {
 		return "", err
 	}
@@ -546,6 +558,31 @@ func sendRequest(method string, args []string) (string, error) {
 
 	// return the result
 	return string(result), nil
+}
+
+func sendApiMessage(method string, args []string) error {
+
+	// create new slice with the method and args
+	list := []string{method}
+	list = append(list, args...)
+
+	return sendMessage(list)
+}
+
+func sendMessage(list []string) error {
+
+	// build the message
+	message := msg.SerializeMessage(list...)
+
+	/*/ encrypt the message
+	message, err = msg.Encrypt(message, secretKey)
+	if err != nil {
+		fmt.Printf("Error: failed to encrypt message: %v\n", err)
+		os.Exit(1)
+	} */
+
+	// send the message to the VM API
+	return msg.SendMessage(conn, message)
 }
 
 func handleError(L *LState, err error) *C.char {
