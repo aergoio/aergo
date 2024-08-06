@@ -161,8 +161,15 @@ func processCommand(command string, args []string) (string, error) {
 		}
 		gas = binary.LittleEndian.Uint64(gasBytes)
 
-		res, err := Execute(address, code, fname, fargs, gas, caller, isFeeDelegation)
-		return res, err
+		res, err, usedGas := Execute(address, code, fname, fargs, gas, caller, isFeeDelegation)
+
+		// encode the gas together with the result
+		gasBytes = make([]byte, 8)
+		binary.LittleEndian.PutUint64(gasBytes, usedGas)
+		res = string(gasBytes) + res
+
+		sendApiMessage("return", []string{res, err.Error()})
+		os.Exit(0)
 
 	case "compile":
 		code := args[0]
@@ -172,9 +179,12 @@ func processCommand(command string, args []string) (string, error) {
 		}
 
 		res, err := Compile(code, hasParent)
-		return string(res), err
+
+		sendMessage([]string{string(res), err.Error()})
+		os.Exit(0)
 
 	// if the contract is executing, this can only be received if using another thread
+	// or if checking for incoming messages in regular intervals (expensive operation)
 	case "timeout":
 		timedout = true
 		return "", nil

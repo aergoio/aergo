@@ -83,7 +83,7 @@ type vmContext struct {
 	callStack         []*executor
 	traceFile         *os.File
 	gasLimit          uint64
-	usedGas           uint64
+	remainingGas      uint64
 	execCtx           context.Context
 }
 
@@ -94,7 +94,8 @@ type executor struct {
 	ci         *types.CallInfo
 	fname      string
 	ctx        *vmContext
-	remainingGas uint64
+	contractGasLimit uint64
+	usedGas    uint64
 	jsonRet    string
 	isView     bool
 	isAutoload bool
@@ -137,7 +138,7 @@ func NewVmContext(execCtx context.Context, blockState *state.BlockState, cdb Cha
 		blockInfo:       bi,
 		service:         executionMode,
 		gasLimit:        gasLimit,
-		usedGas:         0,
+		remainingGas:    gasLimit,
 		isFeeDelegation: feeDelegation,
 		execCtx:         execCtx,
 	}
@@ -194,34 +195,31 @@ func (ctx *vmContext) IsGasSystem() bool {
 	return fee.GasEnabled(ctx.blockInfo.ForkVersion) && !ctx.isQuery
 }
 
-// check if the remaining gas from the parent VM instance is valid
-func (ctx *vmContext) checkRemainingGas(gas string) (uint64, error) {
-	if ctx.IsGasSystem() {
-		// it must be a valid uint64 value, between 0 and ctx.gasLimit
-		if len(gas) != 8 {
-			return 0, errors.New("invalid remaining gas")
-		}
-		gasUint := binary.LittleEndian.Uint64([]byte(gas))
-		if gasUint > ctx.gasLimit {
-			return 0, errors.New("remaining gas (" + strconv.FormatUint(gasUint, 10) + ") is greater than the gas limit (" + strconv.FormatUint(ctx.gasLimit, 10) + ")")
-		}
-		return gasUint, nil
+// check if the gas limit set by the parent VM instance is valid
+func (ctx *vmContext) parseGasLimit(gas string) (uint64, error) {
+	// it must be a valid uint64 value
+	if len(gas) != 8 {
+		return 0, errors.New("uncatchable: invalid gas limit")
 	}
-	return ctx.gasLimit, nil
+	gasLimit := binary.LittleEndian.Uint64([]byte(gas))
+	// gas limit must be less than or equal to the remaining gas
+	if gasLimit > ctx.remainingGas {
+		return 0, errors.New("uncatchable: gas limit exceeds the remaining gas")
+	}
+	return gasLimit, nil
 }
 
 // get the total gas used by all contracts in the current transaction
-func (ctx *vmContext) usedGasFn() uint64 {
+func (ctx *vmContext) usedGas() uint64 {
 	if fee.IsZeroFee() || !ctx.IsGasSystem() {
 		return 0
 	}
-	//return ctx.gasLimit - ctx.remainingGas
-	return ctx.usedGas
+	return ctx.gasLimit - ctx.remainingGas
 }
 
 // get the contracts execution fee
 func (ctx *vmContext) usedFee() *big.Int {
-	return fee.TxExecuteFee(ctx.blockInfo.ForkVersion, ctx.bs.GasPrice, ctx.usedGasFn(), ctx.dbUpdateTotalSize)
+	return fee.TxExecuteFee(ctx.blockInfo.ForkVersion, ctx.bs.GasPrice, ctx.usedGas(), ctx.dbUpdateTotalSize)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -558,10 +556,15 @@ func Call(
 	defer ce.close()  // close the executor and the VM instance
 
 	// set the gas limit from the transaction
-	ce.remainingGas = ctx.gasLimit
+	ce.contractGasLimit = ctx.gasLimit
 
 	// execute the contract call
-	ce.call()
+	ce.call(true)
+
+	err = ctx.updateUsedGas(ce.usedGas)
+	if err != nil {
+		return "", nil, ctx.usedFee(), err
+	}
 
 	// check if there is an error
 	err = ce.err
@@ -661,10 +664,15 @@ func Create(
 	defer ce.close()  // close the executor and the VM instance
 
 	// set the gas limit from the transaction
-	ce.remainingGas = ctx.gasLimit
+	ce.contractGasLimit = ctx.gasLimit
 
 	// call the constructor
-	ce.call()
+	ce.call(true)
+
+	err = ctx.updateUsedGas(ce.usedGas)
+	if err != nil {
+		return "", nil, ctx.usedFee(), err
+	}
 
 	// check if the call failed
 	err = ce.err
@@ -792,9 +800,14 @@ func Query(contractAddress []byte, bs *state.BlockState, cdb ChainAccessor, cont
 	}()
 
 	// set the gas limit from the transaction
-	ce.remainingGas = ctx.gasLimit
+	ce.contractGasLimit = ctx.gasLimit
 
-	ce.call()
+	ce.call(true)
+
+	err = ctx.updateUsedGas(ce.usedGas)
+	if err != nil {
+		return nil, err
+	}
 
 	return []byte(ce.jsonRet), ce.err
 }
@@ -874,9 +887,14 @@ func CheckFeeDelegation(contractAddress []byte, bs *state.BlockState, bi *types.
 	}()
 
 	// set the gas limit from the transaction
-	ce.remainingGas = ctx.gasLimit
+	ce.contractGasLimit = ctx.gasLimit
 
-	ce.call()
+	ce.call(true)
+
+	err = ctx.updateUsedGas(ce.usedGas)
+	if err != nil {
+		return err
+	}
 
 	if ce.err != nil {
 		return ce.err
@@ -884,6 +902,16 @@ func CheckFeeDelegation(contractAddress []byte, bs *state.BlockState, bi *types.
 	if ce.jsonRet != "true" {
 		return types.ErrNotAllowedFeeDelegation
 	}
+	return nil
+}
+
+func (ctx *vmContext) updateUsedGas(usedGas uint64) error {
+	if usedGas > ctx.remainingGas {
+		ctx.remainingGas = 0
+		return errors.New("run out of gas")
+	}
+	// deduct the used gas
+	ctx.remainingGas -= usedGas
 	return nil
 }
 
@@ -998,6 +1026,13 @@ func Compile(code string, hasParent bool) (luacUtil.LuaCode, error) {
 	// build the message
 	message := msg.SerializeMessage("compile", code, strconv.FormatBool(hasParent))
 
+	/*/ encrypt the message
+	message, err = msg.Encrypt(message, secretKey)
+	if err != nil {
+		return nil, err
+	}
+	*/
+
 	// send the execution request to the VM instance
 	err := msg.SendMessage(vmInstance.conn, message)
 	if err != nil {
@@ -1009,6 +1044,13 @@ func Compile(code string, hasParent bool) (luacUtil.LuaCode, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	/*/ decrypt the message
+	byteCodeAbi, err = msg.Decrypt(byteCodeAbi, secretKey)
+	if err != nil {
+		return nil, err
+	}
+	*/
 
 	return luacUtil.LuaCode(byteCodeAbi), nil
 }

@@ -20,7 +20,7 @@ func (ce *executor) convertArgsToJSON() (string, error) {
 	return string(args), nil
 }
 
-func (ce *executor) call() {
+func (ce *executor) call(extractUsedGas bool) {
 
 	if ce.isView == true {
 		ce.ctx.nestedView++
@@ -34,9 +34,8 @@ func (ce *executor) call() {
 	// - bytecode: ce.code []byte
 	// - function name: ce.fname string
 	// - args: ce.ci.Args []interface{}
-	// - gas: ce.remainingGas uint64
+	// - gas: ce.contractGasLimit uint64
 	// - sender: types.EncodeAddress(ce.ctx.curContract.sender) string
-	// - amount: ce.ctx.curContract.amount.String() string
 	// - isFeeDelegation: ce.ctx.isFeeDelegation bool
 
 	address := types.EncodeAddress(ce.ctx.curContract.contractId)
@@ -51,14 +50,13 @@ func (ce *executor) call() {
 		ce.err = err
 		return
 	}
-	//gas := strconv.FormatUint(ce.remainingGas, 10)
-	gas := string((*[8]byte)(unsafe.Pointer(&ce.remainingGas))[:])
+	//gas := strconv.FormatUint(ce.contractGasLimit, 10)
+	gas := string((*[8]byte)(unsafe.Pointer(&ce.contractGasLimit))[:])
 	sender := types.EncodeAddress(ce.ctx.curContract.sender)
-	amount := ce.ctx.curContract.amount.String()
 	isFeeDelegation := strconv.FormatBool(ce.ctx.isFeeDelegation)
 
 	// build the message
-	message := msg.SerializeMessage("execute", address, bytecode, fname, args, gas, sender, amount, isFeeDelegation)
+	message := msg.SerializeMessage("execute", address, bytecode, fname, args, gas, sender, isFeeDelegation)
 
 	// send the execution request to the VM instance
 	err = ce.SendMessage(message)
@@ -74,13 +72,20 @@ func (ce *executor) call() {
 
 	// wait for and process messages in a loop
 	result, err := ce.MessageLoop()
-	if err != nil {
-		ce.err = err
-		return
+
+	if extractUsedGas {
+		// extract the used gas from the result
+		if len(result) < 8 {
+			ce.err = errors.New("[VMServer] invalid result from VM")
+			return
+		}
+		ce.usedGas = binary.LittleEndian.Uint64([]byte(result[:8]))
+		result = result[8:]
 	}
 
 	// return the result from the VM instance
 	ce.jsonRet = result
+	ce.err = err
 
 	// when a message arrives, process it
 	// when the first VM finishes (or timeout occurs) return from this function
@@ -270,15 +275,15 @@ func (ce *executor) ProcessCommand(command string, args []string) (result string
 // handle the return from a call
 func (ce *executor) handleReturnFromCall(args []string) (result string, err error) {
 
-	if len(args) != 3 {
+	if len(args) != 2 {
 		return "", errors.New("[ReturnFromVM] invalid return value from contract")
 	}
 	result = args[0]   // JSON
-	errStr := args[1]   // error message
-	usedGas := args[2]  // used gas (from just 1 contract)
+	errStr := args[1]  // error message
 
+	/*
 	// add the used gas and check if the execution ran out of gas
-	err = ce.processUsedGas(usedGas)
+	err = ce.processUsedGas(result)
 
 	if errStr != "" {
 		if err != nil {
@@ -287,43 +292,42 @@ func (ce *executor) handleReturnFromCall(args []string) (result string, err erro
 			err = errors.New(errStr)
 		}
 	}
+	*/
+
+	if errStr != "" {
+		err = errors.New(errStr)
+	}
 
 	return result, err
 }
 
+/*
 // add the used gas and check if the execution ran out of gas
-func (ce *executor) processUsedGas(usedGasStr string) (err error) {
-
-	/*
-	usedGas, err := strconv.ParseUint(usedGasStr, 10, 64)
-	if err != nil {
-		return errors.New("[ReturnFromVM] invalid used gas value from contract")
-	}
-	*/
+func (ce *executor) processUsedGas(result string) (err error) {
 
 	// check if the used gas is a valid uint64 value
-	if len(usedGasStr) != 8 {
+	if len(result) < 8 {
 		return errors.New("[ReturnFromVM] invalid used gas value from contract")
 	}
 	// convert the used gas to a uint64 value
-	usedGas := binary.LittleEndian.Uint64([]byte(usedGasStr))
+	usedGas := binary.LittleEndian.Uint64([]byte(result[:8]))
 
 	// add the gas used by this contract to the total gas
-	ce.ctx.usedGas += usedGas
+	ce.ctx.accumulatedGas += usedGas
 
 	// check if the contract ran out of the transaction gas limit
-	if ce.ctx.usedGas >= ce.ctx.gasLimit {
+	if ce.ctx.accumulatedGas >= ce.ctx.gasLimit {
 		return errors.New("[ReturnFromVM] contract ran out of the transaction gas limit")
 	}
 
 	// check if the contract ran out of the contract gas limit
-	if usedGas >= ce.remainingGas {
+	if usedGas >= ce.contractGasLimit {
 		return errors.New("[ReturnFromVM] contract ran out of the contract gas limit")
 	}
 
 	return nil
 }
-
+*/
 
 
 

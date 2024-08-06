@@ -256,9 +256,9 @@ func (ctx *vmContext) handleCall(args []string) (result string, err error) {
 	}
 
 	// get the remaining gas or gas limit from the parent contract
-	gasLimit, err := ctx.checkRemainingGas(gas)
+	gasLimit, err := ctx.parseGasLimit(gas)
 	if err != nil {
-		return "", errors.New("[Contract.Call] " + err.Error())
+		return "", err
 	}
 
 	// create a new executor
@@ -269,7 +269,7 @@ func (ctx *vmContext) handleCall(args []string) (result string, err error) {
 	}
 
 	// set the remaining gas or gas limit from the parent contract
-	ce.remainingGas = gasLimit
+	ce.contractGasLimit = gasLimit
 
 	// send the amount to the contract
 	senderState := ctx.curContract.callState.accState
@@ -304,14 +304,17 @@ func (ctx *vmContext) handleCall(args []string) (result string, err error) {
 	}()
 
 	// execute the contract call
-	ce.call()
+	ce.call(false)
+
+	// the result contains the used gas in the first 8 bytes
+	result = ce.jsonRet
 
 	// check if the contract call failed
 	if ce.err != nil {
 		// revert the contract to the previous state
 		err := clearRecovery(ctx, seq, true)
 		if err != nil {
-			return "", errors.New("[Contract.Call] recovery err: " + err.Error())
+			return result, errors.New("[Contract.Call] recovery err: " + err.Error())
 		}
 		// log some info
 		if ctx.traceFile != nil {
@@ -320,9 +323,9 @@ func (ctx *vmContext) handleCall(args []string) (result string, err error) {
 		// in case of timeout, return the original error message
 		switch ceErr := ce.err.(type) {
 		case *VmTimeoutError:
-			return "", errors.New(ceErr.Error())
+			return result, errors.New(ceErr.Error())
 		default:
-			return "", errors.New("[Contract.Call] call err: " + ceErr.Error())
+			return result, errors.New("[Contract.Call] call err: " + ceErr.Error())
 		}
 	}
 
@@ -330,12 +333,12 @@ func (ctx *vmContext) handleCall(args []string) (result string, err error) {
 	if seq == 1 {
 		err := clearRecovery(ctx, seq, false)
 		if err != nil {
-			return "", errors.New("[Contract.Call] recovery err: " + err.Error())
+			return result, errors.New("[Contract.Call] recovery err: " + err.Error())
 		}
 	}
 
 	// return the result
-	return ce.jsonRet, nil
+	return result, nil
 }
 
 func (ctx *vmContext) handleDelegateCall(args []string) (result string, err error) {
@@ -372,9 +375,9 @@ func (ctx *vmContext) handleDelegateCall(args []string) (result string, err erro
 	}
 
 	// get the remaining gas or gas limit from the parent contract
-	gasLimit, err := ctx.checkRemainingGas(gas)
+	gasLimit, err := ctx.parseGasLimit(gas)
 	if err != nil {
-		return "", errors.New("[Contract.Call] " + err.Error())
+		return "", err
 	}
 
 	// create a new executor
@@ -385,7 +388,7 @@ func (ctx *vmContext) handleDelegateCall(args []string) (result string, err erro
 	}
 
 	// set the remaining gas or gas limit from the parent contract
-	ce.remainingGas = gasLimit
+	ce.contractGasLimit = gasLimit
 
 	seq, err := setRecoveryPoint(aid, ctx, nil, ctx.curContract.callState, zeroBig, false, false)
 	if err != nil {
@@ -397,14 +400,17 @@ func (ctx *vmContext) handleDelegateCall(args []string) (result string, err erro
 	}
 
 	// execute the contract call
-	ce.call()
+	ce.call(false)
+
+	// the result contains the used gas in the first 8 bytes
+	result = ce.jsonRet
 
 	// check if the contract call failed
 	if ce.err != nil {
 		// revert the contract to the previous state
 		err := clearRecovery(ctx, seq, true)
 		if err != nil {
-			return "", errors.New("[Contract.DelegateCall] recovery error: " + err.Error())
+			return result, errors.New("[Contract.DelegateCall] recovery error: " + err.Error())
 		}
 		// log some info
 		if ctx.traceFile != nil {
@@ -413,9 +419,9 @@ func (ctx *vmContext) handleDelegateCall(args []string) (result string, err erro
 		// in case of timeout, return the original error message
 		switch ceErr := ce.err.(type) {
 		case *VmTimeoutError:
-			return "", errors.New(ceErr.Error())
+			return result, errors.New(ceErr.Error())
 		default:
-			return "", errors.New("[Contract.DelegateCall] call error: " + ce.err.Error())
+			return result, errors.New("[Contract.DelegateCall] call error: " + ce.err.Error())
 		}
 	}
 
@@ -423,12 +429,12 @@ func (ctx *vmContext) handleDelegateCall(args []string) (result string, err erro
 	if seq == 1 {
 		err := clearRecovery(ctx, seq, false)
 		if err != nil {
-			return "", errors.New("[Contract.DelegateCall] recovery error: " + err.Error())
+			return result, errors.New("[Contract.DelegateCall] recovery error: " + err.Error())
 		}
 	}
 
 	// return the result
-	return ce.jsonRet, nil
+	return result, nil
 }
 
 func getAddressNameResolved(account string, bs *state.BlockState) ([]byte, error) {
@@ -452,7 +458,7 @@ func (ctx *vmContext) handleSend(args []string) (result string, err error) {
 	if len(args) != 2 {
 		return "", errors.New("[Contract.Send] invalid number of arguments")
 	}
-	contractAddress, amount := args[0], args[1]
+	contractAddress, amount, gas := args[0], args[1], args[2]
 
 	// read the amount to be sent
 	amountBig, err := transformAmount(amount, ctx.blockInfo.ForkVersion)
@@ -504,9 +510,9 @@ func (ctx *vmContext) handleSend(args []string) (result string, err error) {
 		}
 
 		// get the remaining gas or gas limit from the parent contract
-		gasLimit, err := ctx.checkRemainingGas(gas)
+		gasLimit, err := ctx.parseGasLimit(gas)
 		if err != nil {
-			return "", errors.New("[Contract.Call] " + err.Error())
+			return "", err
 		}
 
 		// create a new executor
@@ -517,7 +523,7 @@ func (ctx *vmContext) handleSend(args []string) (result string, err error) {
 		}
 
 		// set the remaining gas or gas limit from the parent contract
-		ce.remainingGas = gasLimit
+		ce.contractGasLimit = gasLimit
 
 		// send the amount to the contract
 		if amountBig.Cmp(zeroBig) > 0 {
@@ -549,14 +555,17 @@ func (ctx *vmContext) handleSend(args []string) (result string, err error) {
 		}()
 
 		// execute the contract call
-		ce.call()
+		ce.call(false)
+
+		// the result contains the used gas in the first 8 bytes
+		result = ce.jsonRet
 
 		// check if the contract call failed
 		if ce.err != nil {
 			// revert the contract to the previous state
 			err := clearRecovery(ctx, seq, true)
 			if err != nil {
-				return "", errors.New("[Contract.Send] recovery err: " + err.Error())
+				return result, errors.New("[Contract.Send] recovery err: " + err.Error())
 			}
 			// log some info
 			if ctx.traceFile != nil {
@@ -565,9 +574,9 @@ func (ctx *vmContext) handleSend(args []string) (result string, err error) {
 			// in case of timeout, return the original error message
 			switch ceErr := ce.err.(type) {
 			case *VmTimeoutError:
-				return "", errors.New(ceErr.Error())
+				return result, errors.New(ceErr.Error())
 			default:
-				return "", errors.New("[Contract.Send] call err: " + ce.err.Error())
+				return result, errors.New("[Contract.Send] call err: " + ce.err.Error())
 			}
 		}
 
@@ -575,12 +584,12 @@ func (ctx *vmContext) handleSend(args []string) (result string, err error) {
 		if seq == 1 {
 			err := clearRecovery(ctx, seq, false)
 			if err != nil {
-				return "", errors.New("[Contract.Send] recovery err: " + err.Error())
+				return result, errors.New("[Contract.Send] recovery err: " + err.Error())
 			}
 		}
 
 		// the transfer and contract call succeeded
-		return "", nil
+		return result, nil
 	}
 
 	// the receiver is not a contract, just send the amount
@@ -1139,7 +1148,7 @@ func (ctx *vmContext) handleDeploy(args []string) (result string, err error) {
 	if len(args) != 3 {
 		return "", errors.New("[Contract.Deploy] invalid number of arguments")
 	}
-	codeOrAddress, fargs, amount := args[0], args[1], args[2]
+	codeOrAddress, fargs, amount, gas := args[0], args[1], args[2], args[3]
 
 	if ctx.isQuery || ctx.nestedView > 0 {
 		return "", errors.New("[Contract.Deploy] deploy not permitted in query")
@@ -1262,9 +1271,9 @@ func (ctx *vmContext) handleDeploy(args []string) (result string, err error) {
 	}
 
 	// get the remaining gas or gas limit from the parent contract
-	gasLimit, err := ctx.checkRemainingGas(gas)
+	gasLimit, err := ctx.parseGasLimit(gas)
 	if err != nil {
-		return "", errors.New("[Contract.Call] " + err.Error())
+		return "", err
 	}
 
 	// create a new executor
@@ -1275,7 +1284,7 @@ func (ctx *vmContext) handleDeploy(args []string) (result string, err error) {
 	}
 
 	// set the remaining gas or gas limit from the parent contract
-	ce.remainingGas = gasLimit
+	ce.contractGasLimit = gasLimit
 
 	// increment the nonce of the creator
 	senderState.SetNonce(senderState.Nonce() + 1)
@@ -1284,14 +1293,17 @@ func (ctx *vmContext) handleDeploy(args []string) (result string, err error) {
 
 	if ce != nil {
 		// run the constructor
-		ce.call()
+		ce.call(false)
+
+		// the result contains the used gas in the first 8 bytes
+		result = ce.jsonRet
 
 		// check if the execution was successful
 		if ce.err != nil {
 			// revert the contract to the previous state
 			err := clearRecovery(ctx, seq, true)
 			if err != nil {
-				return "", errors.New("[Contract.Deploy] recovery error: " + err.Error())
+				return result, errors.New("[Contract.Deploy] recovery error: " + err.Error())
 			}
 			// log some info
 			if ctx.traceFile != nil {
@@ -1300,9 +1312,9 @@ func (ctx *vmContext) handleDeploy(args []string) (result string, err error) {
 			// in case of timeout, return the original error message
 			switch ceErr := ce.err.(type) {
 			case *VmTimeoutError:
-				return "", errors.New(ceErr.Error())
+				return result, errors.New(ceErr.Error())
 			default:
-				return "", errors.New("[Contract.Deploy] call err: " + ce.err.Error())
+				return result, errors.New("[Contract.Deploy] call err: " + ce.err.Error())
 			}
 		}
 	}
@@ -1311,14 +1323,14 @@ func (ctx *vmContext) handleDeploy(args []string) (result string, err error) {
 	if seq == 1 {
 		err := clearRecovery(ctx, seq, false)
 		if err != nil {
-			return "", errors.New("[Contract.Deploy] recovery error: " + err.Error())
+			return result, errors.New("[Contract.Deploy] recovery error: " + err.Error())
 		}
 	}
 
 	// the result already contains a JSON array
-	result = ce.jsonRet
 	// insert the contract address before the other returned values
-	result = `["` + addr + `",` + result[1:]
+	// the first 8 bytes contain the used gas
+	result = result[:8] + `["` + addr + `",` + result[9:]
 
 	return result, nil
 }

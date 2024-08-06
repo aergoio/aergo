@@ -370,11 +370,12 @@ func (ce *executor) vmLoadCall() {
 // GAS
 ////////////////////////////////////////////////////////////////////////////////
 
-/*
+
 func IsGasSystem() bool {
-	return contractGasLimit > 0
+	return contractGasLimit > 0  // FIXME
 }
 
+/*
 // set the remaining gas on the given LState
 func (ce *executor) setRemainingGas(L *LState) {
 	if IsGasSystem() {
@@ -398,6 +399,28 @@ func (ce *executor) gas() uint64 {
 	return uint64(C.lua_gasget(ce.L))
 }
 */
+
+func setGas() {
+	C.lua_gasset(lstate, C.ulonglong(contractGasLimit))
+}
+
+func getRemainingGas() uint64 {
+	return uint64(C.lua_gasget(lstate))
+}
+
+func getUsedGas() uint64 {
+	return contractGasLimit - getRemainingGas()
+}
+
+func addConsumedGas(gas uint64) bool {
+	remainingGas := getRemainingGas()
+	if gas > remainingGas {
+		return false
+	}
+	remainingGas -= gas
+	C.lua_gasset(lstate, C.ulonglong(remainingGas))
+	return true
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -436,7 +459,7 @@ func Execute(
 	gas uint64,
 	caller string,
 	isFeeDelegation bool,
-) (string, error) {
+) (string, error, uint64) {
 
 	contractAddress = address
 	contractCaller = caller
@@ -447,7 +470,10 @@ func Execute(
 
 
 
-	return ex.jsonRet, ex.err
+
+	totalUsedGas := getUsedGas()
+
+	return ex.jsonRet, ex.err, totalUsedGas
 }
 
 ////////////////////////////////////////////////////////////////////////////////
