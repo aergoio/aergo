@@ -16,7 +16,6 @@ import (
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/v2/cmd/aergoluac/util"
-	"github.com/aergoio/aergo/v2/config"
 	"github.com/aergoio/aergo/v2/contract"
 	"github.com/aergoio/aergo/v2/contract/system"
 	"github.com/aergoio/aergo/v2/fee"
@@ -593,7 +592,7 @@ func (l *luaTxDeploy) run(execCtx context.Context, bs *state.BlockState, bc *Dum
 		// compile the plain code to bytecode
 		payload := util.LuaCodePayload(l._payload)
 		code := string(payload.Code())
-		byteCode, err := contract.Compile(code, nil)
+		byteCode, err := contract.Compile(code, false)
 		if err != nil {
 			return err
 		}
