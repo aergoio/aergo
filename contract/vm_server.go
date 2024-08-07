@@ -142,7 +142,7 @@ func (ce *executor) WaitForMessage() ([]byte, error) {
 
 	if ce.ctx.callDepth == 1 {
 		// define a global deadline for contract execution
-		ce.ctx.deadline = time.Now().Add(ce.ctx.timeout)
+		ce.ctx.deadline = time.Now().Add(250 * time.Millisecond)
 	}
 
 	return msg.WaitForMessage(ce.vmInstance.conn, ce.ctx.deadline)
