@@ -85,6 +85,7 @@ type vmContext struct {
 	gasLimit          uint64
 	remainingGas      uint64
 	execCtx           context.Context
+	deadline          time.Time
 }
 
 type executor struct {
@@ -1039,7 +1040,8 @@ func Compile(code string, hasParent bool) (luacUtil.LuaCode, error) {
 		return nil, err
 	}
 
-	deadline := time.Now().Add(ce.ctx.timeout)  //FIXME: timeout
+	// timeout of 250 ms
+	deadline := time.Now().Add(250 * time.Millisecond)
 	byteCodeAbi, err := msg.WaitForMessage(vmInstance.conn, deadline)
 	if err != nil {
 		return nil, err
