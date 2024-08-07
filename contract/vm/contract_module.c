@@ -118,6 +118,7 @@ static int moduleCall(lua_State *L) {
 	lua_pop(L, 2);
 	contract = (char *)luaL_checkstring(L, 2);
 	if (lua_gettop(L) == 2) {
+		// when called with contract.call.value(amount)(address) - this triggers a call to the default() function
 		char *errStr = luaSendAmount(L, contract, amount);
 		reset_amount_info(L);
 		if (errStr != NULL) {
@@ -145,6 +146,11 @@ static int moduleCall(lua_State *L) {
 	// push the returned values to the stack
 	int count = lua_util_json_array_to_lua(L, ret.r0, true);
 	free(ret.r0);
+	if (count == -1) {
+		luaL_setuncatchablerror(L);
+		lua_pushstring(L, "internal error: result from call is not a valid JSON array");
+		luaL_throwerror(L);
+	}
 	// return the number of items in the stack
 	return count;
 }
@@ -192,6 +198,11 @@ static int moduleDelegateCall(lua_State *L) {
 	// push the returned values to the stack
 	int count = lua_util_json_array_to_lua(L, ret.r0, true);
 	free(ret.r0);
+	if (count == -1) {
+		luaL_setuncatchablerror(L);
+		lua_pushstring(L, "internal error: result from call is not a valid JSON array");
+		luaL_throwerror(L);
+	}
 	// return the number of items in the stack
 	return count;
 }
@@ -394,6 +405,11 @@ static int moduleDeploy(lua_State *L) {
 	// push the returned values to the stack
 	int count = lua_util_json_array_to_lua(L, ret.r0, true);
 	free(ret.r0);
+	if (count == -1) {
+		luaL_setuncatchablerror(L);
+		lua_pushstring(L, "internal error: result from call is not a valid JSON array");
+		luaL_throwerror(L);
+	}
 	// return the number of items in the stack
 	return count;
 }

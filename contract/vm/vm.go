@@ -44,8 +44,13 @@ var contractIsFeeDelegation bool
 ////////////////////////////////////////////////////////////////////////////////
 
 func InitializeVM() {
-	logger = log.NewLogger("contract")
-	C.init_bignum()
+	if lstate == nil {
+		// these are called only once on tests
+		logger = log.NewLogger("vm")
+		C.init_bignum()
+	} else {
+		C.lua_close(lstate)
+	}
 	lstate = C.vm_newstate(C.int(hardforkVersion))
 }
 
@@ -102,7 +107,7 @@ func (ce *executor) pushArgs() {
 	ce.numArgs = C.lua_util_json_array_to_lua(ce.L, args, C.bool(true));
 	C.free(unsafe.Pointer(args))
 	if ce.numArgs == -1 {
-		ce.err = errors.New("invalid arguments")
+		ce.err = errors.New("invalid arguments. must be valid JSON array")
 	}
 }
 
@@ -217,10 +222,9 @@ func toLuaTable(L *LState, tab map[string]interface{}) error {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-func (ce *executor) call(hasParent bool) (ret C.int) {
+func (ce *executor) call(hasParent bool) {
 
 	defer func() {
-		//if ret == 0 && hasParent {
 		if ce.err != nil && hasParent {
 			if bool(C.luaL_hasuncatchablerror(ce.L)) {
 				ce.err = errors.New("uncatchable: " + ce.err.Error())
@@ -232,18 +236,16 @@ func (ce *executor) call(hasParent bool) (ret C.int) {
 	}()
 
 	if ce.err != nil {
-		return 0
+		return
 	}
-
-	//defer ce.refreshRemainingGas()
 
 	ce.vmLoadCall()
 	if ce.err != nil {
-		return 0
+		return
 	}
 	if ce.preErr != nil {
 		ce.err = ce.preErr
-		return 0
+		return
 	}
 
 	if ce.isAutoload {
@@ -253,7 +255,7 @@ func (ce *executor) call(hasParent bool) (ret C.int) {
 				ce.err = errors.New(fmt.Sprintf("contract autoload failed %s : %s",
 					contractAddress, ce.fname))
 			}
-			return 0
+			return
 		}
 	} else {
 		// used for normal function
@@ -266,7 +268,7 @@ func (ce *executor) call(hasParent bool) (ret C.int) {
 	ce.pushArgs()
 	if ce.err != nil {
 		logger.Debug().Err(ce.err).Str("contract", contractAddress).Msg("invalid argument")
-		return 0
+		return
 	}
 	if !ce.isAutoload {
 		ce.numArgs = ce.numArgs + 1
@@ -290,7 +292,7 @@ func (ce *executor) call(hasParent bool) (ret C.int) {
 			ce.err = errors.New(errMsg)
 		}
 		logger.Debug().Err(ce.err).Str("contract", contractAddress).Msg("contract execution failed")
-		return 0
+		return
 	}
 
 	// convert the result to json
@@ -320,7 +322,6 @@ func (ce *executor) call(hasParent bool) (ret C.int) {
 	}
 */
 
-	return nRet
 }
 
 func vmAutoloadFunction(L *LState, funcName string) bool {
@@ -387,17 +388,20 @@ func getUsedGas() uint64 {
 	return contractGasLimit - getRemainingGas()
 }
 
-func addConsumedGas(gas uint64) bool {
+func addConsumedGas(gas uint64, err error) error {
 	if !IsGasSystem() {
-		return true
+		return err
 	}
 	remainingGas := getRemainingGas()
 	if gas > remainingGas {
-		return false
+		if err == nil {
+			err = errors.New("uncatchable: gas limit exceeded")
+		}
+		return err
 	}
 	remainingGas -= gas
 	C.lua_gasset(lstate, C.ulonglong(remainingGas))
-	return true
+	return err
 }
 
 // extract the used gas from the result
@@ -457,8 +461,7 @@ func Execute(
 
 	ex := newExecutor([]byte(code), fname, args)
 
-
-
+	ex.call(false)  //FIXME: hasParent or callDepth or handle the error message + result on the server side
 
 	totalUsedGas := getUsedGas()
 

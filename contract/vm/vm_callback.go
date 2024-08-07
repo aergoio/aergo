@@ -92,7 +92,7 @@ func luaCallContract(L *LState,
 	// extract the used gas from the result
 	usedGas, result := extractUsedGas(result)
 	// update the remaining gas
-	addConsumedGas(usedGas)
+	err = addConsumedGas(usedGas, err)
 
 	if err != nil {
 		return nil, handleError(L, err)
@@ -117,7 +117,7 @@ func luaDelegateCallContract(L *LState,
 	// extract the used gas from the result
 	usedGas, result := extractUsedGas(result)
 	// update the remaining gas
-	addConsumedGas(usedGas)
+	err = addConsumedGas(usedGas, err)
 
 	if err != nil {
 		return nil, handleError(L, err)
@@ -135,7 +135,7 @@ func luaSendAmount(L *LState, address *C.char, amount *C.char) *C.char {
 	// extract the used gas from the result
 	usedGas, result := extractUsedGas(result)
 	// update the remaining gas
-	addConsumedGas(usedGas)
+	err = addConsumedGas(usedGas, err)
 
 	if err != nil {
 		return handleError(L, err)
@@ -406,7 +406,7 @@ func luaDeployContract(
 	// extract the used gas from the result
 	usedGas, result := extractUsedGas(result)
 	// update the remaining gas
-	addConsumedGas(usedGas)
+	err = addConsumedGas(usedGas, err)
 
 	if err != nil {
 		return nil, handleError(L, err)
@@ -565,8 +565,9 @@ func luaSendRequest(L *LState, method *C.char, arguments *C.buffer, response *C.
 	}
 }
 
-//sendRequest
-func sendRequest(method string, args []string) (string, error) {
+var sendRequest = sendRequestFunc
+
+func sendRequestFunc(method string, args []string) (string, error) {
 
 	// send the execution request to the VM instance
 	err := sendApiMessage(method, args)
