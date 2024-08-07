@@ -794,7 +794,17 @@ func (ctx *vmContext) handleGetTimeStamp() (result string, err error) {
 }
 
 
-
+//export checkDbExecContext
+func checkDbExecContext(service C.int) bool {
+	// check if service is valid
+	if service < 0 || service >= C.int(len(contexts)) {
+		return false
+	}
+	if PubNet {
+		return false
+	}
+	return true
+}
 
 //export luaGetDbHandle
 func luaGetDbHandle(service C.int) *C.sqlite3 {
