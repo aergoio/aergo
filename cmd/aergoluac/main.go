@@ -10,6 +10,7 @@ import (
 	"os"
 
 	"github.com/aergoio/aergo/v2/cmd/aergoluac/util"
+	"github.com/aergoio/aergo/v2/cmd/aergoluac/luac"
 	"github.com/spf13/cobra"
 )
 
@@ -44,15 +45,15 @@ func init() {
 				}
 			} else if payload {
 				if len(args) == 0 {
-					err = util.DumpFromStdin()
+					err = luac.DumpFromStdin()
 				} else {
-					err = util.DumpFromFile(args[0])
+					err = luac.DumpFromFile(args[0])
 				}
 			} else {
 				if len(args) < 2 {
 					return errors.New("2 arguments required: <srcfile> <bcfile>")
 				}
-				err = util.CompileFromFile(args[0], args[1], abiFile)
+				err = luac.CompileFromFile(args[0], args[1], abiFile)
 			}
 
 			return err
