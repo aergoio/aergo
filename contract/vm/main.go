@@ -75,6 +75,9 @@ func main(){
 		return
 	}
 
+	// send ready message
+	sendReadyMessage()
+
 	// wait for commands from the server
 	MessageLoop()
 
@@ -90,6 +93,17 @@ func connectToServer(socketName string) (err error) {
   }
   conn = rawConn.(*net.UnixConn)
   return nil
+}
+
+func sendReadyMessage() {
+	message := []byte("ready")
+	/*/ encrypt the message
+	message, err = msg.Encrypt(message, secretKey)
+	if err != nil {
+		fmt.Printf("Error: failed to encrypt message: %v\n", err)
+		return
+	} */
+	msg.SendMessage(conn, message)
 }
 
 func MessageLoop() {

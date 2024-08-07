@@ -242,9 +242,10 @@ func spawnVmInstances(num int) {
 }
 
 func isValidMessage(vmInstance *VmInstance, message []byte) bool {
-
-	//TODO: implement
-
+	if string(message) == "ready" {
+		return true
+	}
+	return false
 }
 
 // this should ONLY be called by the vmPoolRoutine. use FreeVmInstance() to release a vm instance
