@@ -25,7 +25,9 @@ add_custom_target(aergosvr GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS}
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     DEPENDS libtool)
 
-add_custom_target(aergovm GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X main.githash=`git describe --tags` -X main.gitRevision=`git rev-parse --short HEAD` -X main.gitBranch=`git rev-parse --symbolic-full-name --abbrev-ref HEAD`\" ./contract/vm/...
+add_custom_target(aergovm
+    COMMAND GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X main.githash=`git describe --tags` -X main.gitRevision=`git rev-parse --short HEAD` -X main.gitBranch=`git rev-parse --symbolic-full-name --abbrev-ref HEAD`\" ./contract/vm/...
+    COMMAND ${CMAKE_COMMAND} -E rename ${BIN_DIR}/vm ${BIN_DIR}/aergovm
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     DEPENDS libtool)
 
