@@ -8,8 +8,6 @@
 #include "linkedlist.h"
 #include "_cgo_export.h"
 
-extern void checkLuaExecContext(int service);
-
 typedef struct stmt_t stmt_t;
 struct stmt_t{
 	stmt_t *next;
@@ -93,7 +91,10 @@ void handle_rs_get(request *req, int query_id) {
 	int n;
 	const unsigned char *s;
 
-	checkLuaExecContext(req->service);
+	if (!checkDbExecContext(req->service)) {
+		set_error(req, "invalid db context");
+		return;
+	}
 
 	if (rs == NULL || rs->decltypes == NULL) {
 		set_error(req, "`get' called without calling `next'");
@@ -154,7 +155,10 @@ void handle_rs_next(request *req, int query_id) {
 	int rc;
 	rs_t *rs = get_rs(query_id);
 
-	checkLuaExecContext(req->service);
+	if (!checkDbExecContext(req->service)) {
+		set_error(req, "invalid db context");
+		return;
+	}
 
 	if (!rs) {
 		set_error(req, "invalid query id");
@@ -271,12 +275,14 @@ void handle_stmt_exec(request *req, int pstmt_id, char *params_ptr, int params_l
 	stmt_t *pstmt = get_pstmt(pstmt_id);
 	int rc;
 
-	checkLuaExecContext(req->service);
+	if (!checkDbExecContext(req->service)) {
+		set_error(req, "invalid db context");
+		return;
+	}
 	if (luaIsView(req->service)) {
 		set_error(req, "not permitted in view function");
 		return;
 	}
-
 	if (pstmt == NULL) {
 		set_error(req, "invalid pstmt id");
 		return;
@@ -306,13 +312,14 @@ void handle_stmt_query(request *req, int pstmt_id, char *params_ptr, int params_
 	rs_t *rs;
 	int rc;
 
-	checkLuaExecContext(req->service);
-
-	if (!sqlite3_stmt_readonly(pstmt->s)) {
-		set_error(req, "invalid sql command(permitted readonly)");
+	if (!checkDbExecContext(req->service)) {
+		set_error(req, "invalid db context");
 		return;
 	}
-
+	if (!sqlite3_stmt_readonly(pstmt->s)) {
+		set_error(req, "invalid sql command (only read permitted)");
+		return;
+	}
 	if (pstmt == NULL) {
 		set_error(req, "invalid pstmt id");
 		return;
@@ -372,7 +379,10 @@ static void get_column_meta(request *req, sqlite3_stmt* stmt) {
 }
 
 void handle_stmt_column_info(request *req, int pstmt_id) {
-	checkLuaExecContext(req->service);
+	if (!checkDbExecContext(req->service)) {
+		set_error(req, "invalid db context");
+		return;
+	}
 	stmt_t *pstmt = get_pstmt(pstmt_id);
 	if (pstmt == NULL) {
 		set_error(req, "invalid pstmt id");
@@ -398,12 +408,14 @@ void handle_db_exec(request *req, const char *sql, char *params_ptr, int params_
 	sqlite3_stmt *s;
 	int rc;
 
-	checkLuaExecContext(req->service);
+	if (!checkDbExecContext(req->service)) {
+		set_error(req, "invalid db context");
+		return;
+	}
 	if (luaIsView(req->service)) {
 		set_error(req, "not permitted in view function");
 		return;
 	}
-
 	if (!sqlcheck_is_permitted_sql(sql)) {
 		set_error(req, "invalid sql command: %s", sql);
 		return;
@@ -445,10 +457,12 @@ void handle_db_query(request *req, const char *sql, char *params_ptr, int params
 	sqlite3_stmt *s;
 	rs_t *rs;
 
-	checkLuaExecContext(req->service);
-
+	if (!checkDbExecContext(req->service)) {
+		set_error(req, "invalid db context");
+		return;
+	}
 	if (!sqlcheck_is_readonly_sql(sql)) {
-		set_error(req, "invalid sql command(permitted readonly)");
+		set_error(req, "invalid sql command (only read permitted)");
 		return;
 	}
 
@@ -492,8 +506,10 @@ void handle_db_prepare(request *req, const char *sql) {
 	sqlite3_stmt *s;
 	stmt_t *pstmt;
 
-	checkLuaExecContext(req->service);
-
+	if (!checkDbExecContext(req->service)) {
+		set_error(req, "invalid db context");
+		return;
+	}
 	if (!sqlcheck_is_permitted_sql(sql)) {
 		set_error(req, "invalid sql commond: %s", sql);
 		return;
@@ -527,7 +543,6 @@ void handle_db_prepare(request *req, const char *sql) {
 
 sqlite3 *vm_get_db(request *req) {
 	sqlite3 *db;
-	checkLuaExecContext(req->service);
 	db = luaGetDbHandle(req->service);
 	if (db == NULL) {
 		set_error(req, "can't open a database connection");
@@ -537,15 +552,20 @@ sqlite3 *vm_get_db(request *req) {
 
 void handle_db_get_snapshot(request *req) {
 	char *snapshot;
-	checkLuaExecContext(req->service);
-
+	if (!checkDbExecContext(req->service)) {
+		set_error(req, "invalid db context");
+		return;
+	}
 	snapshot = LuaGetDbSnapshot(req->service);
 	add_string(&req->result, snapshot);
 }
 
 void handle_db_open_with_snapshot(request *req, char *snapshot) {
 	char *errStr;
-	checkLuaExecContext(req->service);
+	if (!checkDbExecContext(req->service)) {
+		set_error(req, "invalid db context");
+		return;
+	}
 
 	errStr = LuaGetDbHandleSnap(req->service, snapshot);
 	if (errStr != NULL) {
@@ -558,7 +578,10 @@ void handle_db_open_with_snapshot(request *req, char *snapshot) {
 }
 
 void handle_last_insert_rowid(request *req) {
-	checkLuaExecContext(req->service);
+	if (!checkDbExecContext(req->service)) {
+		set_error(req, "invalid db context");
+		return;
+	}
 	sqlite3 *db = vm_get_db(req);
 	if (db != NULL) {
 		return;
