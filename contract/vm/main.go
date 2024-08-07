@@ -182,7 +182,11 @@ func processCommand(command string, args []string) (string, error) {
 		binary.LittleEndian.PutUint64(gasBytes, usedGas)
 		res = string(gasBytes) + res
 
-		sendApiMessage("return", []string{res, err.Error()})
+		err = sendApiMessage("return", []string{res, err.Error()})
+		if err != nil {
+			fmt.Printf("Error: failed to send message: %v\n", err)
+			os.Exit(1)
+		}
 		os.Exit(0)
 
 	case "compile":
