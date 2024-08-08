@@ -32,34 +32,34 @@ func main(){
 	args := os.Args
 
 	// check if args are empty
-	if len(args) != 4 {
-		fmt.Println("Usage: vm <hardforkVersion> <isPubNet> <socketName> <secretKey>")
+	if len(args) != 5 {
+		fmt.Println("Usage: aergovm <hardforkVersion> <isPubNet> <socketName> <secretKey>")
 		return
 	}
 
   // get the hardfork version from command line
-	hardforkVersion, err = strconv.Atoi(args[0])
+	hardforkVersion, err = strconv.Atoi(args[1])
 	if err != nil {
 		fmt.Println("Error: Invalid hardfork version")
 		return
 	}
 
   // get PubNet from command line
-	isPubNet, err = strconv.ParseBool(args[1])
+	isPubNet, err = strconv.ParseBool(args[2])
 	if err != nil {
 		fmt.Println("Error: Invalid PubNet")
 		return
 	}
 
   // get socket name from command line
-	socketName = args[2]
+	socketName = args[3]
 	if socketName == "" {
 		fmt.Println("Error: Invalid socket name")
 		return
 	}
 
   // get secret key from command line
-	secretKey = args[3]
+	secretKey = args[4]
 	if secretKey == "" {
 		fmt.Println("Error: Invalid secret key")
 		return
@@ -182,7 +182,11 @@ func processCommand(command string, args []string) (string, error) {
 		binary.LittleEndian.PutUint64(gasBytes, usedGas)
 		res = string(gasBytes) + res
 
-		err = sendApiMessage("return", []string{res, err.Error()})
+		var errStr string
+		if err != nil {
+			errStr = err.Error()
+		}
+		err = sendApiMessage("return", []string{res, errStr})
 		if err != nil {
 			fmt.Printf("Error: failed to send message: %v\n", err)
 			os.Exit(1)

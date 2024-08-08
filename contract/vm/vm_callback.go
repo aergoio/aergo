@@ -32,6 +32,7 @@ import (
 	"strconv"
 	"strings"
 	"unsafe"
+	"errors"
 	"time"
 
 	"github.com/aergoio/aergo/v2/internal/enc/hex"
@@ -576,13 +577,31 @@ func sendRequestFunc(method string, args []string) (string, error) {
 	}
 
 	// wait for the response
-	result, err := msg.WaitForMessage(conn, time.Time{})
+	response, err := msg.WaitForMessage(conn, time.Time{})
+	if err != nil {
+		return "", err  //FIXME: this is a system error
+	}
+
+	/*/ decrypt the message
+	response, err = msg.Decrypt(response, secretKey)
+	if err != nil {
+		return "", err
+	}
+	*/
+
+	list, err := msg.DeserializeMessage(response)
 	if err != nil {
 		return "", err
 	}
 
+	result := list[0]
+	errstr := list[1]
+	if errstr != "" {
+		err = errors.New(errstr)
+	}
+
 	// return the result
-	return string(result), nil
+	return result, err
 }
 
 func sendApiMessage(method string, args []string) error {
