@@ -331,15 +331,6 @@ func newExecutor(
 		return ce
 	}
 
-	//if ctx.IsGasSystem() {
-	//	ce.setGas()
-	//}
-
-	//ce.vmLoadCode(contractId)
-	//if ce.err != nil {
-	//	return ce
-	//}
-
 	if isCreate {
 		f, err := resolveFunction(ctrState, ctx.bs, constructor, isCreate)
 		if err != nil {
@@ -348,6 +339,7 @@ func newExecutor(
 			return ce
 		}
 		if f == nil {
+			// the constructor function does not need to be declared with abi.register()
 			f = &types.Function{
 				Name:    constructor,
 				Payable: false,
@@ -373,7 +365,7 @@ func newExecutor(
 		ce.fname = checkFeeDelegationFn
 		ce.isAutoload = true
 	} else {
-		f, err := resolveFunction(ctrState, ctx.bs, ci.Name, isCreate)
+		f, err := resolveFunction(ctrState, ctx.bs, ci.Name, false)
 		if err != nil {
 			ce.preErr = err
 			ctrLgr.Debug().Err(ce.err).Str("contract", types.EncodeAddress(contractId)).Msg("not found function")

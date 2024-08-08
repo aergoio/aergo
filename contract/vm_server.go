@@ -13,6 +13,9 @@ import (
 
 // convert the arguments to a single string containing the JSON array
 func (ce *executor) convertArgsToJSON() (string, error) {
+	if ce.ci == nil || ce.ci.Args == nil {
+		return "[]", nil
+	}
 	args, err := json.Marshal(ce.ci.Args)
 	if err != nil {
 		return "", err
@@ -21,6 +24,14 @@ func (ce *executor) convertArgsToJSON() (string, error) {
 }
 
 func (ce *executor) call(extractUsedGas bool) {
+
+	if ce.err != nil {
+		return
+	}
+	if ce.preErr != nil {
+		ce.err = ce.preErr
+		return
+	}
 
 	if ce.isView == true {
 		ce.ctx.nestedView++

@@ -65,7 +65,6 @@ type executor struct {
 	isAutoload bool
 	jsonRet    string
 	err        error
-	preErr     error
 }
 
 func newExecutor(
@@ -243,15 +242,16 @@ func (ce *executor) call(hasParent bool) {
 	if ce.err != nil {
 		return
 	}
-	if ce.preErr != nil {
-		ce.err = ce.preErr
-		return
-	}
 
 	if ce.isAutoload {
 		// used for constructor and check_delegation functions
 		if loaded := vmAutoloadFunction(ce.L, ce.fname); !loaded {
-			if ce.fname != "constructor" {
+			if ce.fname == "constructor" {
+				// the constructor function was not found
+				if hasParent {
+					ce.jsonRet = "[]"
+				}
+			} else {
 				ce.err = errors.New(fmt.Sprintf("contract autoload failed %s : %s",
 					contractAddress, ce.fname))
 			}
