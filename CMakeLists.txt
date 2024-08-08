@@ -51,7 +51,8 @@ add_custom_target(mpdumpdiag GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAG
 
 add_custom_target(deps DEPENDS libtool)
 
-add_custom_target(check GO111MODULE=on go test -timeout 600s ./...
+add_custom_target(check
+    COMMAND ${CMAKE_COMMAND} -E env AERGOVM_PATH=${BIN_DIR}/aergovm GO111MODULE=on go test -timeout 600s ./...
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     DEPENDS build)
 add_custom_target(cover-check GO111MODULE=on go test -timeout 600s -coverprofile c.out ./...

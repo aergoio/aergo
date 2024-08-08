@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"time"
+	"path/filepath"
 
 	"github.com/aergoio/aergo/v2/internal/enc/hex"
 	"github.com/aergoio/aergo/v2/contract/msg"
@@ -113,6 +114,7 @@ func repopulatePool() {
 
 // spawn a number of vm instances
 func spawnVmInstances(num int) {
+	var num_repeats int
 
 	for i := 0; i < num; i++ {
 		// get a random id
@@ -140,6 +142,10 @@ func spawnVmInstances(num int) {
 		if err != nil {
 			ctrLgr.Error().Msg("Failed to create unix domain socket listener")
 			// try again
+			num_repeats++
+			if num_repeats > 10 {
+				os.Exit(1)
+			}
 			i--
 			continue
 		}
@@ -148,17 +154,47 @@ func spawnVmInstances(num int) {
 			ctrLgr.Error().Msg("Failed to assign listener to *net.UnixListener")
 			listener.Close()
 			// try again
+			num_repeats++
+			if num_repeats > 10 {
+				os.Exit(1)
+			}
 			i--
 			continue
 		}
 
+		// get the directory path of the current executable
+		var execDir string
+		execPath, err := os.Executable()
+		if err != nil {
+			ctrLgr.Error().Err(err).Msg("Failed to get executable path")
+		} else {
+			execDir = filepath.Dir(execPath)
+		}
+
+		// try different paths for the external VM executable
+		execPath = os.Getenv("AERGOVM_PATH")
+		if execPath == "" {
+			execPath = filepath.Join(execDir, "aergovm")
+			// check if the file exists
+			if _, err := os.Stat(execPath); err != nil {
+				execPath = "./aergovm"
+				if _, err := os.Stat(execPath); err != nil {
+					execPath = "aergovm"
+				}
+			}
+		}
+
 		// spawn the exernal VM executable process
-		cmd := exec.Command("./aergovm", strconv.Itoa(int(currentForkVersion)), map[bool]string{true: "1", false: "0"}[PubNet], socketName, hex.Encode(secretKey[:]))
+		cmd := exec.Command(execPath, strconv.Itoa(int(currentForkVersion)), map[bool]string{true: "1", false: "0"}[PubNet], socketName, hex.Encode(secretKey[:]))
 		err = cmd.Start()
 		if err != nil {
-			ctrLgr.Error().Msg("Failed to spawn external VM process")
+			ctrLgr.Error().Err(err).Msg("Failed to spawn external VM process")
 			listener.Close()
 			// try again
+			num_repeats++
+			if num_repeats > 10 {
+				os.Exit(1)
+			}
 			i--
 			continue
 		}
