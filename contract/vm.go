@@ -1029,22 +1029,32 @@ func Compile(code string, hasParent bool) (luacUtil.LuaCode, error) {
 	// send the execution request to the VM instance
 	err := msg.SendMessage(vmInstance.conn, message)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("compile: send message: %v", err)
 	}
 
 	// timeout of 250 ms
 	deadline := time.Now().Add(250 * time.Millisecond)
-	byteCodeAbi, err := msg.WaitForMessage(vmInstance.conn, deadline)
+	response, err := msg.WaitForMessage(vmInstance.conn, deadline)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("compile: wait for message: %v", err)
 	}
 
 	/*/ decrypt the message
-	byteCodeAbi, err = msg.Decrypt(byteCodeAbi, secretKey)
+	response, err = msg.Decrypt(response, secretKey)
 	if err != nil {
 		return nil, err
 	}
 	*/
 
-	return luacUtil.LuaCode(byteCodeAbi), nil
+	results, err := msg.DeserializeMessage(response)
+	if len(results) != 2 {
+		return nil, fmt.Errorf("compile: invalid number of results: %v", results)
+	}
+	bytecodeAbi := results[0]
+	errMsg := results[1]
+
+	if len(errMsg) > 0 {
+		return nil, fmt.Errorf("compile: %s", errMsg)
+	}
+	return luacUtil.LuaCode(bytecodeAbi), nil
 }
