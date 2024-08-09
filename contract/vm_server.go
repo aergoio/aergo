@@ -133,7 +133,11 @@ func (ce *executor) MessageLoop() (result string, err error) {
 			return result, err
 		}
 		// serialize the response
-		response := msg.SerializeMessage(result, err.Error())
+		var errMsg string
+		if err != nil {
+			errMsg = err.Error()
+		}
+		response := msg.SerializeMessage(result, errMsg)
 		// send the response
 		err = ce.SendMessage(response)
 		if err != nil {
