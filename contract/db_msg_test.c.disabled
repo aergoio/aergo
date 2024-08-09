@@ -139,17 +139,34 @@ TEST(get_count) {
 
 TEST(get_next_item) {
     buffer buf = {0};
-    add_string(&buf, "First");
-    add_string(&buf, "Second");
+    add_int(&buf, 123);
+    add_string(&buf, "Hello");
+    add_double(&buf, 3.14159);
+    add_bool(&buf, true);
     
     bytes data = {buf.ptr, buf.len};
     int len;
     char* item = get_next_item(&data, NULL, &len);
-    ASSERT(strncmp("sFirst", item, len) == 0);
+    ASSERT_EQUAL('i', get_type(item,len));
+    item++; len--;
+    ASSERT_EQUAL(4, len);
+    ASSERT_EQUAL(123, read_int(item));
     
     item = get_next_item(&data, item, &len);
-    ASSERT(strncmp("sSecond", item, len) == 0);
+    ASSERT_EQUAL('s', get_type(item,len));
+    item++; len--;
+    ASSERT_STRING_EQUAL("Hello", item);
     
+    item = get_next_item(&data, item, &len);
+    ASSERT_EQUAL('d', get_type(item,len));
+    item++; len--;
+    ASSERT_DOUBLE_EQUAL(3.14159, read_double(item), 1e-5);
+    
+    item = get_next_item(&data, item, &len);
+    ASSERT_EQUAL('b', get_type(item,len));
+    item++; len--;
+    ASSERT(read_bool(item));
+
     item = get_next_item(&data, item, &len);
     ASSERT(item == NULL);
     
