@@ -1,19 +1,48 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdarg.h>
+#include <stdint.h>
 #include <stdbool.h>
+#include <stdarg.h>
 #include "db_msg.h"
 
 void set_error(request *req, const char *format, ...) {
-	va_list args;
-	va_start(args, format);
-	vsnprintf(req->error, sizeof(req->error), format, args);
-	va_end(args);
-  // if out of memory, return a default error message
-  if (req->error == NULL) {
-    req->error = "failed: out of memory";
+
+  if (req == NULL) {
+    return;  // avoid null pointer dereference
   }
+
+  va_list args;
+  va_start(args, format);
+
+  // determine the required buffer size
+  va_list args_copy;
+  va_copy(args_copy, args);
+  int size = vsnprintf(NULL, 0, format, args_copy) + 1;  // +1 for null terminator
+  va_end(args_copy);
+
+  if (size <= 0) {
+    va_end(args);
+    return;  // error in formatting
+  }
+
+  // allocate memory for the new error message
+  char *new_error = malloc(size);
+  if (new_error == NULL) {
+    va_end(args);
+    return;  // memory allocation failed
+  }
+
+  // format the error message
+  vsnprintf(new_error, size, format, args);
+  va_end(args);
+
+  // free the old error message if it exists
+  if (req->error != NULL) {
+    free(req->error);
+  }
+  // set the new error message
+  req->error = new_error;
 }
 
 // serialization
@@ -121,7 +150,7 @@ void add_typed_item(buffer *buf, char type, const char *data, int len) {
     }
   }
   // store the length of the item
-  write_int(buf->ptr + buf->len, len);
+  write_int(buf->ptr + buf->len, len + 1);
   // store the type of the item
   buf->ptr[buf->len + 4] = type;
   // copy item to buffer
@@ -158,7 +187,7 @@ void add_bool(buffer *buf, bool value) {
 }
 
 void add_bytes(buffer *buf, const char *data, int len) {
-	add_typed_item(buf, 's', data, len);
+	add_typed_item(buf, 'y', data, len);
 }
 
 void add_null(buffer *buf) {
@@ -216,12 +245,9 @@ int get_count(bytes *data) {
 
 // get string at position
 char *get_string(bytes *data, int position) {
-  char *p = get_item(data, position, NULL);
-  if (p == NULL) {
-    return NULL;
-  }
-  // check type
-  if (*p != 's') {
+  int len;
+  char *p = get_item(data, position, &len);
+  if (p == NULL || len < 1 || *p != 's') {
     return NULL;
   }
   // skip type
@@ -233,7 +259,7 @@ char *get_string(bytes *data, int position) {
 int get_int(bytes *data, int position) {
   int len;
   char *p = get_item(data, position, &len);
-  if (p == NULL || len != 4) {
+  if (p == NULL || len != 1+4) {
     return 0;
   }
   // check type
@@ -250,7 +276,7 @@ int64_t get_int64(bytes *data, int position) {
   int64_t value;
   int len;
   char *p = get_item(data, position, &len);
-  if (p == NULL || len != 8) {
+  if (p == NULL || len != 1+8) {
     return 0;
   }
   // check type
@@ -268,7 +294,7 @@ double get_double(bytes *data, int position) {
   double value;
   int len;
   char *p = get_item(data, position, &len);
-  if (p == NULL || len != 8) {
+  if (p == NULL || len != 1+8) {
     return 0;
   }
   // check type
@@ -285,7 +311,7 @@ double get_double(bytes *data, int position) {
 bool get_bool(bytes *data, int position) {
   int len;
   char *p = get_item(data, position, &len);
-  if (p == NULL || len != 1) {
+  if (p == NULL || len != 1+1) {
     return false;
   }
   // check type
@@ -300,9 +326,10 @@ bool get_bool(bytes *data, int position) {
 bool get_bytes(bytes *data, int position, bytes *pbytes) {
   int len;
   char *p = get_item(data, position, &len);
-  if (p == NULL) {
+  if (p == NULL || len < 1 || *p != 'y') {
     return false;
   }
+  p++; len--;
   pbytes->ptr = p;
   pbytes->len = len;
   return true;
