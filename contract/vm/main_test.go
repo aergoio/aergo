@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aergoio/aergo/v2/cmd/aergoluac/util"
 	"github.com/aergoio/aergo/v2/contract/msg"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/assert"
@@ -57,7 +58,7 @@ abi.register(add, set, get, send, call, call_with_send, delegatecall, deploy, de
 
 var initDone = false
 
-func compileVm(t *testing.T) {
+func compileVmExecutable(t *testing.T) {
 
 	// Change the current working directory to the root directory
 	os.Chdir("../..")
@@ -73,7 +74,7 @@ func compileVm(t *testing.T) {
 func NewVmInstance(t *testing.T) (*exec.Cmd, net.Conn, chan struct{}) {
 
 	if !initDone {
-		compileVm(t)
+		compileVmExecutable(t)
 		initDone = true
 	}
 
@@ -108,8 +109,8 @@ func NewVmInstance(t *testing.T) (*exec.Cmd, net.Conn, chan struct{}) {
 			// VM process exited before test completion
 			if err != nil {
 				t.Errorf("VM process exited unexpectedly: %v", err)
-				t.Logf("Stdout: %s", stdout.String())
 				t.Logf("Stderr: %s", stderr.String())
+				t.Logf("Stdout: %s", stdout.String())
 				t.FailNow()
 			}
 		}
@@ -141,7 +142,7 @@ func NewVmInstance(t *testing.T) (*exec.Cmd, net.Conn, chan struct{}) {
 	return vmCmd, conn, done
 }
 
-func TestVMExecutionBasic(t *testing.T) {
+func TestVMExecutionBasicPlainCode(t *testing.T) {
 
 	vmCmd, conn, done := NewVmInstance(t)
 
@@ -173,6 +174,76 @@ func TestVMExecutionBasic(t *testing.T) {
 	assert.Equal(t, "579", result)
 	assert.Equal(t, "", errStr)
 	assert.Equal(t, uint64(3648), usedGas)
+
+	vmCmd.Process.Kill()
+	conn.Close()
+	// Signal that the test is done
+	done <- struct{}{}
+	close(done)
+}
+
+func TestVMCompileAndExecutionBasic(t *testing.T) {
+
+	vmCmd, conn, done := NewVmInstance(t)
+
+	// Compile the contract
+	t.Log("Sending compile command")
+	compileCmd := []string{"compile", contractCode, "false"}
+	serializedCmd := msg.SerializeMessage(compileCmd...)
+	err := msg.SendMessage(conn, serializedCmd)
+	require.NoError(t, err, "Failed to send compile command")
+
+	t.Log("Waiting for compile response")
+	response, err := msg.WaitForMessage(conn, time.Now().Add(250*time.Millisecond))
+	require.NoError(t, err, "Failed to receive compile response")
+
+	args, err := msg.DeserializeMessage(response)
+	require.NoError(t, err)
+	require.Len(t, args, 2, "Unexpected number of response arguments")
+	bytecodeAbi := args[0]
+	errMsg := args[1]
+	require.Equal(t, "", errMsg)
+
+	vmCmd.Process.Kill()
+	conn.Close()
+	// Signal that the test is done
+	done <- struct{}{}
+	close(done)
+
+
+	bytecode := util.LuaCode(bytecodeAbi).ByteCode()
+
+
+	vmCmd, conn, done = NewVmInstance(t)
+
+	// Test the execute command
+	t.Log("Sending execute command")
+	executeCmd := []string{"execute", "contract_address", string(bytecode), "add", `[123,456]`, "\x00\x00\x00\x01\x00\x00\x00\x00", "test_caller", "false"}
+	serializedCmd = msg.SerializeMessage(executeCmd...)
+	err = msg.SendMessage(conn, serializedCmd)
+	require.NoError(t, err, "Failed to send execute command")
+
+	t.Log("Waiting for execute response")
+	response, err = msg.WaitForMessage(conn, time.Now().Add(250*time.Millisecond))
+	require.NoError(t, err, "Failed to receive execute response")
+
+	// Deserialize the response
+	args, err = msg.DeserializeMessage(response)
+	require.NoError(t, err)
+	require.Len(t, args, 3, "Unexpected number of response arguments")
+	command := args[0]
+	result := args[1]
+	errStr := args[2]
+
+	// Extract used gas and result
+	require.GreaterOrEqual(t, len(result), 8, "expected to contain encoded gas")
+	usedGas := binary.LittleEndian.Uint64([]byte(result[:8]))
+	result = result[8:]
+
+	assert.Equal(t, "return", command)
+	assert.Equal(t, "579", result)
+	assert.Equal(t, "", errStr)
+	assert.Equal(t, uint64(5856), usedGas)
 
 	vmCmd.Process.Kill()
 	conn.Close()
