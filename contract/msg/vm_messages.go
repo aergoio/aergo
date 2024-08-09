@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"time"
+	"fmt"
 )
 
 // SerializeMessage serializes a variable number of strings into a byte slice
@@ -92,6 +93,14 @@ func SendMessage(conn net.Conn, message []byte) (err error) {
 		return err
 	}
 
+	// attempt to flush the connection
+	if flusher, ok := conn.(interface{ Flush() error }); ok {
+		err = flusher.Flush()
+		if err != nil {
+			return fmt.Errorf("error flushing connection: %w", err)
+		}
+	}
+
 	return nil
 }
 
@@ -105,17 +114,22 @@ func WaitForMessage(conn net.Conn, deadline time.Time) (msg []byte, err error) {
 
 	// read the length prefix
 	length := make([]byte, 4)
-	_, err = conn.Read(length)
+	n, err := io.ReadFull(conn, length)
 	if err != nil {
-		return nil, err
+		if err == io.EOF && n == 0 {
+			return nil, fmt.Errorf("connection closed before reading message length")
+		}
+		return nil, fmt.Errorf("error reading message length (read %d bytes): %w", n, err)
 	}
+
 	// use little endian to get the length
 	msgLength := binary.LittleEndian.Uint32(length)
+
 	// read the message
 	msg = make([]byte, msgLength)
-	_, err = conn.Read(msg)
+	n, err = io.ReadFull(conn, msg)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error reading message body (read %d/%d bytes): %w", n, msgLength, err)
 	}
 
 	// return the message

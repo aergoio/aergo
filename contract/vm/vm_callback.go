@@ -622,7 +622,7 @@ func sendMessage(list []string) error {
 	message, err = msg.Encrypt(message, secretKey)
 	if err != nil {
 		fmt.Printf("Error: failed to encrypt message: %v\n", err)
-		os.Exit(1)
+		closeApp(1)
 	} */
 
 	// send the message to the VM API

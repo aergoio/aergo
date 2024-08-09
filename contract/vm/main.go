@@ -81,8 +81,8 @@ func main(){
 	// wait for commands from the server
 	MessageLoop()
 
-	// close the connection
-	conn.Close()
+	// exit
+	closeApp(0)
 }
 
 // connect to the server using an abstract unix domain socket (they start with a null byte)
@@ -157,6 +157,11 @@ func processCommand(command string, args []string) (string, error) {
 
 	switch command {
 	case "execute":
+		if len(args) != 7 {
+			fmt.Println("execute: invalid number of arguments")
+			sendMessage([]string{"", "execute: invalid number of arguments"})
+			closeApp(1)
+		}
 		address := args[0]
 		code := args[1]
 		fname := args[2]
@@ -165,13 +170,17 @@ func processCommand(command string, args []string) (string, error) {
 		caller := args[5]
 		isFeeDelegation, err := strconv.ParseBool(args[6])
 		if err != nil {
-			return "", err
+			fmt.Println("execute: invalid isFeeDelegation argument")
+			sendMessage([]string{"", "execute: invalid isFeeDelegation argument"})
+			closeApp(1)
 		}
 
 		var gas uint64
 		gasBytes := []byte(gasStr)
 		if len(gasBytes) != 8 {
-			return "", fmt.Errorf("invalid gas string length")
+			fmt.Println("execute: invalid gas string length")
+			sendMessage([]string{"", "execute: invalid gas string length"})
+			closeApp(1)
 		}
 		gas = binary.LittleEndian.Uint64(gasBytes)
 
@@ -188,22 +197,33 @@ func processCommand(command string, args []string) (string, error) {
 		}
 		err = sendApiMessage("return", []string{res, errStr})
 		if err != nil {
-			fmt.Printf("Error: failed to send message: %v\n", err)
-			os.Exit(1)
+			fmt.Printf("execute: failed to send message: %v\n", err)
+			closeApp(1)
 		}
-		os.Exit(0)
+		closeApp(0)
 
 	case "compile":
+		if len(args) != 2 {
+			fmt.Println("compile: invalid number of arguments")
+			sendMessage([]string{"", "compile: invalid number of arguments"})
+			closeApp(1)
+		}
 		code := args[0]
 		hasParent, err := strconv.ParseBool(args[1])
 		if err != nil {
-			return "", err
+			fmt.Println("compile: invalid hasParent argument")
+			sendMessage([]string{"", "compile: invalid hasParent argument"})
+			closeApp(1)
 		}
 
-		res, err := Compile(code, hasParent)
+		bytecodeAbi, err := Compile(code, hasParent)
 
-		sendMessage([]string{string(res), err.Error()})
-		os.Exit(0)
+		var errStr string
+		if err != nil {
+			errStr = err.Error()
+		}
+		sendMessage([]string{string(bytecodeAbi), errStr})
+		closeApp(0)
 
 	// if the contract is executing, this can only be received if using another thread
 	// or if checking for incoming messages in regular intervals (expensive operation)
@@ -212,9 +232,28 @@ func processCommand(command string, args []string) (string, error) {
 		return "", nil
 
 	case "exit":
-		os.Exit(0)
+		closeApp(0)
 
 	}
 
-	return "", fmt.Errorf("unknown command: %s", command)
+	fmt.Println("aergovm: unknown command: ", command)
+	sendMessage([]string{"", "aergovm: unknown command: " + command})
+	closeApp(1)
+	return "", nil
+}
+
+func closeApp(ret int) {
+
+	if conn != nil {
+		// ensure the data is sent before closing the connection
+		err := conn.CloseWrite()
+		if err != nil {
+			fmt.Printf("aergovm: failed to close write end of connection: %v\n", err)
+			os.Exit(1)
+		}
+		// close the connection
+		conn.Close()
+	}
+
+	os.Exit(ret)
 }
