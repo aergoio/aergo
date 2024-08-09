@@ -119,12 +119,13 @@ func spawnVmInstances(num int) {
 	for i := 0; i < num; i++ {
 		// get a random id
 		var id uint64
+	outer:
 		for {
 			id = rand.Uint64()
 			// check if it is already used
 			for _, vmInstance := range pool {
 				if vmInstance.id == id {
-					continue
+					continue outer
 				}
 			}
 			break
