@@ -455,7 +455,7 @@ func getAddressNameResolved(account string, bs *state.BlockState) ([]byte, error
 }
 
 func (ctx *vmContext) handleSend(args []string) (result string, err error) {
-	if len(args) != 2 {
+	if len(args) != 3 {
 		return "", errors.New("[Contract.Send] invalid number of arguments")
 	}
 	contractAddress, amount, gas := args[0], args[1], args[2]
@@ -1155,7 +1155,7 @@ func parseAndConvert(subStr, unit string, mulUnit *big.Int, fullStr string) (*bi
 }
 
 func (ctx *vmContext) handleDeploy(args []string) (result string, err error) {
-	if len(args) != 3 {
+	if len(args) != 4 {
 		return "", errors.New("[Contract.Deploy] invalid number of arguments")
 	}
 	codeOrAddress, fargs, amount, gas := args[0], args[1], args[2], args[3]
