@@ -162,12 +162,12 @@ void add_typed_item(buffer *buf, char type, const char *data, int len) {
 
 void add_string(buffer *buf, const char *str) {
   if (str == NULL) str = "";
-  add_typed_item(buf, 's', str, strlen(str));
+  add_typed_item(buf, 's', str, strlen(str) + 1);
 }
 
 void add_string_ex(buffer *buf, const char *str, int len) {
   if (str == NULL) str = "";
-  add_typed_item(buf, 's', str, len);
+  add_typed_item(buf, 's', str, len + 1);
 }
 
 void add_int(buffer *buf, int value) {
@@ -247,7 +247,7 @@ int get_count(bytes *data) {
 char *get_string(bytes *data, int position) {
   int len;
   char *p = get_item(data, position, &len);
-  if (p == NULL || len < 1 || *p != 's') {
+  if (p == NULL || len < 2 || *p != 's') {
     return NULL;
   }
   // skip type
@@ -378,22 +378,22 @@ char get_type(char *ptr, int len) {
   char type = *ptr;
   switch (type) {
   case 'i':
-    if (len != 4) {
+    if (len != 1+4) {
       return 0;
     }
     break;
   case 'l':
-    if (len != 8) {
+    if (len != 1+8) {
       return 0;
     }
     break;
   case 'd':
-    if (len != 8) {
+    if (len != 1+8) {
       return 0;
     }
     break;
   case 'b':
-    if (len != 1) {
+    if (len != 1+1) {
       return 0;
     }
   }
