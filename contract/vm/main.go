@@ -157,7 +157,7 @@ func processCommand(command string, args []string) (string, error) {
 
 	switch command {
 	case "execute":
-		if len(args) != 7 {
+		if len(args) != 8 {
 			fmt.Println("execute: invalid number of arguments")
 			sendMessage([]string{"", "execute: invalid number of arguments"})
 			closeApp(1)
@@ -168,7 +168,13 @@ func processCommand(command string, args []string) (string, error) {
 		fargs := args[3]
 		gasStr := args[4]
 		caller := args[5]
-		isFeeDelegation, err := strconv.ParseBool(args[6])
+		hasParent, err := strconv.ParseBool(args[6])
+		if err != nil {
+			fmt.Println("execute: invalid hasParent argument")
+			sendMessage([]string{"", "execute: invalid hasParent argument"})
+			closeApp(1)
+		}
+		isFeeDelegation, err := strconv.ParseBool(args[7])
 		if err != nil {
 			fmt.Println("execute: invalid isFeeDelegation argument")
 			sendMessage([]string{"", "execute: invalid isFeeDelegation argument"})
@@ -184,7 +190,7 @@ func processCommand(command string, args []string) (string, error) {
 		}
 		gas = binary.LittleEndian.Uint64(gasBytes)
 
-		res, err, usedGas := Execute(address, code, fname, fargs, gas, caller, isFeeDelegation)
+		res, err, usedGas := Execute(address, code, fname, fargs, gas, caller, hasParent, isFeeDelegation)
 
 		// encode the gas together with the result
 		gasBytes = make([]byte, 8)

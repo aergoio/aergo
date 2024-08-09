@@ -451,6 +451,7 @@ func Execute(
 	args string,
 	gas uint64,
 	caller string,
+	hasParent bool,
 	isFeeDelegation bool,
 ) (string, error, uint64) {
 
@@ -461,7 +462,7 @@ func Execute(
 
 	ex := newExecutor([]byte(code), fname, args)
 
-	ex.call(false)  //FIXME: hasParent or callDepth or handle the error message + result on the server side
+	ex.call(hasParent)
 
 	totalUsedGas := getUsedGas()
 

@@ -47,6 +47,7 @@ func (ce *executor) call(extractUsedGas bool) {
 	// - args: ce.ci.Args []interface{}
 	// - gas: ce.contractGasLimit uint64
 	// - sender: types.EncodeAddress(ce.ctx.curContract.sender) string
+	// - hasParent: ce.ctx.callDepth > 1
 	// - isFeeDelegation: ce.ctx.isFeeDelegation bool
 
 	address := types.EncodeAddress(ce.ctx.curContract.contractId)
@@ -64,10 +65,11 @@ func (ce *executor) call(extractUsedGas bool) {
 	//gas := strconv.FormatUint(ce.contractGasLimit, 10)
 	gas := string((*[8]byte)(unsafe.Pointer(&ce.contractGasLimit))[:])
 	sender := types.EncodeAddress(ce.ctx.curContract.sender)
+	hasParent := strconv.FormatBool(ce.ctx.callDepth > 1)
 	isFeeDelegation := strconv.FormatBool(ce.ctx.isFeeDelegation)
 
 	// build the message
-	message := msg.SerializeMessage("execute", address, bytecode, fname, args, gas, sender, isFeeDelegation)
+	message := msg.SerializeMessage("execute", address, bytecode, fname, args, gas, sender, hasParent, isFeeDelegation)
 
 	// send the execution request to the VM instance
 	err = ce.SendMessage(message)
