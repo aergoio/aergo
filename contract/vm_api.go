@@ -1598,30 +1598,22 @@ func (ctx *vmContext) handleGovernance(args []string) (result string, err error)
 ////////////////////////////////////////////////////////////////////////////////
 
 func (ctx *vmContext) handleDbExec(args []string) (result string, err error) {
-	if len(args) != 2 {
+	if len(args) != 1 {
 		return "", errors.New("[DB.Exec] invalid number of arguments")
 	}
-	sql := args[0]
-	params := args[1]
-
 	var cReq C.request
 	cReq.service = C.int(ctx.service)
-	C.handle_db_exec(&cReq, C.CString(sql), C.CString(params), C.int(len(params)))
-
+	C.handle_db_exec(&cReq, (*C.char)(unsafe.Pointer(&[]byte(args[0])[0])), C.int(len(args[0])))
 	return processResult(&cReq)
 }
 
 func (ctx *vmContext) handleDbQuery(args []string) (result string, err error) {
-	if len(args) != 2 {
+	if len(args) != 1 {
 		return "", errors.New("[DB.Query] invalid number of arguments")
 	}
-	sql := args[0]
-	params := args[1]
-
 	var cReq C.request
 	cReq.service = C.int(ctx.service)
-	C.handle_db_query(&cReq, C.CString(sql), C.CString(params), C.int(len(params)))
-
+	C.handle_db_query(&cReq, (*C.char)(unsafe.Pointer(&[]byte(args[0])[0])), C.int(len(args[0])))
 	return processResult(&cReq)
 }
 
@@ -1629,47 +1621,31 @@ func (ctx *vmContext) handleDbPrepare(args []string) (result string, err error) 
 	if len(args) != 1 {
 		return "", errors.New("[DB.Prepare] invalid number of arguments")
 	}
-	sql := args[0]
-
 	var cReq C.request
 	cReq.service = C.int(ctx.service)
-	C.handle_db_prepare(&cReq, C.CString(sql))
-
+	C.handle_db_prepare(&cReq, (*C.char)(unsafe.Pointer(&[]byte(args[0])[0])), C.int(len(args[0])))
 	return processResult(&cReq)
 }
 
 //stmtExec
 func (ctx *vmContext) handleStmtExec(args []string) (result string, err error) {
-	if len(args) != 2 {
+	if len(args) != 1 {
 		return "", errors.New("[DB.StmtExec] invalid number of arguments")
 	}
-	stmt_id, err := strconv.Atoi(args[0])
-	if err != nil {
-		return "", errors.New("[DB.StmtExec] invalid statement id")
-	}
-	params := args[1]
-
 	var cReq C.request
 	cReq.service = C.int(ctx.service)
-	C.handle_stmt_exec(&cReq, C.int(stmt_id), C.CString(params), C.int(len(params)))
-
+	C.handle_stmt_exec(&cReq, (*C.char)(unsafe.Pointer(&[]byte(args[0])[0])), C.int(len(args[0])))
 	return processResult(&cReq)
 }
 
 //stmtQuery
 func (ctx *vmContext) handleStmtQuery(args []string) (result string, err error) {
-	if len(args) != 2 {
+	if len(args) != 1 {
 		return "", errors.New("[DB.StmtQuery] invalid number of arguments")
 	}
-	stmt_id, err := strconv.Atoi(args[0])
-	if err != nil {
-		return "", errors.New("[DB.StmtQuery] invalid statement id")
-	}
-	params := args[1]
-
 	var cReq C.request
 	cReq.service = C.int(ctx.service)
-	C.handle_stmt_query(&cReq, C.int(stmt_id), C.CString(params), C.int(len(params)))
+	C.handle_stmt_query(&cReq, (*C.char)(unsafe.Pointer(&[]byte(args[0])[0])), C.int(len(args[0])))
 	return processResult(&cReq)
 }
 
@@ -1678,14 +1654,9 @@ func (ctx *vmContext) handleStmtColumnInfo(args []string) (result string, err er
 	if len(args) != 1 {
 		return "", errors.New("[DB.StmtColumnInfo] invalid number of arguments")
 	}
-	stmt_id, err := strconv.Atoi(args[0])
-	if err != nil {
-		return "", errors.New("[DB.StmtColumnInfo] invalid statement id")
-	}
-
 	var cReq C.request
 	cReq.service = C.int(ctx.service)
-	C.handle_stmt_column_info(&cReq, C.int(stmt_id))
+	C.handle_stmt_column_info(&cReq, (*C.char)(unsafe.Pointer(&[]byte(args[0])[0])), C.int(len(args[0])))
 	return processResult(&cReq)
 }
 
@@ -1694,14 +1665,9 @@ func (ctx *vmContext) handleRsNext(args []string) (result string, err error) {
 	if len(args) != 1 {
 		return "", errors.New("[DB.RsNext] invalid number of arguments")
 	}
-	query_id, err := strconv.Atoi(args[0])
-	if err != nil {
-		return "", errors.New("[DB.RsNext] invalid query id")
-	}
-
 	var cReq C.request
 	cReq.service = C.int(ctx.service)
-	C.handle_rs_next(&cReq, C.int(query_id))
+	C.handle_rs_next(&cReq, (*C.char)(unsafe.Pointer(&[]byte(args[0])[0])), C.int(len(args[0])))
 	return processResult(&cReq)
 }
 
@@ -1710,14 +1676,9 @@ func (ctx *vmContext) handleRsGet(args []string) (result string, err error) {
 	if len(args) != 1 {
 		return "", errors.New("[DB.RsGet] invalid number of arguments")
 	}
-	col_id, err := strconv.Atoi(args[0])
-	if err != nil {
-		return "", errors.New("[DB.RsGet] invalid column id")
-	}
-
 	var cReq C.request
 	cReq.service = C.int(ctx.service)
-	C.handle_rs_get(&cReq, C.int(col_id))
+	C.handle_rs_get(&cReq, (*C.char)(unsafe.Pointer(&[]byte(args[0])[0])), C.int(len(args[0])))
 	return processResult(&cReq)
 }
 
@@ -1770,11 +1731,9 @@ func (ctx *vmContext) handleDbOpenWithSnapshot(args []string) (result string, er
 	if len(args) != 1 {
 		return "", errors.New("[DB.DbOpenWithSnapshot] invalid number of arguments")
 	}
-	snapshot := args[0]
-
 	var cReq C.request
 	cReq.service = C.int(ctx.service)
-	C.handle_db_open_with_snapshot(&cReq, C.CString(snapshot))
+	C.handle_db_open_with_snapshot(&cReq, (*C.char)(unsafe.Pointer(&[]byte(args[0])[0])), C.int(len(args[0])))
 	return processResult(&cReq)
 }
 
@@ -1787,17 +1746,15 @@ func (ctx *vmContext) handleDbGetSnapshot(args []string) (result string, err err
 }
 
 func processResult(cReq *C.request) (result string, err error) {
-	result = C.GoStringN(cReq.result.ptr, cReq.result.len)
-	errstr := C.GoString(cReq.error)
-
 	if cReq.result.ptr != nil {
+		result = C.GoStringN(cReq.result.ptr, cReq.result.len)
 		C.free(unsafe.Pointer(cReq.result.ptr))
 	}
 	if cReq.error != nil {
+		errstr := C.GoString(cReq.error)
 		C.free(unsafe.Pointer(cReq.error))
 		err = errors.New(errstr)
 	}
-
 	return result, err
 }
 
