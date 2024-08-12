@@ -83,9 +83,10 @@ static void free_decltypes(rs_t *rs) {
 	rs->decltypes = NULL;
 }
 
-void handle_rs_get(request *req, int query_id) {
-	rs_t *rs = get_rs(query_id);
-	int i;
+void handle_rs_get(request *req, char *args_ptr, int args_len) {
+	bytes args = {args_ptr, args_len};
+	rs_t *rs;
+	int query_id, i;
 	sqlite3_int64 d;
 	double f;
 	int n;
@@ -96,6 +97,8 @@ void handle_rs_get(request *req, int query_id) {
 		return;
 	}
 
+	query_id = get_int(&args, 1);
+	rs = get_rs(query_id);
 	if (rs == NULL || rs->decltypes == NULL) {
 		set_error(req, "`get' called without calling `next'");
 		return;
@@ -151,15 +154,18 @@ static void rs_close(rs_t *rs, int remove) {
 	}
 }
 
-void handle_rs_next(request *req, int query_id) {
-	int rc;
-	rs_t *rs = get_rs(query_id);
+void handle_rs_next(request *req, char *args_ptr, int args_len) {
+	bytes args = {args_ptr, args_len};
+	int query_id, rc;
+	rs_t *rs;
 
 	if (!checkDbExecContext(req->service)) {
 		set_error(req, "invalid db context");
 		return;
 	}
 
+	query_id = get_int(&args, 1);
+	rs = get_rs(query_id);
 	if (!rs) {
 		set_error(req, "invalid query id");
 		return;
@@ -223,6 +229,10 @@ static int bind_parameters(request *req, sqlite3 *db, sqlite3_stmt *pstmt, bytes
 		return -1;
 	}
 
+	if (param_count == 0) {
+		return 0;
+	}
+
 	rc = sqlite3_reset(pstmt);
 	sqlite3_clear_bindings(pstmt);
 	if (rc != SQLITE_ROW && rc != SQLITE_OK && rc != SQLITE_DONE) {
@@ -270,10 +280,12 @@ static int bind_parameters(request *req, sqlite3 *db, sqlite3_stmt *pstmt, bytes
 	return 0;
 }
 
-void handle_stmt_exec(request *req, int pstmt_id, char *params_ptr, int params_len) {
-	bytes params = {params_ptr, params_len};
-	stmt_t *pstmt = get_pstmt(pstmt_id);
-	int rc;
+void handle_stmt_exec(request *req, char *args_ptr, int args_len) {
+	bytes args = {args_ptr, args_len};
+	bytes params;
+	int pstmt_id, rc;
+	stmt_t *pstmt;
+	bool success;
 
 	if (!checkDbExecContext(req->service)) {
 		set_error(req, "invalid db context");
@@ -283,6 +295,15 @@ void handle_stmt_exec(request *req, int pstmt_id, char *params_ptr, int params_l
 		set_error(req, "not permitted in view function");
 		return;
 	}
+
+	pstmt_id = get_int(&args, 1);
+	success = get_bytes(&args, 2, &params);
+	if (!success) {
+		set_error(req, "invalid parameters");  //FIXME: remove later
+		return;
+	}
+
+	pstmt = get_pstmt(pstmt_id);
 	if (pstmt == NULL) {
 		set_error(req, "invalid pstmt id");
 		return;
@@ -306,22 +327,33 @@ void handle_stmt_exec(request *req, int pstmt_id, char *params_ptr, int params_l
 	add_int64(&req->result, sqlite3_changes(pstmt->db));
 }
 
-void handle_stmt_query(request *req, int pstmt_id, char *params_ptr, int params_len) {
-	bytes params = {params_ptr, params_len};
-	stmt_t *pstmt = get_pstmt(pstmt_id);
+void handle_stmt_query(request *req, char *args_ptr, int args_len) {
+	bytes args = {args_ptr, args_len};
+	bytes params;
+	int pstmt_id, rc;
+	stmt_t *pstmt;
 	rs_t *rs;
-	int rc;
+	bool success;
 
 	if (!checkDbExecContext(req->service)) {
 		set_error(req, "invalid db context");
 		return;
 	}
-	if (!sqlite3_stmt_readonly(pstmt->s)) {
-		set_error(req, "invalid sql command (only read permitted)");
+
+	pstmt_id = get_int(&args, 1);
+	success = get_bytes(&args, 2, &params);
+	if (!success) {
+		set_error(req, "invalid parameters");  //FIXME: remove later
 		return;
 	}
+
+	pstmt = get_pstmt(pstmt_id);
 	if (pstmt == NULL) {
 		set_error(req, "invalid pstmt id");
+		return;
+	}
+	if (!sqlite3_stmt_readonly(pstmt->s)) {
+		set_error(req, "invalid sql command (only read permitted)");
 		return;
 	}
 
@@ -378,16 +410,23 @@ static void get_column_meta(request *req, sqlite3_stmt* stmt) {
 	free(types.ptr);
 }
 
-void handle_stmt_column_info(request *req, int pstmt_id) {
+void handle_stmt_column_info(request *req, char *args_ptr, int args_len) {
+	bytes args = {args_ptr, args_len};
+	int pstmt_id;
+	stmt_t *pstmt;
+
 	if (!checkDbExecContext(req->service)) {
 		set_error(req, "invalid db context");
 		return;
 	}
-	stmt_t *pstmt = get_pstmt(pstmt_id);
+
+	pstmt_id = get_int(&args, 1);
+	pstmt = get_pstmt(pstmt_id);
 	if (pstmt == NULL) {
 		set_error(req, "invalid pstmt id");
 		return;
 	}
+
 	get_column_meta(req, pstmt->s);
 }
 
@@ -402,11 +441,14 @@ static void stmt_close(stmt_t *pstmt, int remove) {
 	}
 }
 
-void handle_db_exec(request *req, const char *sql, char *params_ptr, int params_len) {
-	bytes params = {params_ptr, params_len};
+void handle_db_exec(request *req, char *args_ptr, int args_len) {
 	sqlite3 *db;
 	sqlite3_stmt *s;
+	bytes args = {args_ptr, args_len};
+	bytes params;
+	char *sql;
 	int rc;
+	bool success;
 
 	if (!checkDbExecContext(req->service)) {
 		set_error(req, "invalid db context");
@@ -416,6 +458,14 @@ void handle_db_exec(request *req, const char *sql, char *params_ptr, int params_
 		set_error(req, "not permitted in view function");
 		return;
 	}
+
+	sql = get_string(&args, 1);
+	success = get_bytes(&args, 2, &params);
+	if (!success) {
+		set_error(req, "invalid parameters");  //FIXME: remove later
+		return;
+	}
+
 	if (!sqlcheck_is_permitted_sql(sql)) {
 		set_error(req, "invalid sql command: %s", sql);
 		return;
@@ -450,15 +500,24 @@ void handle_db_exec(request *req, const char *sql, char *params_ptr, int params_
 
 }
 
-void handle_db_query(request *req, const char *sql, char *params_ptr, int params_len) {
-	bytes params = {params_ptr, params_len};
+void handle_db_query(request *req, char *args_ptr, int args_len) {
+	bytes args = {args_ptr, args_len};
+	bytes params;
+	char *sql;
 	int rc;
 	sqlite3 *db;
 	sqlite3_stmt *s;
 	rs_t *rs;
+	bool success;
 
 	if (!checkDbExecContext(req->service)) {
 		set_error(req, "invalid db context");
+		return;
+	}
+	sql = get_string(&args, 1);
+	success = get_bytes(&args, 2, &params);
+	if (!success) {
+		set_error(req, "invalid parameters");  //FIXME: remove later
 		return;
 	}
 	if (!sqlcheck_is_readonly_sql(sql)) {
@@ -500,7 +559,9 @@ void handle_db_query(request *req, const char *sql, char *params_ptr, int params
 
 }
 
-void handle_db_prepare(request *req, const char *sql) {
+void handle_db_prepare(request *req, char *args_ptr, int args_len) {
+	bytes args = {args_ptr, args_len};
+	char *sql;
 	int rc;
 	sqlite3 *db;
 	sqlite3_stmt *s;
@@ -510,8 +571,9 @@ void handle_db_prepare(request *req, const char *sql) {
 		set_error(req, "invalid db context");
 		return;
 	}
+	sql = get_string(&args, 1);
 	if (!sqlcheck_is_permitted_sql(sql)) {
-		set_error(req, "invalid sql commond: %s", sql);
+		set_error(req, "invalid sql command: %s", sql);
 		return;
 	}
 
@@ -560,10 +622,19 @@ void handle_db_get_snapshot(request *req) {
 	add_string(&req->result, snapshot);
 }
 
-void handle_db_open_with_snapshot(request *req, char *snapshot) {
+void handle_db_open_with_snapshot(request *req, char *args_ptr, int args_len) {
+	bytes args = {args_ptr, args_len};
+	char *snapshot;
 	char *errStr;
+
 	if (!checkDbExecContext(req->service)) {
 		set_error(req, "invalid db context");
+		return;
+	}
+
+	snapshot = get_string(&args, 1);
+	if (snapshot == NULL) {
+		set_error(req, "invalid snapshot");
 		return;
 	}
 
