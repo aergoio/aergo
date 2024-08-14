@@ -223,6 +223,8 @@ func (ce *executor) ProcessCommand(command string, args []string) (result string
 		return ctx.handleIsContract(args)
 	case "getContractId":
 		return ctx.handleGetContractId()
+	case "getAmount":
+		return ctx.handleGetAmount()
 	case "getBlockNo":
 		return ctx.handleGetBlockNo()
 	case "getTimeStamp":
