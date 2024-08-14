@@ -2,10 +2,12 @@ package msg
 
 import (
 	"bytes"
+	"strings"
 	"encoding/binary"
 	"io"
 	"net"
 	"time"
+	"errors"
 	"fmt"
 )
 
@@ -119,6 +121,9 @@ func WaitForMessage(conn net.Conn, deadline time.Time) (msg []byte, err error) {
 		if err == io.EOF && n == 0 {
 			return nil, fmt.Errorf("connection closed before reading message length")
 		}
+		if strings.Contains(err.Error(), "i/o timeout") {
+			return nil, errors.New("contract timeout during vm execution")
+		}
 		return nil, fmt.Errorf("error reading message length (read %d bytes): %w", n, err)
 	}
 
@@ -129,6 +134,9 @@ func WaitForMessage(conn net.Conn, deadline time.Time) (msg []byte, err error) {
 	msg = make([]byte, msgLength)
 	n, err = io.ReadFull(conn, msg)
 	if err != nil {
+		if strings.Contains(err.Error(), "i/o timeout") {
+			return nil, errors.New("contract timeout during vm execution")
+		}
 		return nil, fmt.Errorf("error reading message body (read %d/%d bytes): %w", n, msgLength, err)
 	}
 
