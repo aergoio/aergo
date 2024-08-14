@@ -15,7 +15,7 @@ if(CMAKE_BUILD_TYPE MATCHES "Debug")
     set(GFLAG -tags Debug)
 endif()
 
-add_custom_target(build ALL DEPENDS aergocli aergosvr aergoluac brick)
+add_custom_target(build ALL DEPENDS aergocli aergosvr aergovm aergoluac brick)
 
 add_custom_target(aergocli GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X github.com/aergoio/aergo/v2/cmd/aergocli/cmd.githash=`git describe --tags`\" ./cmd/aergocli/...
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
