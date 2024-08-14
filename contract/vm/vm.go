@@ -48,6 +48,7 @@ func InitializeVM() {
 		// these are called only once on tests
 		logger = log.NewLogger("vm")
 		C.init_bignum()
+		C.initViewFunction()
 	} else {
 		C.lua_close(lstate)
 	}
