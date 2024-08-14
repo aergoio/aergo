@@ -20,6 +20,9 @@ const int VM_TIMEOUT_INST_COUNT = 200;
 
 extern int luaopen_utf8(lua_State *L);
 
+extern void (*lj_internal_view_start)(lua_State *);
+extern void (*lj_internal_view_end)(lua_State *);
+
 void checkLuaExecContext(lua_State *L) {
 	if (luaL_is_loading(L)) {
 		luaL_error(L, "state referencing not permitted at global scope");
@@ -467,6 +470,21 @@ void vm_get_abi_function(lua_State *L, char *fname) {
 	lua_getfield(L, LUA_GLOBALSINDEX, "abi");
 	lua_getfield(L, -1, "call");
 	lua_pushstring(L, fname);
+}
+
+// VIEW FUNCTIONS
+
+void vm_internal_view_start(lua_State *L) {
+	luaViewStart();
+}
+
+void vm_internal_view_end(lua_State *L) {
+	luaViewEnd();
+}
+
+void initViewFunction() {
+	lj_internal_view_start = vm_internal_view_start;
+	lj_internal_view_end = vm_internal_view_end;
 }
 
 // INSTRUCTION COUNT

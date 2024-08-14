@@ -39,7 +39,17 @@ import (
 	"github.com/aergoio/aergo/v2/contract/msg"
 )
 
+var nestedView int
 
+//export luaViewStart
+func luaViewStart() {
+	nestedView++
+}
+
+//export luaViewEnd
+func luaViewEnd() {
+	nestedView--
+}
 
 //export luaSetVariable
 func luaSetVariable(L *LState, key *C.char, keyLen C.int, value *C.char) *C.char {
@@ -536,6 +546,7 @@ func luaGetStaking(L *LState, addr *C.char) (*C.char, C.lua_Integer, *C.char) {
 	return C.CString(amount), C.lua_Integer(when), nil
 }
 
+
 func getGasLimit(definedGasLimit uint64) uint64 {
 
 	remainingGas := getRemainingGas()
@@ -606,9 +617,15 @@ func sendRequestFunc(method string, args []string) (string, error) {
 
 func sendApiMessage(method string, args []string) error {
 
-	// create new slice with the method and args
+	inViewStr := "0"
+	if nestedView > 0 {
+		inViewStr = "1"
+	}
+
+	// create new slice with the method, args and whether it is within a view function
 	list := []string{method}
 	list = append(list, args...)
+	list = append(list, inViewStr)
 
 	return sendMessage(list)
 }

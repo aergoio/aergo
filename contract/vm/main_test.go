@@ -160,10 +160,11 @@ func TestVMExecutionBasicPlainCode(t *testing.T) {
 	// Deserialize the response
 	args, err := msg.DeserializeMessage(response)
 	require.NoError(t, err)
-	require.Len(t, args, 3, "Unexpected number of response arguments")
+	require.Len(t, args, 4, "Unexpected number of response arguments")
 	command := args[0]
 	result := args[1]
 	errStr := args[2]
+	inView := args[3]
 
 	// Extract used gas and result
 	require.Greater(t, len(result), 8, "expected to contain encoded gas")
@@ -174,6 +175,7 @@ func TestVMExecutionBasicPlainCode(t *testing.T) {
 	assert.Equal(t, "579", result)
 	assert.Equal(t, "", errStr)
 	assert.Equal(t, uint64(3648), usedGas)
+	assert.Equal(t, "0", inView)
 
 	vmCmd.Process.Kill()
 	conn.Close()
@@ -230,10 +232,11 @@ func TestVMCompileAndExecutionBasic(t *testing.T) {
 	// Deserialize the response
 	args, err = msg.DeserializeMessage(response)
 	require.NoError(t, err)
-	require.Len(t, args, 3, "Unexpected number of response arguments")
+	require.Len(t, args, 4, "Unexpected number of response arguments")
 	command := args[0]
 	result := args[1]
 	errStr := args[2]
+	inView := args[3]
 
 	// Extract used gas and result
 	require.GreaterOrEqual(t, len(result), 8, "expected to contain encoded gas")
@@ -244,6 +247,7 @@ func TestVMCompileAndExecutionBasic(t *testing.T) {
 	assert.Equal(t, "579", result)
 	assert.Equal(t, "", errStr)
 	assert.Equal(t, uint64(5856), usedGas)
+	assert.Equal(t, "0", inView)
 
 	vmCmd.Process.Kill()
 	conn.Close()
@@ -270,11 +274,12 @@ func TestVMExecutionWithCallback(t *testing.T) {
 	// Deserialize the response
 	args, err := msg.DeserializeMessage(response)
 	require.NoError(t, err)
-	require.Len(t, args, 4)
+	require.Len(t, args, 5)
 	require.Equal(t, "send", args[0])
 	require.Equal(t, "test_to", args[1])
 	require.Equal(t, "9876543210", args[2])
 	require.Equal(t, "\x84\xf0\xff\x00\x00\x00\x00\x00", args[3])
+	require.Equal(t, "0", args[4])
 
 	// Send response back to the VM instance
 	args = []string{"\x09\x00\x01\x00\x00\x00\x00\x00", ""}
@@ -289,10 +294,11 @@ func TestVMExecutionWithCallback(t *testing.T) {
 	// Deserialize the response
 	args, err = msg.DeserializeMessage(response)
 	require.NoError(t, err)
-	require.Len(t, args, 3, "Unexpected number of response arguments")
+	require.Len(t, args, 4, "Unexpected number of response arguments")
 	command := args[0]
 	result := args[1]
 	errStr := args[2]
+	inView := args[3]
 
 	// Extract used gas and result
 	require.GreaterOrEqual(t, len(result), 8, "expected to contain encoded gas")
@@ -303,6 +309,7 @@ func TestVMExecutionWithCallback(t *testing.T) {
 	assert.Equal(t, "", result)
 	assert.Equal(t, "", errStr)
 	assert.Equal(t, uint64(69509), usedGas)
+	assert.Equal(t, "0", inView)
 
 	vmCmd.Process.Kill()
 	conn.Close()

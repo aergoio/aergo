@@ -127,10 +127,22 @@ func (ce *executor) MessageLoop() (result string, err error) {
 		if err != nil {
 			return "", err
 		}
+		// extract the command, arguments and whether it is within a view function
+		if len(args) < 2 {
+			return "", errors.New("[MessageLoop] invalid arguments from VM")
+		}
 		command := args[0]
-		args = args[1:]
+		inView := args[len(args)-1] == "1"
+		args = args[1:len(args)-1]
 		// process the request
+		if inView {
+			ce.ctx.nestedView++
+		}
 		result, err = ce.ProcessCommand(command, args)
+		if inView {
+			ce.ctx.nestedView--
+		}
+		// if the VM finished, return the result
 		if command == "return" {
 			return result, err
 		}
