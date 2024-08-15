@@ -86,12 +86,8 @@ func (ce *executor) call(extractUsedGas bool) {
 	// wait for and process messages in a loop
 	result, err := ce.MessageLoop()
 
-	if extractUsedGas {
+	if extractUsedGas && len(result) >= 8 {
 		// extract the used gas from the result
-		if len(result) < 8 {
-			ce.err = errors.New("[VMServer] invalid result from VM")
-			return
-		}
 		ce.usedGas = binary.LittleEndian.Uint64([]byte(result[:8]))
 		result = result[8:]
 	}
