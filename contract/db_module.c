@@ -100,7 +100,7 @@ void handle_rs_get(request *req, char *args_ptr, int args_len) {
 	query_id = get_int(&args, 1);
 	rs = get_rs(query_id);
 	if (rs == NULL || rs->decltypes == NULL) {
-		set_error(req, "`get' called without calling `next'");
+		set_error(req, "'get' called without calling 'next'");
 		return;
 	}
 
@@ -200,13 +200,12 @@ static void process_columns(request *req, sqlite3_stmt *stmt, rs_t *rs) {
 		return;
 	}
 
-	add_int(&req->result, column_count);
-
 	for (int i = 0; i < column_count; i++) {
 		char *decltype = dup_decltype(sqlite3_column_decltype(stmt, i));
 		rs->decltypes[i] = decltype;
-		add_string(&req->result, decltype);
 	}
+
+	add_int(&req->result, column_count);
 
 }
 
