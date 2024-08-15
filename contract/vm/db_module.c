@@ -320,7 +320,8 @@ static int db_pstmt_exec(lua_State *L) {
 		lua_error(L);
 	}
 
-	lua_pushinteger(L, get_int(&response->result, 1));
+	lua_Integer changes = get_int64(&response->result, 1);
+	lua_pushinteger(L, changes);
 	free_response(response);
 	return 1;
 }
@@ -471,7 +472,7 @@ static int db_exec(lua_State *L) {
 		lua_error(L);
 	}
 
-	int changes = get_int(&response->result, 1);
+	lua_Integer changes = get_int64(&response->result, 1);
 	lua_pushinteger(L, changes);
 	free_response(response);
 	return 1;
