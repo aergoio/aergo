@@ -103,16 +103,22 @@ void handle_rs_get(request *req, char *args_ptr, int args_len) {
 		set_error(req, "'get' called without calling 'next'");
 		return;
 	}
+	if (sqlite3_column_count(rs->s) != rs->nc) {
+		set_error(req, "column count mismatch - expected %d got %d", rs->nc, sqlite3_column_count(rs->s));
+		return;
+	}
 
 	for (i = 0; i < rs->nc; i++) {
 		switch (sqlite3_column_type(rs->s, i)) {
 		case SQLITE_INTEGER:
 			d = sqlite3_column_int64(rs->s, i);
-			if (strcmp(rs->decltypes[i], "boolean") == 0) {
+			char *decltype = rs->decltypes[i];
+			if (decltype && strcmp(decltype, "boolean") == 0) {
 				add_bool(&req->result, d != 0);
-			} else if (strcmp(rs->decltypes[i], "date") == 0 ||
-				         strcmp(rs->decltypes[i], "datetime") == 0 ||
-				         strcmp(rs->decltypes[i], "timestamp") == 0) {
+			} else if (decltype &&
+				        (strcmp(decltype, "date") == 0 ||
+				         strcmp(decltype, "datetime") == 0 ||
+				         strcmp(decltype, "timestamp") == 0)) {
 				char buf[80];
 				strftime(buf, 80, "%Y-%m-%d %H:%M:%S", gmtime((time_t *)&d));
 				add_string(&req->result, buf);
