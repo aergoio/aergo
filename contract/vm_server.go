@@ -231,7 +231,7 @@ func (ce *executor) ProcessCommand(command string, args []string) (result string
 		return ctx.handleGetTxHash()
 	case "getOrigin":
 		return ctx.handleGetOrigin()
-	case "random":
+	case "randomInt":
 		return ctx.handleRandomInt(args)
 	case "print":
 		return ctx.handlePrint(args)
