@@ -38,7 +38,16 @@ func init() {
 }
 
 // Execute executes a normal transaction which is possibly executing smart contract.
-func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, tx *types.Tx, sender, receiver *state.AccountState, bi *types.BlockHeaderInfo, executionMode int, isFeeDelegation bool) (rv string, events []*types.Event, usedFee *big.Int, err error) {
+func Execute(
+	execCtx context.Context,
+	bs *state.BlockState,
+	cdb ChainAccessor,
+	tx *types.Tx,
+	sender, receiver *state.AccountState,
+	bi *types.BlockHeaderInfo,
+	executionMode int,
+	isFeeDelegation bool,
+) (rv string, events []*types.Event, usedFee *big.Int, err error) {
 
 	var (
 		txBody     = tx.GetBody()
@@ -46,6 +55,7 @@ func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, t
 		txPayload  = txBody.GetPayload()
 		txAmount   = txBody.GetAmountBigInt()
 		txGasLimit = txBody.GetGasLimit()
+		isMultiCall= (txType == types.TxType_MULTICALL)
 	)
 
 	// compute the base fee
@@ -70,7 +80,12 @@ func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, t
 	}
 
 	// open the contract state
-	contractState, err := statedb.OpenContractState(receiver.ID(), receiver.State(), bs.StateDB)
+	var contractState *statedb.ContractState
+	if isMultiCall {
+		contractState = statedb.GetMultiCallState(sender.ID(), sender.State())
+	} else {
+		contractState, err = statedb.OpenContractState(receiver.ID(), receiver.State(), bs.StateDB)
+	}
 	if err != nil {
 		return
 	}
@@ -87,7 +102,7 @@ func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, t
 	var ctrFee *big.Int
 
 	// create a new context
-	ctx := NewVmContext(execCtx, bs, cdb, sender, receiver, contractState, sender.ID(), tx.GetHash(), bi, "", true, false, receiver.RP(), executionMode, txAmount, gasLimit, isFeeDelegation)
+	ctx := NewVmContext(execCtx, bs, cdb, sender, receiver, contractState, sender.ID(), tx.GetHash(), bi, "", true, false, receiver.RP(), executionMode, txAmount, gasLimit, isFeeDelegation, isMultiCall)
 
 	// execute the transaction
 	if receiver.IsDeploy() {
@@ -127,10 +142,12 @@ func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, t
 		}
 	}
 
-	// save the contract state
-	err = statedb.StageContractState(contractState, bs.StateDB)
-	if err != nil {
-		return "", events, usedFee, err
+	if !isMultiCall {
+		// save the contract state
+		err = statedb.StageContractState(contractState, bs.StateDB)
+		if err != nil {
+			return "", events, usedFee, err
+		}
 	}
 
 	// return the result
@@ -139,6 +156,10 @@ func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, t
 
 // check if the tx is valid and if the code should be executed
 func checkExecution(txType types.TxType, amount *big.Int, payloadSize int, version int32, isDeploy, isContract bool) (do_execute bool, err error) {
+
+	if txType == types.TxType_MULTICALL {
+		return true, nil
+	}
 
 	// transactions with type NORMAL should not call smart contracts
 	// transactions with type TRANSFER can only call smart contracts when:

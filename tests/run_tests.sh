@@ -163,6 +163,7 @@ check ./test-contract-deploy.sh
 check ./test-pcall-events.sh
 check ./test-transaction-types.sh
 check ./test-name-service.sh
+check ./test-multicall.sh
 
 # terminate the server process
 echo ""

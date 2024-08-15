@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"math/big"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -101,6 +102,19 @@ func init() {
 	callCmd.PersistentFlags().BoolVar(&feeDelegation, "delegation", false, "request fee delegation to contract")
 	callCmd.Flags().StringVar(&pw, "password", "", "password (optional, will be asked on the terminal if not given)")
 
+	multicallCmd := &cobra.Command{
+		Use: `multicall [flags] <sender> <script>
+
+  The script is a JSON array of arrays, enclosed as a string, containing the commands`,
+		Short: "Calls multiple contracts / functions",
+		Args:  nArgs([]int{2}),
+		RunE:  runMulticallCmd,
+	}
+	multicallCmd.PersistentFlags().Uint64Var(&nonce, "nonce", 0, "manually set a nonce (default: set nonce automatically)")
+	multicallCmd.PersistentFlags().StringVar(&chainIdHash, "chainidhash", "", "chain id hash value encoded by base58")
+	multicallCmd.PersistentFlags().BoolVar(&toJSON, "tojson", false, "display json transaction instead of sending to blockchain")
+	multicallCmd.Flags().StringVar(&pw, "password", "", "password (optional, will be asked on the terminal if not given)")
+
 	stateQueryCmd := &cobra.Command{
 		Use:   "statequery [flags] <contractAddress> <varname> [varindex]",
 		Short: "query the state of a contract with variable name and optional index",
@@ -113,6 +127,7 @@ func init() {
 	contractCmd.AddCommand(
 		deployCmd,
 		callCmd,
+		multicallCmd,
 		&cobra.Command{
 			Use:   "abi [flags] <contractAddress>",
 			Short: "Get ABI of the contract",
@@ -247,13 +262,7 @@ func runCallCmd(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("could not decode sender address: %v", err.Error())
 	}
-	if nonce == 0 {
-		state, err := client.GetState(context.Background(), &types.SingleBytes{Value: caller})
-		if err != nil {
-			return fmt.Errorf("failed to get creator account's state: %v", err.Error())
-		}
-		nonce = state.GetNonce() + 1
-	}
+
 	contract, err := types.DecodeAddress(args[1])
 	if err != nil {
 		return fmt.Errorf("could not decode contract address: %v", err.Error())
@@ -308,6 +317,45 @@ func runCallCmd(cmd *cobra.Command, args []string) error {
 		},
 	}
 
+	return sendCallTx(cmd, tx, caller)
+}
+
+func runMulticallCmd(cmd *cobra.Command, args []string) error {
+	cmd.SilenceUsage = true
+
+	caller, err := types.DecodeAddress(args[0])
+	if err != nil {
+		return fmt.Errorf("could not decode sender address: %v", err.Error())
+	}
+
+	script := args[1]
+
+	tx := &types.Tx{
+		Body: &types.TxBody{
+			Nonce:     nonce,
+			Account:   caller,
+			Recipient: []byte{},
+			Payload:   []byte(script),
+			Amount:    big.NewInt(0).Bytes(),
+			GasLimit:  gas,
+			Type:      types.TxType_MULTICALL,
+		},
+	}
+
+	return sendCallTx(cmd, tx, caller)
+}
+
+func sendCallTx(cmd *cobra.Command, tx *types.Tx, sender []byte) error {
+	var err error
+
+	if tx.GetBody().GetNonce() == 0 {
+		state, err := client.GetState(context.Background(), &types.SingleBytes{Value: sender})
+		if err != nil {
+			return fmt.Errorf("failed to get sender account's state: %v", err.Error())
+		}
+		tx.GetBody().Nonce = state.GetNonce() + 1
+	}
+
 	if chainIdHash != "" {
 		rawCidHash, err := base58.Decode(chainIdHash)
 		if err != nil {
@@ -328,7 +376,7 @@ func runCallCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	if rootConfig.KeyStorePath != "" {
-		if errStr := fillSign(tx, rootConfig.KeyStorePath, pw, caller); errStr != "" {
+		if errStr := fillSign(tx, rootConfig.KeyStorePath, pw, sender); errStr != "" {
 			return errors.New(errStr)
 		}
 	} else {
