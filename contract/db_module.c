@@ -1,5 +1,5 @@
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 #include <ctype.h>
 #include <time.h>
 #include <sqlite3-binding.h>
@@ -546,6 +546,8 @@ void handle_db_query(request *req, char *args_ptr, int args_len) {
 
 	rs = (rs_t *) malloc_zero(req, sizeof(rs_t));
 	if (rs == NULL) {
+		sqlite3_finalize(s);
+		set_error(req, "out of memory");
 		return;
 	}
 	rs->id = get_next_id();
@@ -593,6 +595,8 @@ void handle_db_prepare(request *req, char *args_ptr, int args_len) {
 
 	pstmt = (stmt_t *) malloc_zero(req, sizeof(stmt_t));
 	if (pstmt == NULL) {
+		sqlite3_finalize(s);
+		set_error(req, "out of memory");
 		return;
 	}
 	pstmt->id = get_next_id();
