@@ -531,12 +531,12 @@ func TestContractSend(t *testing.T) {
 		assert.Equalf(t, int64(2), state.GetBalanceBigInt().Int64(), "balance error")
 
 		err = bc.ConnectBlock(
-			NewLuaTxCall("user1", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, nameToAddress("test3"))).Fail(`[Contract.LuaSendAmount] call err: not found function: default`),
+			NewLuaTxCall("user1", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, nameToAddress("test3"))).Fail(`[Contract.Send] call err: not found function: default`),
 		)
 		assert.NoErrorf(t, err, "failed to connect new block")
 
 		err = bc.ConnectBlock(
-			NewLuaTxCall("user1", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, nameToAddress("test4"))).Fail(`[Contract.LuaSendAmount] call err: 'default' is not payable`),
+			NewLuaTxCall("user1", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, nameToAddress("test4"))).Fail(`[Contract.Send] call err: 'default' is not payable`),
 		)
 		assert.NoErrorf(t, err, "failed to connect new block")
 
@@ -1140,7 +1140,7 @@ func TestDeploy2(t *testing.T) {
 		)
 		require.NoErrorf(t, err, "failed to connect new block")
 
-		tx := NewLuaTxCall("user1", "deploy", 0, `{"Name":"hello"}`).Fail(`not permitted state referencing at global scope`)
+		tx := NewLuaTxCall("user1", "deploy", 0, `{"Name":"hello"}`).Fail(`state referencing not permitted at global scope`)
 		err = bc.ConnectBlock(tx)
 		require.NoErrorf(t, err, "failed to connect new block")
 
