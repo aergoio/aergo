@@ -41,7 +41,6 @@ typedef struct {
 	int query_id;
 	int closed;
 	int nc;
-	char **decltypes;
 	int refno;
 } db_rs_t;
 
@@ -68,26 +67,11 @@ static int db_rs_tostr(lua_State *L) {
 	return 1;
 }
 
-static void free_decltypes(db_rs_t *rs) {
-	int i;
-	for (i = 0; i < rs->nc; i++) {
-		if (rs->decltypes[i] != NULL) {
-			free(rs->decltypes[i]);
-		}
-	}
-	free(rs->decltypes);
-	rs->decltypes = NULL;
-}
-
 static int db_rs_get(lua_State *L) {
 	buffer buf = {0}, *req = &buf;
 	rresponse resp = {0}, *response = &resp;
 	db_rs_t *rs = get_db_rs(L, 1);
-	int rc, count=0;
-
-	//if (rs->decltypes == NULL) {
-	//	luaL_error(L, "'get' called without calling 'next'");
-	//}
+	int count=0;
 
 	add_int(req, rs->query_id);
 
@@ -135,7 +119,6 @@ static int db_rs_get(lua_State *L) {
 
 static int db_rs_colcnt(lua_State *L) {
 	db_rs_t *rs = get_db_rs(L, 1);
-
 	lua_pushinteger(L, rs->nc);
 	return 1;
 }
@@ -145,9 +128,6 @@ static void db_rs_close(lua_State *L, db_rs_t *rs, int remove) {
 		return;
 	}
 	rs->closed = 1;
-	if (rs->decltypes) {
-		free_decltypes(rs);
-	}
 	if (remove) {
 		if (luaL_findtable(L, LUA_REGISTRYINDEX, RESOURCE_RS_KEY, 0) != NULL) {
 			luaL_error(L, "cannot find the environment of the db module");
@@ -185,23 +165,6 @@ static int db_rs_next(lua_State *L) {
 
 	free_response(response);
 	return 1;
-}
-
-static void process_columns(lua_State *L, db_rs_t *rs, bytes *result) {
-
-	rs->nc = get_int(result, 2);
-	if (rs->nc == 0) {
-		return;
-	}
-
-	rs->decltypes = malloc(sizeof(char *) * rs->nc);
-	if (rs->decltypes == NULL) {
-		luaL_error(L, "malloc failed");
-	}
-	for (int i = 0; i < rs->nc; i++) {
-		rs->decltypes[i] = strdup(get_string(result, i+3));
-	}
-
 }
 
 static int db_rs_gc(lua_State *L) {
@@ -362,10 +325,9 @@ static int db_pstmt_query(lua_State *L) {
 	luaL_getmetatable(L, DB_RS_ID);
 	lua_setmetatable(L, -2);
 	rs->query_id = get_int(&response->result, 1);
+	rs->nc = get_int(&response->result, 2);
 	rs->closed = 0;
 	rs->refno = append_resource(L, RESOURCE_RS_KEY, (void *)rs);
-
-	process_columns(L, rs, &response->result);
 
 	free_response(response);
 	return 1;
@@ -506,17 +468,14 @@ static int db_query(lua_State *L) {
 		lua_error(L);
 	}
 
-	int query_id = get_int(&response->result, 1);
-
 	// store the query id on the structure
 	rs = (db_rs_t *) lua_newuserdata(L, sizeof(db_rs_t));
 	luaL_getmetatable(L, DB_RS_ID);
 	lua_setmetatable(L, -2);
-	rs->query_id = query_id;
+	rs->query_id = get_int(&response->result, 1);
+	rs->nc = get_int(&response->result, 2);
 	rs->closed = 0;
 	rs->refno = append_resource(L, RESOURCE_RS_KEY, (void *)rs);
-
-	process_columns(L, rs, &response->result);
 
 	free_response(response);
 	return 1;
