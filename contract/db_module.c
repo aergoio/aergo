@@ -473,6 +473,7 @@ void handle_db_exec(request *req, char *args_ptr, int args_len) {
 
 	db = vm_get_db(req);
 	if (db == NULL) {
+		// error already set by vm_get_db
 		return;
 	}
 
@@ -527,6 +528,7 @@ void handle_db_query(request *req, char *args_ptr, int args_len) {
 
 	db = vm_get_db(req);
 	if (db == NULL) {
+		// error already set by vm_get_db
 		return;
 	}
 
@@ -579,6 +581,7 @@ void handle_db_prepare(request *req, char *args_ptr, int args_len) {
 
 	db = vm_get_db(req);
 	if (db == NULL) {
+		// error already set by vm_get_db
 		return;
 	}
 
@@ -607,7 +610,7 @@ sqlite3 *vm_get_db(request *req) {
 	sqlite3 *db;
 	db = luaGetDbHandle(req->service);
 	if (db == NULL) {
-		set_error(req, "can't open a database connection");
+		set_error(req, "can't open a connection to the contract's database");
 	}
 	return db;
 }
@@ -654,7 +657,8 @@ void handle_last_insert_rowid(request *req) {
 		return;
 	}
 	sqlite3 *db = vm_get_db(req);
-	if (db != NULL) {
+	if (db == NULL) {
+		// error already set by vm_get_db
 		return;
 	}
 	sqlite3_int64 id = sqlite3_last_insert_rowid(db);
