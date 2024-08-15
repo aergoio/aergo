@@ -351,14 +351,14 @@ static void get_column_meta(lua_State *L, bytes *result) {
 		lua_pushnil(L);
 	}
 
-	for (i = 0; i < colcnt; i++) {
+	for (i = 1; i <= colcnt; i++) {
 		char *name = get_string(&names, i);
 		lua_pushstring(L, name);
-		lua_rawseti(L, -3, i+1);
+		lua_rawseti(L, -3, i);
 
 		char *decltype = get_string(&types, i);
 		lua_pushstring(L, decltype);
-		lua_rawseti(L, -2, i+1);
+		lua_rawseti(L, -2, i);
 	}
 
 	lua_setfield(L, -3, "decltypes");

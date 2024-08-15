@@ -204,7 +204,7 @@ char *get_item(bytes *data, int position, int *plen) {
   int len;
   int count = 1;
 
-  if (p == NULL || position < 0) {
+  if (p == NULL || position <= 0) {
     return NULL;
   }
 
