@@ -248,6 +248,23 @@ func TestExecuteWithCallback(t *testing.T) {
 		abi.payable(constructor, default)
 	`
 
+	contract3 := `
+		function sql_func()
+			local rt = {}
+			local rs = db.query("select round(3.14),min(1,2,3), max(4,5,6)")
+			if rs:next() then
+				local col1, col2, col3 = rs:get()
+				table.insert(rt, col1)
+				table.insert(rt, col2)
+				table.insert(rt, col3)
+				return rt
+			else
+				return "error in func()"
+			end
+		end
+		abi.register(sql_func)
+	`
+
 	// set global variables
 	hardforkVersion = 3
 	isPubNet = true
@@ -479,5 +496,34 @@ func TestExecuteWithCallback(t *testing.T) {
 	assert.Empty(t, result)
 	assert.Greater(t, usedGas, uint64(0), "Expected some gas to be used")
 	fmt.Println("used gas: ", usedGas)
+
+
+
+	isPubNet = false
+
+	InitializeVM()
+
+	// compile contract
+	byteCodeAbi, err = Compile(contract3, false)
+	assert.NoError(t, err)
+	assert.NotNil(t, byteCodeAbi)
+
+	bytecode = util.LuaCode(byteCodeAbi).ByteCode()
+
+	InitializeVM()
+
+	// execute contract - sql_func
+	callbacks = []vmCallback{
+		{"dbQuery", []string{"+\x00\x00\x00sselect round(3.14),min(1,2,3), max(4,5,6)\x00\x01\x00\x00\x00y"}, "\x05\x00\x00\x00i\x01\x00\x00\x00", nil},
+		{"rsNext", []string{"\x05\x00\x00\x00i\x01\x00\x00\x00"}, "\x02\x00\x00\x00b\x01", nil},
+		{"rsGet", []string{"\x05\x00\x00\x00i\x01\x00\x00\x00"}, "\x05\x00\x00\x00i\x03\x00\x00\x00\x05\x00\x00\x00i\x01\x00\x00\x00\x05\x00\x00\x00i\x06\x00\x00\x00", nil},
+		//{"rsNext", []string{"\x05\x00\x00\x00i\x01\x00\x00\x00"}, "\x02\x00\x00\x00b\x00", nil},
+	}
+	result, err, usedGas = Execute("testAddress", string(bytecode), "sql_func", `[]`, 1000000, "testCaller", false, false)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, result)
+	assert.Greater(t, usedGas, uint64(0), "Expected some gas to be used")
+	fmt.Println("used gas: ", usedGas)
+	assert.Equal(t, `[3,1,6]`, result)
 
 }
