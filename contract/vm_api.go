@@ -35,6 +35,7 @@ import (
 	"strconv"
 	"strings"
 	"unsafe"
+	"runtime"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/v2/cmd/aergoluac/util"
@@ -846,6 +847,9 @@ func luaGetDbHandle(service C.int) *C.sqlite3 {
 	}
 	var tx sqlTx
 	var err error
+
+	// make sure that this go routine does not migrate to another thread
+	runtime.LockOSThread()
 
 	aid := types.ToAccountID(curContract.contractId)
 	if ctx.isQuery == true {
