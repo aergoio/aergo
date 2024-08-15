@@ -85,9 +85,9 @@ static int db_rs_get(lua_State *L) {
 	db_rs_t *rs = get_db_rs(L, 1);
 	int rc, count=0;
 
-	if (rs->decltypes == NULL) {
-		luaL_error(L, "'get' called without calling 'next'");
-	}
+	//if (rs->decltypes == NULL) {
+	//	luaL_error(L, "'get' called without calling 'next'");
+	//}
 
 	add_int(req, rs->query_id);
 
@@ -187,19 +187,21 @@ static int db_rs_next(lua_State *L) {
 	return 1;
 }
 
-int process_columns(lua_State *L, db_rs_t *rs, bytes *result) {
+static void process_columns(lua_State *L, db_rs_t *rs, bytes *result) {
 
-	rs->nc = get_int(result, 1);
+	rs->nc = get_int(result, 2);
+	if (rs->nc == 0) {
+		return;
+	}
 
 	rs->decltypes = malloc(sizeof(char *) * rs->nc);
 	if (rs->decltypes == NULL) {
 		luaL_error(L, "malloc failed");
 	}
 	for (int i = 0; i < rs->nc; i++) {
-		rs->decltypes[i] = strdup(get_string(result, i));
+		rs->decltypes[i] = strdup(get_string(result, i+3));
 	}
 
-	return 0;
 }
 
 static int db_rs_gc(lua_State *L) {
