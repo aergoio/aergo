@@ -102,7 +102,7 @@ static int db_rs_get(lua_State *L) {
 			lua_pushnumber(L, read_double(ptr));
 			break;
 		case 's':
-			lua_pushlstring(L, ptr, len);
+			lua_pushlstring(L, ptr, len - 1);
 			break;
 		case 'n':
 			lua_pushnil(L);
