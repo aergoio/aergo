@@ -260,7 +260,7 @@ static int bind_parameters(request *req, sqlite3 *db, sqlite3_stmt *pstmt, bytes
 			rc = sqlite3_bind_double(pstmt, i, read_double(ptr));
 			break;
 		case 's':
-			rc = sqlite3_bind_text(pstmt, i, ptr, len, SQLITE_TRANSIENT);
+			rc = sqlite3_bind_text(pstmt, i, ptr, len-1, SQLITE_TRANSIENT);
 			break;
 		case 'b':
 			if (read_bool(ptr)) {
