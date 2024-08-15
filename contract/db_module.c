@@ -174,9 +174,9 @@ void handle_rs_next(request *req, char *args_ptr, int args_len) {
 	rc = sqlite3_step(rs->s);
 
 	if (rc == SQLITE_ROW) {
-		add_int(&req->result, 1);
+		add_bool(&req->result, true);
 	} else if (rc == SQLITE_DONE) {
-		add_int(&req->result, 0);
+		add_bool(&req->result, false);
 		rs_close(rs, 1);
 	} else {
 		rs_close(rs, 1);
