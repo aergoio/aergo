@@ -328,10 +328,12 @@ static int modulePcall(lua_State *L) {
 	ret = lua_pcall(L, argc, LUA_MULTRET, 0);
 	if (ret != 0) {
 		// revert the contract state
-		char *errStr = luaClearRecovery(L, start_seq.r0, true);
-		if (errStr != NULL) {
-			strPushAndRelease(L, errStr);
-			luaL_throwerror(L);
+		if (start_seq.r0 > 0) {
+			char *errStr = luaClearRecovery(L, start_seq.r0, true);
+			if (errStr != NULL) {
+				strPushAndRelease(L, errStr);
+				luaL_throwerror(L);
+			}
 		}
 		// if out of memory, throw error
 		if (ret == LUA_ERRMEM) {

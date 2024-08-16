@@ -172,9 +172,13 @@ func luaSetRecoveryPoint(L *LState) (C.int, *C.char) {
 	if err != nil {
 		return -1, handleError(L, err)
 	}
+	// if on a query or inside a view function
+	if result == "" {
+		return 0, nil
+	}
 	resultInt, err := strconv.ParseInt(result, 10, 64)
 	if err != nil {
-		return -1, C.CString(fmt.Sprintf("Failed to parse result: %v", err))
+		return -1, handleError(L, fmt.Errorf("uncatchable: luaSetRecoveryPoint: failed to parse result: %v", err))
 	}
 	return C.int(resultInt), nil
 }
@@ -223,7 +227,7 @@ func luaGetBlockNo(L *LState) (C.lua_Integer, *C.char) {
 	}
 	blockNo, err := strconv.ParseInt(result, 10, 64)
 	if err != nil {
-		return C.lua_Integer(0), C.CString(fmt.Sprintf("Failed to parse block number: %v", err))
+		return C.lua_Integer(0), handleError(L, fmt.Errorf("uncatchable: luaGetBlockNo: failed to parse result: %v", err))
 	}
 	return C.lua_Integer(blockNo), nil
 }
@@ -237,7 +241,7 @@ func luaGetTimeStamp(L *LState) (C.lua_Integer, *C.char) {
 	}
 	timestamp, err := strconv.ParseInt(result, 10, 64)
 	if err != nil {
-		return C.lua_Integer(0), C.CString(fmt.Sprintf("Failed to parse timestamp: %v", err))
+		return C.lua_Integer(0), handleError(L, fmt.Errorf("uncatchable: failed to parse timestamp: %v", err))
 	}
 	return C.lua_Integer(timestamp), nil
 }
@@ -311,7 +315,7 @@ func luaECVerify(L *LState, msg *C.char, sig *C.char, addr *C.char) (C.int, *C.c
 	}
 	resultInt, err := strconv.ParseInt(result, 10, 64)
 	if err != nil {
-		return C.int(-1), C.CString(fmt.Sprintf("Failed to parse result: %v", err))
+		return C.int(-1), handleError(L, fmt.Errorf("uncatchable: luaECVerify: failed to parse result: %v", err))
 	}
 	return C.int(resultInt), nil
 }
@@ -382,7 +386,7 @@ func luaCryptoVerifyProof(
 	}
 	resultInt, err := strconv.ParseInt(result, 10, 64)
 	if err != nil {
-		return C.int(0), C.CString(fmt.Sprintf("Failed to parse result: %v", err))
+		return C.int(0), handleError(L, fmt.Errorf("uncatchable: luaCryptoVerifyProof: failed to parse result: %v", err))
 	}
 	return C.int(resultInt), nil
 }
@@ -443,7 +447,7 @@ func luaRandomInt(L *LState, min, max C.int) (C.int, *C.char) {
 	}
 	value, err := strconv.ParseInt(result, 10, 64)
 	if err != nil {
-		return C.int(0), C.CString(err.Error())
+		return C.int(0), handleError(L, fmt.Errorf("uncatchable: luaRandomInt: failed to parse result: %v", err))
 	}
 	return C.int(value), nil
 }
@@ -487,7 +491,7 @@ func luaIsContract(L *LState, address *C.char) (C.int, *C.char) {
 	}
 	resultInt, err := strconv.ParseInt(result, 10, 64)
 	if err != nil {
-		return -1, C.CString(fmt.Sprintf("Failed to parse result: %v", err))
+		return -1, handleError(L, fmt.Errorf("uncatchable: luaIsContract: failed to parse result: %v", err))
 	}
 	return C.int(resultInt), nil
 }
@@ -541,7 +545,7 @@ func luaGetStaking(L *LState, addr *C.char) (*C.char, C.lua_Integer, *C.char) {
 	amount := result[:sep]
 	when, err := strconv.ParseInt(result[sep+1:], 10, 64)
 	if err != nil {
-		return nil, 0, C.CString(fmt.Sprintf("Failed to parse 'when': %v", err))
+		return nil, 0, handleError(L, fmt.Errorf("uncatchable: luaGetStaking: failed to parse 'when': %v", err))
 	}
 	return C.CString(amount), C.lua_Integer(when), nil
 }
