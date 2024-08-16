@@ -28,8 +28,12 @@ func TestContractSendF(t *testing.T) {
 	code := readLuaCode(t, "contract_sendf_1.lua")
 	code2 := readLuaCode(t, "contract_sendf_2.lua")
 
-	for version := int32(3); version <= max_version; version++ {
-		bc, err := LoadDummyChain(SetHardForkVersion(version), SetPubNet())
+	// skip if current version is less than 3
+	if currentVersion < 3 {
+		t.Skipf("%s: skip version less than 3", t.Name())
+	}
+
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetPubNet())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		defer bc.Release()
 
@@ -45,7 +49,7 @@ func TestContractSendF(t *testing.T) {
 		require.NoErrorf(t, err, "failed to connect new block")
 
 		r := bc.GetReceipt(tx.Hash())
-		expectedGas := map[int32]int64{3: 105087, 4: 105087}[version]
+		expectedGas := map[int32]int64{3: 105087, 4: 105087}[currentVersion]
 		assert.Equalf(t, expectedGas, int64(r.GetGasUsed()), "gas used not equal")
 
 		state, err := bc.GetAccountState("test2")
@@ -56,12 +60,12 @@ func TestContractSendF(t *testing.T) {
 		require.NoErrorf(t, err, "failed to connect new block")
 
 		r = bc.GetReceipt(tx.Hash())
-		expectedGas = map[int32]int64{3: 105179, 4: 105755}[version]
+		expectedGas = map[int32]int64{3: 105179, 4: 105755}[currentVersion]
 		assert.Equalf(t, expectedGas, int64(r.GetGasUsed()), "gas used not equal")
 
 		state, err = bc.GetAccountState("test2")
 		assert.Equalf(t, int64(6), state.GetBalanceBigInt().Int64(), "balance state not equal")
-	}
+
 }
 
 func TestGasPerFunction(t *testing.T) {
@@ -70,7 +74,7 @@ func TestGasPerFunction(t *testing.T) {
 	var err error
 	code := readLuaCode(t, "gas_per_function.lua")
 
-	bc, err := LoadDummyChain(SetPubNet())
+	bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetPubNet())
 	assert.NoError(t, err)
 	defer bc.Release()
 
@@ -463,8 +467,7 @@ func TestGasPerFunction(t *testing.T) {
 		{"contract.event", "", 0, 163452},
 	}
 
-	// set the hard fork version
-	bc.HardforkVersion = 2
+	if currentVersion == 2 {
 
 	// iterate over the tests
 	for _, test := range tests_v2 {
@@ -493,8 +496,7 @@ func TestGasPerFunction(t *testing.T) {
 		//fmt.Printf("add_test \"%s\" %d\n", funcName, usedGas)
 	}
 
-	// set the hard fork version
-	bc.HardforkVersion = 3
+	} else if currentVersion == 3 {
 
 	// iterate over the tests
 	for _, test := range tests_v3 {
@@ -523,8 +525,7 @@ func TestGasPerFunction(t *testing.T) {
 		//fmt.Printf("add_test \"%s\" %d\n", funcName, usedGas)
 	}
 
-	// set the hard fork version
-	bc.HardforkVersion = 4
+	} else if currentVersion == 4 {
 
 	// iterate over the tests
 	for _, test := range tests_v4 {
@@ -553,6 +554,8 @@ func TestGasPerFunction(t *testing.T) {
 		//fmt.Printf("add_test \"%s\" %d\n", funcName, usedGas)
 	}
 
+	}
+
 }
 
 func TestGasHello(t *testing.T) {
@@ -561,22 +564,30 @@ func TestGasHello(t *testing.T) {
 	var err error
 	code := readLuaCode(t, "contract_hello.lua")
 
-	err = expectGas(code, 0, `"hello"`, `"world"`, 100000, SetHardForkVersion(1))
-	assert.NoError(t, err)
+	if currentVersion == 1 {
 
-	err = expectGas(code, 0, `"hello"`, `"w"`, 101203+3*1, SetHardForkVersion(2))
-	assert.NoError(t, err)
-	err = expectGas(code, 0, `"hello"`, `"wo"`, 101203+3*2, SetHardForkVersion(2))
-	assert.NoError(t, err)
-	err = expectGas(code, 0, `"hello"`, `"wor"`, 101203+3*3, SetHardForkVersion(2))
-	assert.NoError(t, err)
-	err = expectGas(code, 0, `"hello"`, `"worl"`, 101203+3*4, SetHardForkVersion(2))
-	assert.NoError(t, err)
-	err = expectGas(code, 0, `"hello"`, `"world"`, 101203+3*5, SetHardForkVersion(2))
-	assert.NoError(t, err)
+		err = expectGas(code, 0, `"hello"`, `"world"`, 100000)
+		assert.NoError(t, err)
 
-	err = expectGas(code, 0, `"hello"`, `"world"`, 101203+3*5, SetHardForkVersion(3))
-	assert.NoError(t, err)
+	} else if currentVersion == 2 {
+
+		err = expectGas(code, 0, `"hello"`, `"w"`, 101203+3*1)
+		assert.NoError(t, err)
+		err = expectGas(code, 0, `"hello"`, `"wo"`, 101203+3*2)
+		assert.NoError(t, err)
+		err = expectGas(code, 0, `"hello"`, `"wor"`, 101203+3*3)
+		assert.NoError(t, err)
+		err = expectGas(code, 0, `"hello"`, `"worl"`, 101203+3*4)
+		assert.NoError(t, err)
+		err = expectGas(code, 0, `"hello"`, `"world"`, 101203+3*5)
+		assert.NoError(t, err)
+
+	} else if currentVersion >= 3 {
+
+		err = expectGas(code, 0, `"hello"`, `"world"`, 101203+3*5)
+		assert.NoError(t, err)
+
+	}
 }
 
 func TestGasDeploy(t *testing.T) {
@@ -585,17 +596,28 @@ func TestGasDeploy(t *testing.T) {
 	var err error
 	code := readLuaCode(t, "gas_deploy.lua")
 
-	// err = expectGas(code, 0, `"testPcall"`, ``, 0, SetHardForkVersion(0))
-	// assert.NoError(t, err)
+	if currentVersion <= 1 {
 
-	err = expectGas(code, 0, `"testPcall"`, ``, 117861, SetHardForkVersion(2))
-	assert.NoError(t, err)
+		err = expectGas(code, 0, `"testPcall"`, ``, 0)
+		assert.NoError(t, err)
 
-	err = expectGas(code, 0, `"testPcall"`, ``, 117861, SetHardForkVersion(3))
-	assert.NoError(t, err)
+	} else if currentVersion == 2 {
 
-	err = expectGas(code, 0, `"testPcall"`, ``, 118350, SetHardForkVersion(4))
-	assert.NoError(t, err)
+		err = expectGas(code, 0, `"testPcall"`, ``, 117861)
+		assert.NoError(t, err)
+
+	} else if currentVersion == 3 {
+
+		err = expectGas(code, 0, `"testPcall"`, ``, 117861)
+		assert.NoError(t, err)
+
+	} else if currentVersion == 4 {
+
+		err = expectGas(code, 0, `"testPcall"`, ``, 118350)
+		assert.NoError(t, err)
+
+	}
+
 }
 
 func TestGasOp(t *testing.T) {
@@ -604,17 +626,27 @@ func TestGasOp(t *testing.T) {
 	var err error
 	code := readLuaCode(t, "gas_op.lua")
 
-	err = expectGas(string(code), 0, `"main"`, ``, 100000, SetHardForkVersion(0))
-	assert.NoError(t, err)
+	if currentVersion <= 1 {
 
-	err = expectGas(string(code), 0, `"main"`, ``, 117610, SetHardForkVersion(2))
-	assert.NoError(t, err)
+		err = expectGas(string(code), 0, `"main"`, ``, 100000)
+		assert.NoError(t, err)
 
-	err = expectGas(string(code), 0, `"main"`, ``, 117610, SetHardForkVersion(3))
-	assert.NoError(t, err)
+	} else if currentVersion == 2 {
 
-	err = expectGas(string(code), 0, `"main"`, ``, 120832, SetHardForkVersion(4))
-	assert.NoError(t, err)
+		err = expectGas(string(code), 0, `"main"`, ``, 117610)
+		assert.NoError(t, err)
+
+	} else if currentVersion == 3 {
+
+		err = expectGas(string(code), 0, `"main"`, ``, 117610)
+		assert.NoError(t, err)
+
+	} else if currentVersion == 4 {
+
+		err = expectGas(string(code), 0, `"main"`, ``, 120832)
+		assert.NoError(t, err)
+
+	}
 }
 
 func TestGasBF(t *testing.T) {
@@ -624,17 +656,27 @@ func TestGasBF(t *testing.T) {
 	code2 := readLuaCode(t, "gas_bf_v2.lua")
 	code4 := readLuaCode(t, "gas_bf_v4.lua")
 
-	// err = expectGas(t, string(code), 0, `"main"`, ``, 100000, SetHardForkVersion(1), SetTimeout(500))
-	// assert.NoError(t, err)
+	if currentVersion <= 1 {
 
-	err = expectGas(string(code2), 0, `"main"`, ``, 47456244, SetHardForkVersion(2), SetTimeout(500))
-	assert.NoError(t, err)
+		// err = expectGas(t, string(code), 0, `"main"`, ``, 100000, SetTimeout(500))
+		// assert.NoError(t, err)
 
-	err = expectGas(string(code2), 0, `"main"`, ``, 47456046, SetHardForkVersion(3), SetTimeout(500))
-	assert.NoError(t, err)
+	} else if currentVersion == 2 {
 
-	err = expectGas(string(code4), 0, `"main"`, ``, 47342481, SetHardForkVersion(4), SetTimeout(500))
-	assert.NoError(t, err)
+		err = expectGas(string(code2), 0, `"main"`, ``, 47456244, SetTimeout(500))
+		assert.NoError(t, err)
+
+	} else if currentVersion == 3 {
+
+		err = expectGas(string(code2), 0, `"main"`, ``, 47456046, SetTimeout(500))
+		assert.NoError(t, err)
+
+	} else if currentVersion == 4 {
+
+		err = expectGas(string(code4), 0, `"main"`, ``, 47342481, SetTimeout(500))
+		assert.NoError(t, err)
+
+	}
 }
 
 func TestGasLuaCryptoVerifyProof(t *testing.T) {
@@ -642,34 +684,42 @@ func TestGasLuaCryptoVerifyProof(t *testing.T) {
 
 	code := readLuaCode(t, "feature_crypto_verify_proof.lua")
 
-	// v2 raw
-	err := expectGas(string(code), 0, `"verifyProofRaw"`, ``, 154137, SetHardForkVersion(2))
-	assert.NoError(t, err)
+	if currentVersion == 2 {
 
-	// v2 hex
-	err = expectGas(string(code), 0, `"verifyProofHex"`, ``, 108404, SetHardForkVersion(2))
-	assert.NoError(t, err)
+		// v2 raw
+		err := expectGas(string(code), 0, `"verifyProofRaw"`, ``, 154137)
+		assert.NoError(t, err)
 
-	// v3 raw
-	err = expectGas(string(code), 0, `"verifyProofRaw"`, ``, 154137, SetHardForkVersion(3))
-	assert.NoError(t, err)
+		// v2 hex
+		err = expectGas(string(code), 0, `"verifyProofHex"`, ``, 108404)
+		assert.NoError(t, err)
 
-	// v3 hex
-	err = expectGas(string(code), 0, `"verifyProofHex"`, ``, 108404, SetHardForkVersion(3))
-	assert.NoError(t, err)
+	} else if currentVersion == 3 {
 
-	// v4 raw
-	err = expectGas(string(code), 0, `"verifyProofRaw"`, ``, 160281, SetHardForkVersion(4))
-	assert.NoError(t, err)
+		// v3 raw
+		err := expectGas(string(code), 0, `"verifyProofRaw"`, ``, 154137)
+		assert.NoError(t, err)
 
-	// v4 hex
-	err = expectGas(string(code), 0, `"verifyProofHex"`, ``, 108404, SetHardForkVersion(4))
-	assert.NoError(t, err)
+		// v3 hex
+		err = expectGas(string(code), 0, `"verifyProofHex"`, ``, 108404)
+		assert.NoError(t, err)
+
+	} else if currentVersion == 4 {
+
+		// v4 raw
+		err := expectGas(string(code), 0, `"verifyProofRaw"`, ``, 160281)
+		assert.NoError(t, err)
+
+		// v4 hex
+		err = expectGas(string(code), 0, `"verifyProofHex"`, ``, 108404)
+		assert.NoError(t, err)
+
+	}
 }
 
 func expectGas(contractCode string, amount int64, funcName, funcArgs string, expectGas int64, opt ...DummyChainOptions) error {
 	// append set pubnet
-	bc, err := LoadDummyChain(append(opt, SetPubNet())...)
+	bc, err := LoadDummyChain(append(opt, SetPubNet(), SetHardForkVersion(currentVersion))...)
 	if err != nil {
 		return err
 	}
@@ -724,8 +774,11 @@ func TestTypeInvalidKey(t *testing.T) {
 
 	code := readLuaCode(t, "type_invalidkey.lua")
 
-	for version := int32(3); version <= max_version; version++ {
-		bc, err := LoadDummyChain(SetHardForkVersion(version))
+	if currentVersion < 3 {
+		t.Skip()
+	}
+
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		defer bc.Release()
 
@@ -752,7 +805,7 @@ func TestTypeInvalidKey(t *testing.T) {
 
 		err = bc.ConnectBlock(NewLuaTxCall("user1", "invalidkey", 0, `{"Name":"key_nil"}`).Fail("invalid key type: 'nil', state.map: 'h'"))
 		require.NoErrorf(t, err, "failed to call tx")
-	}
+
 }
 
 func TestTypeBigTable(t *testing.T) {
@@ -764,8 +817,11 @@ func TestTypeBigTable(t *testing.T) {
 	code := readLuaCode(t, "type_bigtable_1.lua")
 	code2 := readLuaCode(t, "type_bigtable_2.lua")
 
-	for version := int32(3); version <= max_version; version++ {
-		bc, err := LoadDummyChain(SetHardForkVersion(version))
+	if currentVersion < 3 {
+		t.Skip()
+	}
+
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		defer bc.Release()
 
@@ -786,5 +842,5 @@ func TestTypeBigTable(t *testing.T) {
 		}
 		err = bc.ConnectBlock(NewLuaTxCall("user1", "big20", 0, `{"Name": "inserts"}`).Fail("database or disk is full"))
 		require.NoErrorf(t, err, "failed to call tx")
-	}
+
 }
