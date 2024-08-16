@@ -49,7 +49,7 @@ var (
 	contexts           []*vmContext
 	lastQueryIndex     int
 	querySync          sync.Mutex
-	currentForkVersion int32
+	CurrentForkVersion int32
 )
 
 type ChainAccessor interface {
@@ -277,10 +277,10 @@ func newExecutor(
 	ctrState *statedb.ContractState,
 ) *executor {
 
-	if ctx.blockInfo.ForkVersion != currentForkVersion {
+	if ctx.blockInfo.ForkVersion != CurrentForkVersion {
 		// force the VM Pool to regenerate the VM instances
 		// using the new hardfork version
-		currentForkVersion = ctx.blockInfo.ForkVersion
+		CurrentForkVersion = ctx.blockInfo.ForkVersion
 		FlushVmInstances()
 	}
 
