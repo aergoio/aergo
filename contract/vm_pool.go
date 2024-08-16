@@ -19,6 +19,7 @@ var maxInstances int
 var getCh chan *VmInstance
 var freeCh chan *VmInstance
 var once sync.Once
+var VmPoolStarted bool
 
 func StartVMPool(numInstances int) {
 	once.Do(func() {
@@ -28,6 +29,7 @@ func StartVMPool(numInstances int) {
 		freeCh = make(chan *VmInstance, numInstances)
 		// start a goroutine to manage the vm instances
 		go vmPoolRoutine()
+		VmPoolStarted = true
 	})
 }
 

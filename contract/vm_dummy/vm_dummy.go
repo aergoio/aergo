@@ -114,11 +114,7 @@ func LoadDummyChain(opts ...DummyChainOptions) (*DummyChain, error) {
 	bc.testReceiptDB = db.NewDB(db.MemoryImpl, path.Join(dataPath, "receiptDB"))
 	contract.LoadTestDatabase(dataPath) // sql database
 	contract.SetStateSQLMaxDBSize(1024)
-	contract.StartVMPool(lStateMaxSize)
 	contract.InitContext(3)
-
-	bc.PubNet = false
-	bc.HardforkVersion = 2
 
 	// To pass the governance tests.
 	types.InitGovernance("dpos", true)
@@ -127,27 +123,34 @@ func LoadDummyChain(opts ...DummyChainOptions) (*DummyChain, error) {
 	scs, err := statedb.GetSystemAccountState(bc.sdb.GetStateDB())
 	system.InitSystemParams(scs, 3)
 
-	fee.EnableZeroFee()
+	bc.HardforkVersion = 2
+	bc.PubNet = false
 
 	for _, opt := range opts {
 		opt(bc)
 	}
 
-	if contract.PubNet != bc.PubNet {
-		// public and private chains have different features.
-		// private chains have the db module and public ones don't.
-		// this is why we need to flush all Lua VM instances and
-		// recreate them when moving to and from public chain.
-
+	if !contract.VmPoolStarted {
 		contract.CurrentForkVersion = bc.HardforkVersion
 		contract.PubNet = bc.PubNet
-
 		if bc.PubNet {
 			fee.DisableZeroFee()
 		} else {
 			fee.EnableZeroFee()
 		}
-
+		contract.StartVMPool(lStateMaxSize)
+	} else if contract.PubNet != bc.PubNet {
+		// public and private chains have different features.
+		// private chains have the db module and public ones don't.
+		// this is why we need to flush all Lua VM instances and
+		// recreate them when moving to and from public chain.
+		contract.CurrentForkVersion = bc.HardforkVersion
+		contract.PubNet = bc.PubNet
+		if bc.PubNet {
+			fee.DisableZeroFee()
+		} else {
+			fee.EnableZeroFee()
+		}
 		contract.FlushVmInstances()
 	}
 
