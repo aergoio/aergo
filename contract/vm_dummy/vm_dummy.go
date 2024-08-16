@@ -44,6 +44,7 @@ func init() {
 
 type DummyChain struct {
 	HardforkVersion int32
+	PubNet          bool
 	sdb             *state.ChainStateDB
 	bestBlock       *types.Block
 	cBlock          *types.Block
@@ -54,7 +55,6 @@ type DummyChain struct {
 	testReceiptDB   db.DB
 	tmpDir          string
 	timeout         int
-	clearLState     func()
 	gasPrice        *big.Int
 	timestamp       int64
 }
@@ -76,21 +76,7 @@ func SetTimeout(timeout int) DummyChainOptions {
 
 func SetPubNet() DummyChainOptions {
 	return func(dc *DummyChain) {
-
-		// public and private chains have different features.
-		// private chains have the db module and public ones don't.
-		// this is why we need to flush all Lua states and recreate
-		// them when moving to and from public chain.
-
-		contract.PubNet = true
-		fee.DisableZeroFee()
-		contract.FlushVmInstances()
-
-		dc.clearLState = func() {
-			contract.PubNet = false
-			fee.EnableZeroFee()
-			contract.FlushVmInstances()
-		}
+		dc.PubNet = true
 	}
 }
 
@@ -131,6 +117,7 @@ func LoadDummyChain(opts ...DummyChainOptions) (*DummyChain, error) {
 	contract.StartVMPool(lStateMaxSize)
 	contract.InitContext(3)
 
+	bc.PubNet = false
 	bc.HardforkVersion = 2
 
 	// To pass the governance tests.
@@ -145,14 +132,30 @@ func LoadDummyChain(opts ...DummyChainOptions) (*DummyChain, error) {
 	for _, opt := range opts {
 		opt(bc)
 	}
+
+	if contract.PubNet != bc.PubNet {
+		// public and private chains have different features.
+		// private chains have the db module and public ones don't.
+		// this is why we need to flush all Lua VM instances and
+		// recreate them when moving to and from public chain.
+
+		contract.CurrentForkVersion = bc.HardforkVersion
+		contract.PubNet = bc.PubNet
+
+		if bc.PubNet {
+			fee.DisableZeroFee()
+		} else {
+			fee.EnableZeroFee()
+		}
+
+		contract.FlushVmInstances()
+	}
+
 	return bc, nil
 }
 
 func (bc *DummyChain) Release() {
 	bc.testReceiptDB.Close()
-	if bc.clearLState != nil {
-		bc.clearLState()
-	}
 	_ = os.RemoveAll(bc.tmpDir)
 }
 

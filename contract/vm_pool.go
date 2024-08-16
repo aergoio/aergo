@@ -186,7 +186,7 @@ func spawnVmInstances(num int) {
 		}
 
 		// spawn the exernal VM executable process
-		cmd := exec.Command(execPath, strconv.Itoa(int(currentForkVersion)), map[bool]string{true: "1", false: "0"}[PubNet], socketName, hex.Encode(secretKey[:]))
+		cmd := exec.Command(execPath, strconv.Itoa(int(CurrentForkVersion)), map[bool]string{true: "1", false: "0"}[PubNet], socketName, hex.Encode(secretKey[:]))
 		err = cmd.Start()
 		if err != nil {
 			ctrLgr.Error().Err(err).Msg("Failed to spawn external VM process")
