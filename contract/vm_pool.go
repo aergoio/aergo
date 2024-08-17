@@ -18,6 +18,7 @@ import (
 var maxInstances int
 var getCh chan *VmInstance
 var freeCh chan *VmInstance
+var closeCh chan bool
 var once sync.Once
 var VmPoolStarted bool
 
@@ -27,10 +28,20 @@ func StartVMPool(numInstances int) {
 		// create channels for getting and freeing vm instances
 		getCh = make(chan *VmInstance, numInstances)
 		freeCh = make(chan *VmInstance, numInstances)
+		closeCh = make(chan bool)
 		// start a goroutine to manage the vm instances
 		go vmPoolRoutine()
 		VmPoolStarted = true
 	})
+}
+
+func StopVMPool() {
+	// stop the vm pool
+	closeCh <- true
+	// wait for the vm pool to be stopped
+	for !VmPoolStarted {
+		time.Sleep(time.Millisecond * 25)
+	}
 }
 
 func vmPoolRoutine() {
@@ -46,6 +57,19 @@ func vmPoolRoutine() {
 			vmInstance.close()
 			// replenish the pool
 			repopulatePool()
+		case <- closeCh:
+			// close all instances
+			for _, vmInstance := range pool {
+				vmInstance.close()
+			}
+			// close the channels
+			close(getCh)
+			close(freeCh)
+			close(closeCh)
+			// mark the vm pool as stopped
+			VmPoolStarted = false
+			// exit the goroutine
+			return
 		}
 	}
 
