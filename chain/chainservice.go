@@ -154,7 +154,7 @@ func (core *Core) GetGenesisInfo() *types.Genesis {
 	return core.cdb.GetGenesisInfo()
 }
 
-// Close closes chain & state DB.
+// Close closes chain, state and contracts DBs and the VM pool
 func (core *Core) Close() {
 	if core.sdb != nil {
 		core.sdb.Close()
@@ -163,6 +163,7 @@ func (core *Core) Close() {
 		core.cdb.Close()
 	}
 	contract.CloseDatabase()
+	contract.StopVMPool()
 }
 
 // InitGenesisBlock initialize chain database and generate specified genesis block if necessary
