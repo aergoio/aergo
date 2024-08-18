@@ -261,7 +261,9 @@ bool vm_is_hardfork(lua_State *L, int version) {
 	return v >= version;
 }
 
-const char *vm_loadcall(lua_State *L) {
+// execute code from the global scope, like declaring state variables and functions
+// as well as abi.register, abi.register_view, abi.payable, etc.
+const char *vm_pre_run(lua_State *L) {
 	int err;
 
 	if (lua_usegas(L)) {
@@ -281,6 +283,7 @@ const char *vm_loadcall(lua_State *L) {
 		lua_disablegas(L);
 	}
 
+	// remove hook
 	lua_sethook(L, NULL, 0, 0);
 
 	if (err != 0) {
@@ -289,7 +292,8 @@ const char *vm_loadcall(lua_State *L) {
 	return NULL;
 }
 
-const char *vm_loadbuff(lua_State *L, const char *code, size_t sz, char *hex_id) {
+// load the code into the Lua state
+const char *vm_load_code(lua_State *L, const char *code, size_t sz, char *hex_id) {
 	int err;
 
 	// enable check for memory limit
@@ -305,7 +309,13 @@ const char *vm_loadbuff(lua_State *L, const char *code, size_t sz, char *hex_id)
 	return NULL;
 }
 
-int vm_autoload(lua_State *L, char *fname) {
+void vm_push_abi_function(lua_State *L, char *fname) {
+	lua_getfield(L, LUA_GLOBALSINDEX, "abi");
+	lua_getfield(L, -1, "call");
+	lua_pushstring(L, fname);
+}
+
+int vm_push_global_function(lua_State *L, char *fname) {
 	lua_getfield(L, LUA_GLOBALSINDEX, fname);
 	return lua_isnil(L, -1) == 0;
 }
@@ -371,7 +381,7 @@ void vm_set_timeout_count_hook(lua_State *L, int limit) {
 
 
 
-const char *vm_pcall(lua_State *L, int argc, int *nresult) {
+const char *vm_call(lua_State *L, int argc, int *nresult) {
 	int err;
 	int nr = lua_gettop(L) - argc - 1;
 
@@ -417,12 +427,6 @@ const char *vm_get_json_ret(lua_State *L, int nresult, bool has_parent, int *err
 	free(json_ret);
 
 	return lua_tostring(L, -1);
-}
-
-void vm_get_abi_function(lua_State *L, char *fname) {
-	lua_getfield(L, LUA_GLOBALSINDEX, "abi");
-	lua_getfield(L, -1, "call");
-	lua_pushstring(L, fname);
 }
 
 // VIEW FUNCTIONS
