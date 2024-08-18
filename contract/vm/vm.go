@@ -361,8 +361,6 @@ func (ce *executor) vmLoadCall() {
 			ce.err = errors.New(errMsg)
 		}
 	}
-	// mark as running a call
-	C.luaL_set_loading(ce.L, C.bool(false))
 }
 
 
