@@ -1143,10 +1143,10 @@ func TestNDeploy(t *testing.T) {
 
 }
 
-func xestInfiniteLoop(t *testing.T) {
+func TestInfiniteLoopOnPrivateNet(t *testing.T) {
 	code := readLuaCode(t, "infiniteloop.lua")
 
-		bc, err := LoadDummyChain(SetTimeout(50), SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetTimeout(750))
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		defer bc.Release()
 
@@ -1156,21 +1156,28 @@ func xestInfiniteLoop(t *testing.T) {
 		)
 		require.NoErrorf(t, err, "failed to connect new block")
 
+		// private nets use a limit of instruction count instead of timeout
 		errTimeout := "exceeded the maximum instruction count"
 
-		err = bc.ConnectBlock(NewLuaTxCall("user1", "loop", 0, `{"Name":"infiniteLoop"}`))
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "loop", 0, `{"Name":"infinite_loop"}`))
 		require.Errorf(t, err, "expected: %v", errTimeout)
 		require.Containsf(t, err.Error(), errTimeout, "not contain timeout error")
 
-		err = bc.ConnectBlock(NewLuaTxCall("user1", "loop", 0, `{"Name":"catch"}`))
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "loop", 0, `{"Name":"catch_loop"}`))
 		require.Errorf(t, err, "expected: %v", errTimeout)
 		require.Containsf(t, err.Error(), errTimeout, "not contain timeout error")
 
-		err = bc.ConnectBlock(NewLuaTxCall("user1", "loop", 0, `{"Name":"contract_catch"}`))
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "loop", 0, `{"Name":"contract_catch_loop"}`))
 		require.Errorf(t, err, "expected: %v", errTimeout)
 		require.Containsf(t, err.Error(), errTimeout, "not contain timeout error")
 
-		err = bc.ConnectBlock(NewLuaTxCall("user1", "loop", 0, `{"Name":"infiniteCall"}`).Fail("stack overflow"))
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "loop", 0, `{"Name":"infinite_call"}`).Fail("stack overflow"))
+		require.NoErrorf(t, err, "failed to connect new block")
+
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "loop", 0, `{"Name":"catch_call"}`))
+		require.NoErrorf(t, err, "failed to connect new block")
+
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "loop", 0, `{"Name":"contract_catch_call"}`))
 		require.NoErrorf(t, err, "failed to connect new block")
 
 }
@@ -1190,19 +1197,25 @@ func TestInfiniteLoopOnPubNet(t *testing.T) {
 
 		errTimeout := contract.VmTimeoutError{}
 
-		err = bc.ConnectBlock(NewLuaTxCall("user1", "loop", 0, `{"Name":"infiniteLoop"}`))
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "loop", 0, `{"Name":"infinite_loop"}`))
 		require.Errorf(t, err, "expected: %v", errTimeout)
 		require.Containsf(t, err.Error(), errTimeout.Error(), "not contain timeout error")
 
-		err = bc.ConnectBlock(NewLuaTxCall("user1", "loop", 0, `{"Name":"catch"}`))
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "loop", 0, `{"Name":"catch_loop"}`))
 		require.Errorf(t, err, "expected: %v", errTimeout)
 		require.Containsf(t, err.Error(), errTimeout.Error(), "not contain timeout error")
 
-		err = bc.ConnectBlock(NewLuaTxCall("user1", "loop", 0, `{"Name":"contract_catch"}`))
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "loop", 0, `{"Name":"contract_catch_loop"}`))
 		require.Errorf(t, err, "expected: %v", errTimeout)
 		require.Containsf(t, err.Error(), errTimeout.Error(), "not contain timeout error")
 
-		err = bc.ConnectBlock(NewLuaTxCall("user1", "loop", 0, `{"Name":"infiniteCall"}`).Fail("stack overflow"))
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "loop", 0, `{"Name":"infinite_call"}`).Fail("stack overflow"))
+		require.NoErrorf(t, err, "failed to connect new block")
+
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "loop", 0, `{"Name":"catch_call"}`))
+		require.NoErrorf(t, err, "failed to connect new block")
+
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "loop", 0, `{"Name":"contract_catch_call"}`))
 		require.NoErrorf(t, err, "failed to connect new block")
 
 }
@@ -1811,15 +1824,45 @@ func TestTypeMaxString(t *testing.T) {
 		err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo), NewLuaTxDeploy("user1", "oom", 0, code))
 		require.NoErrorf(t, err, "failed to deploy")
 
-		errMsg := "not enough memory"
-		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"oom"}`).Fail(errMsg))
-		require.NoErrorf(t, err, "failed to call tx")
+		errMsg1 := "string length overflow"
+		errMsg2 := "table overflow"
+		errMsg3 := "not enough memory"
 
-		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"p"}`).Fail(errMsg))
-		require.NoErrorf(t, err, "failed to call tx")
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"oom_string"}`).Fail(errMsg1))
+		assert.NoErrorf(t, err, "failed to call tx")
 
-		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"cp"}`).Fail(errMsg))
-		require.NoErrorf(t, err, "failed to call tx")
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"pcall_string"}`).Fail(errMsg1))
+		assert.NoErrorf(t, err, "failed to call tx")
+
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"contract_pcall_string"}`).Fail(errMsg1))
+		assert.NoErrorf(t, err, "failed to call tx")
+
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"oom_table1"}`).Fail(errMsg2))
+		assert.NoErrorf(t, err, "failed to call tx")
+
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"pcall_table1"}`))
+		assert.NoErrorf(t, err, "failed to call tx")
+
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"contract_pcall_table1"}`))
+		assert.NoErrorf(t, err, "failed to call tx")
+
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"oom_table2"}`).Fail(errMsg2))
+		assert.NoErrorf(t, err, "failed to call tx")
+
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"pcall_table2"}`))
+		assert.NoErrorf(t, err, "failed to call tx")
+
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"contract_pcall_table2"}`))
+		assert.NoErrorf(t, err, "failed to call tx")
+
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"oom_global"}`).Fail(errMsg3))
+		assert.NoErrorf(t, err, "failed to call tx")
+
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"pcall_global"}`).Fail(errMsg3))
+		assert.NoErrorf(t, err, "failed to call tx")
+
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"contract_pcall_global"}`).Fail(errMsg3))
+		assert.NoErrorf(t, err, "failed to call tx")
 
 }
 
@@ -1833,25 +1876,45 @@ func TestTypeMaxStringOnPubNet(t *testing.T) {
 		err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo), NewLuaTxDeploy("user1", "oom", 0, code))
 		require.NoErrorf(t, err, "failed to deploy")
 
-		errMsg := "string length overflow"
-		errMsg1 := "not enough memory"
-		var travis bool
-		if os.Getenv("TRAVIS") == "true" {
-			travis = true
-		}
-		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"oom"}`))
-		require.Errorf(t, err, "expected: %s", errMsg)
-		if !strings.Contains(err.Error(), errMsg) && !strings.Contains(err.Error(), errMsg1) {
-			t.Error(err)
-		}
-		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"p"}`))
-		if err != nil && (!travis || !strings.Contains(err.Error(), errMsg1)) {
-			t.Error(err)
-		}
-		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"cp"}`))
-		if err != nil && (!travis || !strings.Contains(err.Error(), errMsg1)) {
-			t.Error(err)
-		}
+		errMsg1 := "string length overflow"
+		errMsg2 := "table overflow"
+		errMsg3 := "not enough memory"
+
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"oom_string"}`).Fail(errMsg1))
+		assert.NoErrorf(t, err, "failed to call tx")
+
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"pcall_string"}`).Fail(errMsg1))
+		assert.NoErrorf(t, err, "failed to call tx")
+
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"contract_pcall_string"}`).Fail(errMsg1))
+		assert.NoErrorf(t, err, "failed to call tx")
+
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"oom_table1"}`).Fail(errMsg2))
+		assert.NoErrorf(t, err, "failed to call tx")
+
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"pcall_table1"}`))
+		assert.NoErrorf(t, err, "failed to call tx")
+
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"contract_pcall_table1"}`))
+		assert.NoErrorf(t, err, "failed to call tx")
+
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"oom_table2"}`).Fail(errMsg2))
+		assert.NoErrorf(t, err, "failed to call tx")
+
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"pcall_table2"}`))
+		assert.NoErrorf(t, err, "failed to call tx")
+
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"contract_pcall_table2"}`))
+		assert.NoErrorf(t, err, "failed to call tx")
+
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"oom_global"}`).Fail(errMsg3))
+		assert.NoErrorf(t, err, "failed to call tx")
+
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"pcall_global"}`).Fail(errMsg3))
+		assert.NoErrorf(t, err, "failed to call tx")
+
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"contract_pcall_global"}`).Fail(errMsg3))
+		assert.NoErrorf(t, err, "failed to call tx")
 
 }
 

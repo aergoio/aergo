@@ -256,14 +256,6 @@ lua_State *vm_newstate(int hardfork_version) {
 	return L;
 }
 
-void vm_closestates(lua_State *s[], int count) {
-	int i;
-
-	for (i = 0; i < count; ++i)
-		if (s[i] != NULL)
-			lua_close(s[i]);
-}
-
 bool vm_is_hardfork(lua_State *L, int version) {
 	int v = luaL_hardforkversion(L);
 	return v >= version;
@@ -281,15 +273,12 @@ const char *vm_loadcall(lua_State *L) {
 		} else {
 			vm_set_count_hook(L, 5000000);
 		}
-		luaL_enablemaxmem(L);
 	}
 
 	err = lua_pcall(L, 0, 0, 0);
 
 	if (lua_usegas(L)) {
 		lua_disablegas(L);
-	} else {
-		luaL_disablemaxmem(L);
 	}
 
 	lua_sethook(L, NULL, 0, 0);
@@ -303,6 +292,8 @@ const char *vm_loadcall(lua_State *L) {
 const char *vm_loadbuff(lua_State *L, const char *code, size_t sz, char *hex_id) {
 	int err;
 
+	// enable check for memory limit
+	luaL_enablemaxmem(L);
 	// mark as running on global scope
 	luaL_set_loading(L, true);
 
@@ -384,18 +375,17 @@ const char *vm_pcall(lua_State *L, int argc, int *nresult) {
 	int err;
 	int nr = lua_gettop(L) - argc - 1;
 
+	// mark as no longer loading, now running the function call
+	luaL_set_loading(L, false);
+
 	if (lua_usegas(L)) {
 		lua_enablegas(L);
-	} else {
-		luaL_enablemaxmem(L);
 	}
 
 	err = lua_pcall(L, argc, LUA_MULTRET, 0);
 
 	if (lua_usegas(L)) {
 		lua_disablegas(L);
-	} else {
-		luaL_disablemaxmem(L);
 	}
 
 	if (err != 0) {
@@ -427,43 +417,6 @@ const char *vm_get_json_ret(lua_State *L, int nresult, bool has_parent, int *err
 	free(json_ret);
 
 	return lua_tostring(L, -1);
-}
-
-const char *vm_copy_result(lua_State *L, lua_State *target, int cnt) {
-	int i;
-	int top;
-	char *json;
-
-	if (lua_usegas(L)) {
-		lua_disablegas(target);
-	} else {
-		luaL_disablemaxmem(target);
-	}
-
-	top = lua_gettop(L);
-	for (i = top - cnt + 1; i <= top; ++i) {
-		json = lua_util_get_json(L, i, false);
-		if (json == NULL) {
-			if (lua_usegas(L)) {
-				lua_enablegas(target);
-			} else {
-				luaL_enablemaxmem(target);
-			}
-			return lua_tostring(L, -1);
-		}
-
-		minus_inst_count(L, strlen(json));
-		lua_util_json_value_to_lua(target, json, false);
-		free(json);
-	}
-
-	if (lua_usegas(L)) {
-		lua_enablegas(target);
-	} else {
-		luaL_enablemaxmem(target);
-	}
-
-	return NULL;
 }
 
 void vm_get_abi_function(lua_State *L, char *fname) {
