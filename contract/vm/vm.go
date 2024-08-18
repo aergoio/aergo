@@ -68,19 +68,17 @@ type executor struct {
 	err        error
 }
 
-func newExecutor(
-	bytecode []byte,
-	fname string,
-	args string,
-) *executor {
+func newExecutor(bytecode []byte, fname string, args string) *executor {
 
 	ce := &executor{
 		L: lstate,
 		code: bytecode,
 	}
 
+	// set the gas limit on the Lua state
 	setGas()
 
+	// load the contract code into the Lua state
 	ce.vmLoadCode()
 	if ce.err != nil {
 		return ce
@@ -102,7 +100,7 @@ func newExecutor(
 ////////////////////////////////////////////////////////////////////////////////
 
 // push the arguments to the stack
-func (ce *executor) pushArgs() {
+func (ce *executor) pushArguments() {
 	args := C.CString(ce.args)
 	ce.numArgs = C.lua_util_json_array_to_lua(ce.L, args, C.bool(true));
 	C.free(unsafe.Pointer(args))
@@ -239,34 +237,36 @@ func (ce *executor) call(hasParent bool) {
 		return
 	}
 
-	ce.vmLoadCall()
+	// execute code from the global scope, like declaring state variables and functions
+	// as well as abi.register, abi.register_view, abi.payable, etc.
+	ce.vmPreRun()
 	if ce.err != nil {
 		return
 	}
 
+	// push the function to be called to the stack
 	if ce.isAutoload {
 		// used for constructor and check_delegation functions
-		if loaded := vmAutoloadFunction(ce.L, ce.fname); !loaded {
+		loaded := vmPushGlobalFunction(ce.L, ce.fname)
+		if !loaded {
 			if ce.fname == "constructor" {
 				// the constructor function was not found
 				if hasParent {
 					ce.jsonRet = "[]"
 				}
 			} else {
-				ce.err = errors.New(fmt.Sprintf("contract autoload failed %s : %s",
+				ce.err = errors.New(fmt.Sprintf("contract autoload failed %s function: %s",
 					contractAddress, ce.fname))
 			}
 			return
 		}
 	} else {
-		// used for normal function
-		C.vm_remove_constructor(ce.L)
-		resolvedName := C.CString(ce.fname)
-		C.vm_get_abi_function(ce.L, resolvedName)
-		C.free(unsafe.Pointer(resolvedName))
+		// used for normal functions
+		vmPushAbiFunction(ce.L, ce.fname)
 	}
 
-	ce.pushArgs()
+	// push the arguments to the stack
+	ce.pushArguments()
 	if ce.err != nil {
 		logger.Debug().Err(ce.err).Str("contract", contractAddress).Msg("invalid argument")
 		return
@@ -275,10 +275,11 @@ func (ce *executor) call(hasParent bool) {
 		ce.numArgs = ce.numArgs + 1
 	}
 
-	//ce.setCountHook(instLimit)
+	// call the function
 	nRet := C.int(0)
-	cErrMsg := C.vm_pcall(ce.L, ce.numArgs, &nRet)
+	cErrMsg := C.vm_call(ce.L, ce.numArgs, &nRet)
 
+	// check for errors
 	if cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
 		if (errMsg == C.ERR_BF_TIMEOUT || errMsg == vmTimeoutErrMsg) {
@@ -325,19 +326,28 @@ func (ce *executor) call(hasParent bool) {
 
 }
 
-func vmAutoloadFunction(L *LState, funcName string) bool {
+// push the function to be called to the stack
+func vmPushGlobalFunction(L *LState, funcName string) bool {
 	fname := C.CString(funcName)
-	loaded := C.vm_autoload(L, fname)
+	loaded := C.vm_push_global_function(L, fname)
 	C.free(unsafe.Pointer(fname))
 	return loaded != C.int(0)
 }
 
+// push the function to be called to the stack
+func vmPushAbiFunction(L *LState, funcName string) {
+	C.vm_remove_constructor(L)
+	fname := C.CString(funcName)
+	C.vm_push_abi_function(L, fname)
+	C.free(unsafe.Pointer(fname))
+}
+
+// load the contract code
 func (ce *executor) vmLoadCode() {
 	chunkId := C.CString("@" + contractAddress)
 	defer C.free(unsafe.Pointer(chunkId))
 
-	// load the contract code. whatever execution happens at limited global scope
-	cErrMsg := C.vm_loadbuff(
+	cErrMsg := C.vm_load_code(
 		ce.L,
 		(*C.char)(unsafe.Pointer(&ce.code[0])),
 		C.size_t(len(ce.code)),
@@ -351,8 +361,11 @@ func (ce *executor) vmLoadCode() {
 	}
 }
 
-func (ce *executor) vmLoadCall() {
-	if cErrMsg := C.vm_loadcall(ce.L); cErrMsg != nil {
+// execute code from the global scope, like declaring state variables and functions
+// as well as abi.register, abi.register_view, abi.payable, etc.
+func (ce *executor) vmPreRun() {
+	cErrMsg := C.vm_pre_run(ce.L)
+	if cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
 		isUncatchable := bool(C.luaL_hasuncatchablerror(ce.L))
 		if isUncatchable && (errMsg == C.ERR_BF_TIMEOUT || errMsg == vmTimeoutErrMsg) {
