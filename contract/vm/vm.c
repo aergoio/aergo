@@ -325,62 +325,6 @@ void vm_remove_constructor(lua_State *L) {
 	lua_setfield(L, LUA_GLOBALSINDEX, construct_name);
 }
 
-
-// INSTRUCTION COUNT
-
-static void count_hook(lua_State *L, lua_Debug *ar) {
-	luaL_setuncatchablerror(L);
-	lua_pushstring(L, "exceeded the maximum instruction count");
-	luaL_throwerror(L);
-}
-
-void vm_set_count_hook(lua_State *L, int limit) {
-	lua_sethook(L, count_hook, LUA_MASKCOUNT, limit);
-}
-
-
-// TIMEOUT
-
-static void timeout_hook(lua_State *L, lua_Debug *ar) {
-	int errCode = luaCheckTimeout();
-	if (errCode == 1) {
-		luaL_setuncatchablerror(L);
-		lua_pushstring(L, ERR_BF_TIMEOUT);
-		luaL_throwerror(L);
-	} else if (errCode == -1) {
-		luaL_error(L, "cannot find execution context");
-	}
-}
-
-void vm_set_timeout_hook(lua_State *L) {
-	lua_sethook(L, timeout_hook, LUA_MASKCOUNT, VM_TIMEOUT_INST_COUNT);
-}
-
-static void timeout_count_hook(lua_State *L, lua_Debug *ar) {
-	int errCode;
-	int inst_count, new_inst_count, inst_limit;
-
-	timeout_hook(L, ar);
-
-	inst_count = luaL_tminstcount(L);
-	inst_limit = luaL_tminstlimit(L);
-	new_inst_count = inst_count + VM_TIMEOUT_INST_COUNT;
-	if (new_inst_count <= 0 || new_inst_count > inst_limit) {
-		luaL_setuncatchablerror(L);
-		lua_pushstring(L, "exceeded the maximum instruction count");
-		luaL_throwerror(L);
-	}
-	luaL_set_tminstcount(L, new_inst_count);
-}
-
-void vm_set_timeout_count_hook(lua_State *L, int limit) {
-	luaL_set_tminstlimit(L, limit);
-	luaL_set_tminstcount(L, 0);
-	lua_sethook(L, timeout_count_hook, LUA_MASKCOUNT, VM_TIMEOUT_INST_COUNT);
-}
-
-
-
 const char *vm_call(lua_State *L, int argc, int *nresult) {
 	int err;
 	int nr = lua_gettop(L) - argc - 1;
@@ -466,4 +410,56 @@ void vm_setinstcount(lua_State *L, int count) {
 	} else {
 		luaL_setinstcount(L, count);
 	}
+}
+
+// INSTRUCTION COUNT
+
+static void count_hook(lua_State *L, lua_Debug *ar) {
+	luaL_setuncatchablerror(L);
+	lua_pushstring(L, "exceeded the maximum instruction count");
+	luaL_throwerror(L);
+}
+
+void vm_set_count_hook(lua_State *L, int limit) {
+	lua_sethook(L, count_hook, LUA_MASKCOUNT, limit);
+}
+
+// TIMEOUT
+
+static void timeout_hook(lua_State *L, lua_Debug *ar) {
+	int errCode = luaCheckTimeout();
+	if (errCode == 1) {
+		luaL_setuncatchablerror(L);
+		lua_pushstring(L, ERR_BF_TIMEOUT);
+		luaL_throwerror(L);
+	} else if (errCode == -1) {
+		luaL_error(L, "cannot find execution context");
+	}
+}
+
+void vm_set_timeout_hook(lua_State *L) {
+	lua_sethook(L, timeout_hook, LUA_MASKCOUNT, VM_TIMEOUT_INST_COUNT);
+}
+
+static void timeout_count_hook(lua_State *L, lua_Debug *ar) {
+	int errCode;
+	int inst_count, new_inst_count, inst_limit;
+
+	timeout_hook(L, ar);
+
+	inst_count = luaL_tminstcount(L);
+	inst_limit = luaL_tminstlimit(L);
+	new_inst_count = inst_count + VM_TIMEOUT_INST_COUNT;
+	if (new_inst_count <= 0 || new_inst_count > inst_limit) {
+		luaL_setuncatchablerror(L);
+		lua_pushstring(L, "exceeded the maximum instruction count");
+		luaL_throwerror(L);
+	}
+	luaL_set_tminstcount(L, new_inst_count);
+}
+
+void vm_set_timeout_count_hook(lua_State *L, int limit) {
+	luaL_set_tminstlimit(L, limit);
+	luaL_set_tminstcount(L, 0);
+	lua_sethook(L, timeout_count_hook, LUA_MASKCOUNT, VM_TIMEOUT_INST_COUNT);
 }
