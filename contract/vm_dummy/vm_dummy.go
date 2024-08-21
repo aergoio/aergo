@@ -138,7 +138,7 @@ func LoadDummyChain(opts ...DummyChainOptions) (*DummyChain, error) {
 		} else {
 			fee.EnableZeroFee()
 		}
-		contract.StartVMPool(lStateMaxSize)
+		contract.StartVMPool(contract.MaxPossibleCallDepth())
 	} else if contract.PubNet != bc.PubNet {
 		// public and private chains have different features.
 		// private chains have the db module and public ones don't.

@@ -36,7 +36,7 @@ const (
 	queryMaxInstLimit    = callMaxInstLimit * 10
 	dbUpdateMaxLimit     = fee.StateDbMaxUpdateSize
 	maxCallDepthOld      = 5
-	maxCallDepth         = 64
+	maxCallDepth         = 20
 	checkFeeDelegationFn = "check_delegation"
 	constructor          = "constructor"
 
@@ -108,6 +108,10 @@ func MaxCallDepth(version int32) int32 {
 		return maxCallDepth
 	}
 	return maxCallDepthOld
+}
+
+func MaxPossibleCallDepth() int {
+	return maxCallDepth
 }
 
 func init() {
