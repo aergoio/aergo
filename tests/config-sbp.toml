@@ -54,8 +54,6 @@ maxanchorcount = "20"
 verifiercount = "1"
 forceresetheight = "0"
 numworkers = "1"
-numclosers = "1"
-closelimit = "100"
 
 [mempool]
 showmetrics = false

@@ -824,8 +824,6 @@ paths:
                               "StateTrace": 0,
                               "VerifyBlock": 0,
                               "NumWorkers": 16,
-                              "NumLStateClosers": 2,
-                              "CloseLimit": 100,
                             },
                           "orphan": 0,
                           "testmode": false,
