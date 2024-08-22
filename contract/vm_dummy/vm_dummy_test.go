@@ -88,9 +88,7 @@ func TestMaxCallDepth(t *testing.T) {
 		err = bc.ConnectBlock(
 			NewLuaTxAccount("user", 1, types.Aergo),
 		)
-		if err != nil {
-			t.Error(err)
-		}
+		require.NoErrorf(t, err, "failed to create account")
 
 		var maxCallDepth int
 		//if currentVersion >= 5 {
@@ -106,32 +104,22 @@ func TestMaxCallDepth(t *testing.T) {
 				NewLuaTxDeploy("user", "c1", 0, definition1),
 				NewLuaTxDeploy("user", "c2", 0, definition1),
 			)
-			if err != nil {
-				t.Error(err)
-			}
+			require.NoErrorf(t, err, "failed to deploy contract")
 
 			// call first contract - recursion depth 64
 			err = bc.ConnectBlock(
 				NewLuaTxCall("user", "c1", 0, `{"Name":"call_me", "Args":[1, 64]}`),
 			)
-			if err != nil {
-				t.Error(err)
-			}
+			require.NoErrorf(t, err, "failed to call tx")
 			// check state
 			err = bc.Query("c1", `{"Name":"check_state"}`, "", "true")
-			if err != nil {
-				t.Error(err)
-			}
+			assert.NoErrorf(t, err, "failed to query")
 			// query view
 			err = bc.Query("c1", `{"Name":"get_total_calls"}`, "", "[64,64]")
-			if err != nil {
-				t.Error(err)
-			}
+			assert.NoErrorf(t, err, "failed to query")
 			for i := 1; i <= 64; i++ {
 				err = bc.Query("c1", fmt.Sprintf(`{"Name":"get_call_info", "Args":["%d"]}`, i), "", fmt.Sprintf("%d", i))
-				if err != nil {
-					t.Error(err)
-				}
+				assert.NoErrorf(t, err, "failed to query")
 			}
 
 			// call second contract - recursion depth 66
@@ -139,24 +127,16 @@ func TestMaxCallDepth(t *testing.T) {
 				NewLuaTxCall("user", "c2", 0, `{"Name":"call_me", "Args":[1, 66]}`).
 					Fail("exceeded the maximum call depth"),
 			)
-			if err != nil {
-				t.Error(err)
-			}
+			require.NoErrorf(t, err, "failed to call tx")
 			// check state - should fail
 			err = bc.Query("c2", `{"Name":"check_state"}`, "", "")
-			if err == nil {
-				t.Error("should fail")
-			}
+			assert.Errorf(t, err, "should fail")
 			// query view - must return nil
 			err = bc.Query("c2", `{"Name":"get_total_calls"}`, "", "[null,null]")
-			if err != nil {
-				t.Error(err)
-			}
+			assert.NoErrorf(t, err, "failed to query")
 			for i := 1; i <= 64; i++ {
 				err = bc.Query("c2", fmt.Sprintf(`{"Name":"get_call_info", "Args":["%d"]}`, i), "", "null")
-				if err != nil {
-					t.Error(err)
-				}
+				assert.NoErrorf(t, err, "failed to query")
 			}
 		*/
 
@@ -165,18 +145,14 @@ func TestMaxCallDepth(t *testing.T) {
 			err = bc.ConnectBlock(
 				NewLuaTxDeploy("user", fmt.Sprintf("c2%d", i), 0, code2),
 			)
-			if err != nil {
-				t.Error(err)
-			}
+			require.NoErrorf(t, err, "failed to deploy contract")
 		}
 		// deploy N+1 identical contracts using definition3
 		for i := 1; i <= numToDeploy; i++ {
 			err = bc.ConnectBlock(
 				NewLuaTxDeploy("user", fmt.Sprintf("c3%d", i), 0, code3),
 			)
-			if err != nil {
-				t.Error(err)
-			}
+			require.NoErrorf(t, err, "failed to deploy contract")
 		}
 
 		// build a list of contract IDs, used to call the first contract
@@ -186,118 +162,80 @@ func TestMaxCallDepth(t *testing.T) {
 			contracts[i-1] = StrToAddress(fmt.Sprintf("c2%d", i))
 		}
 		contracts_str, err = json.Marshal(contracts)
-		if err != nil {
-			t.Error(err)
-		}
+		require.NoErrorf(t, err, "failed to create contract list")
 		// call first contract - recursion depth = maxCallDepth
 		err = bc.ConnectBlock(
 			NewLuaTxCall("user", "c2"+fmt.Sprintf("%d", 1), 0, fmt.Sprintf(`{"Name":"call_me", "Args":[%s, 1, %d]}`, string(contracts_str), maxCallDepth)),
 		)
-		if err != nil {
-			t.Error(err)
-		}
+		require.NoErrorf(t, err, "failed to call tx")
 		// check state on all the maxCallDepth contracts (query total calls and call info)
 		for i := 1; i <= maxCallDepth; i++ {
 			err = bc.Query(fmt.Sprintf("c2%d", i), `{"Name":"get_total_calls"}`, "", "1")
-			if err != nil {
-				t.Error(err)
-			}
+			assert.NoErrorf(t, err, "failed to query")
 			//err = bc.Query(fmt.Sprintf("c2%d", i), fmt.Sprintf(`{"Name":"get_call_info", "Args":["%d"]}`, i), "", fmt.Sprintf("%d", i))
 			err = bc.Query(fmt.Sprintf("c2%d", i), `{"Name":"get_call_info", "Args":["1"]}`, "", fmt.Sprintf("%d", i))
-			if err != nil {
-				t.Error(err)
-			}
+			assert.NoErrorf(t, err, "failed to query")
 		}
 
 		// add the N+1 contract to the list
 		contracts = append(contracts, StrToAddress(fmt.Sprintf("c2%d", numToDeploy)))
 		contracts_str, err = json.Marshal(contracts)
-		if err != nil {
-			t.Error(err)
-		}
+		require.NoErrorf(t, err, "failed to create contract list")
 		// call first contract - recursion depth = maxCallDepth + 1
 		err = bc.ConnectBlock(
 			NewLuaTxCall("user", "c2"+fmt.Sprintf("%d", 1), 0, fmt.Sprintf(`{"Name":"call_me", "Args":[%s, 1, %d]}`, string(contracts_str), maxCallDepth+1)).Fail("exceeded the maximum call depth"),
 		)
-		if err != nil {
-			t.Error(err)
-		}
+		require.NoErrorf(t, err, "failed to call tx")
 		// check state on all the maxCallDepth contracts (query total calls and call info)
 		for i := 1; i <= maxCallDepth; i++ {
 			err = bc.Query(fmt.Sprintf("c2%d", i), `{"Name":"get_total_calls"}`, "", "1")
-			if err != nil {
-				t.Error(err)
-			}
+			assert.NoErrorf(t, err, "failed to query")
 			err = bc.Query(fmt.Sprintf("c2%d", i), `{"Name":"get_call_info", "Args":["1"]}`, "", fmt.Sprintf("%d", i))
-			if err != nil {
-				t.Error(err)
-			}
+			assert.NoErrorf(t, err, "failed to query")
 		}
 		// check state on the N+1 contract (query total calls and call info)
 		err = bc.Query("c2"+fmt.Sprintf("%d", maxCallDepth+1), `{"Name":"get_total_calls"}`, "", "null")
-		if err != nil {
-			t.Error(err)
-		}
+		assert.NoErrorf(t, err, "failed to query")
 		err = bc.Query("c2"+fmt.Sprintf("%d", maxCallDepth+1), `{"Name":"get_call_info", "Args":["1"]}`, "", "null")
-		if err != nil {
-			t.Error(err)
-		}
+		assert.NoErrorf(t, err, "failed to query")
 
 		// set next_contract for each contract
 		for i := 1; i <= numToDeploy; i++ {
 			err = bc.ConnectBlock(
 				NewLuaTxCall("user", fmt.Sprintf("c3%d", i), 0, fmt.Sprintf(`{"Name":"set_next_contract", "Args":["%s"]}`, StrToAddress(fmt.Sprintf("c3%d", i+1)))),
 			)
-			if err != nil {
-				t.Error(err)
-			}
+			require.NoErrorf(t, err, "failed to call tx")
 		}
 		// call first contract - recursion depth = maxCallDepth
 		err = bc.ConnectBlock(
 			NewLuaTxCall("user", "c3"+fmt.Sprintf("%d", 1), 0, fmt.Sprintf(`{"Name":"call_me", "Args":[1, %d]}`, maxCallDepth)),
 		)
-		if err != nil {
-			t.Error(err)
-		}
+		require.NoErrorf(t, err, "failed to call tx")
 		// check state on all the N contracts (query total calls and call info)
 		for i := 1; i <= maxCallDepth; i++ {
 			err = bc.Query(fmt.Sprintf("c3%d", i), `{"Name":"get_total_calls"}`, "", "1")
-			if err != nil {
-				t.Error(err)
-			}
+			assert.NoErrorf(t, err, "failed to query")
 			err = bc.Query(fmt.Sprintf("c3%d", i), `{"Name":"get_call_info", "Args":["1"]}`, "", fmt.Sprintf("%d", i))
-			if err != nil {
-				t.Error(err)
-			}
+			assert.NoErrorf(t, err, "failed to query")
 		}
 
 		// call first contract - recursion depth = maxCallDepth + 1
 		err = bc.ConnectBlock(
 			NewLuaTxCall("user", "c3"+fmt.Sprintf("%d", 1), 0, fmt.Sprintf(`{"Name":"call_me", "Args":[1, %d]}`, maxCallDepth+1)).Fail("exceeded the maximum call depth"),
 		)
-		if err != nil {
-			t.Error(err)
-		}
+		require.NoErrorf(t, err, "failed to call tx")
 		// check state on all the N contracts (query total calls and call info)
 		for i := 1; i <= maxCallDepth; i++ {
 			err = bc.Query(fmt.Sprintf("c3%d", i), `{"Name":"get_total_calls"}`, "", "1")
-			if err != nil {
-				t.Error(err)
-			}
+			assert.NoErrorf(t, err, "failed to query")
 			err = bc.Query(fmt.Sprintf("c3%d", i), `{"Name":"get_call_info", "Args":["1"]}`, "", fmt.Sprintf("%d", i))
-			if err != nil {
-				t.Error(err)
-			}
+			assert.NoErrorf(t, err, "failed to query")
 		}
 		// check state on the N+1 contract (query total calls and call info)
 		err = bc.Query("c3"+fmt.Sprintf("%d", maxCallDepth+1), `{"Name":"get_total_calls"}`, "", "null")
-		if err != nil {
-			t.Error(err)
-		}
+		assert.NoErrorf(t, err, "failed to query")
 		err = bc.Query("c3"+fmt.Sprintf("%d", maxCallDepth+1), `{"Name":"get_call_info", "Args":["1"]}`, "", "null")
-		if err != nil {
-			t.Error(err)
-		}
+		assert.NoErrorf(t, err, "failed to query")
 
 		// Circle: contract 1 calls contract 2, contract 2 calls contract 3, contract 3 calls contract 1...
 
@@ -306,9 +244,7 @@ func TestMaxCallDepth(t *testing.T) {
 			err = bc.ConnectBlock(
 				NewLuaTxDeploy("user", fmt.Sprintf("c4%d", i), 0, code2),
 			)
-			if err != nil {
-				t.Error(err)
-			}
+			require.NoErrorf(t, err, "failed to deploy contract")
 		}
 		// build a list of contract IDs, used to call the first contract
 		contracts = make([]string, 4)
@@ -316,28 +252,20 @@ func TestMaxCallDepth(t *testing.T) {
 			contracts[i-1] = StrToAddress(fmt.Sprintf("c4%d", i))
 		}
 		contracts_str, err = json.Marshal(contracts)
-		if err != nil {
-			t.Error(err)
-		}
+		require.NoErrorf(t, err, "failed to create contract list")
 		// call first contract - recursion depth = maxCallDepth
 		err = bc.ConnectBlock(
 			NewLuaTxCall("user", "c4"+fmt.Sprintf("%d", 1), 0, fmt.Sprintf(`{"Name":"call_me", "Args":[%s, 1, %d]}`, string(contracts_str), maxCallDepth)),
 		)
-		if err != nil {
-			t.Error(err)
-		}
+		require.NoErrorf(t, err, "failed to call tx")
 		// check state on all the 4 contracts
 		// each contract should have (maxCallDepth / 4) calls
 		for i := 1; i <= 4; i++ {
 			err = bc.Query(fmt.Sprintf("c4%d", i), `{"Name":"get_total_calls"}`, "", fmt.Sprintf("%d", maxCallDepth / 4))
-			if err != nil {
-				t.Error(err)
-			}
+			assert.NoErrorf(t, err, "failed to query")
 			for j := 1; j <= maxCallDepth / 4; j++ {
 				err = bc.Query(fmt.Sprintf("c4%d", i), fmt.Sprintf(`{"Name":"get_call_info", "Args":["%d"]}`, j), "", fmt.Sprintf("%d", i+4*(j-1)))
-				if err != nil {
-					t.Error(err)
-				}
+				assert.NoErrorf(t, err, "failed to query")
 			}
 		}
 
@@ -345,21 +273,15 @@ func TestMaxCallDepth(t *testing.T) {
 		err = bc.ConnectBlock(
 			NewLuaTxCall("user", "c4"+fmt.Sprintf("%d", 1), 0, fmt.Sprintf(`{"Name":"call_me", "Args":[%s, 1, %d]}`, string(contracts_str), maxCallDepth+1)).Fail("exceeded the maximum call depth"),
 		)
-		if err != nil {
-			t.Error(err)
-		}
+		require.NoErrorf(t, err, "failed to call tx")
 		// check state on all the 4 contracts
 		// each contract should have (maxCallDepth / 4) calls
 		for i := 1; i <= 4; i++ {
 			err = bc.Query(fmt.Sprintf("c4%d", i), `{"Name":"get_total_calls"}`, "", fmt.Sprintf("%d", maxCallDepth / 4))
-			if err != nil {
-				t.Error(err)
-			}
+			assert.NoErrorf(t, err, "failed to query")
 			for j := 1; j <= maxCallDepth / 4; j++ {
 				err = bc.Query(fmt.Sprintf("c4%d", i), fmt.Sprintf(`{"Name":"get_call_info", "Args":["%d"]}`, j), "", fmt.Sprintf("%d", i+4*(j-1)))
-				if err != nil {
-					t.Error(err)
-				}
+				assert.NoErrorf(t, err, "failed to query")
 			}
 		}
 
@@ -370,9 +292,7 @@ func TestMaxCallDepth(t *testing.T) {
 			err = bc.ConnectBlock(
 				NewLuaTxDeploy("user", fmt.Sprintf("c5%d", i), 0, code2),
 			)
-			if err != nil {
-				t.Error(err)
-			}
+			require.NoErrorf(t, err, "failed to deploy contract")
 		}
 		// build a list of contract IDs, used to call the first contract
 		contracts = make([]string, 2)
@@ -380,28 +300,20 @@ func TestMaxCallDepth(t *testing.T) {
 			contracts[i-1] = StrToAddress(fmt.Sprintf("c5%d", i))
 		}
 		contracts_str, err = json.Marshal(contracts)
-		if err != nil {
-			t.Error(err)
-		}
+		require.NoErrorf(t, err, "failed to create contract list")
 		// call first contract - recursion depth = maxCallDepth
 		err = bc.ConnectBlock(
 			NewLuaTxCall("user", "c5"+fmt.Sprintf("%d", 1), 0, fmt.Sprintf(`{"Name":"call_me", "Args":[%s, 1, %d]}`, string(contracts_str), maxCallDepth)),
 		)
-		if err != nil {
-			t.Error(err)
-		}
+		require.NoErrorf(t, err, "failed to call tx")
 		// check state on all the 2 contracts
 		// each contract should have (maxCallDepth / 2) calls
 		for i := 1; i <= 2; i++ {
 			err = bc.Query(fmt.Sprintf("c5%d", i), `{"Name":"get_total_calls"}`, "", fmt.Sprintf("%d", maxCallDepth / 2))
-			if err != nil {
-				t.Error(err)
-			}
+			assert.NoErrorf(t, err, "failed to query")
 			for j := 1; j <= maxCallDepth / 2; j++ {
 				err = bc.Query(fmt.Sprintf("c5%d", i), fmt.Sprintf(`{"Name":"get_call_info", "Args":["%d"]}`, j), "", fmt.Sprintf("%d", i+2*(j-1)))
-				if err != nil {
-					t.Error(err)
-				}
+				assert.NoErrorf(t, err, "failed to query")
 			}
 		}
 
@@ -409,21 +321,15 @@ func TestMaxCallDepth(t *testing.T) {
 		err = bc.ConnectBlock(
 			NewLuaTxCall("user", "c5"+fmt.Sprintf("%d", 1), 0, fmt.Sprintf(`{"Name":"call_me", "Args":[%s, 1, %d]}`, string(contracts_str), maxCallDepth+1)).Fail("exceeded the maximum call depth"),
 		)
-		if err != nil {
-			t.Error(err)
-		}
+		require.NoErrorf(t, err, "failed to call tx")
 		// check state on all the 2 contracts
 		// each contract should have (maxCallDepth / 2) calls
 		for i := 1; i <= 2; i++ {
 			err = bc.Query(fmt.Sprintf("c5%d", i), `{"Name":"get_total_calls"}`, "", fmt.Sprintf("%d", maxCallDepth / 2))
-			if err != nil {
-				t.Error(err)
-			}
+			assert.NoErrorf(t, err, "failed to query")
 			for j := 1; j <= maxCallDepth / 2; j++ {
 				err = bc.Query(fmt.Sprintf("c5%d", i), fmt.Sprintf(`{"Name":"get_call_info", "Args":["%d"]}`, j), "", fmt.Sprintf("%d", i+2*(j-1)))
-				if err != nil {
-					t.Error(err)
-				}
+				assert.NoErrorf(t, err, "failed to query")
 			}
 		}
 
