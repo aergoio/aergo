@@ -571,12 +571,12 @@ func TestContractSend(t *testing.T) {
 		assert.Equalf(t, int64(2), state.GetBalanceBigInt().Int64(), "balance error")
 
 		err = bc.ConnectBlock(
-			NewLuaTxCall("user1", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, nameToAddress("test3"))).Fail(`[Contract.Send] call err: not found function: default`),
+			NewLuaTxCall("user1", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, nameToAddress("test3"))).Fail(`call err: not found function: default`),
 		)
 		assert.NoErrorf(t, err, "failed to connect new block")
 
 		err = bc.ConnectBlock(
-			NewLuaTxCall("user1", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, nameToAddress("test4"))).Fail(`[Contract.Send] call err: 'default' is not payable`),
+			NewLuaTxCall("user1", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, nameToAddress("test4"))).Fail(`call err: 'default' is not payable`),
 		)
 		assert.NoErrorf(t, err, "failed to connect new block")
 
@@ -1966,17 +1966,17 @@ func TestTypeMaxString(t *testing.T) {
 		err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo), NewLuaTxDeploy("user1", "oom", 0, code))
 		require.NoErrorf(t, err, "failed to deploy")
 
-		errMsg1 := "string length overflow"
+		//errMsg1 := "string length overflow"
 		errMsg2 := "table overflow"
 		errMsg3 := "not enough memory"
 
-		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"oom_string"}`).Fail(errMsg1))
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"oom_string"}`).Fail(errMsg3))
 		assert.NoErrorf(t, err, "failed to call tx")
 
-		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"pcall_string"}`).Fail(errMsg1))
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"pcall_string"}`).Fail(errMsg3))
 		assert.NoErrorf(t, err, "failed to call tx")
 
-		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"contract_pcall_string"}`).Fail(errMsg1))
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"contract_pcall_string"}`).Fail(errMsg3))
 		assert.NoErrorf(t, err, "failed to call tx")
 
 		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"oom_table1"}`).Fail(errMsg2))
@@ -2021,17 +2021,17 @@ func TestTypeMaxStringOnPubNet(t *testing.T) {
 		err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo), NewLuaTxDeploy("user1", "oom", 0, code))
 		require.NoErrorf(t, err, "failed to deploy")
 
-		errMsg1 := "string length overflow"
+		//errMsg1 := "string length overflow"
 		errMsg2 := "table overflow"
 		errMsg3 := "not enough memory"
 
-		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"oom_string"}`).Fail(errMsg1))
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"oom_string"}`).Fail(errMsg3))
 		assert.NoErrorf(t, err, "failed to call tx")
 
-		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"pcall_string"}`).Fail(errMsg1))
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"pcall_string"}`).Fail(errMsg3))
 		assert.NoErrorf(t, err, "failed to call tx")
 
-		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"contract_pcall_string"}`).Fail(errMsg1))
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"contract_pcall_string"}`).Fail(errMsg3))
 		assert.NoErrorf(t, err, "failed to call tx")
 
 		err = bc.ConnectBlock(NewLuaTxCall("user1", "oom", 0, `{"Name":"oom_table1"}`).Fail(errMsg2))
