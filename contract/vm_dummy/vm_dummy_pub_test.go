@@ -35,6 +35,9 @@ func TestContractSendF(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetPubNet())
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -75,7 +78,10 @@ func TestGasPerFunction(t *testing.T) {
 	code := readLuaCode(t, "gas_per_function.lua")
 
 	bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetPubNet())
-	assert.NoError(t, err)
+	require.NoErrorf(t, err, "failed to create dummy chain")
+	if bc == nil {
+		t.Skip("skipping test")
+	}
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
@@ -723,6 +729,9 @@ func expectGas(contractCode string, amount int64, funcName, funcArgs string, exp
 	if err != nil {
 		return err
 	}
+	if bc == nil {
+		return nil
+	}
 	defer bc.Release()
 
 	if err = bc.ConnectBlock(
@@ -780,6 +789,9 @@ func TestTypeInvalidKey(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo), NewLuaTxDeploy("user1", "invalidkey", 0, code))
@@ -823,6 +835,9 @@ func TestTypeBigTable(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo), NewLuaTxDeploy("user1", "big", 0, code))

@@ -29,11 +29,10 @@ import (
 
 var (
 	logger *log.Logger
+	prevPubNet bool
 )
 
 const (
-	lStateMaxSize = 10 * 7
-
 	dummyBlockIntervalSec = 1
 	dummyBlockExecTimeMs  = (dummyBlockIntervalSec * 1000) >> 2
 )
@@ -81,11 +80,21 @@ func SetPubNet() DummyChainOptions {
 }
 
 func LoadDummyChain(opts ...DummyChainOptions) (*DummyChain, error) {
+
+	// skip test if pubnet is different
+	bc := &DummyChain{}
+	for _, opt := range opts {
+		opt(bc)
+	}
+	if bc.PubNet != contract.PubNet {
+		return nil, nil
+	}
+
 	dataPath, err := os.MkdirTemp("", "data")
 	if err != nil {
 		return nil, err
 	}
-	bc := &DummyChain{
+	bc = &DummyChain{
 		sdb:      state.NewChainStateDB(),
 		tmpDir:   dataPath,
 		gasPrice: types.NewAmount(1, types.Aer),
@@ -123,35 +132,33 @@ func LoadDummyChain(opts ...DummyChainOptions) (*DummyChain, error) {
 	scs, err := statedb.GetSystemAccountState(bc.sdb.GetStateDB())
 	system.InitSystemParams(scs, 3)
 
+	// set default values
 	bc.HardforkVersion = 2
 	bc.PubNet = false
 
+	// process options
 	for _, opt := range opts {
 		opt(bc)
 	}
 
 	if !contract.VmPoolStarted {
 		contract.CurrentForkVersion = bc.HardforkVersion
-		contract.PubNet = bc.PubNet
-		if bc.PubNet {
-			fee.DisableZeroFee()
-		} else {
-			fee.EnableZeroFee()
-		}
 		contract.StartVMPool(contract.MaxPossibleCallDepth())
-	} else if contract.PubNet != bc.PubNet {
+	} else if (contract.CurrentForkVersion != bc.HardforkVersion) || (contract.PubNet != prevPubNet) {
 		// public and private chains have different features.
 		// private chains have the db module and public ones don't.
 		// this is why we need to flush all Lua VM instances and
 		// recreate them when moving to and from public chain.
 		contract.CurrentForkVersion = bc.HardforkVersion
-		contract.PubNet = bc.PubNet
-		if bc.PubNet {
-			fee.DisableZeroFee()
-		} else {
-			fee.EnableZeroFee()
-		}
 		contract.FlushVmInstances()
+	}
+
+	prevPubNet = contract.PubNet
+
+	if contract.PubNet {
+		fee.DisableZeroFee()
+	} else {
+		fee.EnableZeroFee()
 	}
 
 	return bc, nil
