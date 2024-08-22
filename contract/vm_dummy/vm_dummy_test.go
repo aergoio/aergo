@@ -27,8 +27,14 @@ var currentVersion int32
 func TestMain(m *testing.M) {
 	for version := min_version; version <= max_version; version++ {
 		currentVersion = version
+		contract.PubNet = true
 		fmt.Println("-------------------------------------------------------")
-		fmt.Printf("Running tests for hardfork %d\n", currentVersion)
+		fmt.Printf("Running tests for hardfork %d (PubNet) \n", currentVersion)
+		fmt.Println("-------------------------------------------------------")
+		m.Run()
+		contract.PubNet = false
+		fmt.Println("-------------------------------------------------------")
+		fmt.Printf("Running tests for hardfork %d (PrivateNet) \n", currentVersion)
 		fmt.Println("-------------------------------------------------------")
 		m.Run()
 	}
@@ -43,6 +49,9 @@ func TestDisabledFunctions(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetPubNet())
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -71,6 +80,9 @@ func TestMaxCallDepth(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetPubNet())
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -422,6 +434,9 @@ func TestContractSystem(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo))
@@ -504,7 +519,10 @@ func TestContractHello(t *testing.T) {
 	code := readLuaCode(t, "contract_hello.lua")
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
-		require.NoErrorf(t, err, "failed to create test database")
+		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo))
@@ -530,6 +548,9 @@ func TestContractSend(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -571,6 +592,9 @@ func TestContractQuery(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo))
@@ -601,6 +625,9 @@ func TestContractCall(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -757,6 +784,9 @@ func TestContractCallSelf(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -787,6 +817,9 @@ func TestContractPingPongCall(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -818,6 +851,9 @@ func TestRollback(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo))
@@ -859,6 +895,9 @@ func TestAbi(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo), NewLuaTxDeploy("user1", "a", 0, codeNoAbi))
@@ -880,6 +919,9 @@ func TestGetABI(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo), NewLuaTxDeploy("user1", "hello", 0, code))
@@ -899,6 +941,9 @@ func TestPayable(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo))
@@ -930,6 +975,9 @@ func TestDefault(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -959,6 +1007,9 @@ func TestReturn(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -987,6 +1038,9 @@ func TestReturnUData(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -1005,6 +1059,9 @@ func TestEvent(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -1023,6 +1080,9 @@ func TestView(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -1059,6 +1119,9 @@ func TestDeploy(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -1117,6 +1180,9 @@ func TestDeploy2(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		oneAergo := types.NewAmount(1, types.Aergo)
@@ -1139,6 +1205,9 @@ func TestNDeploy(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -1155,6 +1224,9 @@ func TestInfiniteLoopOnPrivateNet(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetTimeout(750))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -1194,6 +1266,9 @@ func TestInfiniteLoopOnPubNet(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetPubNet(), SetTimeout(50))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -1232,6 +1307,9 @@ func TestUpdateSize(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -1253,6 +1331,9 @@ func TestTimeoutCnt(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetPubNet(), SetTimeout(500)) // timeout 500 milliseconds
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -1280,6 +1361,9 @@ func TestSnapshot(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -1316,6 +1400,9 @@ func TestKvstore(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -1366,6 +1453,9 @@ func TestSqlConstrains(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -1387,6 +1477,9 @@ func TestSqlAutoincrement(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -1407,6 +1500,9 @@ func TestSqlOnConflict(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -1485,6 +1581,9 @@ func TestSqlDupCol(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -1503,6 +1602,9 @@ func TestSqlVmSimple(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -1549,6 +1651,9 @@ func TestSqlVmFail(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -1587,6 +1692,9 @@ func TestSqlVmPubNet(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetPubNet())
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -1605,6 +1713,9 @@ func TestSqlVmDateTime(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -1633,6 +1744,9 @@ func TestSqlVmCustomer(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -1673,6 +1787,9 @@ func TestSqlVmDataType(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -1705,6 +1822,9 @@ func TestSqlVmFunction(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -1729,6 +1849,9 @@ func TestSqlVmBook(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -1754,6 +1877,9 @@ func TestSqlVmDateformat(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -1773,6 +1899,9 @@ func TestSqlVmRecursiveData(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		tx := NewLuaTxCall("user1", "r", 0, `{"Name":"r"}`)
@@ -1791,6 +1920,9 @@ func TestSqlJdbc(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -1826,6 +1958,9 @@ func TestTypeMaxString(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo), NewLuaTxDeploy("user1", "oom", 0, code))
@@ -1878,6 +2013,9 @@ func TestTypeMaxStringOnPubNet(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetPubNet())
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo), NewLuaTxDeploy("user1", "oom", 0, code))
@@ -1930,6 +2068,9 @@ func TestTypeNsec(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo), NewLuaTxDeploy("user1", "nsec", 0, code))
@@ -1945,6 +2086,9 @@ func TestTypeUtf(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo), NewLuaTxDeploy("user1", "utf", 0, code))
@@ -1967,6 +2111,9 @@ func TestTypeDupVar(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo))
@@ -1990,6 +2137,9 @@ func TestTypeByteKey(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo), NewLuaTxDeploy("user1", "bk", 0, code))
@@ -2010,6 +2160,9 @@ func TestTypeArray(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo), NewLuaTxDeploy("user1", "array", 0, code))
@@ -2058,6 +2211,9 @@ func TestTypeMultiArray(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo), NewLuaTxDeploy("user1", "ma", 0, code))
@@ -2107,6 +2263,9 @@ func TestTypeArrayArg(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo), NewLuaTxDeploy("user1", "a", 0, code))
@@ -2147,6 +2306,9 @@ func TestTypeMapKey(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo), NewLuaTxDeploy("user1", "a", 0, code))
@@ -2206,6 +2368,9 @@ func TestTypeStateVarFieldUpdate(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo), NewLuaTxDeploy("user1", "c", 0, code))
@@ -2230,6 +2395,9 @@ func TestTypeDatetime(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo), NewLuaTxDeploy("user1", "datetime", 0, code))
@@ -2345,6 +2513,9 @@ func TestTypeDynamicArray(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo))
@@ -2398,6 +2569,9 @@ func TestTypeCrypto(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo), NewLuaTxDeploy("user1", "crypto", 0, code))
@@ -2429,6 +2603,9 @@ func TestTypeBignum(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -2488,6 +2665,9 @@ func TestBignumValues(t *testing.T) {
 
 	bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 	require.NoErrorf(t, err, "failed to create dummy chain")
+	if bc == nil {
+		t.Skip("skipping test")
+	}
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
@@ -2526,6 +2706,9 @@ func TestBignumValues(t *testing.T) {
 
 	bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 	require.NoErrorf(t, err, "failed to create dummy chain")
+	if bc == nil {
+		t.Skip("skipping test")
+	}
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
@@ -2575,6 +2758,9 @@ func TestBignumValues(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -2632,6 +2818,9 @@ func TestTypeRandom(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -2688,6 +2877,9 @@ func TestTypeSparseTable(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		tx := NewLuaTxCall("user1", "r", 0, `{"Name":"r"}`)
@@ -2704,6 +2896,9 @@ func TestTypeJson(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo), NewLuaTxDeploy("user1", "json", 0, code))
@@ -2771,6 +2966,9 @@ func TestFeatureVote(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -2832,6 +3030,9 @@ func TestFeatureGovernance(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(NewLuaTxAccount("user1", 40000, types.Aergo), NewLuaTxDeploy("user1", "gov", 0, code))
@@ -2881,6 +3082,9 @@ func TestFeaturePcallRollback(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -2919,6 +3123,9 @@ func TestFeaturePcallRollback(t *testing.T) {
 
 		bc, err = LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -2960,6 +3167,9 @@ func TestFeaturePcallNested(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -3003,6 +3213,9 @@ func TestPcallStateRollback1(t *testing.T) {
 
 			bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 			require.NoErrorf(t, err, "failed to create dummy chain")
+			if bc == nil {
+				t.Skip("skipping test")
+			}
 			defer bc.Release()
 
 			// deploy and setup the name resolver
@@ -3447,6 +3660,9 @@ func TestPcallStateRollback2(t *testing.T) {
 
 			bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 			require.NoErrorf(t, err, "failed to create dummy chain")
+			if bc == nil {
+				t.Skip("skipping test")
+			}
 			defer bc.Release()
 
 			// deploy and setup the name resolver
@@ -3987,6 +4203,9 @@ func TestPcallStateRollback3(t *testing.T) {
 
 			bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 			require.NoErrorf(t, err, "failed to create dummy chain")
+			if bc == nil {
+				t.Skip("skipping test")
+			}
 			defer bc.Release()
 
 			err = bc.ConnectBlock(
@@ -4475,6 +4694,9 @@ func TestFeatureLuaCryptoVerifyProof(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo), NewLuaTxDeploy("user1", "eth", 0, code))
@@ -4494,6 +4716,9 @@ func TestFeatureFeeDelegation(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetPubNet())
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -4561,6 +4786,9 @@ func TestFeatureFeeDelegationLoop(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
+	if bc == nil {
+		t.Skip("skipping test")
+	}
 	defer bc.Release()
 
 	balance, _ := new(big.Int).SetString("1000000000000000000000", 10)
@@ -4598,6 +4826,9 @@ func TestContractIsolation(t *testing.T) {
 
 		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
