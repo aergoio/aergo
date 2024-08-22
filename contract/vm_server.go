@@ -166,8 +166,12 @@ func (ce *executor) SendMessage(message []byte) (err error) {
 func (ce *executor) WaitForMessage() ([]byte, error) {
 
 	if ce.ctx.callDepth == 1 {
+		// if no timeout is set, use a default value
+		if ce.ctx.timeout == 0 {
+			ce.ctx.timeout = 250 * time.Millisecond
+		}
 		// define a global deadline for contract execution
-		ce.ctx.deadline = time.Now().Add(250 * time.Millisecond)
+		ce.ctx.deadline = time.Now().Add(ce.ctx.timeout)
 	}
 
 	return msg.WaitForMessage(ce.vmInstance.conn, ce.ctx.deadline)

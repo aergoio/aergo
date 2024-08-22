@@ -87,6 +87,7 @@ type vmContext struct {
 	gasLimit          uint64
 	remainingGas      uint64
 	execCtx           context.Context
+	timeout           time.Duration
 	deadline          time.Time
 }
 
@@ -211,6 +212,10 @@ func NewVmContextQuery(
 
 func (ctx *vmContext) IsMultiCall() bool {
 	return ctx.isMultiCall
+}
+
+func (ctx *vmContext) SetTimeout(timeout time.Duration) {
+	ctx.timeout = timeout
 }
 
 ////////////////////////////////////////////////////////////////////////////////
