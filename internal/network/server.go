@@ -6,7 +6,7 @@ type gsvrBuilder struct {
 	opts []grpc.ServerOption
 }
 
-// GRPCServerBuilder returns a new GRPC server builder.
+// GRPCSeverBuilder returns a new GRPC server builder.
 func GRPCSeverBuilder() *gsvrBuilder {
 	return &gsvrBuilder{opts: make([]grpc.ServerOption, 0)}
 }

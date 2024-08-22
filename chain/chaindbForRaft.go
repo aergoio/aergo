@@ -74,7 +74,7 @@ func (cdb *ChainDB) ResetWAL(hardStateInfo *types.HardStateInfo) error {
 	return nil
 }
 
-// ClearWal() removes all data used by raft
+// ClearWAL removes all data used by raft
 func (cdb *ChainDB) ClearWAL() {
 	logger.Info().Msg("clear all data used by raft")
 
