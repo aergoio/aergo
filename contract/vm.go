@@ -85,6 +85,7 @@ type vmContext struct {
 	gasLimit          uint64
 	remainingGas      uint64
 	execCtx           context.Context
+	timeout           time.Duration
 	deadline          time.Time
 }
 
@@ -190,6 +191,10 @@ func NewVmContextQuery(
 	ctx.callState = make(map[types.AccountID]*callState)
 	ctx.callState[types.ToAccountID(receiverId)] = cs
 	return ctx, nil
+}
+
+func (ctx *vmContext) SetTimeout(timeout time.Duration) {
+	ctx.timeout = timeout
 }
 
 ////////////////////////////////////////////////////////////////////////////////

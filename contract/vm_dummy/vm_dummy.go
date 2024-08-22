@@ -593,6 +593,10 @@ func (l *luaTxDeploy) run(execCtx context.Context, bs *state.BlockState, bc *Dum
 
 			ctx := contract.NewVmContext(execCtx, bs, nil, sender, contractV, eContractState, sender.ID(), l.Hash(), bi, "", true, false, contractV.State().SqlRecoveryPoint, contract.BlockFactory, l.amount(), math.MaxUint64, false)
 
+			if bc.timeout > 0 {
+				ctx.SetTimeout(time.Duration(bc.timeout) * time.Millisecond)
+			}
+
 			rv, events, ctrFee, err := contract.Create(eContractState, l.payload(), l.recipient(), ctx)
 			if err != nil {
 				return "", nil, ctrFee, err
@@ -651,6 +655,10 @@ func (l *luaTxCall) run(execCtx context.Context, bs *state.BlockState, bc *Dummy
 	err := contractFrame(l, bs, bc, receiptTx,
 		func(sender, contractV *state.AccountState, contractId types.AccountID, eContractState *statedb.ContractState) (string, []*types.Event, *big.Int, error) {
 			ctx := contract.NewVmContext(execCtx, bs, bc, sender, contractV, eContractState, sender.ID(), l.Hash(), bi, "", true, false, contractV.State().SqlRecoveryPoint, contract.BlockFactory, l.amount(), math.MaxUint64, l.feeDelegate)
+
+			if bc.timeout > 0 {
+				ctx.SetTimeout(time.Duration(bc.timeout) * time.Millisecond)
+			}
 
 			rv, events, ctrFee, err := contract.Call(eContractState, l.payload(), l.recipient(), ctx)
 			if err != nil {

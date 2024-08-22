@@ -78,7 +78,7 @@ func TestMaxCallDepth(t *testing.T) {
 		t.Skipf("skipping test for version %d", currentVersion)
 	}
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetPubNet())
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetPubNet(), SetTimeout(1000))
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
