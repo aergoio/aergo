@@ -58,12 +58,12 @@ func TestDisabledFunctions(t *testing.T) {
 			NewLuaTxAccount("user", 1, types.Aergo),
 			NewLuaTxDeploy("user", "test", 0, code),
 		)
-		assert.NoErrorf(t, err, "failed to deploy contract")
+		require.NoErrorf(t, err, "failed to deploy contract")
 
 		err = bc.ConnectBlock(
 			NewLuaTxCall("user", "test", 0, `{"Name":"check_disabled_functions","Args":[]}`),
 		)
-		assert.NoErrorf(t, err, "failed execution")
+		require.NoErrorf(t, err, "failed execution")
 }
 
 func TestMaxCallDepth(t *testing.T) {
@@ -466,12 +466,12 @@ func TestContractSend(t *testing.T) {
 			NewLuaTxDeploy("user1", "test3", 0, code3),
 			NewLuaTxDeploy("user1", "test4", 0, code4),
 		)
-		assert.NoErrorf(t, err, "failed to deploy contract")
+		require.NoErrorf(t, err, "failed to deploy contract")
 
 		err = bc.ConnectBlock(
 			NewLuaTxCall("user1", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, nameToAddress("test2"))),
 		)
-		assert.NoErrorf(t, err, "failed to call tx")
+		require.NoErrorf(t, err, "failed to call tx")
 
 		state, err := bc.GetAccountState("test2")
 		assert.Equalf(t, int64(2), state.GetBalanceBigInt().Int64(), "balance error")
@@ -479,17 +479,17 @@ func TestContractSend(t *testing.T) {
 		err = bc.ConnectBlock(
 			NewLuaTxCall("user1", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, nameToAddress("test3"))).Fail(`call err: not found function: default`),
 		)
-		assert.NoErrorf(t, err, "failed to connect new block")
+		require.NoErrorf(t, err, "failed to connect new block")
 
 		err = bc.ConnectBlock(
 			NewLuaTxCall("user1", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, nameToAddress("test4"))).Fail(`call err: 'default' is not payable`),
 		)
-		assert.NoErrorf(t, err, "failed to connect new block")
+		require.NoErrorf(t, err, "failed to connect new block")
 
 		err = bc.ConnectBlock(
 			NewLuaTxCall("user1", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, nameToAddress("user1"))),
 		)
-		assert.NoErrorf(t, err, "failed to connect new block")
+		require.NoErrorf(t, err, "failed to connect new block")
 
 }
 
@@ -1279,13 +1279,13 @@ func TestSnapshot(t *testing.T) {
 		require.NoErrorf(t, err, "failed to deploy contract")
 
 		err = bc.ConnectBlock(NewLuaTxCall("user1", "snap", 0, `{"Name": "inc", "Args":[]}`))
-		assert.NoErrorf(t, err, "failed to call contract")
+		require.NoErrorf(t, err, "failed to call contract")
 
 		err = bc.ConnectBlock(NewLuaTxCall("user1", "snap", 0, `{"Name": "inc", "Args":[]}`))
-		assert.NoErrorf(t, err, "failed to call contract")
+		require.NoErrorf(t, err, "failed to call contract")
 
 		err = bc.ConnectBlock(NewLuaTxCall("user1", "snap", 0, `{"Name": "inc", "Args":[]}`))
-		assert.NoErrorf(t, err, "failed to call contract")
+		require.NoErrorf(t, err, "failed to call contract")
 
 		err = bc.Query("snap", `{"Name":"query"}`, "", "[3,3,3,3]")
 		assert.NoErrorf(t, err, "failed to query")
