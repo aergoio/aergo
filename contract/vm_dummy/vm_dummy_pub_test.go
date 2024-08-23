@@ -92,7 +92,7 @@ func TestGasPerFunction(t *testing.T) {
 		NewLuaTxDeploy("user", "contract_v3", 0, code),
 		NewLuaTxDeploy("user", "contract_v4", 0, code),
 	)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// transfer funds to the contracts
 	err = bc.ConnectBlock(
@@ -100,7 +100,7 @@ func TestGasPerFunction(t *testing.T) {
 		NewLuaTxCall("user", "contract_v3", uint64(10e18), `{"Name":"default"}`),
 		NewLuaTxCall("user", "contract_v4", uint64(10e18), `{"Name":"default"}`),
 	)
-	assert.NoError(t, err, "sending funds to contracts")
+	require.NoError(t, err, "sending funds to contracts")
 
 	tests_v2 := []struct {
 		funcName    string
@@ -490,7 +490,7 @@ func TestGasPerFunction(t *testing.T) {
 		}
 		tx := NewLuaTxCall("user", "contract_v2", uint64(amount), payload)
 		err = bc.ConnectBlock(tx)
-		assert.NoError(t, err, "while executing %s", funcName)
+		require.NoError(t, err, "while executing %s", funcName)
 
 		usedGas := bc.GetReceipt(tx.Hash()).GetGasUsed()
 		assert.Equal(t, expectedGas, int64(usedGas), "wrong used gas for %s", funcName)
@@ -519,7 +519,7 @@ func TestGasPerFunction(t *testing.T) {
 		}
 		tx := NewLuaTxCall("user", "contract_v3", uint64(amount), payload)
 		err = bc.ConnectBlock(tx)
-		assert.NoError(t, err, "while executing %s", funcName)
+		require.NoError(t, err, "while executing %s", funcName)
 
 		usedGas := bc.GetReceipt(tx.Hash()).GetGasUsed()
 		assert.Equal(t, expectedGas, int64(usedGas), "wrong used gas for %s", funcName)
@@ -548,7 +548,7 @@ func TestGasPerFunction(t *testing.T) {
 		}
 		tx := NewLuaTxCall("user", "contract_v4", uint64(amount), payload)
 		err = bc.ConnectBlock(tx)
-		assert.NoError(t, err, "while executing %s", funcName)
+		require.NoError(t, err, "while executing %s", funcName)
 
 		usedGas := bc.GetReceipt(tx.Hash()).GetGasUsed()
 		assert.Equal(t, expectedGas, int64(usedGas), "wrong used gas for %s", funcName)
