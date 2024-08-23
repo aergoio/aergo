@@ -85,7 +85,6 @@ type vmContext struct {
 	gasLimit          uint64
 	remainingGas      uint64
 	execCtx           context.Context
-	timeout           time.Duration
 	deadline          time.Time
 }
 
@@ -159,6 +158,11 @@ func NewVmContext(execCtx context.Context, blockState *state.BlockState, cdb Cha
 		ctx.traceFile = getTraceFile(ctx.blockInfo.No, txHash)
 	}
 
+	// use the deadline from the execution context
+	if deadline, ok := execCtx.Deadline(); ok {
+		ctx.deadline = deadline
+	}
+
 	return ctx
 }
 
@@ -191,10 +195,6 @@ func NewVmContextQuery(
 	ctx.callState = make(map[types.AccountID]*callState)
 	ctx.callState[types.ToAccountID(receiverId)] = cs
 	return ctx, nil
-}
-
-func (ctx *vmContext) SetTimeout(timeout time.Duration) {
-	ctx.timeout = timeout
 }
 
 ////////////////////////////////////////////////////////////////////////////////
