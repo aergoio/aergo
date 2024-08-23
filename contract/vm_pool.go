@@ -19,6 +19,7 @@ var maxInstances int
 var getCh chan *VmInstance
 var freeCh chan *VmInstance
 var closeCh chan bool
+var repopulateCh chan bool
 var once sync.Once
 var VmPoolStarted bool
 
@@ -29,6 +30,7 @@ func StartVMPool(numInstances int) {
 		getCh = make(chan *VmInstance, numInstances)
 		freeCh = make(chan *VmInstance, numInstances)
 		closeCh = make(chan bool)
+		repopulateCh = make(chan bool)
 		// start a goroutine to manage the vm instances
 		go vmPoolRoutine()
 		// wait for the vm pool to be started
@@ -63,6 +65,8 @@ func vmPoolRoutine() {
 			vmInstance.close()
 			// replenish the pool
 			repopulatePool()
+		case <- repopulateCh:
+			repopulatePool()
 		case <- closeCh:
 			// close all instances
 			for _, vmInstance := range pool {
@@ -72,6 +76,7 @@ func vmPoolRoutine() {
 			close(getCh)
 			close(freeCh)
 			close(closeCh)
+			close(repopulateCh)
 			// mark the vm pool as stopped
 			VmPoolStarted = false
 			// exit the goroutine
@@ -86,7 +91,10 @@ func vmPoolRoutine() {
 
 func GetVmInstance() *VmInstance {
 	vmInstance := <-getCh
-	ctrLgr.Trace().Msg("VmInstance acquired")
+	// notify the goroutine
+	if len(repopulateCh) == 0 {
+		repopulateCh <- true
+	}
 	return vmInstance
 }
 
@@ -138,9 +146,10 @@ func repopulatePool() {
 	for {
 		// check how many instances are available on the getCh
 		numAvailable := len(getCh)
-		// if there are less than maxInstances, create new ones
-		if numAvailable < maxInstances {
-			spawnVmInstances(maxInstances - numAvailable)
+		// if the number of available instances is less than 5, spawn new ones
+		numToSpawn := maxInstances - numAvailable
+		if numToSpawn >= 5 {
+			spawnVmInstances(numToSpawn)
 		} else {
 			break
 		}
