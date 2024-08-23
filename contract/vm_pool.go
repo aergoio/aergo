@@ -31,7 +31,10 @@ func StartVMPool(numInstances int) {
 		closeCh = make(chan bool)
 		// start a goroutine to manage the vm instances
 		go vmPoolRoutine()
-		VmPoolStarted = true
+		// wait for the vm pool to be started
+		for !VmPoolStarted {
+			time.Sleep(time.Millisecond * 25)
+		}
 	})
 }
 
@@ -39,7 +42,7 @@ func StopVMPool() {
 	// stop the vm pool
 	closeCh <- true
 	// wait for the vm pool to be stopped
-	for !VmPoolStarted {
+	for VmPoolStarted {
 		time.Sleep(time.Millisecond * 25)
 	}
 }
@@ -48,6 +51,9 @@ func vmPoolRoutine() {
 
 	// create vm instances
 	spawnVmInstances(maxInstances)
+
+	// mark the vm pool as started
+	VmPoolStarted = true
 
 	// wait for instances to be released
 	for {
@@ -103,6 +109,10 @@ func FlushVmInstances() {
 	}
 	for _, vmInstance := range list {
 		FreeVmInstance(vmInstance)
+	}
+	// wait until there is some instance on the getCh
+	for len(getCh) == 0 {
+		time.Sleep(time.Millisecond * 25)
 	}
 }
 
@@ -315,8 +325,12 @@ func isValidMessage(vmInstance *VmInstance, message []byte) bool {
 func (vmInstance *VmInstance) close() {
 	if vmInstance != nil {
 		// close the connections
-		vmInstance.listener.Close()
-		vmInstance.conn.Close()
+		if vmInstance.listener != nil {
+			vmInstance.listener.Close()
+		}
+		if vmInstance.conn != nil {
+			vmInstance.conn.Close()
+		}
 		// terminate the process
 		process, err := os.FindProcess(vmInstance.pid)
 		if err == nil {
