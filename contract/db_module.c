@@ -676,18 +676,24 @@ void handle_last_insert_rowid(request *req) {
 
 // TODO: this must be called when the VM call is done
 // the db must also be closed
-void lua_db_release_resource() {
+void db_release_resource() {
 
-	rs_t *rs = rs_list;
+	rs_t *rs = rs_list, *rs_next;
 	while (rs != NULL) {
+		rs_next = rs->next;
 		rs_close(rs, 0);
-		rs = rs->next;
+		free(rs);
+		rs = rs_next;
 	}
+	rs_list = NULL;
 
-	stmt_t *pstmt = pstmt_list;
+	stmt_t *pstmt = pstmt_list, *pstmt_next;
 	while (pstmt != NULL) {
+		pstmt_next = pstmt->next;
 		stmt_close(pstmt, 0);
-		pstmt = pstmt->next;
+		free(pstmt);
+		pstmt = pstmt_next;
 	}
+	pstmt_list = NULL;
 
 }

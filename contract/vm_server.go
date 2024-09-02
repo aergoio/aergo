@@ -1,5 +1,8 @@
 package contract
-
+/*
+#include "db_module.h"
+*/
+import "C"
 import (
 	"encoding/json"
 	"encoding/binary"
@@ -32,6 +35,15 @@ func (ce *executor) call(extractUsedGas bool) {
 		ce.err = ce.preErr
 		return
 	}
+
+	defer func() {
+		if PubNet == false {
+			C.db_release_resource()
+			// test: A -> B -> C, what happens if A and C use the same db? (same contract)
+			// maybe contract C should release only its own resources
+			// the struct could store the instance id, and release only its own resources
+		}
+	}()
 
 	if ce.isView == true {
 		ce.ctx.nestedView++
