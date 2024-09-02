@@ -21,6 +21,6 @@ void handle_stmt_column_info(request *req, char *args_ptr, int args_len);
 void handle_rs_get(request *req, char *args_ptr, int args_len);
 void handle_rs_next(request *req, char *args_ptr, int args_len);
 
-void lua_db_release_resource();
+void db_release_resource();
 
 #endif /* _DB_MODULE_H */

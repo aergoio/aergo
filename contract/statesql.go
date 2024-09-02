@@ -2,6 +2,7 @@ package contract
 
 /*
 #include "sqlite3-binding.h"
+#include "db_module.h"
 */
 import "C"
 import (
@@ -111,6 +112,7 @@ func LoadTestDatabase(dataDir string) error {
 
 func CloseDatabase() {
 	var err error
+	C.db_release_resource()
 	for name, db := range database.DBs {
 		if db.tx != nil {
 			err = db.tx.rollback()
