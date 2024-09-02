@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"runtime"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
@@ -124,6 +125,8 @@ func CloseDatabase() {
 		}
 		delete(database.DBs, name)
 	}
+	// now the routine can migrate to another thread
+	runtime.UnlockOSThread()
 }
 
 func SaveRecoveryPoint(bs *state.BlockState) error {
