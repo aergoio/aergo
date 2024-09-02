@@ -674,8 +674,6 @@ void handle_last_insert_rowid(request *req) {
 	add_int64(&req->result, id);
 }
 
-// TODO: this must be called when the VM call is done
-// the db must also be closed
 void db_release_resource() {
 
 	rs_t *rs = rs_list, *rs_next;
