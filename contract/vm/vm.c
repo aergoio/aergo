@@ -414,39 +414,44 @@ void vm_setinstcount(lua_State *L, int count) {
 
 // INSTRUCTION COUNT
 
+// this function is called at every N instructions
 static void count_hook(lua_State *L, lua_Debug *ar) {
 	luaL_setuncatchablerror(L);
 	lua_pushstring(L, "exceeded the maximum instruction count");
 	luaL_throwerror(L);
 }
 
+// set instruction count hook
 void vm_set_count_hook(lua_State *L, int limit) {
 	lua_sethook(L, count_hook, LUA_MASKCOUNT, limit);
 }
 
 // TIMEOUT
 
+// this function is called at every N instructions
 static void timeout_hook(lua_State *L, lua_Debug *ar) {
 	int errCode = luaCheckTimeout();
 	if (errCode == 1) {
 		luaL_setuncatchablerror(L);
 		lua_pushstring(L, ERR_BF_TIMEOUT);
 		luaL_throwerror(L);
-	} else if (errCode == -1) {
-		luaL_error(L, "cannot find execution context");
 	}
 }
 
+// set timeout hook
 void vm_set_timeout_hook(lua_State *L) {
 	lua_sethook(L, timeout_hook, LUA_MASKCOUNT, VM_TIMEOUT_INST_COUNT);
 }
 
+// timeout and instruction count hook
+// this function is called at every N instructions
 static void timeout_count_hook(lua_State *L, lua_Debug *ar) {
-	int errCode;
 	int inst_count, new_inst_count, inst_limit;
 
+	// check for timeout
 	timeout_hook(L, ar);
 
+	// check instruction count
 	inst_count = luaL_tminstcount(L);
 	inst_limit = luaL_tminstlimit(L);
 	new_inst_count = inst_count + VM_TIMEOUT_INST_COUNT;
@@ -458,6 +463,7 @@ static void timeout_count_hook(lua_State *L, lua_Debug *ar) {
 	luaL_set_tminstcount(L, new_inst_count);
 }
 
+// set timeout and instruction count hook
 void vm_set_timeout_count_hook(lua_State *L, int limit) {
 	luaL_set_tminstlimit(L, limit);
 	luaL_set_tminstcount(L, 0);
