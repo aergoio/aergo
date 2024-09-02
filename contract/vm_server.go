@@ -36,6 +36,7 @@ func (ce *executor) call(extractUsedGas bool) {
 		return
 	}
 
+	/*
 	defer func() {
 		if PubNet == false {
 			C.db_release_resource()
@@ -44,6 +45,7 @@ func (ce *executor) call(extractUsedGas bool) {
 			// the struct could store the instance id, and release only its own resources
 		}
 	}()
+	*/
 
 	if ce.isView == true {
 		ce.ctx.nestedView++
