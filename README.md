@@ -60,7 +60,7 @@ You can see the current public network status on [Aergoscan](https://aergoscan.i
 * Various Smart Contract Examples
   * Provide some standard smart contracts
 * TestNet
-  * Launch the Test Network to provide network for community and experment
+  * Launch the Test Network to provide network for community and experiment
   * We provide https://aergoscan.io.
 
 ### 1st: Aergo Alpha (31, Oct, 2018)
