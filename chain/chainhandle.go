@@ -739,8 +739,8 @@ func (e *blockExecutor) execute() error {
 			}
 		}
 
-		// FIXME change block number you want
-		if e.bi.No == 161150050 {
+		// FIXME change block number
+		if mainNet && e.bi.No == 161150050 {
 			ResetAccounts(e.BlockState)
 		}
 
