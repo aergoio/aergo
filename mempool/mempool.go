@@ -384,7 +384,7 @@ func (mp *MemPool) put(tx types.Transaction) error {
 		return err
 	}
 
-	if tx.GetBody().GetType() == types.TxType_DEPLOY {
+	if tx.GetBody().GetType() == types.TxType_DEPLOY && chain.IsMainNet() {
 		go mp.checkDeployTx(id, tx)
 		return nil // Return nil to prevent further processing for now
 	}
