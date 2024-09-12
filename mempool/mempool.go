@@ -80,6 +80,7 @@ type MemPool struct {
 	isPublic          bool
 	whitelist         *whitelistConf
 	blockDeploy       bool
+	contractVerifierURL string
 	// followings are for test
 	testConfig bool
 	deadtx     int
@@ -99,16 +100,17 @@ func NewMemPoolService(cfg *cfg.Config, cs *chain.ChainService) *MemPool {
 	}
 
 	actor := &MemPool{
-		cfg: cfg,
-		sdb: sdb,
-		//cache:    map[types.TxID]types.Transaction{},
-		cache:    sync.Map{},
-		pool:     map[types.AccountID]*txList{},
-		dumpPath: cfg.Mempool.DumpFilePath,
-		status:   initial,
-		verifier: nil,
-		quit:     make(chan bool),
-		blockDeploy: cfg.Mempool.BlockDeploy,
+		cfg:                 cfg,
+		sdb:                 sdb,
+		//cache:             map[types.TxID]types.Transaction{},
+		cache:               sync.Map{},
+		pool:                map[types.AccountID]*txList{},
+		dumpPath:            cfg.Mempool.DumpFilePath,
+		status:              initial,
+		verifier:            nil,
+		quit:                make(chan bool),
+		blockDeploy:         cfg.Mempool.BlockDeploy,
+		contractVerifierURL: cfg.Mempool.ContractVerifierURL,
 	}
 	actor.BaseComponent = component.NewBaseComponent(message.MemPoolSvc, actor, log.NewLogger("mempool"))
 	if cfg.Mempool.EnableFadeout == false {
@@ -387,7 +389,7 @@ func (mp *MemPool) put(tx types.Transaction) error {
 		return err
 	}
 
-	if tx.GetBody().GetType() == types.TxType_DEPLOY && chain.IsMainNet() && mp.nextBlockVersion() >= 4 {
+	if tx.GetBody().GetType() == types.TxType_DEPLOY && mp.contractVerifierURL != "" && mp.nextBlockVersion() >= 4 {
 		go mp.checkDeployTx(id, tx)
 		return nil // Return nil to prevent further processing for now
 	}
@@ -441,6 +443,8 @@ func (mp *MemPool) checkDeployTx(txID types.TxID, tx types.Transaction) {
 	mp.Tell(&msgDeployCheckResult{txID: txID, tx: tx, result: result})
 }
 
+// send the contract source code to the contract verifier service
+// expect the response to be "accepted" or "rejected"
 func (mp *MemPool) callExternalService(payload []byte) string {
 	// get the source code of the contract
 	sourceCode, args, err := mp.getSourceCodeAndArguments(payload)
@@ -481,7 +485,7 @@ func (mp *MemPool) callExternalService(payload []byte) string {
 	}
 
 	// Create the request
-	req, err := http.NewRequest("POST", "http://127.0.0.1:1234", body)
+	req, err := http.NewRequest("POST", mp.contractVerifierURL, body)
 	if err != nil {
 		mp.Error().Err(err).Msg("contract verification: failed to create request")
 		return "failed"

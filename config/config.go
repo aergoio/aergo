@@ -158,6 +158,7 @@ func (ctx *ServerContext) GetDefaultMempoolConfig() *MempoolConfig {
 		VerifierNumber: runtime.NumCPU(),
 		DumpFilePath:   ctx.ExpandPathEnv("$HOME/mempool.dump"),
 		BlockDeploy:    false,
+		ContractVerifierURL: "",
 		Blacklist:      nil,
 	}
 }
