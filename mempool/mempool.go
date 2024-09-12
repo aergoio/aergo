@@ -21,6 +21,7 @@ import (
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-actor/router"
 	"github.com/aergoio/aergo-lib/log"
+	luacUtil "github.com/aergoio/aergo/v2/cmd/aergoluac/util"
 	"github.com/aergoio/aergo/v2/account/key"
 	"github.com/aergoio/aergo/v2/chain"
 	cfg "github.com/aergoio/aergo/v2/config"
@@ -384,7 +385,7 @@ func (mp *MemPool) put(tx types.Transaction) error {
 		return err
 	}
 
-	if tx.GetBody().GetType() == types.TxType_DEPLOY && chain.IsMainNet() {
+	if tx.GetBody().GetType() == types.TxType_DEPLOY && chain.IsMainNet() && mp.nextBlockVersion() >= 4 {
 		go mp.checkDeployTx(id, tx)
 		return nil // Return nil to prevent further processing for now
 	}
@@ -439,10 +440,31 @@ func (mp *MemPool) checkDeployTx(txID types.TxID, tx types.Transaction) {
 }
 
 func (mp *MemPool) callExternalService(payload []byte) string {
+	// get the source code of the contract
+	sourceCode, args, err := mp.getSourceCodeAndArguments(payload)
+	if err != nil {
+		mp.Error().Err(err).Msg("deploy tx with invalid payload")
+		return "rejected"
+	}
+
+	// temporary, to avoid 'declared and not used' error
+	_ = sourceCode + args
+
 	// TODO: Implement the actual API call to the external service
 	// This is a placeholder implementation
 	time.Sleep(400 * time.Millisecond) // Simulate network delay
 	return "accepted"
+}
+
+func (mp *MemPool) getSourceCodeAndArguments(payload []byte) (string, string, error) {
+	// on hardfork 4 the payload contains: lua source code + constructor function call arguments
+	codePayload := luacUtil.LuaCodePayload(payload)
+	if _, err := codePayload.IsValidFormat(); err != nil {
+		return "", "", err
+	}
+	sourceCode := string(codePayload.Code())
+	args := string(codePayload.Args())
+	return sourceCode, args, nil
 }
 
 func (mp *MemPool) puts(txs ...types.Transaction) []error {
