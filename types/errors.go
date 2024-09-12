@@ -33,6 +33,8 @@ var (
 
 	ErrTxNotAllowedAccount = errors.New("tx not allowed account")
 
+	ErrTxDeployRejected = errors.New("deploy rejected")
+
 	ErrTxInvalidChainIdHash = errors.New("tx invalid chain id hash")
 
 	//ErrInvalidRecipient

@@ -16,6 +16,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"fmt"
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-actor/router"
@@ -235,6 +236,13 @@ func (mp *MemPool) Size() (int, int) {
 	return mp.length, mp.orphan
 }
 
+// Message type for deploy check results
+type msgDeployCheckResult struct {
+    txID   types.TxID
+    tx     types.Transaction
+    result string
+}
+
 // Receive handles requested messages from other services
 func (mp *MemPool) Receive(context actor.Context) {
 
@@ -300,6 +308,17 @@ func (mp *MemPool) Receive(context actor.Context) {
 	case *actor.Started:
 		mp.loadTxs() // FIXME :work-around for actor settled
 
+	case *msgDeployCheckResult:
+		tx := msg.tx
+		acc := tx.GetBody().GetAccount()
+		if tx.HasVerifedAccount() {
+			acc = tx.GetVerifedAccount()
+		}
+		err := mp.processTransaction(tx, acc, msg.result)
+		if err != nil {
+			mp.Error().Err(err).Str("txid", msg.txID.String()).Msg("failed to process deploy transaction after check")
+		}
+
 	default:
 		//mp.Debug().Str("type", reflect.TypeOf(msg).String()).Msg("unhandled message")
 	}
@@ -364,6 +383,31 @@ func (mp *MemPool) put(tx types.Transaction) error {
 	if err != nil && err != types.ErrTxNonceToohigh {
 		return err
 	}
+
+	if tx.GetBody().GetType() == types.TxType_DEPLOY {
+		go mp.checkDeployTx(id, tx)
+		return nil // Return nil to prevent further processing for now
+	}
+
+	return mp.processTransaction(tx, acc, "")
+}
+
+func (mp *MemPool) processTransaction(tx types.Transaction, acc types.Address, deployResult string) error {
+	id := types.ToTxID(tx.GetHash())
+
+	if tx.GetBody().GetType() == types.TxType_DEPLOY {
+		switch deployResult {
+		case "accepted":
+			// Continue processing
+		case "rejected":
+			mp.Error().Str("txid", types.ToTxID(tx.GetHash()).String()).Msg("deploy transaction rejected")
+			return types.ErrTxDeployRejected
+		default:
+			mp.Error().Str("txid", types.ToTxID(tx.GetHash()).String()).Str("result", deployResult).Msg("unexpected deploy check result")
+			return fmt.Errorf("unexpected deploy check result: %s", deployResult)
+		}
+	}
+
 	mp.Lock()
 	defer mp.Unlock()
 
@@ -387,6 +431,18 @@ func (mp *MemPool) put(tx types.Transaction) error {
 		mp.notifyNewTx(tx)
 	}
 	return nil
+}
+
+func (mp *MemPool) checkDeployTx(txID types.TxID, tx types.Transaction) {
+	result := mp.callExternalService(tx.GetBody().GetPayload())
+	mp.Tell(&msgDeployCheckResult{txID: txID, tx: tx, result: result})
+}
+
+func (mp *MemPool) callExternalService(payload []byte) string {
+	// TODO: Implement the actual API call to the external service
+	// This is a placeholder implementation
+	time.Sleep(400 * time.Millisecond) // Simulate network delay
+	return "accepted"
 }
 
 func (mp *MemPool) puts(txs ...types.Transaction) []error {
