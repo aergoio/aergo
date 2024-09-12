@@ -17,6 +17,8 @@ import (
 	"sync/atomic"
 	"time"
 	"fmt"
+	"net/http"
+	"mime/multipart"
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-actor/router"
@@ -447,13 +449,71 @@ func (mp *MemPool) callExternalService(payload []byte) string {
 		return "rejected"
 	}
 
-	// temporary, to avoid 'declared and not used' error
-	_ = sourceCode + args
+	// Create a new multipart writer
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
 
-	// TODO: Implement the actual API call to the external service
-	// This is a placeholder implementation
-	time.Sleep(400 * time.Millisecond) // Simulate network delay
-	return "accepted"
+	// Add the source code field
+	part, err := writer.CreateFormField("source_code")
+	if err == nil {
+		_, err = io.WriteString(part, sourceCode)
+	}
+	if err != nil {
+		mp.Error().Err(err).Msg("contract verification: failed to write source code")
+		return "failed"
+	}
+
+	// Add the arguments field
+	part, err = writer.CreateFormField("arguments")
+	if err == nil {
+		_, err = io.WriteString(part, args)
+	}
+	if err != nil {
+		mp.Error().Err(err).Msg("contract verification: failed to write arguments")
+		return "failed"
+	}
+
+	// Close the multipart writer
+	err = writer.Close()
+	if err != nil {
+		mp.Error().Err(err).Msg("contract verification: failed to close multipart writer")
+		return "failed"
+	}
+
+	// Create the request
+	req, err := http.NewRequest("POST", "http://127.0.0.1:1234", body)
+	if err != nil {
+		mp.Error().Err(err).Msg("contract verification: failed to create request")
+		return "failed"
+	}
+
+	// Set the content type
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	// Send the request
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		mp.Error().Err(err).Msg("contract verification: failed to send request")
+		return "failed"
+	}
+	defer resp.Body.Close()
+
+	// Read the response
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		mp.Error().Err(err).Msg("contract verification: failed to read response body")
+		return "failed"
+	}
+
+	// Check the response status
+	if resp.StatusCode != http.StatusOK {
+		mp.Error().Int("status", resp.StatusCode).Msg("contract verification: external service returned non-OK status")
+		return "failed"
+	}
+
+	// Return the response as a string
+	return string(respBody)
 }
 
 func (mp *MemPool) getSourceCodeAndArguments(payload []byte) (string, string, error) {
