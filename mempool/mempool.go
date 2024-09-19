@@ -394,7 +394,7 @@ func (mp *MemPool) put(tx types.Transaction) error {
 		return nil // Return nil to prevent further processing for now
 	}
 
-	return mp.processTransaction(tx, acc, "")
+	return mp.processTransaction(tx, acc, "accepted")
 }
 
 func (mp *MemPool) processTransaction(tx types.Transaction, acc types.Address, deployResult string) error {
