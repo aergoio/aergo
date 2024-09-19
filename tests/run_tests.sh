@@ -164,6 +164,7 @@ check ./test-pcall-events.sh
 check ./test-transaction-types.sh
 check ./test-name-service.sh
 check ./test-multicall.sh
+check ./test-disabled-functions.sh
 
 # terminate the server process
 echo ""

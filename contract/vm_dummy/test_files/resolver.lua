@@ -1,13 +1,13 @@
 state.var {
-    xx = state.map()
+    registry = state.map()
 }
 
 function set(name, address)
-    xx[name] = address
+    registry[name] = address
 end
 
 function resolve(name)
-    return xx[name]
+    return registry[name]
 end
 
 abi.register(set)
