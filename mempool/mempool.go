@@ -39,6 +39,7 @@ import (
 	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/message"
+	"github.com/aergoio/aergo/v2/types/verificationstore"
 	"github.com/aergoio/aergo/v2/blacklist"
 )
 
@@ -223,7 +224,9 @@ L:
 		orphan := len(txs) - list.Len()
 
 		for _, tx := range txs {
-			mp.cache.Delete(types.ToTxID(tx.GetHash()))
+			txID := types.ToTxID(tx.GetHash())
+			mp.cache.Delete(txID)
+			verificationstore.DeleteResult(txID)
 			mp.length--
 		}
 
@@ -397,19 +400,21 @@ func (mp *MemPool) put(tx types.Transaction) error {
 	return mp.processTransaction(tx, acc, "accepted")
 }
 
-func (mp *MemPool) processTransaction(tx types.Transaction, acc types.Address, deployResult string) error {
+func (mp *MemPool) processTransaction(tx types.Transaction, acc types.Address, codeVerificationResult string) error {
 	id := types.ToTxID(tx.GetHash())
 
 	if tx.GetBody().GetType() == types.TxType_DEPLOY {
-		switch deployResult {
+		// store the code verification result
+		verificationstore.StoreResult(id, codeVerificationResult)
+		switch codeVerificationResult {
 		case "accepted":
-			// Continue processing
+			// the transaction is processed normally
 		case "rejected":
-			mp.Error().Str("txid", types.ToTxID(tx.GetHash()).String()).Msg("deploy transaction rejected")
-			return types.ErrTxDeployRejected
+			// the transaction is processed and marked as rejected, to charge the gas and verification fee
 		default:
-			mp.Error().Str("txid", types.ToTxID(tx.GetHash()).String()).Str("result", deployResult).Msg("unexpected deploy check result")
-			return fmt.Errorf("unexpected deploy check result: %s", deployResult)
+			// do not process the transaction if the code verification failed
+			mp.Error().Str("txid", types.ToTxID(tx.GetHash()).String()).Str("result", codeVerificationResult).Msg("deploy transaction verification failed")
+			return fmt.Errorf("contract verification failed: %s", codeVerificationResult)
 		}
 	}
 
@@ -677,7 +682,9 @@ func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 		diff, delTxs := list.FilterByState(ns)
 		mp.orphan -= diff
 		for _, tx := range delTxs {
-			mp.cache.Delete(types.ToTxID(tx.GetHash()))
+			txID := types.ToTxID(tx.GetHash())
+			mp.cache.Delete(txID)
+			verificationstore.DeleteResult(txID)
 			mp.length--
 		}
 		if len(delTxs) > 0 {
@@ -1118,7 +1125,9 @@ func (mp *MemPool) removeTx(tx *types.Tx) error {
 	mp.orphan += newOrphan
 	mp.releaseMemPoolList(list)
 
-	mp.cache.Delete(types.ToTxID(tx.GetHash()))
+	txID := types.ToTxID(tx.GetHash())
+	mp.cache.Delete(txID)
+	verificationstore.DeleteResult(txID)
 	mp.length--
 	mp.Trace().Object("tx", types.LogTx{Tx: tx}).Msg("removed tx")
 	return nil
