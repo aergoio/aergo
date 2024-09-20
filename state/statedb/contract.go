@@ -18,6 +18,10 @@ type ContractState struct {
 	store   db.DB
 }
 
+func (cs *ContractState) SetAccountID(newID types.AccountID) {
+	cs.account = newID
+}
+
 func (cs *ContractState) SetCode(code []byte) error {
 	codeHash := common.Hasher(code)
 	storedCode, err := cs.GetRawKV(codeHash[:])
