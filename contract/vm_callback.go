@@ -45,6 +45,7 @@ import (
 	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/dbkey"
+	"github.com/aergoio/aergo/v2/blacklist"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/ecdsa"
 )
@@ -1141,6 +1142,11 @@ func luaDeployContract(
 		contractState, err := getOnlyContractState(ctx, cid)
 		if err != nil {
 			return -1, C.CString("[Contract.LuaDeployContract]" + err.Error())
+		}
+		// check if contract is blacklisted
+		if blacklist.Check(contractStr) {
+			ctrLgr.Warn().Msg("attempt to deploy clone of blacklisted contract: " + contractStr)
+			return -1, C.CString("[Contract.LuaDeployContract] contract not available")
 		}
 		// read the contract code
 		codeABI, err = contractState.GetCode()
