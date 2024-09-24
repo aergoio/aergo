@@ -396,6 +396,10 @@ func (mp *MemPool) put(tx types.Transaction) error {
 	}
 
 	if tx.GetBody().GetType() == types.TxType_DEPLOY && mp.contractVerifierURL != "" && mp.nextBlockVersion() >= 4 {
+		_, exists := verificationstore.GetResult(id)
+		if exists {
+			return types.ErrTxAlreadyInMempool
+		}
 		verificationstore.StoreResult(id, "pending")
 		go mp.checkDeployTx(id, tx)
 		return nil // Return nil to prevent further processing for now
@@ -425,28 +429,33 @@ func (mp *MemPool) proceedPut(tx types.Transaction, acc types.Address, codeVerif
 	mp.Lock()
 	defer mp.Unlock()
 
+	// get the list of txs for the given account
 	list, err := mp.acquireMemPoolList(acc)
 	if err != nil {
 		return err
 	}
 	defer mp.releaseMemPoolList(list)
+	// attempt to put the tx into the list
 	diff, err := list.Put(tx)
 	if err != nil {
 		mp.Error().Err(err).Msg("fail to put at a mempool list")
 		return err
 	}
-
 	mp.orphan -= diff
+
 	mp.cache.Store(id, tx)
 	mp.length++
 	mp.Trace().Object("tx", types.LogTx{Tx: tx.GetTx()}).Msg("tx added")
 
 	if !mp.testConfig {
+		// distribute the tx to the network peers
 		mp.notifyNewTx(tx)
 	}
+
 	return nil
 }
 
+// this runs on a separate goroutine
 func (mp *MemPool) checkDeployTx(txID types.TxID, tx types.Transaction) {
 	result := mp.callExternalService(tx.GetBody().GetPayload())
 	mp.Tell(&msgDeployCheckResult{txID: txID, tx: tx, result: result})
