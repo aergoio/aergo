@@ -1002,10 +1002,8 @@ func Create(
 	}
 
 	codeVerificationResult, exists := verificationstore.GetResult(types.ToTxID(ctx.txHash))
-	if !exists {
-		panic("code verification result not found")
-	}
-	if codeVerificationResult != "accepted" {
+	if exists && codeVerificationResult != "accepted" {
+		ctrLgr.Error().Msg("deploy rejected")
 		return "", nil, ctx.usedFee(), errors.New("deploy rejected")
 	}
 
