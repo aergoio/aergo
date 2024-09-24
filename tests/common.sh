@@ -21,8 +21,12 @@ stop_nodes() {
 
   if [ "$consensus" == "sbp" ]; then
     kill $pid
+    # wait until the node is stopped
+    wait $pid
   else
     kill $pid1 $pid2 $pid3
+    # wait until all nodes are stopped
+    wait $pid1 $pid2 $pid3
   fi
 
 }
@@ -94,6 +98,8 @@ get_receipt() {
   # do not stop on errors
   set +e
 
+  # wait for a total of (0.4 * 100) = 40 seconds
+
   while true; do
     output=$(../bin/aergocli receipt get $txhash 2>&1 > receipt.json)
 
@@ -102,7 +108,7 @@ get_receipt() {
     if [[ $output == *"tx not found"* ]]; then
       sleep 0.4
       counter=$((counter+1))
-      if [ $counter -gt 10 ]; then
+      if [ $counter -gt 100 ]; then
         echo "Error: tx not found: $txhash"
         exit 1
       fi
