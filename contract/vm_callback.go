@@ -1144,6 +1144,7 @@ func luaDeployContract(
 		}
 		// check if contract is blacklisted
 		if blacklist.Check(contractStr) {
+			ctrLgr.Warn().Msg("attempt to deploy clone of blacklisted contract: " + contractStr)
 			return -1, C.CString("[Contract.LuaDeployContract] contract not available")
 		}
 		// read the contract code
