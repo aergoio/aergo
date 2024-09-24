@@ -46,12 +46,12 @@ func (bv *BlockValidator) Stop() {
 	bv.signVerifier.Stop()
 }
 
-func (bv *BlockValidator) ValidateBlock(block *types.Block) error {
+func (bv *BlockValidator) ValidateBlock(block *types.Block, bi *types.BlockHeaderInfo) error {
 	if err := bv.ValidateHeader(block.GetHeader()); err != nil {
 		return err
 	}
 
-	if err := bv.ValidateBody(block); err != nil {
+	if err := bv.ValidateBody(block, bi); err != nil {
 		return err
 	}
 	return nil
@@ -95,7 +95,7 @@ func (t validateReport) toString() string {
 	return msgStr
 }
 
-func (bv *BlockValidator) ValidateBody(block *types.Block) error {
+func (bv *BlockValidator) ValidateBody(block *types.Block, bi *types.BlockHeaderInfo) error {
 	txs := block.GetBody().GetTxs()
 
 	// TxRootHash
@@ -124,7 +124,7 @@ func (bv *BlockValidator) ValidateBody(block *types.Block) error {
 		return nil
 	}
 
-	bv.signVerifier.RequestVerifyTxs(&types.TxList{Txs: txs})
+	bv.signVerifier.RequestVerifyTxs(&types.TxList{Txs: txs}, bi.ForkVersion)
 	bv.isNeedWait = true
 
 	return nil

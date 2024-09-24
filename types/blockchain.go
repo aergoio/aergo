@@ -633,13 +633,13 @@ var EmptyBlockHeaderInfo = &BlockHeaderInfo{}
 
 func NewBlockHeaderInfo(b *Block) *BlockHeaderInfo {
 	cid := b.GetHeader().GetChainID()
-	v := DecodeChainIdVersion(cid)
+	forkVersion := DecodeChainIdVersion(cid)
 	return &BlockHeaderInfo{
 		b.BlockNo(),
 		b.GetHeader().GetTimestamp(),
 		b.GetHeader().GetPrevBlockHash(),
 		cid,
-		v,
+		forkVersion,
 	}
 }
 
@@ -657,13 +657,13 @@ func MakeChainId(cid []byte, v int32) []byte {
 func NewBlockHeaderInfoFromPrevBlock(prev *Block, ts int64, bv BlockVersionner) *BlockHeaderInfo {
 	no := prev.GetHeader().GetBlockNo() + 1
 	cid := prev.GetHeader().GetChainID()
-	v := bv.Version(no)
+	forkVersion := bv.Version(no)
 	return &BlockHeaderInfo{
 		no,
 		ts,
 		prev.GetHash(),
-		MakeChainId(cid, v),
-		v,
+		MakeChainId(cid, forkVersion),
+		forkVersion,
 	}
 }
 

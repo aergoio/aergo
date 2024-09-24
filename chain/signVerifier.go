@@ -3,6 +3,7 @@ package chain
 import (
 	"errors"
 	"time"
+	"fmt"
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo/v2/account/key"
@@ -13,6 +14,7 @@ import (
 	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/message"
+	"github.com/aergoio/aergo/v2/types/verificationstore"
 )
 
 type SignVerifier struct {
@@ -34,6 +36,7 @@ type verifyWork struct {
 	idx        int
 	tx         *types.Tx
 	useMempool bool // not to use aop for performance
+	forkVersion int32
 }
 
 type verifyWorkRes struct {
@@ -51,6 +54,7 @@ var (
 	ErrTxFormatInvalid = errors.New("tx invalid format")
 	dfltUseMempool     = true
 	//logger = log.NewLogger("signverifier")
+	useContractVerification = false
 )
 
 func NewSignVerifier(comm component.IComponentRequester, sdb *state.ChainStateDB, workerCnt int, useMempool bool) *SignVerifier {
@@ -76,12 +80,16 @@ func (sv *SignVerifier) Stop() {
 	close(sv.doneCh)
 }
 
+func SetUseContractVerification(use bool) {
+	useContractVerification = use
+}
+
 func (sv *SignVerifier) verifyTxLoop(workerNo int) {
 	logger.Debug().Int("worker", workerNo).Msg("verify worker run")
 
 	for txWork := range sv.workCh {
 		//logger.Debug().Int("worker", workerNo).Int("idx", txWork.idx).Msg("get work to verify tx")
-		hit, err := sv.verifyTx(sv.comm, txWork.tx, txWork.useMempool)
+		hit, err := sv.verifyTx(sv.comm, txWork.tx, txWork.useMempool, txWork.forkVersion)
 
 		if err != nil {
 			logger.Error().Int("worker", workerNo).Bool("hit", hit).Str("hash", base58.Encode(txWork.tx.GetHash())).
@@ -117,7 +125,48 @@ func (sv *SignVerifier) isExistInMempool(comm component.IComponentRequester, tx 
 	return false, nil
 }
 
-func (sv *SignVerifier) verifyTx(comm component.IComponentRequester, tx *types.Tx, useMempool bool) (hit bool, err error) {
+func (sv *SignVerifier) verifyContractCode(comm component.IComponentRequester, tx *types.Tx, hit bool) (bool, error) {
+
+	if !hit {
+		// send the deploy tx to the mempool, for code verification
+		res, err := comm.RequestToFutureResult(message.MemPoolSvc, &message.MemPoolPut{Tx: tx}, time.Second,
+			"chain/signverifier/verifytx")
+		if err != nil {
+			logger.Error().Err(err).Msg("failed to send deploy tx to mempool")
+			return false, err
+		}
+		msg := res.(*message.MemPoolPutRsp)
+		if msg.Err != nil {
+			logger.Error().Err(msg.Err).Msg("failed to send deploy tx to mempool")
+			return false, msg.Err
+		}
+	}
+
+	// wait for the code verification result
+	var result string
+	var exists bool
+	for {
+		result, exists = verificationstore.GetResult(types.ToTxID(tx.GetHash()))
+		if exists && result != "pending" {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	switch result {
+	case "accepted":
+		// the transaction is processed normally
+	case "rejected":
+		// the transaction is processed and marked as rejected, to charge the gas and verification fee
+	default:
+		// do not process the transaction if the code verification failed
+		return false, fmt.Errorf("contract verification failed: %s", result)
+	}
+
+	return true, nil
+}
+
+func (sv *SignVerifier) verifyTx(comm component.IComponentRequester, tx *types.Tx, useMempool bool, forkVersion int32) (hit bool, err error) {
 	account := tx.GetBody().GetAccount()
 	if account == nil {
 		return false, ErrTxFormatInvalid
@@ -127,8 +176,10 @@ func (sv *SignVerifier) verifyTx(comm component.IComponentRequester, tx *types.T
 		if hit, err = sv.isExistInMempool(comm, tx); err != nil {
 			return false, err
 		}
-		if hit {
-			return hit, nil
+		if tx.GetBody().GetType() == types.TxType_DEPLOY && useContractVerification && forkVersion >= 4 {
+			return sv.verifyContractCode(comm, tx, hit)
+		} else if hit {
+			return true, nil
 		}
 	}
 
@@ -152,7 +203,7 @@ func (sv *SignVerifier) verifyTx(comm component.IComponentRequester, tx *types.T
 	return false, nil
 }
 
-func (sv *SignVerifier) RequestVerifyTxs(txlist *types.TxList) {
+func (sv *SignVerifier) RequestVerifyTxs(txlist *types.TxList, forkVersion int32) {
 	txs := txlist.GetTxs()
 	txLen := len(txs)
 
@@ -169,7 +220,7 @@ func (sv *SignVerifier) RequestVerifyTxs(txlist *types.TxList) {
 	go func() {
 		for i, tx := range txs {
 			//logger.Debug().Int("idx", i).Msg("push tx start")
-			sv.workCh <- verifyWork{idx: i, tx: tx, useMempool: useMempool}
+			sv.workCh <- verifyWork{idx: i, tx: tx, useMempool: useMempool, forkVersion: forkVersion}
 		}
 	}()
 
@@ -237,7 +288,7 @@ func (sv *SignVerifier) verifyTxsInplace(txlist *types.TxList) (bool, []error) {
 	logger.Debug().Int("txlen", txLen).Msg("verify tx inplace start")
 
 	for i, tx := range txs {
-		hit, errs[i] = sv.verifyTx(sv.comm, tx, false)
+		hit, errs[i] = sv.verifyTx(sv.comm, tx, false, 0)
 		failed = true
 
 		if hit {

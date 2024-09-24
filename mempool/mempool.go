@@ -122,6 +122,9 @@ func NewMemPoolService(cfg *cfg.Config, cs *chain.ChainService) *MemPool {
 	if cfg.Mempool.Blacklist != nil {
 		blacklist.Initialize(cfg.Mempool.Blacklist)
 	}
+	if cfg.Mempool.ContractVerifierURL != "" {
+		chain.SetUseContractVerification(true)
+	}
 	return actor
 }
 
@@ -393,6 +396,7 @@ func (mp *MemPool) put(tx types.Transaction) error {
 	}
 
 	if tx.GetBody().GetType() == types.TxType_DEPLOY && mp.contractVerifierURL != "" && mp.nextBlockVersion() >= 4 {
+		verificationstore.StoreResult(id, "pending")
 		go mp.checkDeployTx(id, tx)
 		return nil // Return nil to prevent further processing for now
 	}

@@ -98,7 +98,7 @@ func TestInvalidTransactions(t *testing.T) {
 
 	txslice = append(txslice, tx)
 
-	verifier.RequestVerifyTxs(&types.TxList{Txs: txslice})
+	verifier.RequestVerifyTxs(&types.TxList{Txs: txslice}, 0)
 	failed, errs := verifier.WaitDone()
 
 	assert.Equal(t, failed, true)
@@ -122,7 +122,7 @@ func TestVerifyValidTxs(t *testing.T) {
 
 	t.Logf("len=%d", len(txs))
 
-	verifier.RequestVerifyTxs(&types.TxList{Txs: txs})
+	verifier.RequestVerifyTxs(&types.TxList{Txs: txs}, 0)
 	failed, errs := verifier.WaitDone()
 
 	if failed {
@@ -147,7 +147,7 @@ func BenchmarkVerify10000tx(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		verifier.RequestVerifyTxs(&types.TxList{Txs: txslice})
+		verifier.RequestVerifyTxs(&types.TxList{Txs: txslice}, 0)
 		failed, errs := verifier.WaitDone()
 
 		if failed {

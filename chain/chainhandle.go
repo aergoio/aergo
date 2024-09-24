@@ -650,7 +650,8 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 	// contrary, the block propagated from the network is not half-executed.
 	// Hence, we need a new block state and tx executor (execTx).
 	if bState == nil {
-		if err := cs.validator.ValidateBlock(block); err != nil {
+		bi = types.NewBlockHeaderInfo(block)
+		if err := cs.validator.ValidateBlock(block, bi); err != nil {
 			return nil, err
 		}
 
@@ -658,7 +659,6 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 			cs.sdb.OpenNewStateDB(cs.sdb.GetRoot()),
 			state.SetPrevBlockHash(block.GetHeader().GetPrevBlockHash()),
 		)
-		bi = types.NewBlockHeaderInfo(block)
 		// FIXME currently the verify only function is allowed long execution time,
 		exec = NewTxExecutor(context.Background(), cs.ChainConsensus, cs.cdb, bi, contract.ChainService)
 
