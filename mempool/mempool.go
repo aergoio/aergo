@@ -325,7 +325,7 @@ func (mp *MemPool) Receive(context actor.Context) {
 		if tx.HasVerifedAccount() {
 			acc = tx.GetVerifedAccount()
 		}
-		err := mp.processTransaction(tx, acc, msg.result)
+		err := mp.proceedPut(tx, acc, msg.result)
 		if err != nil {
 			mp.Error().Err(err).Str("txid", msg.txID.String()).Msg("failed to process deploy transaction after check")
 		}
@@ -401,10 +401,10 @@ func (mp *MemPool) put(tx types.Transaction) error {
 		return nil // Return nil to prevent further processing for now
 	}
 
-	return mp.processTransaction(tx, acc, "accepted")
+	return mp.proceedPut(tx, acc, "accepted")
 }
 
-func (mp *MemPool) processTransaction(tx types.Transaction, acc types.Address, codeVerificationResult string) error {
+func (mp *MemPool) proceedPut(tx types.Transaction, acc types.Address, codeVerificationResult string) error {
 	id := types.ToTxID(tx.GetHash())
 
 	if tx.GetBody().GetType() == types.TxType_DEPLOY {
