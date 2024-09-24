@@ -13,7 +13,7 @@ var (
 	MainNetHardforkConfig = &HardforkConfig{
 		V2: types.BlockNo(19611555),
 		V3: types.BlockNo(111499715),
-		V4: types.BlockNo(1000000000),
+		V4: types.BlockNo(140010000),
 	}
 	TestNetHardforkConfig = &HardforkConfig{
 		V2: types.BlockNo(18714241),
