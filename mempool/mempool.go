@@ -398,7 +398,7 @@ func (mp *MemPool) put(tx types.Transaction) error {
 	if tx.GetBody().GetType() == types.TxType_DEPLOY && mp.contractVerifierURL != "" && mp.nextBlockVersion() >= 4 {
 		_, exists := verificationstore.GetResult(id)
 		if exists {
-			return types.ErrTxAlreadyInMempool
+			return nil // to prevent error when the same tx is put into the mempool multiple times
 		}
 		verificationstore.StoreResult(id, "pending")
 		go mp.checkDeployTx(id, tx)
