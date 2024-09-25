@@ -422,6 +422,15 @@ func (mp *MemPool) proceedPut(tx types.Transaction, acc types.Address, codeVerif
 		default:
 			// do not process the transaction if the code verification failed
 			mp.Error().Str("txid", types.ToTxID(tx.GetHash()).String()).Str("result", codeVerificationResult).Msg("deploy transaction verification failed")
+			// remove the transaction from the verification store after 30 seconds
+			go func() {
+				select {
+				case <-time.After(time.Second * 30):
+					verificationstore.DeleteResult(id)
+				case <-mp.quit:
+					return
+				}
+			}()
 			return fmt.Errorf("contract verification failed: %s", codeVerificationResult)
 		}
 	}
