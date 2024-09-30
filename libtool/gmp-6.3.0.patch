@@ -1,0 +1,23 @@
+diff -ru src/gmp-6.3.0_old/Makefile.am src/gmp-6.3.0/Makefile.am
+--- src/gmp-6.3.0_old/Makefile.am	2023-07-29 22:42:16.000000000 +0900
++++ src/gmp-6.3.0/Makefile.am	2024-09-30 14:42:16.650770869 +0900
+@@ -113,7 +113,7 @@
+ LIBGMPXX_LT_AGE      = 7
+
+
+-SUBDIRS = tests mpn mpz mpq mpf printf scanf rand cxx demos tune doc
++SUBDIRS = mpn mpz cxx #mpq mpf printf scanf rand
+
+ EXTRA_DIST = configfsf.guess configfsf.sub .gdbinit INSTALL.autoconf \
+ 	     COPYING.LESSERv3 COPYINGv2 COPYINGv3
+diff -ru src/gmp-6.3.0_old/Makefile.in src/gmp-6.3.0/Makefile.in
+--- src/gmp-6.3.0_old/Makefile.in	2023-07-29 22:42:23.000000000 +0900
++++ src/gmp-6.3.0/Makefile.in	2024-09-30 14:42:16.641765966 +0900
+@@ -573,7 +573,7 @@
+ LIBGMPXX_LT_CURRENT = 11
+ LIBGMPXX_LT_REVISION = 0
+ LIBGMPXX_LT_AGE = 7
+-SUBDIRS = tests mpn mpz mpq mpf printf scanf rand cxx demos tune doc
++SUBDIRS = mpn mpz cxx #mpq mpf printf scanf rand
+
+ # Put asl.h here for now.

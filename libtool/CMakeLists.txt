@@ -20,16 +20,43 @@ if(NOT EXISTS ${LMDB_SRC_DIR})
     execute_process(COMMAND git clone https://github.com/lmdb/lmdb.git ${LMDB_SRC_DIR})
 endif()
 
-set(GMP_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/gmp-6.1.2)
-set(GMP_BUILD_DIR ${CMAKE_CURRENT_BINARY_DIR}/src/gmp-6.1.2)
+set(GMP_VERSION "6.3.0" CACHE STRING "Override libgmp version" )
+if (NOT "$ENV{GMP_VERSION}" STREQUAL "")
+    message(STATUS "Overriding libgmp version to $ENV{GMP_VERSION} by environment variable")
+    set(GMP_VERSION "$ENV{GMP_VERSION}" )
+endif()
+message(STATUS "Using libgmp version ${GMP_VERSION}")
+
+# set default version of libgmp to v6.3.0
+if( GMP_VERSION EQUAL "6.1.2" )
+    # hash of libgmp-6.1.2
+    set(GMP_HASH 5275bb04f4863a13516b2f39392ac5e272f5e1bb8057b18aec1c9b79d73d8fb2)
+elseif( GMP_VERSION EQUAL "6.2.1" )
+    # hash of libgmp-6.2.1
+    set(GMP_HASH eae9326beb4158c386e39a356818031bd28f3124cf915f8c5b1dc4c7a36b4d7c)
+else()
+    # hash of libgmp-6.3.0
+    set(GMP_HASH 29df1150be857d94323e8c57f509b0314e56a4953712639f2c9e3b9aefc553ac)
+endif()
+
+set(GMP_NAME gmp-${GMP_VERSION})
+set(GMP_ARCHIVE ${GMP_NAME}.tar.bz2)
+set(GMP_PATCH_FILE ${GMP_NAME}.patch)
+set(GMP_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/${GMP_NAME})
+set(GMP_BUILD_DIR ${CMAKE_CURRENT_BINARY_DIR}/build/${GMP_NAME})
 
 include(ExternalProject)
 
 ExternalProject_Add(libgmp
    SOURCE_DIR ${GMP_SRC_DIR}
    BINARY_DIR ${GMP_BUILD_DIR}
-   TMP_DIR ${GMP_BUILD_DIR}
-   STAMP_DIR ${GMP_BUILD_DIR}
+   #--Download step--------------
+   DOWNLOAD_DIR ${CMAKE_CURRENT_SOURCE_DIR}/download
+   URL          ${CMAKE_CURRENT_SOURCE_DIR}/download/${GMP_ARCHIVE}
+   URL_HASH     SHA256=${GMP_HASH}
+   PATCH_COMMAND patch -p0 -d ${CMAKE_CURRENT_SOURCE_DIR} < ${CMAKE_CURRENT_SOURCE_DIR}/${GMP_PATCH_FILE}
+   TMP_DIR      ${GMP_BUILD_DIR}
+   STAMP_DIR    ${GMP_BUILD_DIR}
    CONFIGURE_COMMAND ${GMP_SRC_DIR}/configure --prefix=${LIB_DIR} --disable-static --enable-shared > /dev/null
    PREFIX ${GMP_SRC_DIR}
    BUILD_COMMAND $(MAKE) all install > make.log
