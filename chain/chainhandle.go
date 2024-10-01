@@ -1346,7 +1346,7 @@ func ResetAccounts(bs *state.BlockState) error {
 	}
 
 	address := "AmhNcvE7RR84xoRzYNyATnwZR2JXaC5ut7neu89R13aj1b4eUxKp"
-	amountStr := "7707077000000000000000000"
+	amountStr := "7707078770000000060489728"
 
 	err := fixAccount(address, amountStr, bs, false)
 	if err != nil {
