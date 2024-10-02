@@ -9,6 +9,7 @@ const (
 // chain
 const (
 	receiptsPrefix = "r"
+	internalOpsPrefix = "i"
 )
 
 // metadata

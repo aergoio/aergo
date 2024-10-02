@@ -102,6 +102,7 @@ type vmContext struct {
 	gasLimit          uint64
 	remainedGas       uint64
 	execCtx           context.Context
+	internalOpsCall   InternalCall
 }
 
 type executor struct {
