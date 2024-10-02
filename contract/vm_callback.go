@@ -210,7 +210,7 @@ func minusCallCount(ctx *vmContext, curCount, deduc C.int) C.int {
 
 //export luaCallContract
 func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char, args *C.char,
-	amount *C.char, gas uint64) (C.int, result *C.char) {
+	amount *C.char, gas uint64) (ret C.int, errormsg *C.char) {
 	contractAddress := C.GoString(contractId)
 	fnameStr := C.GoString(fname)
 	argsStr := C.GoString(args)
@@ -223,7 +223,9 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 
 	opId := logOperation(ctx, amountStr, "call", contractAddress, fnameStr, argsStr)
 	defer func() {
-		logOperationResult(opId, C.GoString(result))
+		if errormsg != nil {
+			logOperationResult(ctx, opId, C.GoString(errormsg))
+		}
 	}()
 
 	// get the contract address
@@ -232,6 +234,7 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 		return -1, C.CString("[Contract.LuaCallContract] invalid contractId: " + err.Error())
 	}
 	aid := types.ToAccountID(cid)
+	contractAddress = types.EncodeAddress(cid)
 
 	// read the amount for the contract call
 	amountBig, err := transformAmount(amountStr, ctx.blockInfo.ForkVersion)
@@ -261,11 +264,17 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 		return -1, C.CString("[Contract.LuaCallContract] invalid arguments: " + err.Error())
 	}
 
+	logInternalCall(ctx, contractAddress, fnameStr, argsStr)
+
 	// get the remaining gas from the parent LState
 	ctx.refreshRemainingGas(L)
 	// create a new executor with the remaining gas on the child LState
 	ce := newExecutor(bytecode, cid, ctx, &ci, amountBig, false, false, cs.ctrState)
 	defer func() {
+		// save the result if the call was successful
+		if ce.preErr == nil && ce.err == nil {
+			logOperationResult(ctx, opId, ce.jsonRet)
+		}
 		// close the executor, closes also the child LState
 		ce.close()
 		// set the remaining gas on the parent LState
@@ -310,7 +319,7 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 
 	// execute the contract call
 	defer setInstCount(ctx, L, ce.L)
-	ret := ce.call(minusCallCount(ctx, C.vm_instcount(L), luaCallCountDeduc), L)
+	ret = ce.call(minusCallCount(ctx, C.vm_instcount(L), luaCallCountDeduc), L)
 
 	// check if the contract call failed
 	if ce.err != nil {
@@ -342,7 +351,7 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 
 //export luaDelegateCallContract
 func luaDelegateCallContract(L *LState, service C.int, contractId *C.char,
-	fname *C.char, args *C.char, gas uint64) (C.int, *C.char) {
+	fname *C.char, args *C.char, gas uint64) (ret C.int, errormsg *C.char) {
 	contractIdStr := C.GoString(contractId)
 	fnameStr := C.GoString(fname)
 	argsStr := C.GoString(args)
@@ -358,7 +367,9 @@ func luaDelegateCallContract(L *LState, service C.int, contractId *C.char,
 
 	opId := logOperation(ctx, "", "delegate-call", contractIdStr, fnameStr, argsStr)
 	defer func() {
-		logOperationResult(opId, C.GoString(result))
+		if errormsg != nil {
+			logOperationResult(ctx, opId, C.GoString(errormsg))
+		}
 	}()
 
 	// get the contract address
@@ -372,6 +383,7 @@ func luaDelegateCallContract(L *LState, service C.int, contractId *C.char,
 		if err != nil {
 			return -1, C.CString("[Contract.LuaDelegateCallContract] invalid contractId: " + err.Error())
 		}
+		contractIdStr = types.EncodeAddress(cid)
 	}
 	aid := types.ToAccountID(cid)
 
@@ -409,11 +421,17 @@ func luaDelegateCallContract(L *LState, service C.int, contractId *C.char,
 		return -1, C.CString("[Contract.LuaDelegateCallContract] invalid arguments: " + err.Error())
 	}
 
+	logInternalCall(ctx, contractIdStr, fnameStr, argsStr)
+
 	// get the remaining gas from the parent LState
 	ctx.refreshRemainingGas(L)
 	// create a new executor with the remaining gas on the child LState
 	ce := newExecutor(bytecode, cid, ctx, &ci, zeroBig, false, false, contractState)
 	defer func() {
+		// save the result if the call was successful
+		if ce.preErr == nil && ce.err == nil {
+			logOperationResult(ctx, opId, ce.jsonRet)
+		}
 		// close the executor, closes also the child LState
 		ce.close()
 		// set the remaining gas on the parent LState
@@ -435,7 +453,7 @@ func luaDelegateCallContract(L *LState, service C.int, contractId *C.char,
 
 	// execute the contract call
 	defer setInstCount(ctx, L, ce.L)
-	ret := ce.call(minusCallCount(ctx, C.vm_instcount(L), luaCallCountDeduc), L)
+	ret = ce.call(minusCallCount(ctx, C.vm_instcount(L), luaCallCountDeduc), L)
 
 	// check if the contract call failed
 	if ce.err != nil {
@@ -482,7 +500,7 @@ func getAddressNameResolved(account string, bs *state.BlockState) ([]byte, error
 }
 
 //export luaSendAmount
-func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char) result *C.char {
+func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char) (errormsg *C.char) {
 	contractAddress := C.GoString(contractId)
 	amountStr := C.GoString(amount)
 
@@ -493,7 +511,9 @@ func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char)
 
 	opId := logOperation(ctx, amountStr, "send", contractAddress)
 	defer func() {
-		logOperationResult(opId, C.GoString(result))
+		if errormsg != nil {
+			logOperationResult(ctx, opId, C.GoString(errormsg))
+		}
 	}()
 
 	// read the amount to be sent
@@ -512,6 +532,7 @@ func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char)
 	if err != nil {
 		return C.CString("[Contract.LuaSendAmount] invalid contractId: " + err.Error())
 	}
+	contractAddress = types.EncodeAddress(cid)
 
 	// get the receiver state
 	aid := types.ToAccountID(cid)
@@ -545,11 +566,17 @@ func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char)
 			return C.CString("[Contract.LuaSendAmount] cannot find contract:" + contractAddress)
 		}
 
+		logInternalCall(ctx, contractAddress, "default", "[]")
+
 		// get the remaining gas from the parent LState
 		ctx.refreshRemainingGas(L)
 		// create a new executor with the remaining gas on the child LState
 		ce := newExecutor(bytecode, cid, ctx, &ci, amountBig, false, false, cs.ctrState)
 		defer func() {
+			// save the result if the call was successful
+			if ce.preErr == nil && ce.err == nil {
+				logOperationResult(ctx, opId, ce.jsonRet)
+			}
 			// close the executor, closes also the child LState
 			ce.close()
 			// set the remaining gas on the parent LState
@@ -1135,7 +1162,7 @@ func luaDeployContract(
 	contract *C.char,
 	args *C.char,
 	amount *C.char,
-) (C.int, result *C.char) {
+) (ret C.int, errormsg *C.char) {
 
 	contractStr := C.GoString(contract)
 	argsStr := C.GoString(args)
@@ -1152,7 +1179,9 @@ func luaDeployContract(
 
 	opId := logOperation(ctx, amountStr, "deploy", contractStr, argsStr)
 	defer func() {
-		logOperationResult(opId, C.GoString(result))
+		if errormsg != nil {
+			logOperationResult(ctx, opId, C.GoString(errormsg))
+		}
 	}()
 
 	// contract code
@@ -1284,11 +1313,17 @@ func luaDeployContract(
 		return -1, C.CString("[Contract.LuaDeployContract]:" + err.Error())
 	}
 
+	logInternalCall(ctx, types.EncodeAddress(newContract.ID()), "constructor", argsStr)
+
 	// get the remaining gas from the parent LState
 	ctx.refreshRemainingGas(L)
 	// create a new executor with the remaining gas on the child LState
 	ce := newExecutor(bytecode, newContract.ID(), ctx, &ci, amountBig, true, false, contractState)
 	defer func() {
+		// save the result if the call was successful
+		if ce.preErr == nil && ce.err == nil {
+			logOperationResult(ctx, opId, ce.jsonRet)
+		}
 		// close the executor, which will close the child LState
 		ce.close()
 		// set the remaining gas on the parent LState
@@ -1310,7 +1345,7 @@ func luaDeployContract(
 	senderState.SetNonce(senderState.Nonce() + 1)
 
 	addr := C.CString(types.EncodeAddress(newContract.ID()))
-	ret := C.int(1)
+	ret = C.int(1)
 
 	if ce != nil {
 		// run the constructor
