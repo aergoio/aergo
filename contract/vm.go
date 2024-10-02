@@ -1096,6 +1096,9 @@ func Call(
 		if ok {
 			contractState.SetAccountID(specialTxn.newAccount)
 			contractState.State.Balance = specialTxn.amount
+			baseFee := fee.TxBaseFee(ctx.blockInfo.ForkVersion, ctx.bs.GasPrice, len(payload))
+			baseGas := fee.CalcGas(baseFee, ctx.bs.GasPrice)
+			specialTxn.usedGas -= baseGas.Uint64()
 			ctx.remainedGas = ctx.gasLimit - specialTxn.usedGas
 		} else {
 			startTime := time.Now()
