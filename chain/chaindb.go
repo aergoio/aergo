@@ -665,6 +665,11 @@ func (cdb *ChainDB) checkExistReceipts(blockHash []byte, blockNo types.BlockNo) 
 	return true
 }
 
+func (cdb *ChainDB) getInternalOperations(blockNo types.BlockNo) string {
+	data := cdb.store.Get(dbkey.InternalOps(blockNo))
+	return string(data)
+}
+
 type ChainTree struct {
 	Tree []ChainInfo
 }
