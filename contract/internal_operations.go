@@ -51,6 +51,9 @@ func getCurrentCall(ctx *vmContext) *InternalCall {
 		if depth == ctx.callDepth {
 			return opCall
 		}
+		if len(opCall.Operations) == 0 {
+			break
+		}
 		opCall = &opCall.Operations[len(opCall.Operations)-1].Call
 		depth++
 	}
@@ -97,6 +100,10 @@ func logOperationResult(ctx *vmContext, operationId int64, result string) {
 	defer opsLock.Unlock()
 
 	opCall := getCurrentCall(ctx)
+	if opCall == nil {
+		log.Printf("no call found")
+		return
+	}
 
 	for i := range opCall.Operations {
 		if opCall.Operations[i].Id == operationId {
@@ -114,6 +121,10 @@ func logInternalCall(ctx *vmContext, contract string, function string, args stri
 	}
 
 	opCall := getCurrentCall(ctx)
+	if opCall == nil {
+		log.Printf("no call found")
+		return nil
+	}
 
 	// get the last operation
 	op := &opCall.Operations[len(opCall.Operations)-1]
