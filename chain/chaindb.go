@@ -691,12 +691,28 @@ func (cdb *ChainDB) GetChainTree() ([]byte, error) {
 	return jsonBytes, nil
 }
 
-func (cdb *ChainDB) writeReceipts(blockHash []byte, blockNo types.BlockNo, receipts *types.Receipts) {
+func (cdb *ChainDB) writeReceiptsAndOperations(block *types.Block, receipts *types.Receipts, internalOps string) {
+	hasReceipts := len(receipts.Get()) != 0
+	hasInternalOps := len(internalOps) != 0
+
+	if !hasReceipts && !hasInternalOps {
+		return
+	}
+
 	dbTx := cdb.store.NewTx()
 	defer dbTx.Discard()
 
-	val, _ := gob.Encode(receipts)
-	dbTx.Set(dbkey.Receipts(blockHash, blockNo), val)
+	blockHash := block.BlockHash()
+	blockNo := block.BlockNo()
+
+	if hasReceipts {
+		val, _ := gob.Encode(receipts)
+		dbTx.Set(dbkey.Receipts(blockHash, blockNo), val)
+	}
+
+	if hasInternalOps {
+		dbTx.Set(dbkey.InternalOps(blockNo), []byte(internalOps))
+	}
 
 	dbTx.Commit()
 }
