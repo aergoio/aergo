@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/aergoio/aergo/v2/types/dbkey"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 )
 
 type InternalOperation struct {
@@ -26,6 +26,11 @@ type InternalCall struct {
 	Operations []InternalOperation `json:"operations"`
 }
 
+type InternalOperations struct {
+	TxHash    string   `json:"txhash"`
+	Contract  string   `json:"contract"`
+	Operations []InternalOperation `json:"operations"`
+}
 
 var (
 	opsLock      sync.Mutex
@@ -123,25 +128,28 @@ func logInternalCall(ctx *vmContext, contract string, function string, args stri
 	return nil
 }
 
-func saveOperations(ctx *vmContext) {
+func getInternalOperations(ctx *vmContext) string {
 	if doNotLog(ctx) {
-		return
+		return ""
+	}
+	if len(ctx.internalOpsCall.Operations) == 0 {
+		return ""
 	}
 
 	opsLock.Lock()
 	defer opsLock.Unlock()
 
-	ctx.internalOpsCall.Contract = types.EncodeAddress(ctx.curContract.contractId)
-	//ctx.internalOpsCall.Function = ctx.Function
+	internalOps := InternalOperations{
+		TxHash: base58.Encode(ctx.txHash),
+		Contract: types.EncodeAddress(ctx.curContract.contractId),
+		Operations: ctx.internalOpsCall.Operations,
+	}
 
-	data, err := json.Marshal(ctx.internalOpsCall)
+	data, err := json.Marshal(internalOps)
 	if err != nil {
 		log.Fatal("Failed to marshal operations:", err)
-		return
+		return ""
 	}
 
-	err = db.Set(dbkey.InternalOps(ctx.txHash), data)
-	if err != nil {
-		log.Fatal("Failed to save operations to database:", err)
-	}
+	return string(data)
 }

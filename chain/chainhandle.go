@@ -811,9 +811,7 @@ func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Bloc
 		return err
 	}
 
-	if len(ex.BlockState.Receipts().Get()) != 0 {
-		cs.cdb.writeReceipts(block.BlockHash(), block.BlockNo(), ex.BlockState.Receipts())
-	}
+	cs.cdb.writeReceiptsAndOperations(block, ex.BlockState.Receipts(), ex.BlockState.InternalOps())
 
 	cs.notifyEvents(block, ex.BlockState)
 
@@ -1007,11 +1005,12 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 
 	var txFee *big.Int
 	var rv string
+	var internalOps string
 	var events []*types.Event
 
 	switch txBody.Type {
 	case types.TxType_NORMAL, types.TxType_TRANSFER, types.TxType_CALL, types.TxType_MULTICALL, types.TxType_DEPLOY, types.TxType_REDEPLOY:
-		rv, events, txFee, err = contract.Execute(execCtx, bs, cdb, tx.GetTx(), sender, receiver, bi, executionMode, false)
+		rv, events, internalOps, txFee, err = contract.Execute(execCtx, bs, cdb, tx.GetTx(), sender, receiver, bi, executionMode, false)
 		sender.SubBalance(txFee)
 	case types.TxType_GOVERNANCE:
 		txFee = new(big.Int).SetUint64(0)
@@ -1039,7 +1038,7 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 			}
 			return types.ErrNotAllowedFeeDelegation
 		}
-		rv, events, txFee, err = contract.Execute(execCtx, bs, cdb, tx.GetTx(), sender, receiver, bi, executionMode, true)
+		rv, events, _, txFee, err = contract.Execute(execCtx, bs, cdb, tx.GetTx(), sender, receiver, bi, executionMode, true)
 		receiver.SubBalance(txFee)
 	}
 
@@ -1093,6 +1092,10 @@ func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb
 		rv = adjustRv(rv)
 	}
 	bs.BpReward.Add(&bs.BpReward, txFee)
+
+	if len(internalOps) > 0 {
+		bs.AddInternalOps(internalOps)
+	}
 
 	receipt := types.NewReceipt(receiver.ID(), status, rv)
 	receipt.FeeUsed = txFee.Bytes()

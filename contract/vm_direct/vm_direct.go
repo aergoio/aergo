@@ -485,7 +485,7 @@ func executeTx(
 	var events []*types.Event
 	switch txBody.Type {
 	case types.TxType_NORMAL, types.TxType_REDEPLOY, types.TxType_TRANSFER, types.TxType_CALL, types.TxType_DEPLOY:
-		rv, events, txFee, err = contract.Execute(execCtx, bs, cdb, tx.GetTx(), sender, receiver, bi, executionMode, false)
+		rv, events, internalOps, txFee, err = contract.Execute(execCtx, bs, cdb, tx.GetTx(), sender, receiver, bi, executionMode, false)
 		sender.SubBalance(txFee)
 	case types.TxType_GOVERNANCE:
 		txFee = new(big.Int).SetUint64(0)
@@ -512,7 +512,7 @@ func executeTx(
 			}
 			return types.ErrNotAllowedFeeDelegation
 		}
-		rv, events, txFee, err = contract.Execute(execCtx, bs, cdb, tx.GetTx(), sender, receiver, bi, executionMode, true)
+		rv, events, _, txFee, err = contract.Execute(execCtx, bs, cdb, tx.GetTx(), sender, receiver, bi, executionMode, true)
 		receiver.SubBalance(txFee)
 	}
 
@@ -566,6 +566,10 @@ func executeTx(
 		rv = adjustReturnValue(rv)
 	}
 	bs.BpReward.Add(&bs.BpReward, txFee)
+
+	if len(internalOps) > 0 {
+		bs.AddInternalOps(internalOps)
+	}
 
 	receipt := types.NewReceipt(receiver.ID(), status, rv)
 	receipt.FeeUsed = txFee.Bytes()
