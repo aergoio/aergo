@@ -1397,7 +1397,9 @@ func luaRandomInt(min, max, service C.int) C.int {
 }
 
 //export luaEvent
-func luaEvent(L *LState, service C.int, eventName *C.char, args *C.char) *C.char {
+func luaEvent(L *LState, service C.int, name *C.char, args *C.char) *C.char {
+	eventName := C.GoString(name)
+	eventArgs := C.GoString(args)
 	ctx := contexts[service]
 	if ctx.isQuery == true || ctx.nestedView > 0 {
 		return C.CString("[Contract.Event] event not permitted in query")
@@ -1405,10 +1407,10 @@ func luaEvent(L *LState, service C.int, eventName *C.char, args *C.char) *C.char
 	if ctx.eventCount >= maxEventCnt(ctx) {
 		return C.CString(fmt.Sprintf("[Contract.Event] exceeded the maximum number of events(%d)", maxEventCnt(ctx)))
 	}
-	if len(C.GoString(eventName)) > maxEventNameSize {
+	if len(eventName) > maxEventNameSize {
 		return C.CString(fmt.Sprintf("[Contract.Event] exceeded the maximum length of event name(%d)", maxEventNameSize))
 	}
-	if len(C.GoString(args)) > maxEventArgSize {
+	if len(eventArgs) > maxEventArgSize {
 		return C.CString(fmt.Sprintf("[Contract.Event] exceeded the maximum length of event args(%d)", maxEventArgSize))
 	}
 	ctx.events = append(
@@ -1416,11 +1418,12 @@ func luaEvent(L *LState, service C.int, eventName *C.char, args *C.char) *C.char
 		&types.Event{
 			ContractAddress: ctx.curContract.contractId,
 			EventIdx:        ctx.eventCount,
-			EventName:       C.GoString(eventName),
-			JsonArgs:        C.GoString(args),
+			EventName:       eventName,
+			JsonArgs:        eventArgs,
 		},
 	)
 	ctx.eventCount++
+	logOperation(ctx, "", "event", eventName, eventArgs)
 	return nil
 }
 
@@ -1522,7 +1525,7 @@ func luaNameResolve(L *LState, service C.int, name_or_address *C.char) *C.char {
 }
 
 //export luaGovernance
-func luaGovernance(L *LState, service C.int, gType C.char, arg *C.char) *C.char {
+func luaGovernance(L *LState, service C.int, gType C.char, arg *C.char) (errormsg *C.char) {
 
 	ctx := contexts[service]
 	if ctx == nil {
@@ -1535,6 +1538,7 @@ func luaGovernance(L *LState, service C.int, gType C.char, arg *C.char) *C.char 
 
 	var amountBig *big.Int
 	var payload []byte
+	var opId int64
 
 	switch gType {
 	case 'S', 'U':
@@ -1545,16 +1549,26 @@ func luaGovernance(L *LState, service C.int, gType C.char, arg *C.char) *C.char 
 		}
 		if gType == 'S' {
 			payload = []byte(fmt.Sprintf(`{"Name":"%s"}`, types.Opstake.Cmd()))
+			opId = logOperation(ctx, "", "stake", amountBig.String())
 		} else {
 			payload = []byte(fmt.Sprintf(`{"Name":"%s"}`, types.Opunstake.Cmd()))
+			opId = logOperation(ctx, "", "unstake", amountBig.String())
 		}
 	case 'V':
 		amountBig = zeroBig
 		payload = []byte(fmt.Sprintf(`{"Name":"%s","Args":%s}`, types.OpvoteBP.Cmd(), C.GoString(arg)))
+		opId = logOperation(ctx, "", "vote", C.GoString(arg))
 	case 'D':
 		amountBig = zeroBig
 		payload = []byte(fmt.Sprintf(`{"Name":"%s","Args":%s}`, types.OpvoteDAO.Cmd(), C.GoString(arg)))
+		opId = logOperation(ctx, "", "voteDAO", C.GoString(arg))
 	}
+
+	defer func() {
+		if errormsg != nil {
+			logOperationResult(ctx, opId, C.GoString(errormsg))
+		}
+	}()
 
 	cid := []byte(types.AergoSystem)
 	aid := types.ToAccountID(cid)
