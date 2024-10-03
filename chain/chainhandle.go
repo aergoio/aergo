@@ -278,6 +278,20 @@ func (cs *ChainService) listEvents(filter *types.FilterInfo) ([]*types.Event, er
 	return events, nil
 }
 
+func (cs *ChainService) getInternalOperations(blockNo types.BlockNo) (string, error) {
+	blockInMainChain, err := cs.cdb.GetBlockByNo(blockNo)
+	if err != nil {
+		return "", &ErrNoBlock{blockNo}
+	}
+
+	block, err := cs.cdb.getBlock(blockInMainChain.BlockHash())
+	if !bytes.Equal(block.BlockHash(), blockInMainChain.BlockHash()) {
+		return "", errors.New("internal operations not found")
+	}
+
+	return cs.cdb.getInternalOperations(blockNo), nil
+}
+
 type chainProcessor struct {
 	*ChainService
 	block       *types.Block // starting block
