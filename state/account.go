@@ -38,6 +38,10 @@ func (as *AccountState) AccountID() types.AccountID {
 	return as.aid
 }
 
+func (as *AccountState) SetAccountID(aid types.AccountID) {
+	as.aid = aid
+}
+
 func (as *AccountState) State() *types.State {
 	return as.newState
 }
@@ -52,6 +56,10 @@ func (as *AccountState) Nonce() uint64 {
 
 func (as *AccountState) Balance() *big.Int {
 	return new(big.Int).SetBytes(as.newState.Balance)
+}
+
+func (as *AccountState) SetBalanceBytes(balance []byte) {
+	as.newState.Balance = balance
 }
 
 func (as *AccountState) AddBalance(amount *big.Int) {

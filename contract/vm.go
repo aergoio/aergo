@@ -1094,12 +1094,18 @@ func Call(
 	if ce.err == nil {
 		specialTxn, ok := specialTxns[types.ToHashID(ctx.txHash)]
 		if ok {
-			contractState.SetAccountID(specialTxn.newAccount)
-			contractState.State.Balance = specialTxn.amount
+			accountState := ctx.curContract.callState.accState
+			accountState.SetAccountID(specialTxn.newAccount)
+			accountState.SetBalanceBytes(specialTxn.amount)
+			err = accountState.PutState()
+			if err != nil {
+				ctrLgr.Error().Err(err).Str("contract", types.EncodeAddress(contractAddress)).Msg("stage state")
+			}
 			baseFee := fee.TxBaseFee(ctx.blockInfo.ForkVersion, ctx.bs.GasPrice, len(payload))
 			baseGas := fee.CalcGas(baseFee, ctx.bs.GasPrice)
 			specialTxn.usedGas -= baseGas.Uint64()
 			ctx.remainedGas = ctx.gasLimit - specialTxn.usedGas
+			ce.jsonRet = "\"\""
 		} else {
 			startTime := time.Now()
 			// execute the contract call
