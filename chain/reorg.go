@@ -491,7 +491,7 @@ func (reorg *reorganizer) rollback() error {
 func (reorg *reorganizer) deleteOldReceipts() {
 	dbTx := reorg.cs.cdb.NewTx()
 	for _, blk := range reorg.oldBlocks {
-		reorg.cs.cdb.deleteReceipts(&dbTx, blk.GetHash(), blk.BlockNo())
+		reorg.cs.cdb.deleteReceiptsAndOperations(&dbTx, blk.GetHash(), blk.BlockNo())
 	}
 	dbTx.Commit()
 }
