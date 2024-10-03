@@ -185,6 +185,7 @@ type IChainHandler interface {
 	getReceipt(txHash []byte) (*types.Receipt, error)
 	getReceipts(blockHash []byte) (*types.Receipts, error)
 	getReceiptsByNo(blockNo types.BlockNo) (*types.Receipts, error)
+	getInternalOperations(blockNo types.BlockNo) (string, error)
 	getAccountVote(addr []byte) (*types.AccountVoteInfo, error)
 	getVotes(id string, n uint32) (*types.VoteList, error)
 	getStaking(addr []byte) (*types.Staking, error)
@@ -447,6 +448,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 		*message.GetReceipt,
 		*message.GetReceipts,
 		*message.GetReceiptsByNo,
+		*message.GetInternalOperations,
 		*message.GetABI,
 		*message.GetQuery,
 		*message.GetStateQuery,
@@ -814,6 +816,12 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		context.Respond(message.GetReceiptsByNoRsp{
 			Receipts: receipts,
 			Err:      err,
+		})
+	case *message.GetInternalOperations:
+		operations, err := cw.getInternalOperations(msg.BlockNo)
+		context.Respond(message.GetInternalOperationsRsp{
+			Operations: operations,
+			Err:        err,
 		})
 	case *message.GetABI:
 		sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetRoot())

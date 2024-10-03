@@ -1067,6 +1067,22 @@ func (rpc *AergoRPCService) GetReceipt(ctx context.Context, in *types.SingleByte
 	return rsp.Receipt, rsp.Err
 }
 
+func (rpc *AergoRPCService) GetInternalOperations(ctx context.Context, in *types.BlockNo) (*types.SingleBytes, error) {
+	if err := rpc.checkAuth(ctx, ReadBlockChain); err != nil {
+		return nil, err
+	}
+	result, err := rpc.hub.RequestFuture(message.ChainSvc,
+		&message.GetInternalOperations{BlockNo: *in}, defaultActorTimeout, "rpc.(*AergoRPCService).GetInternalOperations").Result()
+	if err != nil {
+		return nil, err
+	}
+	rsp, ok := result.(message.GetInternalOperationsRsp)
+	if !ok {
+		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
+	}
+	return &types.SingleBytes{Value: []byte(rsp.Operations)}, rsp.Err
+}
+
 func (rpc *AergoRPCService) GetABI(ctx context.Context, in *types.SingleBytes) (*types.ABI, error) {
 	if err := rpc.checkAuth(ctx, ReadBlockChain); err != nil {
 		return nil, err
