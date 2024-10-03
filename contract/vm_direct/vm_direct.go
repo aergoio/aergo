@@ -482,7 +482,9 @@ func executeTx(
 
 	var txFee *big.Int
 	var rv string
+	var internalOps string
 	var events []*types.Event
+
 	switch txBody.Type {
 	case types.TxType_NORMAL, types.TxType_REDEPLOY, types.TxType_TRANSFER, types.TxType_CALL, types.TxType_DEPLOY:
 		rv, events, internalOps, txFee, err = contract.Execute(execCtx, bs, cdb, tx.GetTx(), sender, receiver, bi, executionMode, false)
