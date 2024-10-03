@@ -520,7 +520,7 @@ func (cdb *ChainDB) dropBlock(dropNo types.BlockNo) error {
 	}
 
 	// remove receipt
-	cdb.deleteReceipts(&dbTx, dropBlock.BlockHash(), dropBlock.BlockNo())
+	cdb.deleteReceiptsAndOperations(&dbTx, dropBlock.BlockHash(), dropBlock.BlockNo())
 
 	// remove (hash/block)
 	dbTx.Delete(dropBlock.BlockHash())
@@ -717,8 +717,9 @@ func (cdb *ChainDB) writeReceiptsAndOperations(block *types.Block, receipts *typ
 	dbTx.Commit()
 }
 
-func (cdb *ChainDB) deleteReceipts(dbTx *db.Transaction, blockHash []byte, blockNo types.BlockNo) {
+func (cdb *ChainDB) deleteReceiptsAndOperations(dbTx *db.Transaction, blockHash []byte, blockNo types.BlockNo) {
 	(*dbTx).Delete(dbkey.Receipts(blockHash, blockNo))
+	(*dbTx).Delete(dbkey.InternalOps(blockNo))
 }
 
 func (cdb *ChainDB) writeReorgMarker(marker *ReorgMarker) error {
