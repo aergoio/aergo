@@ -41,17 +41,19 @@ func doNotLog(ctx *vmContext) bool {
 	return ctx.isQuery
 }
 
-func getCurrentCall(ctx *vmContext) *InternalCall {
+func getCurrentCall(ctx *vmContext, callDepth int32) *InternalCall {
 	var depth int32 = 1
 	opCall := &ctx.internalOpsCall
 	for {
 		if opCall == nil {
+			log.Printf("no call found at depth %d", depth)
 			break
 		}
-		if depth == ctx.callDepth {
+		if depth == callDepth {
 			return opCall
 		}
 		if len(opCall.Operations) == 0 {
+			log.Printf("no operations found at depth %d", depth)
 			break
 		}
 		opCall = &opCall.Operations[len(opCall.Operations)-1].Call
@@ -80,7 +82,7 @@ func logOperation(ctx *vmContext, amount string, operation string, args ...strin
 		Args:      args,
 	}
 
-	opCall := getCurrentCall(ctx)
+	opCall := getCurrentCall(ctx, ctx.callDepth)
 	if opCall == nil {
 		log.Printf("no call found")
 		return 0
@@ -99,20 +101,21 @@ func logOperationResult(ctx *vmContext, operationId int64, result string) {
 	opsLock.Lock()
 	defer opsLock.Unlock()
 
-	opCall := getCurrentCall(ctx)
-	if opCall == nil {
-		log.Printf("no call found")
-		return
-	}
-
-	for i := range opCall.Operations {
-		if opCall.Operations[i].Id == operationId {
-			opCall.Operations[i].Result = result
-			return
+	// try with the last and the previous call depth
+	for callDepth := ctx.callDepth; callDepth >= ctx.callDepth - 1; callDepth-- {
+		opCall := getCurrentCall(ctx, callDepth)
+		if opCall == nil {
+			continue
+		}
+		for i := range opCall.Operations {
+			if opCall.Operations[i].Id == operationId {
+				opCall.Operations[i].Result = result
+				return
+			}
 		}
 	}
 
-	log.Printf("No operation found with ID %d", operationId)
+	log.Printf("no operation found with ID %d to store result", operationId)
 }
 
 func logInternalCall(ctx *vmContext, contract string, function string, args string) error {
@@ -120,7 +123,7 @@ func logInternalCall(ctx *vmContext, contract string, function string, args stri
 		return nil
 	}
 
-	opCall := getCurrentCall(ctx)
+	opCall := getCurrentCall(ctx, ctx.callDepth)
 	if opCall == nil {
 		log.Printf("no call found")
 		return nil
