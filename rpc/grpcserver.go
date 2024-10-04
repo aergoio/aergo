@@ -1067,12 +1067,12 @@ func (rpc *AergoRPCService) GetReceipt(ctx context.Context, in *types.SingleByte
 	return rsp.Receipt, rsp.Err
 }
 
-func (rpc *AergoRPCService) GetInternalOperations(ctx context.Context, in *types.BlockNo) (*types.SingleBytes, error) {
+func (rpc *AergoRPCService) GetInternalOperations(ctx context.Context, in *types.BlockNumberParam) (*types.SingleBytes, error) {
 	if err := rpc.checkAuth(ctx, ReadBlockChain); err != nil {
 		return nil, err
 	}
 	result, err := rpc.hub.RequestFuture(message.ChainSvc,
-		&message.GetInternalOperations{BlockNo: *in}, defaultActorTimeout, "rpc.(*AergoRPCService).GetInternalOperations").Result()
+		&message.GetInternalOperations{BlockNo: in.BlockNo}, defaultActorTimeout, "rpc.(*AergoRPCService).GetInternalOperations").Result()
 	if err != nil {
 		return nil, err
 	}
