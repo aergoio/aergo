@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/aergoio/aergo/v2/config"
 	"github.com/aergoio/aergo/v2/internal/enc/hex"
 	"math/big"
 	"sort"
@@ -740,7 +741,7 @@ func (e *blockExecutor) execute() error {
 		}
 
 		// FIXME change block number
-		if mainNet && e.bi.No == 161150050 {
+		if mainNet && e.bi.No == config.FixAccountHeight {
 			ResetAccounts(e.BlockState)
 		}
 

@@ -22,6 +22,9 @@ var (
 		V2: types.BlockNo(0),
 		V3: types.BlockNo(0),
 	}
+
+	// block height at which account should be fixed, for debug_aergo only.
+	FixAccountHeight types.BlockNo = 171905047
 )
 
 const hardforkConfigTmpl = `[hardfork]
