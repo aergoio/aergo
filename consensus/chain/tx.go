@@ -8,13 +8,14 @@ package chain
 import (
 	"context"
 	"errors"
+	"github.com/aergoio/aergo/v2/config"
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/v2/chain"
 	"github.com/aergoio/aergo/v2/contract"
-	"github.com/aergoio/aergo/v2/internal/enc/proto"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/internal/enc/proto"
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
@@ -203,7 +204,7 @@ func (g *BlockGenerator) GatherTXs() ([]types.Transaction, error) {
 		nCollected = len(txRes)
 	}
 
-	if chain.IsMainNet() && g.bi.No == 161150050 {
+	if chain.IsMainNet() && g.bi.No == config.FixAccountHeight {
 		logger.Info().Str("state-root-hash", base58.Encode(bState.GetRoot())).Msg("before")
 		chain.ResetAccounts(bState)
 	}
