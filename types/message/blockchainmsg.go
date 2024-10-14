@@ -93,6 +93,14 @@ type GetReceiptsByNo struct {
 }
 type GetReceiptsByNoRsp GetReceiptsRsp
 
+type GetInternalOperations struct {
+	BlockNo types.BlockNo
+}
+type GetInternalOperationsRsp struct {
+	Operations string
+	Err        error
+}
+
 type GetABI struct {
 	Contract []byte
 }

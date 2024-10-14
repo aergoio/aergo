@@ -1,6 +1,7 @@
 package state
 
 import (
+	"strings"
 	"math/big"
 
 	"github.com/aergoio/aergo/v2/consensus"
@@ -15,6 +16,7 @@ type BlockState struct {
 	*statedb.StateDB
 	BpReward      big.Int // final bp reward, increment when tx executes
 	receipts      types.Receipts
+	internalOps   []string
 	CCProposal    *consensus.ConfChangePropose
 	prevBlockHash []byte
 	consensus     []byte // Consensus Header
@@ -78,6 +80,17 @@ func (bs *BlockState) Consensus() []byte {
 
 func (bs *BlockState) SetConsensus(ch []byte) {
 	bs.consensus = ch
+}
+
+func (bs *BlockState) AddInternalOps(txops string) {
+	bs.internalOps = append(bs.internalOps, txops)
+}
+
+func (bs *BlockState) InternalOps() string {
+	if bs == nil || len(bs.internalOps) == 0 {
+		return ""
+	}
+	return "[" + strings.Join(bs.internalOps, ",") + "]"
 }
 
 func (bs *BlockState) AddReceipt(r *types.Receipt) error {

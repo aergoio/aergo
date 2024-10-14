@@ -47,7 +47,7 @@ func Execute(
 	bi *types.BlockHeaderInfo,
 	executionMode int,
 	isFeeDelegation bool,
-) (rv string, events []*types.Event, usedFee *big.Int, err error) {
+) (rv string, events []*types.Event, internalOps string, usedFee *big.Int, err error) {
 
 	var (
 		txBody     = tx.GetBody()
@@ -106,9 +106,9 @@ func Execute(
 
 	// execute the transaction
 	if receiver.IsDeploy() {
-		rv, events, ctrFee, err = Create(contractState, txPayload, receiver.ID(), ctx)
+		rv, events, internalOps, ctrFee, err = Create(contractState, txPayload, receiver.ID(), ctx)
 	} else {
-		rv, events, ctrFee, err = Call(contractState, txPayload, receiver.ID(), ctx)
+		rv, events, internalOps, ctrFee, err = Call(contractState, txPayload, receiver.ID(), ctx)
 	}
 
 	// close the trace file
@@ -118,7 +118,7 @@ func Execute(
 
 	// check if the execution fee is negative
 	if ctrFee != nil && ctrFee.Sign() < 0 {
-		return "", events, usedFee, ErrVmStart
+		return "", events, internalOps, usedFee, ErrVmStart
 	}
 	// add the execution fee to the total fee
 	usedFee.Add(usedFee, ctrFee)
@@ -126,19 +126,19 @@ func Execute(
 	// check if the execution failed
 	if err != nil {
 		if isSystemError(err) {
-			return "", events, usedFee, err
+			return "", events, internalOps, usedFee, err
 		}
-		return "", events, usedFee, newVmError(err)
+		return "", events, internalOps, usedFee, newVmError(err)
 	}
 
 	// check for sufficient balance for fee
 	if isFeeDelegation {
 		if receiver.Balance().Cmp(usedFee) < 0 {
-			return "", events, usedFee, newVmError(types.ErrInsufficientBalance)
+			return "", events, internalOps, usedFee, newVmError(types.ErrInsufficientBalance)
 		}
 	} else {
 		if sender.Balance().Cmp(usedFee) < 0 {
-			return "", events, usedFee, newVmError(types.ErrInsufficientBalance)
+			return "", events, internalOps, usedFee, newVmError(types.ErrInsufficientBalance)
 		}
 	}
 
@@ -146,12 +146,12 @@ func Execute(
 		// save the contract state
 		err = statedb.StageContractState(contractState, bs.StateDB)
 		if err != nil {
-			return "", events, usedFee, err
+			return "", events, internalOps, usedFee, err
 		}
 	}
 
 	// return the result
-	return rv, events, usedFee, nil
+	return rv, events, internalOps, usedFee, nil
 }
 
 // check if the tx is valid and if the code should be executed
