@@ -54,7 +54,8 @@ var (
 )
 
 const (
-	maxEventCnt       = 50
+	maxEventCntV2     = 50
+	maxEventCntV4     = 128
 	maxEventNameSize  = 64
 	maxEventArgSize   = 4096
 	luaCallCountDeduc = 1000
@@ -64,6 +65,14 @@ func init() {
 	mulAergo = types.NewAmount(1, types.Aergo)
 	mulGaer = types.NewAmount(1, types.Gaer)
 	zeroBig = types.NewZeroAmount()
+}
+
+func maxEventCnt(ctx *vmContext) int32 {
+	if ctx.blockInfo.ForkVersion >= 4 {
+		return maxEventCntV4
+	} else {
+		return maxEventCntV2
+	}
 }
 
 //export luaSetDB
@@ -217,7 +226,7 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 	aid := types.ToAccountID(cid)
 
 	// read the amount for the contract call
-	amountBig, err := transformAmount(C.GoString(amount))
+	amountBig, err := transformAmount(C.GoString(amount), ctx.blockInfo.ForkVersion)
 	if err != nil {
 		return -1, C.CString("[Contract.LuaCallContract] invalid amount: " + err.Error())
 	}
@@ -229,8 +238,8 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 	}
 
 	// check if the contract exists
-	callee := getContract(cs.ctrState, ctx.bs)
-	if callee == nil {
+	bytecode := getContractCode(cs.ctrState, ctx.bs)
+	if bytecode == nil {
 		return -1, C.CString("[Contract.LuaCallContract] cannot find contract " + C.GoString(contractId))
 	}
 
@@ -247,7 +256,7 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 	// get the remaining gas from the parent LState
 	ctx.refreshRemainingGas(L)
 	// create a new executor with the remaining gas on the child LState
-	ce := newExecutor(callee, cid, ctx, &ci, amountBig, false, false, cs.ctrState)
+	ce := newExecutor(bytecode, cid, ctx, &ci, amountBig, false, false, cs.ctrState)
 	defer func() {
 		// close the executor, closes also the child LState
 		ce.close()
@@ -335,29 +344,54 @@ func luaDelegateCallContract(L *LState, service C.int, contractId *C.char,
 		return -1, C.CString("[Contract.LuaDelegateCallContract] contract state not found")
 	}
 
+	var isMultiCall bool
+	var cid []byte
+	var err error
+
 	// get the contract address
-	cid, err := getAddressNameResolved(contractIdStr, ctx.bs)
-	if err != nil {
-		return -1, C.CString("[Contract.LuaDelegateCallContract] invalid contractId: " + err.Error())
+	if contractIdStr == "multicall" {
+		isMultiCall = true
+		argsStr = fnameStr
+		fnameStr = "execute"
+		cid = ctx.curContract.contractId
+	} else {
+		cid, err = getAddressNameResolved(contractIdStr, ctx.bs)
+		if err != nil {
+			return -1, C.CString("[Contract.LuaDelegateCallContract] invalid contractId: " + err.Error())
+		}
 	}
 	aid := types.ToAccountID(cid)
 
 	// get the contract state
-	contractState, err := getOnlyContractState(ctx, cid)
+	var contractState *statedb.ContractState
+	if isMultiCall {
+		contractState = statedb.GetMultiCallState(cid, ctx.curContract.callState.ctrState.State)
+	} else {
+		contractState, err = getOnlyContractState(ctx, cid)
+	}
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDelegateCallContract]getContractState error" + err.Error())
 	}
 
-	// check if the contract exists
-	contract := getContract(contractState, ctx.bs)
-	if contract == nil {
+	// get the contract code
+	var bytecode []byte
+	if isMultiCall {
+		bytecode = getMultiCallContractCode(contractState)
+	} else {
+		bytecode = getContractCode(contractState, ctx.bs)
+	}
+	if bytecode == nil {
 		return -1, C.CString("[Contract.LuaDelegateCallContract] cannot find contract " + contractIdStr)
 	}
 
 	// read the arguments for the contract call
 	var ci types.CallInfo
-	ci.Name = fnameStr
-	err = getCallInfo(&ci.Args, []byte(argsStr), cid)
+	if isMultiCall {
+		err = getMultiCallInfo(&ci, []byte(argsStr))
+	} else {
+		ci.Name = fnameStr
+		err = getCallInfo(&ci.Args, []byte(argsStr), cid)
+	}
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDelegateCallContract] invalid arguments: " + err.Error())
 	}
@@ -365,7 +399,7 @@ func luaDelegateCallContract(L *LState, service C.int, contractId *C.char,
 	// get the remaining gas from the parent LState
 	ctx.refreshRemainingGas(L)
 	// create a new executor with the remaining gas on the child LState
-	ce := newExecutor(contract, cid, ctx, &ci, zeroBig, false, false, contractState)
+	ce := newExecutor(bytecode, cid, ctx, &ci, zeroBig, false, false, contractState)
 	defer func() {
 		// close the executor, closes also the child LState
 		ce.close()
@@ -443,7 +477,7 @@ func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char)
 	}
 
 	// read the amount to be sent
-	amountBig, err := transformAmount(C.GoString(amount))
+	amountBig, err := transformAmount(C.GoString(amount), ctx.blockInfo.ForkVersion)
 	if err != nil {
 		return C.CString("[Contract.LuaSendAmount] invalid amount: " + err.Error())
 	}
@@ -486,15 +520,15 @@ func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char)
 		ci.Name = "default"
 
 		// get the contract code
-		code := getContract(cs.ctrState, ctx.bs)
-		if code == nil {
+		bytecode := getContractCode(cs.ctrState, ctx.bs)
+		if bytecode == nil {
 			return C.CString("[Contract.LuaSendAmount] cannot find contract:" + C.GoString(contractId))
 		}
 
 		// get the remaining gas from the parent LState
 		ctx.refreshRemainingGas(L)
 		// create a new executor with the remaining gas on the child LState
-		ce := newExecutor(code, cid, ctx, &ci, amountBig, false, false, cs.ctrState)
+		ce := newExecutor(bytecode, cid, ctx, &ci, amountBig, false, false, cs.ctrState)
 		defer func() {
 			// close the executor, closes also the child LState
 			ce.close()
@@ -611,6 +645,10 @@ func luaSetRecoveryPoint(L *LState, service C.int) (C.int, *C.char) {
 		return 0, nil
 	}
 	curContract := ctx.curContract
+	// if it is the multicall code, ignore
+	if curContract.callState.ctrState.IsMultiCall() {
+		return 0, nil
+	}
 	seq, err := setRecoveryPoint(types.ToAccountID(curContract.contractId), ctx, nil,
 		curContract.callState, zeroBig, false, false)
 	if err != nil {
@@ -622,16 +660,16 @@ func luaSetRecoveryPoint(L *LState, service C.int) (C.int, *C.char) {
 	return C.int(seq), nil
 }
 
-func clearRecovery(L *LState, ctx *vmContext, start int, error bool) error {
+func clearRecovery(L *LState, ctx *vmContext, start int, isError bool) error {
 	item := ctx.lastRecoveryEntry
 	for {
-		if error {
+		if isError {
 			if item.recovery(ctx.bs) != nil {
 				return errors.New("database error")
 			}
 		}
 		if item.seq == start {
-			if error || item.prev == nil {
+			if isError || item.prev == nil {
 				ctx.lastRecoveryEntry = item.prev
 			}
 			return nil
@@ -644,16 +682,16 @@ func clearRecovery(L *LState, ctx *vmContext, start int, error bool) error {
 }
 
 //export luaClearRecovery
-func luaClearRecovery(L *LState, service C.int, start int, error bool) *C.char {
+func luaClearRecovery(L *LState, service C.int, start int, isError bool) *C.char {
 	ctx := contexts[service]
 	if ctx == nil {
 		return C.CString("[Contract.pcall] contract state not found")
 	}
-	err := clearRecovery(L, ctx, start, error)
+	err := clearRecovery(L, ctx, start, isError)
 	if err != nil {
 		return C.CString(err.Error())
 	}
-	if ctx.traceFile != nil && error == true {
+	if ctx.traceFile != nil && isError == true {
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("pcall recovery snapshot : %d\n", start))
 	}
 	return nil
@@ -673,7 +711,6 @@ func luaGetBalance(L *LState, service C.int, contractId *C.char) (*C.char, *C.ch
 	cs := ctx.callState[aid]
 	if cs == nil {
 		bs := ctx.bs
-
 		as, err := bs.GetAccountState(aid)
 		if err != nil {
 			return nil, C.CString("[Contract.LuaGetBalance] getAccount error: " + err.Error())
@@ -940,9 +977,28 @@ func luaCryptoKeccak256(data unsafe.Pointer, dataLen C.int) (unsafe.Pointer, int
 
 // transformAmount processes the input string to calculate the total amount,
 // taking into account the different units ("aergo", "gaer", "aer")
-func transformAmount(amountStr string) (*big.Int, error) {
+func transformAmount(amountStr string, forkVersion int32) (*big.Int, error) {
 	if len(amountStr) == 0 {
 		return zeroBig, nil
+	}
+
+	if forkVersion >= 4 {
+		// Check for amount in decimal format
+		if strings.Contains(amountStr,".") && strings.HasSuffix(strings.ToLower(amountStr),"aergo") {
+			// Extract the part before the unit
+			decimalAmount := amountStr[:len(amountStr)-5]
+			decimalAmount = strings.TrimRight(decimalAmount, " ")
+			// Parse the decimal amount
+			decimalAmount = parseDecimalAmount(decimalAmount, 18)
+			if decimalAmount == "error" {
+				return nil, errors.New("converting error for BigNum: " + amountStr)
+			}
+			amount, valid := new(big.Int).SetString(decimalAmount, 10)
+			if !valid {
+				return nil, errors.New("converting error for BigNum: " + amountStr)
+			}
+			return amount, nil
+		}
 	}
 
 	totalAmount := new(big.Int)
@@ -990,18 +1046,53 @@ func transformAmount(amountStr string) (*big.Int, error) {
 	return totalAmount, nil
 }
 
+// convert decimal amount into big integer string
+func parseDecimalAmount(str string, num_decimals int) string {
+	// Get the integer and decimal parts
+	idx := strings.Index(str, ".")
+	if idx == -1 {
+		return str
+	}
+	p1 := str[0:idx]
+	p2 := str[idx+1:]
+
+	// Check for another decimal point
+	if strings.Index(p2, ".") != -1 {
+		return "error"
+	}
+
+	// Compute the amount of zero digits to add
+	to_add := num_decimals - len(p2)
+	if to_add > 0 {
+		p2 = p2 + strings.Repeat("0", to_add)
+	} else if to_add < 0 {
+		// Do not truncate decimal amounts
+		return "error"
+	}
+
+	// Join the integer and decimal parts
+	str = p1 + p2
+
+	// Remove leading zeros
+	str = strings.TrimLeft(str, "0")
+	if str == "" {
+		str = "0"
+	}
+	return str
+}
+
 // parseAndConvert is a helper function to parse the substring as a big integer
 // and apply the necessary multiplier based on the unit.
-func parseAndConvert(subStr, unit string, mulUnit *big.Int, amountStr string) (*big.Int, error) {
-	trimmedStr := strings.TrimSpace(subStr)
+func parseAndConvert(subStr, unit string, mulUnit *big.Int, fullStr string) (*big.Int, error) {
+	subStr = strings.TrimSpace(subStr)
 
-	// Convert the trimmed string to a big integer
-	amountBig, valid := new(big.Int).SetString(trimmedStr, 10)
+	// Convert the string to a big integer
+	amountBig, valid := new(big.Int).SetString(subStr, 10)
 	if !valid {
 		// Emits a backwards compatible error message
 		// the same as: dataType := len(unit) > 0 ? "BigNum" : "Integer"
 		dataType := map[bool]string{true: "BigNum", false: "Integer"}[len(unit) > 0]
-		return nil, errors.New("converting error for " + dataType + ": " + strings.TrimSpace(amountStr))
+		return nil, errors.New("converting error for " + dataType + ": " + strings.TrimSpace(fullStr))
 	}
 
 	// Check for negative amounts
@@ -1039,7 +1130,8 @@ func luaDeployContract(
 	bs := ctx.bs
 
 	// contract code
-	var code []byte
+	var codeABI []byte
+	var sourceCode []byte
 
 	// check if contract name or address is given
 	cid, err := getAddressNameResolved(contractStr, bs)
@@ -1050,20 +1142,23 @@ func luaDeployContract(
 			return -1, C.CString("[Contract.LuaDeployContract]" + err.Error())
 		}
 		// read the contract code
-		code, err = contractState.GetCode()
+		codeABI, err = contractState.GetCode()
 		if err != nil {
 			return -1, C.CString("[Contract.LuaDeployContract]" + err.Error())
-		} else if len(code) == 0 {
+		} else if len(codeABI) == 0 {
 			return -1, C.CString("[Contract.LuaDeployContract]: not found code")
+		}
+		if ctx.blockInfo.ForkVersion >= 4 {
+			sourceCode = contractState.GetSourceCode()
 		}
 	}
 
 	// compile contract code if not found
-	if len(code) == 0 {
+	if len(codeABI) == 0 {
 		if ctx.blockInfo.ForkVersion >= 2 {
-			code, err = Compile(contractStr, L)
+			codeABI, err = Compile(contractStr, L)
 		} else {
-			code, err = Compile(contractStr, nil)
+			codeABI, err = Compile(contractStr, nil)
 		}
 		if err != nil {
 			if C.luaL_hasuncatchablerror(L) != C.int(0) &&
@@ -1072,12 +1167,14 @@ func luaDeployContract(
 			} else if err == ErrVmStart {
 				return -1, C.CString("[Contract.LuaDeployContract] get luaState error")
 			}
-
 			return -1, C.CString("[Contract.LuaDeployContract]compile error:" + err.Error())
+		}
+		if ctx.blockInfo.ForkVersion >= 4 {
+			sourceCode = []byte(contractStr)
 		}
 	}
 
-	err = ctx.addUpdateSize(int64(len(code)))
+	err = ctx.addUpdateSize(int64(len(codeABI) + len(sourceCode)))
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDeployContract]:" + err.Error())
 	}
@@ -1098,7 +1195,7 @@ func luaDeployContract(
 	ctx.callState[newContract.AccountID()] = cs
 
 	// read the amount transferred to the contract
-	amountBig, err := transformAmount(C.GoString(amount))
+	amountBig, err := transformAmount(C.GoString(amount), ctx.blockInfo.ForkVersion)
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDeployContract]value not proper format:" + err.Error())
 	}
@@ -1142,10 +1239,10 @@ func luaDeployContract(
 		ctx.curContract = prevContractInfo
 	}()
 
-	runCode := util.LuaCode(code).ByteCode()
+	bytecode := util.LuaCode(codeABI).ByteCode()
 
 	// save the contract code
-	err = contractState.SetCode(code)
+	err = contractState.SetCode(sourceCode, codeABI)
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDeployContract]:" + err.Error())
 	}
@@ -1159,7 +1256,7 @@ func luaDeployContract(
 	// get the remaining gas from the parent LState
 	ctx.refreshRemainingGas(L)
 	// create a new executor with the remaining gas on the child LState
-	ce := newExecutor(runCode, newContract.ID(), ctx, &ci, amountBig, true, false, contractState)
+	ce := newExecutor(bytecode, newContract.ID(), ctx, &ci, amountBig, true, false, contractState)
 	defer func() {
 		// close the executor, which will close the child LState
 		ce.close()
@@ -1239,8 +1336,8 @@ func luaEvent(L *LState, service C.int, eventName *C.char, args *C.char) *C.char
 	if ctx.isQuery == true || ctx.nestedView > 0 {
 		return C.CString("[Contract.Event] event not permitted in query")
 	}
-	if ctx.eventCount >= maxEventCnt {
-		return C.CString(fmt.Sprintf("[Contract.Event] exceeded the maximum number of events(%d)", maxEventCnt))
+	if ctx.eventCount >= maxEventCnt(ctx) {
+		return C.CString(fmt.Sprintf("[Contract.Event] exceeded the maximum number of events(%d)", maxEventCnt(ctx)))
 	}
 	if len(C.GoString(eventName)) > maxEventNameSize {
 		return C.CString(fmt.Sprintf("[Contract.Event] exceeded the maximum length of event name(%d)", maxEventNameSize))
@@ -1259,6 +1356,61 @@ func luaEvent(L *LState, service C.int, eventName *C.char, args *C.char) *C.char
 	)
 	ctx.eventCount++
 	return nil
+}
+
+//export luaGetEventCount
+func luaGetEventCount(L *LState, service C.int) C.int {
+	eventCount := contexts[service].eventCount
+	if ctrLgr.IsDebugEnabled() {
+		ctrLgr.Debug().Int32("eventCount", eventCount).Msg("get event count")
+	}
+	return C.int(eventCount)
+}
+
+//export luaDropEvent
+func luaDropEvent(L *LState, service C.int, from C.int) {
+	// Drop all the events after the given index.
+	ctx := contexts[service]
+	if ctrLgr.IsDebugEnabled() {
+		ctrLgr.Debug().Int32("from", int32(from)).Int("len", len(ctx.events)).Msg("drop events")
+	}
+	if from >= 0 {
+		ctx.events = ctx.events[:from]
+		ctx.eventCount = int32(len(ctx.events))
+	}
+}
+
+//export luaToPubkey
+func luaToPubkey(L *LState, address *C.char) *C.char {
+	// check the length of address
+	if len(C.GoString(address)) != types.EncodedAddressLength {
+		return C.CString("[Contract.LuaToPubkey] invalid address length")
+	}
+	// decode the address in string format to bytes (public key)
+	pubkey, err := types.DecodeAddress(C.GoString(address))
+	if err != nil {
+		return C.CString("[Contract.LuaToPubkey] invalid address")
+	}
+	// return the public key in hex format
+	return C.CString("0x" + hex.Encode(pubkey))
+}
+
+//export luaToAddress
+func luaToAddress(L *LState, pubkey *C.char) *C.char {
+	// decode the pubkey in hex format to bytes
+	pubkeyBytes, err := decodeHex(C.GoString(pubkey))
+	if err != nil {
+		return C.CString("[Contract.LuaToAddress] invalid public key")
+	}
+	// check the length of pubkey
+	if len(pubkeyBytes) != types.AddressLength {
+		return C.CString("[Contract.LuaToAddress] invalid public key length")
+		// or convert the pubkey to compact format - SerializeCompressed()
+	}
+	// encode the pubkey in bytes to an address in string format
+	address := types.EncodeAddress(pubkeyBytes)
+	// return the address
+	return C.CString(address)
 }
 
 //export luaIsContract
@@ -1282,6 +1434,27 @@ func luaIsContract(L *LState, service C.int, contractId *C.char) (C.int, *C.char
 	return C.int(len(cs.accState.CodeHash())), nil
 }
 
+//export luaNameResolve
+func luaNameResolve(L *LState, service C.int, name_or_address *C.char) *C.char {
+	ctx := contexts[service]
+	if ctx == nil {
+		return C.CString("[Contract.LuaNameResolve] contract state not found")
+	}
+	var addr []byte
+	var err error
+	account := C.GoString(name_or_address)
+	if len(account) == types.EncodedAddressLength {
+		// also checks if valid address
+		addr, err = types.DecodeAddress(account)
+	} else {
+		addr, err = name.Resolve(ctx.bs, []byte(account), false)
+	}
+	if err != nil {
+		return C.CString("[Contract.LuaNameResolve] " + err.Error())
+	}
+	return C.CString(types.EncodeAddress(addr))
+}
+
 //export luaGovernance
 func luaGovernance(L *LState, service C.int, gType C.char, arg *C.char) *C.char {
 
@@ -1300,7 +1473,7 @@ func luaGovernance(L *LState, service C.int, gType C.char, arg *C.char) *C.char 
 	switch gType {
 	case 'S', 'U':
 		var err error
-		amountBig, err = transformAmount(C.GoString(arg))
+		amountBig, err = transformAmount(C.GoString(arg), ctx.blockInfo.ForkVersion)
 		if err != nil {
 			return C.CString("[Contract.LuaGovernance] invalid amount: " + err.Error())
 		}

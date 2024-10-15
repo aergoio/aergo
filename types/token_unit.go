@@ -17,3 +17,7 @@ func NewAmount(amount uint64, unit TokenUnit) *big.Int {
 func NewZeroAmount() *big.Int {
 	return new(big.Int)
 }
+
+func IsZeroAmount(n *big.Int) bool {
+  return n.Sign() == 0
+}

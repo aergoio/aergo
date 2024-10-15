@@ -27,10 +27,12 @@ static void reset_amount_info (lua_State *L) {
 }
 
 static int set_value(lua_State *L, const char *str) {
+
 	set_call_obj(L, str);
 	if (lua_isnil(L, 1)) {
 		return 1;
 	}
+
 	switch(lua_type(L, 1)) {
 	case LUA_TNUMBER: {
 		const char *str = lua_tostring(L, 1);
@@ -52,6 +54,7 @@ static int set_value(lua_State *L, const char *str) {
 	default:
 		luaL_error(L, "invalid input");
 	}
+
 	lua_setfield(L, -2, amount_str);
 
 	return 1;
@@ -283,6 +286,7 @@ static int moduleBalance(lua_State *L) {
 static int modulePcall(lua_State *L) {
 	int argc = lua_gettop(L) - 1;
 	int service = getLuaExecContext(L);
+	int num_events = luaGetEventCount(L, service);
 	struct luaSetRecoveryPoint_return start_seq;
 	int ret;
 
@@ -295,11 +299,18 @@ static int modulePcall(lua_State *L) {
 	}
 
 	if ((ret = lua_pcall(L, argc, LUA_MULTRET, 0)) != 0) {
+		// if out of memory, throw error
 		if (ret == LUA_ERRMEM) {
 			luaL_throwerror(L);
 		}
+		// add 'success = false' as the first returned value
 		lua_pushboolean(L, false);
 		lua_insert(L, 1);
+		// drop the events
+		if (vm_is_hardfork(L, 4)) {
+			luaDropEvent(L, service, num_events);
+		}
+		// revert the contract state
 		if (start_seq.r0 > 0) {
 			char *errStr = luaClearRecovery(L, service, start_seq.r0, true);
 			if (errStr != NULL) {
@@ -309,15 +320,24 @@ static int modulePcall(lua_State *L) {
 		}
 		return 2;
 	}
+
+	// add 'success = true' as the first returned value
 	lua_pushboolean(L, true);
 	lua_insert(L, 1);
+
+	// release the recovery point
 	if (start_seq.r0 == 1) {
 		char *errStr = luaClearRecovery(L, service, start_seq.r0, false);
 		if (errStr != NULL) {
+			if (vm_is_hardfork(L, 4)) {
+				luaDropEvent(L, service, num_events);
+			}
 			strPushAndRelease(L, errStr);
 			luaL_throwerror(L);
 		}
 	}
+
+	// return the number of items in the stack
 	return lua_gettop(L);
 }
 
@@ -335,6 +355,7 @@ static int moduleDeploy(lua_State *L) {
 
 	lua_gasuse(L, 5000);
 
+	// get the amount to transfer to the new contract
 	lua_getfield(L, 1, amount_str);
 	if (lua_isnil(L, -1)) {
 		amount = NULL;
@@ -342,7 +363,9 @@ static int moduleDeploy(lua_State *L) {
 		amount = (char *) luaL_checkstring(L, -1);
 	}
 	lua_pop(L, 1);
+	// get the contract source code or the address to an existing contract
 	contract = (char *) luaL_checkstring(L, 2);
+	// get the deploy arguments to the constructor function
 	json_args = lua_util_get_json_from_stack(L, 3, lua_gettop(L), false);
 	if (json_args == NULL) {
 		reset_amount_info(L);
@@ -356,13 +379,13 @@ static int moduleDeploy(lua_State *L) {
 		strPushAndRelease(L, ret.r1);
 		luaL_throwerror(L);
 	}
+
 	free(json_args);
 	reset_amount_info(L);
 	strPushAndRelease(L, ret.r1);
 	if (ret.r0 > 1) {
 		lua_insert(L, -ret.r0);
 	}
-
 	return ret.r0;
 }
 

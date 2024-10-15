@@ -6,7 +6,11 @@ fork_version=$1
 
 echo "-- deploy --"
 
-deploy ../contract/vm_dummy/test_files/gas_bf.lua
+if [ "$fork_version" -eq "4" ]; then
+  deploy ../contract/vm_dummy/test_files/gas_bf_v4.lua
+else
+  deploy ../contract/vm_dummy/test_files/gas_bf_v2.lua
+fi
 
 get_receipt $txhash
 
@@ -29,9 +33,11 @@ ret=$(cat receipt.json | jq .ret | sed 's/"//g')
 gasUsed=$(cat receipt.json | jq .gasUsed | sed 's/"//g')
 
 assert_equals "$status"   "SUCCESS"
-#assert_equals "$ret"      "{}"
+#assert_equals "$ret"      ""
 
-if [ "$fork_version" -eq "3" ]; then
+if [ "$fork_version" -eq "4" ]; then
+  assert_equals "$gasUsed"  "47342481"
+elif [ "$fork_version" -eq "3" ]; then
   assert_equals "$gasUsed"  "47456046"
 else
   assert_equals "$gasUsed"  "47456244"

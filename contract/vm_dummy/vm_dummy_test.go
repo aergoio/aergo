@@ -20,7 +20,29 @@ import (
 )
 
 const min_version int32 = 2
-const max_version int32 = 3
+const max_version int32 = 4
+const min_version_multicall int32 = 4
+
+func TestDisabledFunctions(t *testing.T) {
+	code := readLuaCode(t, "disabled-functions.lua")
+
+	for version := int32(4); version <= max_version; version++ {
+		bc, err := LoadDummyChain(SetHardForkVersion(version), SetPubNet())
+		require.NoErrorf(t, err, "failed to create dummy chain")
+		defer bc.Release()
+
+		err = bc.ConnectBlock(
+			NewLuaTxAccount("user", 1, types.Aergo),
+			NewLuaTxDeploy("user", "test", 0, code),
+		)
+		assert.NoErrorf(t, err, "failed to deploy contract")
+
+		err = bc.ConnectBlock(
+			NewLuaTxCall("user", "test", 0, `{"Name":"check_disabled_functions","Args":[]}`),
+		)
+		assert.NoErrorf(t, err, "failed execution")
+	}
+}
 
 func TestMaxCallDepth(t *testing.T) {
 	//code := readLuaCode(t, "maxcalldepth_1.lua")
@@ -392,6 +414,66 @@ func TestContractSystem(t *testing.T) {
 		receipt := bc.GetReceipt(tx.Hash())
 		exRv := fmt.Sprintf(`["%s","6FbDRScGruVdATaNWzD51xJkTfYCVwxSZDb7gzqCLzwf","AmhNNBNY7XFk4p5ym4CJf8nTcRTEHjWzAeXJfhP71244CjBCAQU3",%d,3,999]`, StrToAddress("user1"), bc.cBlock.Header.Timestamp/1e9)
 		assert.Equal(t, exRv, receipt.GetRet(), "receipt ret error")
+
+		if version >= 4 {
+
+      // system.version()
+
+			tx = NewLuaTxCall("user1", "system", 0, `{"Name":"get_version", "Args":[]}`)
+			err = bc.ConnectBlock(tx)
+			require.NoErrorf(t, err, "failed to call tx")
+
+			receipt = bc.GetReceipt(tx.Hash())
+			expected := fmt.Sprintf(`%d`, version)
+			assert.Equal(t, expected, receipt.GetRet(), "receipt ret error")
+
+			err = bc.Query("system", `{"Name":"get_version", "Args":[]}`, "", expected)
+			require.NoErrorf(t, err, "failed to query")
+
+			// system.toPubKey()
+
+			err = bc.Query("system", `{"Name":"to_pubkey", "Args":["AmgKtCaGjH4XkXwny2Jb1YH5gdsJGJh78ibWEgLmRWBS5LMfQuTf"]}`, "", `"0x0c3270bb25fea5bf0029b57e78581647a143265810b84940dd24e543ddc618ab91"`)
+			require.NoErrorf(t, err, "failed to query")
+
+			err = bc.Query("system", `{"Name":"to_pubkey", "Args":["Amhmj6kKZz7mPstBAPJWRe1e8RHP7bZ5pV35XatqTHMWeAVSyMkc"]}`, "", `"0x0cf0d0fd04f44db75d66409346102167d67c40a5d76d46748fc4533f0265d0f83f"`)
+			require.NoErrorf(t, err, "failed to query")
+
+			err = bc.Query("system", `{"Name":"to_pubkey", "Args":["6FbDRScGruVdATaNWzD51xJkTfYCVwxSZDb7gzqCLzwf"]}`, "invalid address length", "")
+			require.NoErrorf(t, err, "failed to query")
+
+			err = bc.Query("system", `{"Name":"to_pubkey", "Args":["0x0c3270bb25fea5bf0029b57e78581647a143265810b84940dd24e543ddc618ab91"]}`, "invalid address length", "")
+			require.NoErrorf(t, err, "failed to query")
+
+			err = bc.Query("system", `{"Name":"to_pubkey", "Args":[""]}`, "invalid address length", "")
+			require.NoErrorf(t, err, "failed to query")
+
+			err = bc.Query("system", `{"Name":"to_pubkey", "Args":[]}`, "string expected, got nil", "")
+			require.NoErrorf(t, err, "failed to query")
+
+			// system.toAddress()
+
+			err = bc.Query("system", `{"Name":"to_address", "Args":["0x0c3270bb25fea5bf0029b57e78581647a143265810b84940dd24e543ddc618ab91"]}`, "", `"AmgKtCaGjH4XkXwny2Jb1YH5gdsJGJh78ibWEgLmRWBS5LMfQuTf"`)
+			require.NoErrorf(t, err, "failed to query")
+
+			err = bc.Query("system", `{"Name":"to_address", "Args":["0x0cf0d0fd04f44db75d66409346102167d67c40a5d76d46748fc4533f0265d0f83f"]}`, "", `"Amhmj6kKZz7mPstBAPJWRe1e8RHP7bZ5pV35XatqTHMWeAVSyMkc"`)
+			require.NoErrorf(t, err, "failed to query")
+
+			err = bc.Query("system", `{"Name":"to_address", "Args":["0cf0d0fd04f44db75d66409346102167d67c40a5d76d46748fc4533f0265d0f83f"]}`, "", `"Amhmj6kKZz7mPstBAPJWRe1e8RHP7bZ5pV35XatqTHMWeAVSyMkc"`)
+			require.NoErrorf(t, err, "failed to query")
+
+			err = bc.Query("system", `{"Name":"to_address", "Args":["AmhNNBNY7XFk4p5ym4CJf8nTcRTEHjWzAeXJfhP71244CjBCAQU3"]}`, "invalid public key", "")
+			require.NoErrorf(t, err, "failed to query")
+
+			err = bc.Query("system", `{"Name":"to_address", "Args":["6FbDRScGruVdATaNWzD51xJkTfYCVwxSZDb7gzqCLzwf"]}`, "invalid public key", "")
+			require.NoErrorf(t, err, "failed to query")
+
+			err = bc.Query("system", `{"Name":"to_address", "Args":[""]}`, "invalid public key", "")
+			require.NoErrorf(t, err, "failed to query")
+
+			err = bc.Query("system", `{"Name":"to_address", "Args":[]}`, "string expected, got nil", "")
+			require.NoErrorf(t, err, "failed to query")
+
+		}
 
 	}
 }
@@ -1373,17 +1455,47 @@ func TestSqlOnConflict(t *testing.T) {
 
 		err = bc.ConnectBlock(
 			NewLuaTxCall("user1", "on_conflict", 0, `{"name":"stmt_exec", "args": ["insert into t values (5)"]}`),
-			NewLuaTxCall("user1", "on_conflict", 0, `{"name":"stmt_exec", "args": ["insert or rollback into t values (5)"]}`).Fail("syntax error"),
+			NewLuaTxCall("user1", "on_conflict", 0, `{"name":"stmt_exec", "args": ["insert or rollback into t values (6),(5),(7)"]}`).Fail("syntax error"),
 		)
 		require.NoErrorf(t, err, "failed to call tx")
 
 		err = bc.Query("on_conflict", `{"name":"get"}`, "", `[1,2,3,4,5]`)
 		require.NoErrorf(t, err, "failed to query")
 
-		err = bc.ConnectBlock(NewLuaTxCall("user1", "on_conflict", 0, `{"name":"stmt_exec_pcall", "args": ["insert or fail into t values (6),(7),(5),(8),(9)"]}`))
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "on_conflict", 0, `{"name":"stmt_exec", "args": ["insert or abort into t values (6),(7),(5),(8),(9)"]}`).Fail("UNIQUE constraint failed"))
 		require.NoErrorf(t, err, "failed to call tx")
 
-		err = bc.Query("on_conflict", `{"name":"get"}`, "", `[1,2,3,4,5,6,7]`)
+		err = bc.Query("on_conflict", `{"name":"get"}`, "", `[1,2,3,4,5]`)
+		require.NoErrorf(t, err, "failed to query")
+
+		// successful pcall
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "on_conflict", 0, `{"name":"stmt_exec_pcall", "args": ["insert into t values (6)"]}`))
+		require.NoErrorf(t, err, "failed to call tx")
+
+		err = bc.Query("on_conflict", `{"name":"get"}`, "", `[1,2,3,4,5,6]`)
+		require.NoErrorf(t, err, "failed to query")
+
+		// pcall fails but the tx succeeds
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "on_conflict", 0, `{"name":"stmt_exec_pcall", "args": ["insert or fail into t values (7),(5),(8)"]}`))
+		require.NoErrorf(t, err, "failed to call tx")
+
+		var expected string
+		if version >= 4 {
+			// pcall reverts the changes
+			expected = `[1,2,3,4,5,6]`
+		} else {
+			// pcall does not revert the changes
+			expected = `[1,2,3,4,5,6,7]`
+		}
+
+		err = bc.Query("on_conflict", `{"name":"get"}`, "", expected)
+		require.NoErrorf(t, err, "failed to query")
+
+		// here the tx is reverted
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "on_conflict", 0, `{"name":"stmt_exec", "args": ["insert or fail into t values (7),(5),(8)"]}`).Fail("UNIQUE constraint failed"))
+		require.NoErrorf(t, err, "failed to call tx")
+
+		err = bc.Query("on_conflict", `{"name":"get"}`, "", expected)
 		require.NoErrorf(t, err, "failed to query")
 
 	}
@@ -2389,6 +2501,132 @@ func TestTypeBignum(t *testing.T) {
 	}
 }
 
+func TestBignumValues(t *testing.T) {
+	code := readLuaCode(t, "bignum_values.lua")
+
+	bc, err := LoadDummyChain(SetHardForkVersion(2))
+	require.NoErrorf(t, err, "failed to create dummy chain")
+	defer bc.Release()
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("user1", 1, types.Aergo),
+		NewLuaTxDeploy("user1", "contract1", 0, code),
+	)
+	require.NoErrorf(t, err, "failed to deploy")
+
+	// hardfork 2
+
+	// process octal, hex, binary
+
+	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["0"]}`, "", `"0"`)
+	require.NoErrorf(t, err, "failed to query")
+	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["9"]}`, "", `"9"`)
+	require.NoErrorf(t, err, "failed to query")
+	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["0055"]}`, "", `"45"`)
+	require.NoErrorf(t, err, "failed to query")
+	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["01234567"]}`, "", `"342391"`)
+	require.NoErrorf(t, err, "failed to query")
+	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["0x123456789abcdef"]}`, "", `"81985529216486895"`)
+	require.NoErrorf(t, err, "failed to query")
+	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["0b1010101010101"]}`, "", `"5461"`)
+	require.NoErrorf(t, err, "failed to query")
+
+	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":[{"_bignum":"0"}]}`, "", `"0"`)
+	require.NoErrorf(t, err, "failed to query")
+	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":[{"_bignum":"9"}]}`, "", `"9"`)
+	require.NoErrorf(t, err, "failed to query")
+	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":[{"_bignum":"01234567"}]}`, "", `"342391"`)
+	require.NoErrorf(t, err, "failed to query")
+	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":[{"_bignum":"0x123456789abcdef"}]}`, "", `"81985529216486895"`)
+	require.NoErrorf(t, err, "failed to query")
+	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":[{"_bignum":"0b1010101010101"}]}`, "", `"5461"`)
+	require.NoErrorf(t, err, "failed to query")
+
+
+	// hardfork 3
+	bc.HardforkVersion = 3
+
+	// block octal, hex and binary
+
+	tx := NewLuaTxCall("user1", "contract1", 0, `{"Name":"parse_bignum", "Args":["01234567"]}`)
+	err = bc.ConnectBlock(tx)
+	require.NoErrorf(t, err, "failed to call tx")
+	receipt := bc.GetReceipt(tx.Hash())
+	assert.Equalf(t, `"1234567"`, receipt.GetRet(), "contract Call ret error")
+
+	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["0"]}`, "", `"0"`)
+	require.NoErrorf(t, err, "failed to query")
+	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["9"]}`, "", `"9"`)
+	require.NoErrorf(t, err, "failed to query")
+	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["0055"]}`, "", `"55"`)
+	require.NoErrorf(t, err, "failed to query")
+	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["01234567"]}`, "", `"1234567"`)
+	require.NoErrorf(t, err, "failed to query")
+	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["0x123456789abcdef"]}`, "bignum invalid number string", `""`)
+	require.NoErrorf(t, err, "failed to query")
+	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["0b1010101010101"]}`, "bignum invalid number string", `""`)
+	require.NoErrorf(t, err, "failed to query")
+
+	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":[{"_bignum":"0"}]}`, "", `"0"`)
+	require.NoErrorf(t, err, "failed to query")
+	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":[{"_bignum":"9"}]}`, "", `"9"`)
+	require.NoErrorf(t, err, "failed to query")
+	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":[{"_bignum":"01234567"}]}`, "", `"1234567"`)
+	require.NoErrorf(t, err, "failed to query")
+	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":[{"_bignum":"0x123456789abcdef"}]}`, "bignum invalid number string", `""`)
+	require.NoErrorf(t, err, "failed to query")
+	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":[{"_bignum":"0b1010101010101"}]}`, "bignum invalid number string", `""`)
+	require.NoErrorf(t, err, "failed to query")
+
+
+	// hardfork 4 and after
+
+	for version := int32(4); version <= max_version; version++ {
+		bc, err = LoadDummyChain(SetHardForkVersion(version))
+		require.NoErrorf(t, err, "failed to create dummy chain")
+		defer bc.Release()
+
+		err = bc.ConnectBlock(
+			NewLuaTxAccount("user1", 1, types.Aergo),
+			NewLuaTxDeploy("user1", "contract1", 0, code),
+		)
+		require.NoErrorf(t, err, "failed to deploy")
+
+		// process hex, binary. block octal
+
+		tx = NewLuaTxCall("user1", "contract1", 0, `{"Name":"parse_bignum", "Args":["01234567"]}`)
+		err = bc.ConnectBlock(tx)
+		require.NoErrorf(t, err, "failed to call tx")
+		receipt = bc.GetReceipt(tx.Hash())
+		assert.Equalf(t, `"1234567"`, receipt.GetRet(), "contract Call ret error")
+
+		err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["0"]}`, "", `"0"`)
+		require.NoErrorf(t, err, "failed to query")
+		err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["9"]}`, "", `"9"`)
+		require.NoErrorf(t, err, "failed to query")
+		err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["0055"]}`, "", `"55"`)
+		require.NoErrorf(t, err, "failed to query")
+		err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["01234567"]}`, "", `"1234567"`)
+		require.NoErrorf(t, err, "failed to query")
+		err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["0x123456789abcdef"]}`, "", `"81985529216486895"`)
+		require.NoErrorf(t, err, "failed to query")
+		err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["0b1010101010101"]}`, "", `"5461"`)
+		require.NoErrorf(t, err, "failed to query")
+
+		err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":[{"_bignum":"0"}]}`, "", `"0"`)
+		require.NoErrorf(t, err, "failed to query")
+		err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":[{"_bignum":"9"}]}`, "", `"9"`)
+		require.NoErrorf(t, err, "failed to query")
+		err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":[{"_bignum":"01234567"}]}`, "", `"1234567"`)
+		require.NoErrorf(t, err, "failed to query")
+		err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":[{"_bignum":"0x123456789abcdef"}]}`, "", `"81985529216486895"`)
+		require.NoErrorf(t, err, "failed to query")
+		err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":[{"_bignum":"0b1010101010101"}]}`, "", `"5461"`)
+		require.NoErrorf(t, err, "failed to query")
+
+	}
+}
+
 func checkRandomIntValue(v string, min, max int) error {
 	n, _ := strconv.Atoi(v)
 	if n < min || n > max {
@@ -2771,964 +3009,989 @@ func TestFeaturePcallNested(t *testing.T) {
 
 // test rollback of state variable and balance
 func TestPcallStateRollback1(t *testing.T) {
-	code := readLuaCode(t, "feature_pcall_rollback_4.lua")
 	resolver := readLuaCode(t, "resolver.lua")
 
 	for version := min_version; version <= max_version; version++ {
-		bc, err := LoadDummyChain(SetHardForkVersion(version))
-		require.NoErrorf(t, err, "failed to create dummy chain")
-		defer bc.Release()
 
-		// deploy and setup the name resolver
-		err = bc.ConnectBlock(
-			NewLuaTxAccount("user", 10, types.Aergo),
-			NewLuaTxDeploy("user", "resolver", 0, resolver),
-			NewLuaTxCall("user", "resolver", 0, fmt.Sprintf(`{"Name":"set","Args":["A","%s"]}`, nameToAddress("A"))),
-			NewLuaTxCall("user", "resolver", 0, fmt.Sprintf(`{"Name":"set","Args":["B","%s"]}`, nameToAddress("B"))),
-			NewLuaTxCall("user", "resolver", 0, fmt.Sprintf(`{"Name":"set","Args":["C","%s"]}`, nameToAddress("C"))),
-		)
-		require.NoErrorf(t, err, "failed to deploy and setup resolver")
+		files := make([]string, 0)
+		files = append(files, "feature_pcall_rollback_4a.lua")   // contract.pcall
+		if version >= 4 {
+			files = append(files, "feature_pcall_rollback_4b.lua") // pcall
+			files = append(files, "feature_pcall_rollback_4c.lua") // xpcall
+		}
 
-		// deploy the contracts
-		err = bc.ConnectBlock(
-			NewLuaTxDeploy("user", "A", 3, code).Constructor(fmt.Sprintf(`["%s","A"]`, nameToAddress("resolver"))),
-			NewLuaTxDeploy("user", "B", 0, code).Constructor(fmt.Sprintf(`["%s","B"]`, nameToAddress("resolver"))),
-			NewLuaTxDeploy("user", "C", 0, code).Constructor(fmt.Sprintf(`["%s","C"]`, nameToAddress("resolver"))),
-		)
-		require.NoErrorf(t, err, "failed to deploy the contracts")
+		// iterate over all files
+		for _, file := range files {
 
-		// A -> A -> A (3 calls on the same contract)
+			code := readLuaCode(t, file)
 
-		script := `[[
-			['set','x',111],
-			['pcall','A']
-		],[
-			['set','x',222],
-			['pcall','A']
-		],[
-			['set','x',333]
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 333}, nil)
+			bc, err := LoadDummyChain(SetHardForkVersion(version))
+			require.NoErrorf(t, err, "failed to create dummy chain")
+			defer bc.Release()
 
-		script = `[[
-			['set','x',111],
-			['pcall','A']
-		],[
-			['set','x',222],
-			['pcall','A']
-		],[
-			['set','x',333],
-			['fail']
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 222}, nil)
+			// deploy and setup the name resolver
+			err = bc.ConnectBlock(
+				NewLuaTxAccount("user", 10, types.Aergo),
+				NewLuaTxDeploy("user", "resolver", 0, resolver),
+				NewLuaTxCall("user", "resolver", 0, fmt.Sprintf(`{"Name":"set","Args":["A","%s"]}`, nameToAddress("A"))),
+				NewLuaTxCall("user", "resolver", 0, fmt.Sprintf(`{"Name":"set","Args":["B","%s"]}`, nameToAddress("B"))),
+				NewLuaTxCall("user", "resolver", 0, fmt.Sprintf(`{"Name":"set","Args":["C","%s"]}`, nameToAddress("C"))),
+			)
+			require.NoErrorf(t, err, "failed to deploy and setup resolver")
 
-		script = `[[
-			['set','x',111],
-			['pcall','A']
-		],[
-			['set','x',222],
-			['pcall','A'],
-			['fail']
-		],[
-			['set','x',333]
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 111}, nil)
+			// deploy the contracts
+			err = bc.ConnectBlock(
+				NewLuaTxDeploy("user", "A", 3, code).Constructor(fmt.Sprintf(`["%s","A"]`, nameToAddress("resolver"))),
+				NewLuaTxDeploy("user", "B", 0, code).Constructor(fmt.Sprintf(`["%s","B"]`, nameToAddress("resolver"))),
+				NewLuaTxDeploy("user", "C", 0, code).Constructor(fmt.Sprintf(`["%s","C"]`, nameToAddress("resolver"))),
+			)
+			require.NoErrorf(t, err, "failed to deploy the contracts")
 
-		script = `[[
-			['set','x',111],
-			['pcall','A'],
-			['fail']
-		],[
-			['set','x',222],
-			['pcall','A']
-		],[
-			['set','x',333]
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 0}, nil)
+			// A -> A -> A (3 calls on the same contract)
 
-		// A -> B -> C (3 different contracts)
+			script := `[[
+				['set','x',111],
+				['pcall','A']
+			],[
+				['set','x',222],
+				['pcall','A']
+			],[
+				['set','x',333]
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 333}, nil)
 
-		script = `[[
-			['set','x',111],
-			['pcall','B',2]
-		],[
-			['set','x',222],
-			['pcall','C',1]
-		],[
-			['set','x',333]
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 111, "B": 222, "C": 333},
-			map[string]int64{"A": 1, "B": 1, "C": 1})
+			script = `[[
+				['set','x',111],
+				['pcall','A']
+			],[
+				['set','x',222],
+				['pcall','A']
+			],[
+				['set','x',333],
+				['fail']
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 222}, nil)
 
-		script = `[[
-			['set','x',111],
-			['pcall','B',2]
-		],[
-			['set','x',222],
-			['pcall','C',1]
-		],[
-			['set','x',333],
-			['fail']
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 111, "B": 222, "C": 0},
-			map[string]int64{"A": 1, "B": 2, "C": 0})
+			script = `[[
+				['set','x',111],
+				['pcall','A']
+			],[
+				['set','x',222],
+				['pcall','A'],
+				['fail']
+			],[
+				['set','x',333]
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 111}, nil)
 
-		script = `[[
-			['set','x',111],
-			['pcall','B',2]
-		],[
-			['set','x',222],
-			['pcall','C',1],
-			['fail']
-		],[
-			['set','x',333]
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 111, "B": 0, "C": 0},
-			map[string]int64{"A": 3, "B": 0, "C": 0})
+			script = `[[
+				['set','x',111],
+				['pcall','A'],
+				['fail']
+			],[
+				['set','x',222],
+				['pcall','A']
+			],[
+				['set','x',333]
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 0}, nil)
 
-		script = `[[
-			['set','x',111],
-			['pcall','B',2],
-			['fail']
-		],[
-			['set','x',222],
-			['pcall','C',1]
-		],[
-			['set','x',333]
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 0, "B": 0, "C": 0},
-			map[string]int64{"A": 3, "B": 0, "C": 0})
+			// A -> B -> C (3 different contracts)
 
-		// A -> B -> A (call back to original contract)
+			script = `[[
+				['set','x',111],
+				['pcall','B',2]
+			],[
+				['set','x',222],
+				['pcall','C',1]
+			],[
+				['set','x',333]
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 111, "B": 222, "C": 333},
+				map[string]int64{"A": 1, "B": 1, "C": 1})
 
-		script = `[[
-			['set','x',111],
-			['pcall','B',2]
-		],[
-			['set','x',222],
-			['pcall','A',1]
-		],[
-			['set','x',333]
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 333, "B": 222},
-			map[string]int64{"A": 2, "B": 1})
+			script = `[[
+				['set','x',111],
+				['pcall','B',2]
+			],[
+				['set','x',222],
+				['pcall','C',1]
+			],[
+				['set','x',333],
+				['fail']
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 111, "B": 222, "C": 0},
+				map[string]int64{"A": 1, "B": 2, "C": 0})
 
-		script = `[[
-			['set','x',111],
-			['pcall','B',2]
-		],[
-			['set','x',222],
-			['pcall','A',1]
-		],[
-			['set','x',333],
-			['fail']
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 111, "B": 222},
-			map[string]int64{"A": 1, "B": 2})
+			script = `[[
+				['set','x',111],
+				['pcall','B',2]
+			],[
+				['set','x',222],
+				['pcall','C',1],
+				['fail']
+			],[
+				['set','x',333]
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 111, "B": 0, "C": 0},
+				map[string]int64{"A": 3, "B": 0, "C": 0})
 
-		script = `[[
-			['set','x',111],
-			['pcall','B',2]
-		],[
-			['set','x',222],
-			['pcall','A',1],
-			['fail']
-		],[
-			['set','x',333]
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 111, "B": 0},
-			map[string]int64{"A": 3, "B": 0})
+			script = `[[
+				['set','x',111],
+				['pcall','B',2],
+				['fail']
+			],[
+				['set','x',222],
+				['pcall','C',1]
+			],[
+				['set','x',333]
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 0, "B": 0, "C": 0},
+				map[string]int64{"A": 3, "B": 0, "C": 0})
 
-		script = `[[
-			['set','x',111],
-			['pcall','B',2],
-			['fail']
-		],[
-			['set','x',222],
-			['pcall','A',1]
-		],[
-			['set','x',333]
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 0, "B": 0},
-			map[string]int64{"A": 3, "B": 0})
+			// A -> B -> A (call back to original contract)
 
-		// A -> B -> B
+			script = `[[
+				['set','x',111],
+				['pcall','B',2]
+			],[
+				['set','x',222],
+				['pcall','A',1]
+			],[
+				['set','x',333]
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 333, "B": 222},
+				map[string]int64{"A": 2, "B": 1})
 
-		script = `[[
-			['set','x',111],
-			['pcall','B',3]
-		],[
-			['set','x',222],
-			['pcall','B']
-		],[
-			['set','x',333]
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 111, "B": 333},
-			map[string]int64{"A": 0, "B": 3})
+			script = `[[
+				['set','x',111],
+				['pcall','B',2]
+			],[
+				['set','x',222],
+				['pcall','A',1]
+			],[
+				['set','x',333],
+				['fail']
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 111, "B": 222},
+				map[string]int64{"A": 1, "B": 2})
 
-		script = `[[
-			['set','x',111],
-			['pcall','B',3]
-		],[
-			['set','x',222],
-			['pcall','B']
-		],[
-			['set','x',333],
-			['fail']
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 111, "B": 222},
-			map[string]int64{"A": 0, "B": 3})
+			script = `[[
+				['set','x',111],
+				['pcall','B',2]
+			],[
+				['set','x',222],
+				['pcall','A',1],
+				['fail']
+			],[
+				['set','x',333]
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 111, "B": 0},
+				map[string]int64{"A": 3, "B": 0})
 
-		script = `[[
-			['set','x',111],
-			['pcall','B',3]
-		],[
-			['set','x',222],
-			['pcall','B'],
-			['fail']
-		],[
-			['set','x',333]
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 111, "B": 0},
-			map[string]int64{"A": 3, "B": 0})
+			script = `[[
+				['set','x',111],
+				['pcall','B',2],
+				['fail']
+			],[
+				['set','x',222],
+				['pcall','A',1]
+			],[
+				['set','x',333]
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 0, "B": 0},
+				map[string]int64{"A": 3, "B": 0})
 
-		script = `[[
-			['set','x',111],
-			['pcall','B',3],
-			['fail']
-		],[
-			['set','x',222],
-			['pcall','B']
-		],[
-			['set','x',333]
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 0, "B": 0},
-			map[string]int64{"A": 3, "B": 0})
+			// A -> B -> B
 
-		// A -> A -> B
+			script = `[[
+				['set','x',111],
+				['pcall','B',3]
+			],[
+				['set','x',222],
+				['pcall','B']
+			],[
+				['set','x',333]
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 111, "B": 333},
+				map[string]int64{"A": 0, "B": 3})
 
-		script = `[[
-			['set','x',111],
-			['pcall','A']
-		],[
-			['set','x',222],
-			['pcall','B',3]
-		],[
-			['set','x',333]
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 222, "B": 333},
-			map[string]int64{"A": 0, "B": 3})
+			script = `[[
+				['set','x',111],
+				['pcall','B',3]
+			],[
+				['set','x',222],
+				['pcall','B']
+			],[
+				['set','x',333],
+				['fail']
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 111, "B": 222},
+				map[string]int64{"A": 0, "B": 3})
 
-		script = `[[
-			['set','x',111],
-			['pcall','A']
-		],[
-			['set','x',222],
-			['pcall','B',3]
-		],[
-			['set','x',333],
-			['fail']
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 222, "B": 0},
-			map[string]int64{"A": 3, "B": 0})
+			script = `[[
+				['set','x',111],
+				['pcall','B',3]
+			],[
+				['set','x',222],
+				['pcall','B'],
+				['fail']
+			],[
+				['set','x',333]
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 111, "B": 0},
+				map[string]int64{"A": 3, "B": 0})
 
-		script = `[[
-			['set','x',111],
-			['pcall','A']
-		],[
-			['set','x',222],
-			['pcall','B',3],
-			['fail']
-		],[
-			['set','x',333]
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 111, "B": 0},
-			map[string]int64{"A": 3, "B": 0})
+			script = `[[
+				['set','x',111],
+				['pcall','B',3],
+				['fail']
+			],[
+				['set','x',222],
+				['pcall','B']
+			],[
+				['set','x',333]
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 0, "B": 0},
+				map[string]int64{"A": 3, "B": 0})
 
-		script = `[[
-			['set','x',111],
-			['pcall','A'],
-			['fail']
-		],[
-			['set','x',222],
-			['pcall','B',3]
-		],[
-			['set','x',333]
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 0, "B": 0},
-			map[string]int64{"A": 3, "B": 0})
+			// A -> A -> B
 
-		// A -> B -> A -> B -> A  (zigzag)
+			script = `[[
+				['set','x',111],
+				['pcall','A']
+			],[
+				['set','x',222],
+				['pcall','B',3]
+			],[
+				['set','x',333]
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 222, "B": 333},
+				map[string]int64{"A": 0, "B": 3})
 
-		script = `[[
-			['set','x',111],
-			['pcall','B',1]
-		],[
-			['set','x',222],
-			['pcall','A',1]
-		],[
-			['set','x',333],
-			['pcall','B',1]
-		],[
-			['set','x',444],
-			['pcall','A',1]
-		],[
-			['set','x',555]
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 555, "B": 444},
-			map[string]int64{"A": 3, "B": 0})
+			script = `[[
+				['set','x',111],
+				['pcall','A']
+			],[
+				['set','x',222],
+				['pcall','B',3]
+			],[
+				['set','x',333],
+				['fail']
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 222, "B": 0},
+				map[string]int64{"A": 3, "B": 0})
 
-		script = `[[
-			['set','x',111],
-			['pcall','B',1]
-		],[
-			['set','x',222],
-			['pcall','A',1]
-		],[
-			['set','x',333],
-			['pcall','B',1]
-		],[
-			['set','x',444],
-			['pcall','A',1]
-		],[
-			['set','x',555],
-			['fail']
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 333, "B": 444},
-			map[string]int64{"A": 2, "B": 1})
+			script = `[[
+				['set','x',111],
+				['pcall','A']
+			],[
+				['set','x',222],
+				['pcall','B',3],
+				['fail']
+			],[
+				['set','x',333]
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 111, "B": 0},
+				map[string]int64{"A": 3, "B": 0})
 
-		script = `[[
-			['set','x',111],
-			['pcall','B',1]
-		],[
-			['set','x',222],
-			['pcall','A',1]
-		],[
-			['set','x',333],
-			['pcall','B',1]
-		],[
-			['set','x',444],
-			['pcall','A',1],
-			['fail']
-		],[
-			['set','x',555]
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 333, "B": 222},
-			map[string]int64{"A": 3, "B": 0})
+			script = `[[
+				['set','x',111],
+				['pcall','A'],
+				['fail']
+			],[
+				['set','x',222],
+				['pcall','B',3]
+			],[
+				['set','x',333]
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 0, "B": 0},
+				map[string]int64{"A": 3, "B": 0})
 
-		script = `[[
-			['set','x',111],
-			['pcall','B',1]
-		],[
-			['set','x',222],
-			['pcall','A',1]
-		],[
-			['set','x',333],
-			['pcall','B',1],
-			['fail']
-		],[
-			['set','x',444],
-			['pcall','A',1]
-		],[
-			['set','x',555]
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 111, "B": 222},
-			map[string]int64{"A": 2, "B": 1})
+			// A -> B -> A -> B -> A  (zigzag)
 
-		script = `[[
-			['set','x',111],
-			['pcall','B',1]
-		],[
-			['set','x',222],
-			['pcall','A',1],
-			['fail']
-		],[
-			['set','x',333],
-			['pcall','B',1]
-		],[
-			['set','x',444],
-			['pcall','A',1]
-		],[
-			['set','x',555]
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 111, "B": 0},
-			map[string]int64{"A": 3, "B": 0})
+			script = `[[
+				['set','x',111],
+				['pcall','B',1]
+			],[
+				['set','x',222],
+				['pcall','A',1]
+			],[
+				['set','x',333],
+				['pcall','B',1]
+			],[
+				['set','x',444],
+				['pcall','A',1]
+			],[
+				['set','x',555]
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 555, "B": 444},
+				map[string]int64{"A": 3, "B": 0})
 
-		script = `[[
-			['set','x',111],
-			['pcall','B',1],
-			['fail']
-		],[
-			['set','x',222],
-			['pcall','A',1]
-		],[
-			['set','x',333],
-			['pcall','B',1]
-		],[
-			['set','x',444],
-			['pcall','A',1]
-		],[
-			['set','x',555]
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 0, "B": 0},
-			map[string]int64{"A": 3, "B": 0})
+			script = `[[
+				['set','x',111],
+				['pcall','B',1]
+			],[
+				['set','x',222],
+				['pcall','A',1]
+			],[
+				['set','x',333],
+				['pcall','B',1]
+			],[
+				['set','x',444],
+				['pcall','A',1]
+			],[
+				['set','x',555],
+				['fail']
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 333, "B": 444},
+				map[string]int64{"A": 2, "B": 1})
 
+			script = `[[
+				['set','x',111],
+				['pcall','B',1]
+			],[
+				['set','x',222],
+				['pcall','A',1]
+			],[
+				['set','x',333],
+				['pcall','B',1]
+			],[
+				['set','x',444],
+				['pcall','A',1],
+				['fail']
+			],[
+				['set','x',555]
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 333, "B": 222},
+				map[string]int64{"A": 3, "B": 0})
+
+			script = `[[
+				['set','x',111],
+				['pcall','B',1]
+			],[
+				['set','x',222],
+				['pcall','A',1]
+			],[
+				['set','x',333],
+				['pcall','B',1],
+				['fail']
+			],[
+				['set','x',444],
+				['pcall','A',1]
+			],[
+				['set','x',555]
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 111, "B": 222},
+				map[string]int64{"A": 2, "B": 1})
+
+			script = `[[
+				['set','x',111],
+				['pcall','B',1]
+			],[
+				['set','x',222],
+				['pcall','A',1],
+				['fail']
+			],[
+				['set','x',333],
+				['pcall','B',1]
+			],[
+				['set','x',444],
+				['pcall','A',1]
+			],[
+				['set','x',555]
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 111, "B": 0},
+				map[string]int64{"A": 3, "B": 0})
+
+			script = `[[
+				['set','x',111],
+				['pcall','B',1],
+				['fail']
+			],[
+				['set','x',222],
+				['pcall','A',1]
+			],[
+				['set','x',333],
+				['pcall','B',1]
+			],[
+				['set','x',444],
+				['pcall','A',1]
+			],[
+				['set','x',555]
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 0, "B": 0},
+				map[string]int64{"A": 3, "B": 0})
+
+		}
 	}
 }
 
 // test rollback of state variable and balance - send separate from call
 func TestPcallStateRollback2(t *testing.T) {
 	t.Skip("disabled until bug with test is fixed")
-	code := readLuaCode(t, "feature_pcall_rollback_4.lua")
 	resolver := readLuaCode(t, "resolver.lua")
 
 	for version := min_version; version <= max_version; version++ {
-		bc, err := LoadDummyChain(SetHardForkVersion(version))
-		require.NoErrorf(t, err, "failed to create dummy chain")
-		defer bc.Release()
+		files := make([]string, 0)
+		files = append(files, "feature_pcall_rollback_4a.lua")   // contract.pcall
+		if version >= 4 {
+			files = append(files, "feature_pcall_rollback_4b.lua") // pcall
+			files = append(files, "feature_pcall_rollback_4c.lua") // xpcall
+		}
 
-		// deploy and setup the name resolver
-		err = bc.ConnectBlock(
-			NewLuaTxAccount("user", 10, types.Aergo),
-			NewLuaTxDeploy("user", "resolver", 0, resolver),
-			NewLuaTxCall("user", "resolver", 0, fmt.Sprintf(`{"Name":"set","Args":["A","%s"]}`, nameToAddress("A"))),
-			NewLuaTxCall("user", "resolver", 0, fmt.Sprintf(`{"Name":"set","Args":["B","%s"]}`, nameToAddress("B"))),
-			NewLuaTxCall("user", "resolver", 0, fmt.Sprintf(`{"Name":"set","Args":["C","%s"]}`, nameToAddress("C"))),
-			NewLuaTxCall("user", "resolver", 0, fmt.Sprintf(`{"Name":"set","Args":["D","%s"]}`, nameToAddress("D"))),
-			NewLuaTxCall("user", "resolver", 0, fmt.Sprintf(`{"Name":"set","Args":["E","%s"]}`, nameToAddress("E"))),
-		)
-		require.NoErrorf(t, err, "failed to deploy and setup resolver")
+		// iterate over all files
+		for _, file := range files {
 
-		// deploy the contracts
-		err = bc.ConnectBlock(
-			NewLuaTxDeploy("user", "A", 3, code).Constructor(fmt.Sprintf(`["%s","A"]`, nameToAddress("resolver"))),
-			NewLuaTxDeploy("user", "B", 0, code).Constructor(fmt.Sprintf(`["%s","B"]`, nameToAddress("resolver"))),
-			NewLuaTxDeploy("user", "C", 0, code).Constructor(fmt.Sprintf(`["%s","C"]`, nameToAddress("resolver"))),
-		)
-		require.NoErrorf(t, err, "failed to deploy the contracts")
+			code := readLuaCode(t, file)
 
-		// A -> A -> A (3 calls on the same contract)
+			bc, err := LoadDummyChain(SetHardForkVersion(version))
+			require.NoErrorf(t, err, "failed to create dummy chain")
+			defer bc.Release()
 
-		script := `[[
-			['set','x',111],
-			['send','B',1],
-			['pcall','A']
-		],[
-			['set','x',222],
-			['send','C',1],
-			['pcall','A']
-		],[
-			['set','x',333],
-			['send','E',1]
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 333},
-			map[string]int64{"A": 0, "B": 1, "C": 1, "E": 1})
+			// deploy and setup the name resolver
+			err = bc.ConnectBlock(
+				NewLuaTxAccount("user", 10, types.Aergo),
+				NewLuaTxDeploy("user", "resolver", 0, resolver),
+				NewLuaTxCall("user", "resolver", 0, fmt.Sprintf(`{"Name":"set","Args":["A","%s"]}`, nameToAddress("A"))),
+				NewLuaTxCall("user", "resolver", 0, fmt.Sprintf(`{"Name":"set","Args":["B","%s"]}`, nameToAddress("B"))),
+				NewLuaTxCall("user", "resolver", 0, fmt.Sprintf(`{"Name":"set","Args":["C","%s"]}`, nameToAddress("C"))),
+				NewLuaTxCall("user", "resolver", 0, fmt.Sprintf(`{"Name":"set","Args":["D","%s"]}`, nameToAddress("D"))),
+				NewLuaTxCall("user", "resolver", 0, fmt.Sprintf(`{"Name":"set","Args":["E","%s"]}`, nameToAddress("E"))),
+			)
+			require.NoErrorf(t, err, "failed to deploy and setup resolver")
 
-		script = `[[
-			['set','x',111],
-			['send','B',1],
-			['pcall','A']
-		],[
-			['set','x',222],
-			['send','C',1],
-			['pcall','A']
-		],[
-			['set','x',333],
-			['send','D',1],
-			['fail']
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 222},
-			map[string]int64{"A": 1, "B": 1, "C": 1, "D": 0})
+			// deploy the contracts
+			err = bc.ConnectBlock(
+				NewLuaTxDeploy("user", "A", 3, code).Constructor(fmt.Sprintf(`["%s","A"]`, nameToAddress("resolver"))),
+				NewLuaTxDeploy("user", "B", 0, code).Constructor(fmt.Sprintf(`["%s","B"]`, nameToAddress("resolver"))),
+				NewLuaTxDeploy("user", "C", 0, code).Constructor(fmt.Sprintf(`["%s","C"]`, nameToAddress("resolver"))),
+			)
+			require.NoErrorf(t, err, "failed to deploy the contracts")
 
-		script = `[[
-			['set','x',111],
-			['send','B',1],
-			['pcall','A']
-		],[
-			['set','x',222],
-			['send','C',1],
-			['pcall','A'],
-			['fail']
-		],[
-			['set','x',333],
-			['send','D',1]
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 111},
-			map[string]int64{"A": 2, "B": 1, "C": 0, "D": 0})
+			// A -> A -> A (3 calls on the same contract)
 
-		script = `[[
-			['set','x',111],
-			['send','B',1],
-			['pcall','A'],
-			['fail']
-		],[
-			['set','x',222],
-			['send','C',1],
-			['pcall','A']
-		],[
-			['set','x',333],
-			['send','D',1]
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 0},
-			map[string]int64{"A": 3, "B": 0, "C": 0, "D": 0})
+			script := `[[
+				['set','x',111],
+				['send','B',1],
+				['pcall','A']
+			],[
+				['set','x',222],
+				['send','C',1],
+				['pcall','A']
+			],[
+				['set','x',333],
+				['send','E',1]
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 333},
+				map[string]int64{"A": 0, "B": 1, "C": 1, "E": 1})
 
-		// A -> B -> C (3 different contracts)
+			script = `[[
+				['set','x',111],
+				['send','B',1],
+				['pcall','A']
+			],[
+				['set','x',222],
+				['send','C',1],
+				['pcall','A']
+			],[
+				['set','x',333],
+				['send','D',1],
+				['fail']
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 222},
+				map[string]int64{"A": 1, "B": 1, "C": 1, "D": 0})
 
-		script = `[[
-			['set','x',111],
-			['send','B',3],
-			['pcall','B']
-		],[
-			['set','x',222],
-			['send','C',2],
-			['pcall','C']
-		],[
-			['set','x',333],
-			['send','A',1]
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 111, "B": 222, "C": 333},
-			map[string]int64{"A": 1, "B": 1, "C": 1})
+			script = `[[
+				['set','x',111],
+				['send','B',1],
+				['pcall','A']
+			],[
+				['set','x',222],
+				['send','C',1],
+				['pcall','A'],
+				['fail']
+			],[
+				['set','x',333],
+				['send','D',1]
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 111},
+				map[string]int64{"A": 2, "B": 1, "C": 0, "D": 0})
 
-		script = `[[
-			['set','x',111],
-			['send','B',3],
-			['pcall','B']
-		],[
-			['set','x',222],
-			['send','C',2],
-			['pcall','C']
-		],[
-			['set','x',333],
-			['send','A',1],
-			['fail']
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 111, "B": 222, "C": 0},
-			map[string]int64{"A": 0, "B": 1, "C": 2})
+			script = `[[
+				['set','x',111],
+				['send','B',1],
+				['pcall','A'],
+				['fail']
+			],[
+				['set','x',222],
+				['send','C',1],
+				['pcall','A']
+			],[
+				['set','x',333],
+				['send','D',1]
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 0},
+				map[string]int64{"A": 3, "B": 0, "C": 0, "D": 0})
 
-		script = `[[
-			['set','x',111],
-			['send','B',3],
-			['pcall','B']
-		],[
-			['set','x',222],
-			['send','C',2],
-			['pcall','C'],
-			['fail']
-		],[
-			['set','x',333],
-			['send','A',1]
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 111, "B": 0, "C": 0},
-			map[string]int64{"A": 0, "B": 3, "C": 0})
+			// A -> B -> C (3 different contracts)
 
-		script = `[[
-			['set','x',111],
-			['send','B',3],
-			['pcall','B'],
-			['fail']
-		],[
-			['set','x',222],
-			['send','C',2],
-			['pcall','C']
-		],[
-			['set','x',333],
-			['send','A',1]
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 0, "B": 0, "C": 0},
-			map[string]int64{"A": 3, "B": 0, "C": 0})
+			script = `[[
+				['set','x',111],
+				['send','B',3],
+				['pcall','B']
+			],[
+				['set','x',222],
+				['send','C',2],
+				['pcall','C']
+			],[
+				['set','x',333],
+				['send','A',1]
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 111, "B": 222, "C": 333},
+				map[string]int64{"A": 1, "B": 1, "C": 1})
 
-		// A -> B -> A (call back to original contract)
+			script = `[[
+				['set','x',111],
+				['send','B',3],
+				['pcall','B']
+			],[
+				['set','x',222],
+				['send','C',2],
+				['pcall','C']
+			],[
+				['set','x',333],
+				['send','A',1],
+				['fail']
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 111, "B": 222, "C": 0},
+				map[string]int64{"A": 0, "B": 1, "C": 2})
 
-		script = `[[
-			['set','x',111],
-			['send','B',3],
-			['pcall','B']
-		],[
-			['set','x',222],
-			['send','A',2],
-			['pcall','A']
-		],[
-			['set','x',333],
-			['send','B',1]
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 333, "B": 222},
-			map[string]int64{"A": 1, "B": 2})
+			script = `[[
+				['set','x',111],
+				['send','B',3],
+				['pcall','B']
+			],[
+				['set','x',222],
+				['send','C',2],
+				['pcall','C'],
+				['fail']
+			],[
+				['set','x',333],
+				['send','A',1]
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 111, "B": 0, "C": 0},
+				map[string]int64{"A": 0, "B": 3, "C": 0})
 
-		script = `[[
-			['set','x',111],
-			['send','B',3],
-			['pcall','B']
-		],[
-			['set','x',222],
-			['send','A',2],
-			['pcall','A']
-		],[
-			['set','x',333],
-			['send','B',1],
-			['fail']
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 111, "B": 222},
-			map[string]int64{"A": 2, "B": 1})
+			script = `[[
+				['set','x',111],
+				['send','B',3],
+				['pcall','B'],
+				['fail']
+			],[
+				['set','x',222],
+				['send','C',2],
+				['pcall','C']
+			],[
+				['set','x',333],
+				['send','A',1]
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 0, "B": 0, "C": 0},
+				map[string]int64{"A": 3, "B": 0, "C": 0})
 
-		script = `[[
-			['set','x',111],
-			['send','B',3],
-			['pcall','B']
-		],[
-			['set','x',222],
-			['send','A',2],
-			['pcall','A'],
-			['fail']
-		],[
-			['set','x',333],
-			['send','B',1]
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 111, "B": 0},
-			map[string]int64{"A": 0, "B": 3})
+			// A -> B -> A (call back to original contract)
 
-		script = `[[
-			['set','x',111],
-			['send','B',3],
-			['pcall','B'],
-			['fail']
-		],[
-			['set','x',222],
-			['send','A',2],
-			['pcall','A']
-		],[
-			['set','x',333],
-			['send','B',1]
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 0, "B": 0},
-			map[string]int64{"A": 3, "B": 0})
+			script = `[[
+				['set','x',111],
+				['send','B',3],
+				['pcall','B']
+			],[
+				['set','x',222],
+				['send','A',2],
+				['pcall','A']
+			],[
+				['set','x',333],
+				['send','B',1]
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 333, "B": 222},
+				map[string]int64{"A": 1, "B": 2})
 
-		// A -> B -> B
+			script = `[[
+				['set','x',111],
+				['send','B',3],
+				['pcall','B']
+			],[
+				['set','x',222],
+				['send','A',2],
+				['pcall','A']
+			],[
+				['set','x',333],
+				['send','B',1],
+				['fail']
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 111, "B": 222},
+				map[string]int64{"A": 2, "B": 1})
 
-		script = `[[
-			['set','x',111],
-			['send','B',3],
-			['pcall','B']
-		],[
-			['set','x',222],
-			['send','C',1],
-			['pcall','B']
-		],[
-			['set','x',333],
-			['send','A',1]
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 111, "B": 333},
-			map[string]int64{"A": 1, "B": 1, "C": 1})
+			script = `[[
+				['set','x',111],
+				['send','B',3],
+				['pcall','B']
+			],[
+				['set','x',222],
+				['send','A',2],
+				['pcall','A'],
+				['fail']
+			],[
+				['set','x',333],
+				['send','B',1]
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 111, "B": 0},
+				map[string]int64{"A": 0, "B": 3})
 
-		script = `[[
-			['set','x',111],
-			['send','B',3],
-			['pcall','B']
-		],[
-			['set','x',222],
-			['send','C',1],
-			['pcall','B']
-		],[
-			['set','x',333],
-			['send','A',1],
-			['fail']
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 111, "B": 222},
-			map[string]int64{"A": 0, "B": 2, "C": 1})
+			script = `[[
+				['set','x',111],
+				['send','B',3],
+				['pcall','B'],
+				['fail']
+			],[
+				['set','x',222],
+				['send','A',2],
+				['pcall','A']
+			],[
+				['set','x',333],
+				['send','B',1]
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 0, "B": 0},
+				map[string]int64{"A": 3, "B": 0})
 
-		script = `[[
-			['set','x',111],
-			['send','B',3],
-			['pcall','B']
-		],[
-			['set','x',222],
-			['send','C',1],
-			['pcall','B'],
-			['fail']
-		],[
-			['set','x',333],
-			['send','A',1]
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 111, "B": 0},
-			map[string]int64{"A": 0, "B": 3, "C": 0})
+			// A -> B -> B
 
-		script = `[[
-			['set','x',111],
-			['send','B',3],
-			['pcall','B'],
-			['fail']
-		],[
-			['set','x',222],
-			['send','C',1],
-			['pcall','B']
-		],[
-			['set','x',333],
-			['send','A',1]
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 0, "B": 0},
-			map[string]int64{"A": 3, "B": 0, "C": 0})
+			script = `[[
+				['set','x',111],
+				['send','B',3],
+				['pcall','B']
+			],[
+				['set','x',222],
+				['send','C',1],
+				['pcall','B']
+			],[
+				['set','x',333],
+				['send','A',1]
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 111, "B": 333},
+				map[string]int64{"A": 1, "B": 1, "C": 1})
 
-		// A -> A -> B
+			script = `[[
+				['set','x',111],
+				['send','B',3],
+				['pcall','B']
+			],[
+				['set','x',222],
+				['send','C',1],
+				['pcall','B']
+			],[
+				['set','x',333],
+				['send','A',1],
+				['fail']
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 111, "B": 222},
+				map[string]int64{"A": 0, "B": 2, "C": 1})
 
-		script = `[[
-			['set','x',111],
-			['send','B',2],
-			['pcall','A']
-		],[
-			['set','x',222],
-			['send','C',1],
-			['pcall','B']
-		],[
-			['set','x',333],
-			['send','A',1]
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 222, "B": 333},
-			map[string]int64{"A": 1, "B": 1, "C": 1})
+			script = `[[
+				['set','x',111],
+				['send','B',3],
+				['pcall','B']
+			],[
+				['set','x',222],
+				['send','C',1],
+				['pcall','B'],
+				['fail']
+			],[
+				['set','x',333],
+				['send','A',1]
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 111, "B": 0},
+				map[string]int64{"A": 0, "B": 3, "C": 0})
 
-		script = `[[
-			['set','x',111],
-			['send','B',2],
-			['pcall','A']
-		],[
-			['set','x',222],
-			['send','C',1],
-			['pcall','B']
-		],[
-			['set','x',333],
-			['send','A',1],
-			['fail']
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 222, "B": 0},
-			map[string]int64{"A": 0, "B": 2, "C": 1})
+			script = `[[
+				['set','x',111],
+				['send','B',3],
+				['pcall','B'],
+				['fail']
+			],[
+				['set','x',222],
+				['send','C',1],
+				['pcall','B']
+			],[
+				['set','x',333],
+				['send','A',1]
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 0, "B": 0},
+				map[string]int64{"A": 3, "B": 0, "C": 0})
 
-		script = `[[
-			['set','x',111],
-			['send','B',2],
-			['pcall','A']
-		],[
-			['set','x',222],
-			['send','C',1],
-			['pcall','B'],
-			['fail']
-		],[
-			['set','x',333],
-			['send','A',1]
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 111, "B": 0},
-			map[string]int64{"A": 1, "B": 2, "C": 0})
+			// A -> A -> B
 
-		script = `[[
-			['set','x',111],
-			['send','B',2],
-			['pcall','A'],
-			['fail']
-		],[
-			['set','x',222],
-			['send','C',1],
-			['pcall','B']
-		],[
-			['set','x',333],
-			['send','A',1]
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 0, "B": 0},
-			map[string]int64{"A": 3, "B": 0, "C": 0})
+			script = `[[
+				['set','x',111],
+				['send','B',2],
+				['pcall','A']
+			],[
+				['set','x',222],
+				['send','C',1],
+				['pcall','B']
+			],[
+				['set','x',333],
+				['send','A',1]
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 222, "B": 333},
+				map[string]int64{"A": 1, "B": 1, "C": 1})
 
-		// A -> B -> A -> B -> A  (zigzag)
+			script = `[[
+				['set','x',111],
+				['send','B',2],
+				['pcall','A']
+			],[
+				['set','x',222],
+				['send','C',1],
+				['pcall','B']
+			],[
+				['set','x',333],
+				['send','A',1],
+				['fail']
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 222, "B": 0},
+				map[string]int64{"A": 0, "B": 2, "C": 1})
 
-		script = `[[
-			['set','x',111],
-			['send','B',1],
-			['pcall','B']
-		],[
-			['set','x',222],
-			['send','A',1],
-			['pcall','A']
-		],[
-			['set','x',333],
-			['send','B',1],
-			['pcall','B']
-		],[
-			['set','x',444],
-			['send','A',1],
-			['pcall','A']
-		],[
-			['set','x',555],
-			['send','B',1]
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 555, "B": 444},
-			map[string]int64{"A": 2, "B": 1})
+			script = `[[
+				['set','x',111],
+				['send','B',2],
+				['pcall','A']
+			],[
+				['set','x',222],
+				['send','C',1],
+				['pcall','B'],
+				['fail']
+			],[
+				['set','x',333],
+				['send','A',1]
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 111, "B": 0},
+				map[string]int64{"A": 1, "B": 2, "C": 0})
 
-		script = `[[
-			['set','x',111],
-			['send','B',1],
-			['pcall','B']
-		],[
-			['set','x',222],
-			['send','A',1],
-			['pcall','A']
-		],[
-			['set','x',333],
-			['send','B',1],
-			['pcall','B']
-		],[
-			['set','x',444],
-			['send','A',1],
-			['pcall','A']
-		],[
-			['set','x',555],
-			['send','B',1],
-			['fail']
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 333, "B": 444},
-			map[string]int64{"A": 3, "B": 0})
+			script = `[[
+				['set','x',111],
+				['send','B',2],
+				['pcall','A'],
+				['fail']
+			],[
+				['set','x',222],
+				['send','C',1],
+				['pcall','B']
+			],[
+				['set','x',333],
+				['send','A',1]
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 0, "B": 0},
+				map[string]int64{"A": 3, "B": 0, "C": 0})
 
-		script = `[[
-			['set','x',111],
-			['send','B',1],
-			['pcall','B']
-		],[
-			['set','x',222],
-			['send','A',1],
-			['pcall','A']
-		],[
-			['set','x',333],
-			['send','B',1],
-			['pcall','B']
-		],[
-			['set','x',444],
-			['send','A',1],
-			['pcall','A'],
-			['fail']
-		],[
-			['set','x',555],
-			['send','B',1]
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 333, "B": 222},
-			map[string]int64{"A": 2, "B": 1})
+			// A -> B -> A -> B -> A  (zigzag)
 
-		script = `[[
-			['set','x',111],
-			['send','B',1],
-			['pcall','B']
-		],[
-			['set','x',222],
-			['send','A',1],
-			['pcall','A']
-		],[
-			['set','x',333],
-			['send','B',1],
-			['pcall','B'],
-			['fail']
-		],[
-			['set','x',444],
-			['send','A',1],
-			['pcall','A']
-		],[
-			['set','x',555],
-			['send','B',1]
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 111, "B": 222},
-			map[string]int64{"A": 3, "B": 0})
+			script = `[[
+				['set','x',111],
+				['send','B',1],
+				['pcall','B']
+			],[
+				['set','x',222],
+				['send','A',1],
+				['pcall','A']
+			],[
+				['set','x',333],
+				['send','B',1],
+				['pcall','B']
+			],[
+				['set','x',444],
+				['send','A',1],
+				['pcall','A']
+			],[
+				['set','x',555],
+				['send','B',1]
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 555, "B": 444},
+				map[string]int64{"A": 2, "B": 1})
 
-		script = `[[
-			['set','x',111],
-			['send','B',1],
-			['pcall','B']
-		],[
-			['set','x',222],
-			['send','A',1],
-			['pcall','A'],
-			['fail']
-		],[
-			['set','x',333],
-			['send','B',1],
-			['pcall','B']
-		],[
-			['set','x',444],
-			['send','A',1],
-			['pcall','A']
-		],[
-			['set','x',555],
-			['send','B',1]
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 111, "B": 0},
-			map[string]int64{"A": 2, "B": 1})
+			script = `[[
+				['set','x',111],
+				['send','B',1],
+				['pcall','B']
+			],[
+				['set','x',222],
+				['send','A',1],
+				['pcall','A']
+			],[
+				['set','x',333],
+				['send','B',1],
+				['pcall','B']
+			],[
+				['set','x',444],
+				['send','A',1],
+				['pcall','A']
+			],[
+				['set','x',555],
+				['send','B',1],
+				['fail']
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 333, "B": 444},
+				map[string]int64{"A": 3, "B": 0})
 
-		script = `[[
-			['set','x',111],
-			['send','B',1],
-			['pcall','B'],
-			['fail']
-		],[
-			['set','x',222],
-			['send','A',1],
-			['pcall','A']
-		],[
-			['set','x',333],
-			['send','B',1],
-			['pcall','B']
-		],[
-			['set','x',444],
-			['send','A',1],
-			['pcall','A']
-		],[
-			['set','x',555],
-			['send','B',1]
-		]]`
-		testStateRollback(t, bc, script,
-			map[string]int{"A": 0, "B": 0},
-			map[string]int64{"A": 3, "B": 0})
+			script = `[[
+				['set','x',111],
+				['send','B',1],
+				['pcall','B']
+			],[
+				['set','x',222],
+				['send','A',1],
+				['pcall','A']
+			],[
+				['set','x',333],
+				['send','B',1],
+				['pcall','B']
+			],[
+				['set','x',444],
+				['send','A',1],
+				['pcall','A'],
+				['fail']
+			],[
+				['set','x',555],
+				['send','B',1]
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 333, "B": 222},
+				map[string]int64{"A": 2, "B": 1})
 
+			script = `[[
+				['set','x',111],
+				['send','B',1],
+				['pcall','B']
+			],[
+				['set','x',222],
+				['send','A',1],
+				['pcall','A']
+			],[
+				['set','x',333],
+				['send','B',1],
+				['pcall','B'],
+				['fail']
+			],[
+				['set','x',444],
+				['send','A',1],
+				['pcall','A']
+			],[
+				['set','x',555],
+				['send','B',1]
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 111, "B": 222},
+				map[string]int64{"A": 3, "B": 0})
+
+			script = `[[
+				['set','x',111],
+				['send','B',1],
+				['pcall','B']
+			],[
+				['set','x',222],
+				['send','A',1],
+				['pcall','A'],
+				['fail']
+			],[
+				['set','x',333],
+				['send','B',1],
+				['pcall','B']
+			],[
+				['set','x',444],
+				['send','A',1],
+				['pcall','A']
+			],[
+				['set','x',555],
+				['send','B',1]
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 111, "B": 0},
+				map[string]int64{"A": 2, "B": 1})
+
+			script = `[[
+				['set','x',111],
+				['send','B',1],
+				['pcall','B'],
+				['fail']
+			],[
+				['set','x',222],
+				['send','A',1],
+				['pcall','A']
+			],[
+				['set','x',333],
+				['send','B',1],
+				['pcall','B']
+			],[
+				['set','x',444],
+				['send','A',1],
+				['pcall','A']
+			],[
+				['set','x',555],
+				['send','B',1]
+			]]`
+			testStateRollback(t, bc, script,
+				map[string]int{"A": 0, "B": 0},
+				map[string]int64{"A": 3, "B": 0})
+
+		}
 	}
 }
 
@@ -3736,491 +3999,519 @@ func TestPcallStateRollback2(t *testing.T) {
 func TestPcallStateRollback3(t *testing.T) {
 	t.Skip("disabled until bug with test is fixed")
 	resolver := readLuaCode(t, "resolver.lua")
-	code := readLuaCode(t, "feature_pcall_rollback_4.lua")
 
 	for version := min_version; version <= max_version; version++ {
-		bc, err := LoadDummyChain(SetHardForkVersion(version))
-		require.NoErrorf(t, err, "failed to create dummy chain")
-		defer bc.Release()
+		files := make([]string, 0)
+		files = append(files, "feature_pcall_rollback_4a.lua")   // contract.pcall
+		if version >= 4 {
+			files = append(files, "feature_pcall_rollback_4b.lua") // pcall
+			files = append(files, "feature_pcall_rollback_4c.lua") // xpcall
+		}
 
-		err = bc.ConnectBlock(
-			NewLuaTxAccount("user", 1, types.Aergo),
-			NewLuaTxDeploy("user", "resolver", 0, resolver),
-			NewLuaTxDeploy("user", "A", 0, code).Constructor(fmt.Sprintf(`["%s","A"]`, nameToAddress("resolver"))),
-			NewLuaTxDeploy("user", "B", 0, code).Constructor(fmt.Sprintf(`["%s","B"]`, nameToAddress("resolver"))),
-			NewLuaTxDeploy("user", "C", 0, code).Constructor(fmt.Sprintf(`["%s","C"]`, nameToAddress("resolver"))),
-		)
-		require.NoErrorf(t, err, "failed to deploy")
+		// iterate over all files
+		for _, file := range files {
 
-		err = bc.ConnectBlock(
-			NewLuaTxCall("user", "resolver", 0, fmt.Sprintf(`{"Name":"set","Args":["A","%s"]}`, nameToAddress("A"))),
-			NewLuaTxCall("user", "resolver", 0, fmt.Sprintf(`{"Name":"set","Args":["B","%s"]}`, nameToAddress("B"))),
-			NewLuaTxCall("user", "resolver", 0, fmt.Sprintf(`{"Name":"set","Args":["C","%s"]}`, nameToAddress("C"))),
-		)
-		require.NoErrorf(t, err, "failed to call resolver contract")
+			code := readLuaCode(t, file)
 
-		// A -> A -> A (3 calls on the same contract)
+			bc, err := LoadDummyChain(SetHardForkVersion(version))
+			require.NoErrorf(t, err, "failed to create dummy chain")
+			defer bc.Release()
 
-		script := `[[
-			['db.set',111],
-			['pcall','A']
-		],[
-			['db.set',222],
-			['pcall','A']
-		],[
-			['db.set',333]
-		]]`
-		testDbStateRollback(t, bc, script,
-			map[string]int{"A": 333})
+			err = bc.ConnectBlock(
+				NewLuaTxAccount("user", 1, types.Aergo),
+				NewLuaTxDeploy("user", "resolver", 0, resolver),
+				NewLuaTxDeploy("user", "A", 0, code).Constructor(fmt.Sprintf(`["%s","A"]`, nameToAddress("resolver"))),
+				NewLuaTxDeploy("user", "B", 0, code).Constructor(fmt.Sprintf(`["%s","B"]`, nameToAddress("resolver"))),
+				NewLuaTxDeploy("user", "C", 0, code).Constructor(fmt.Sprintf(`["%s","C"]`, nameToAddress("resolver"))),
+			)
+			require.NoErrorf(t, err, "failed to deploy")
 
-		script = `[[
-			['db.set',111],
-			['pcall','A']
-		],[
-			['db.set',222],
-			['pcall','A']
-		],[
-			['db.set',333],
-			['fail']
-		]]`
-		testDbStateRollback(t, bc, script,
-			map[string]int{"A": 222})
+			err = bc.ConnectBlock(
+				NewLuaTxCall("user", "resolver", 0, fmt.Sprintf(`{"Name":"set","Args":["A","%s"]}`, nameToAddress("A"))),
+				NewLuaTxCall("user", "resolver", 0, fmt.Sprintf(`{"Name":"set","Args":["B","%s"]}`, nameToAddress("B"))),
+				NewLuaTxCall("user", "resolver", 0, fmt.Sprintf(`{"Name":"set","Args":["C","%s"]}`, nameToAddress("C"))),
+			)
+			require.NoErrorf(t, err, "failed to call resolver contract")
 
-		script = `[[
-			['db.set',111],
-			['pcall','A']
-		],[
-			['db.set',222],
-			['pcall','A'],
-			['fail']
-		],[
-			['db.set',333]
-		]]`
-		testDbStateRollback(t, bc, script,
-			map[string]int{"A": 111})
+			// A -> A -> A (3 calls on the same contract)
 
-		script = `[[
-			['db.set',111],
-			['pcall','A'],
-			['fail']
-		],[
-			['db.set',222],
-			['pcall','A']
-		],[
-			['db.set',333]
-		]]`
-		testDbStateRollback(t, bc, script,
-			map[string]int{"A": 0})
+			script := `[[
+				['db.set',111],
+				['pcall','A']
+			],[
+				['db.set',222],
+				['pcall','A']
+			],[
+				['db.set',333]
+			]]`
+			testDbStateRollback(t, bc, script,
+				map[string]int{"A": 333})
 
-		// A -> B -> C (3 different contracts)
+			script = `[[
+				['db.set',111],
+				['pcall','A']
+			],[
+				['db.set',222],
+				['pcall','A']
+			],[
+				['db.set',333],
+				['fail']
+			]]`
+			testDbStateRollback(t, bc, script,
+				map[string]int{"A": 222})
 
-		script = `[[
-			['db.set',111],
-			['pcall','B']
-		],[
-			['db.set',222],
-			['pcall','C']
-		],[
-			['db.set',333]
-		]]`
-		testDbStateRollback(t, bc, script,
-			map[string]int{"A": 111, "B": 222, "C": 333})
+			script = `[[
+				['db.set',111],
+				['pcall','A']
+			],[
+				['db.set',222],
+				['pcall','A'],
+				['fail']
+			],[
+				['db.set',333]
+			]]`
+			testDbStateRollback(t, bc, script,
+				map[string]int{"A": 111})
 
-		script = `[[
-			['db.set',111],
-			['pcall','B']
-		],[
-			['db.set',222],
-			['pcall','C']
-		],[
-			['db.set',333],
-			['fail']
-		]]`
-		testDbStateRollback(t, bc, script,
-			map[string]int{"A": 111, "B": 222, "C": 0})
+			script = `[[
+				['db.set',111],
+				['pcall','A'],
+				['fail']
+			],[
+				['db.set',222],
+				['pcall','A']
+			],[
+				['db.set',333]
+			]]`
+			testDbStateRollback(t, bc, script,
+				map[string]int{"A": 0})
 
-		script = `[[
-			['db.set',111],
-			['pcall','B']
-		],[
-			['db.set',222],
-			['pcall','C'],
-			['fail']
-		],[
-			['db.set',333]
-		]]`
-		testDbStateRollback(t, bc, script,
-			map[string]int{"A": 111, "B": 0, "C": 0})
+			// A -> B -> C (3 different contracts)
 
-		script = `[[
-			['db.set',111],
-			['pcall','B'],
-			['fail']
-		],[
-			['db.set',222],
-			['pcall','C']
-		],[
-			['db.set',333]
-		]]`
-		testDbStateRollback(t, bc, script,
-			map[string]int{"A": 0, "B": 0, "C": 0})
+			script = `[[
+				['db.set',111],
+				['pcall','B']
+			],[
+				['db.set',222],
+				['pcall','C']
+			],[
+				['db.set',333]
+			]]`
+			testDbStateRollback(t, bc, script,
+				map[string]int{"A": 111, "B": 222, "C": 333})
 
-		// A -> B -> A (call back to original contract)
+			script = `[[
+				['db.set',111],
+				['pcall','B']
+			],[
+				['db.set',222],
+				['pcall','C']
+			],[
+				['db.set',333],
+				['fail']
+			]]`
+			testDbStateRollback(t, bc, script,
+				map[string]int{"A": 111, "B": 222, "C": 0})
 
-		script = `[[
-			['db.set',111],
-			['pcall','B']
-		],[
-			['db.set',222],
-			['pcall','A']
-		],[
-			['db.set',333]
-		]]`
-		testDbStateRollback(t, bc, script,
-			map[string]int{"A": 333, "B": 222})
+			script = `[[
+				['db.set',111],
+				['pcall','B']
+			],[
+				['db.set',222],
+				['pcall','C'],
+				['fail']
+			],[
+				['db.set',333]
+			]]`
+			testDbStateRollback(t, bc, script,
+				map[string]int{"A": 111, "B": 0, "C": 0})
 
-		script = `[[
-			['db.set',111],
-			['pcall','B']
-		],[
-			['db.set',222],
-			['pcall','A']
-		],[
-			['db.set',333],
-			['fail']
-		]]`
-		testDbStateRollback(t, bc, script,
-			map[string]int{"A": 111, "B": 222})
+			script = `[[
+				['db.set',111],
+				['pcall','B'],
+				['fail']
+			],[
+				['db.set',222],
+				['pcall','C']
+			],[
+				['db.set',333]
+			]]`
+			testDbStateRollback(t, bc, script,
+				map[string]int{"A": 0, "B": 0, "C": 0})
 
-		script = `[[
-			['db.set',111],
-			['pcall','B']
-		],[
-			['db.set',222],
-			['pcall','A'],
-			['fail']
-		],[
-			['db.set',333]
-		]]`
-		testDbStateRollback(t, bc, script,
-			map[string]int{"A": 111, "B": 0})
+			// A -> B -> A (call back to original contract)
 
-		script = `[[
-			['db.set',111],
-			['pcall','B'],
-			['fail']
-		],[
-			['db.set',222],
-			['pcall','A']
-		],[
-			['db.set',333]
-		]]`
-		testDbStateRollback(t, bc, script,
-			map[string]int{"A": 0, "B": 0})
+			script = `[[
+				['db.set',111],
+				['pcall','B']
+			],[
+				['db.set',222],
+				['pcall','A']
+			],[
+				['db.set',333]
+			]]`
+			testDbStateRollback(t, bc, script,
+				map[string]int{"A": 333, "B": 222})
 
-		// A -> B -> B
+			script = `[[
+				['db.set',111],
+				['pcall','B']
+			],[
+				['db.set',222],
+				['pcall','A']
+			],[
+				['db.set',333],
+				['fail']
+			]]`
+			testDbStateRollback(t, bc, script,
+				map[string]int{"A": 111, "B": 222})
 
-		script = `[[
-			['db.set',111],
-			['pcall','B']
-		],[
-			['db.set',222],
-			['pcall','B']
-		],[
-			['db.set',333]
-		]]`
-		testDbStateRollback(t, bc, script,
-			map[string]int{"A": 111, "B": 333})
+			script = `[[
+				['db.set',111],
+				['pcall','B']
+			],[
+				['db.set',222],
+				['pcall','A'],
+				['fail']
+			],[
+				['db.set',333]
+			]]`
+			testDbStateRollback(t, bc, script,
+				map[string]int{"A": 111, "B": 0})
 
-		script = `[[
-			['db.set',111],
-			['pcall','B']
-		],[
-			['db.set',222],
-			['pcall','B']
-		],[
-			['db.set',333],
-			['fail']
-		]]`
-		testDbStateRollback(t, bc, script,
-			map[string]int{"A": 111, "B": 222})
+			script = `[[
+				['db.set',111],
+				['pcall','B'],
+				['fail']
+			],[
+				['db.set',222],
+				['pcall','A']
+			],[
+				['db.set',333]
+			]]`
+			testDbStateRollback(t, bc, script,
+				map[string]int{"A": 0, "B": 0})
 
-		script = `[[
-			['db.set',111],
-			['pcall','B']
-		],[
-			['db.set',222],
-			['pcall','B'],
-			['fail']
-		],[
-			['db.set',333]
-		]]`
-		testDbStateRollback(t, bc, script,
-			map[string]int{"A": 111, "B": 0})
+			// A -> B -> B
 
-		script = `[[
-			['db.set',111],
-			['pcall','B'],
-			['fail']
-		],[
-			['db.set',222],
-			['pcall','B']
-		],[
-			['db.set',333]
-		]]`
-		testDbStateRollback(t, bc, script,
-			map[string]int{"A": 0, "B": 0})
+			script = `[[
+				['db.set',111],
+				['pcall','B']
+			],[
+				['db.set',222],
+				['pcall','B']
+			],[
+				['db.set',333]
+			]]`
+			testDbStateRollback(t, bc, script,
+				map[string]int{"A": 111, "B": 333})
 
-		// A -> A -> B
+			script = `[[
+				['db.set',111],
+				['pcall','B']
+			],[
+				['db.set',222],
+				['pcall','B']
+			],[
+				['db.set',333],
+				['fail']
+			]]`
+			testDbStateRollback(t, bc, script,
+				map[string]int{"A": 111, "B": 222})
 
-		script = `[[
-			['db.set',111],
-			['pcall','A']
-		],[
-			['db.set',222],
-			['pcall','B']
-		],[
-			['db.set',333]
-		]]`
-		testDbStateRollback(t, bc, script,
-			map[string]int{"A": 222, "B": 333})
+			script = `[[
+				['db.set',111],
+				['pcall','B']
+			],[
+				['db.set',222],
+				['pcall','B'],
+				['fail']
+			],[
+				['db.set',333]
+			]]`
+			testDbStateRollback(t, bc, script,
+				map[string]int{"A": 111, "B": 0})
 
-		script = `[[
-			['db.set',111],
-			['pcall','A']
-		],[
-			['db.set',222],
-			['pcall','B']
-		],[
-			['db.set',333],
-			['fail']
-		]]`
-		testDbStateRollback(t, bc, script,
-			map[string]int{"A": 222, "B": 0})
+			script = `[[
+				['db.set',111],
+				['pcall','B'],
+				['fail']
+			],[
+				['db.set',222],
+				['pcall','B']
+			],[
+				['db.set',333]
+			]]`
+			testDbStateRollback(t, bc, script,
+				map[string]int{"A": 0, "B": 0})
 
-		script = `[[
-			['db.set',111],
-			['pcall','A']
-		],[
-			['db.set',222],
-			['pcall','B'],
-			['fail']
-		],[
-			['db.set',333]
-		]]`
-		testDbStateRollback(t, bc, script,
-			map[string]int{"A": 111, "B": 0})
+			// A -> A -> B
 
-		script = `[[
-			['db.set',111],
-			['pcall','A'],
-			['fail']
-		],[
-			['db.set',222],
-			['pcall','B']
-		],[
-			['db.set',333]
-		]]`
-		testDbStateRollback(t, bc, script,
-			map[string]int{"A": 0, "B": 0})
+			script = `[[
+				['db.set',111],
+				['pcall','A']
+			],[
+				['db.set',222],
+				['pcall','B']
+			],[
+				['db.set',333]
+			]]`
+			testDbStateRollback(t, bc, script,
+				map[string]int{"A": 222, "B": 333})
 
-		// A -> B -> A -> B -> A  (zigzag)
+			script = `[[
+				['db.set',111],
+				['pcall','A']
+			],[
+				['db.set',222],
+				['pcall','B']
+			],[
+				['db.set',333],
+				['fail']
+			]]`
+			testDbStateRollback(t, bc, script,
+				map[string]int{"A": 222, "B": 0})
 
-		script = `[[
-			['db.set',111],
-			['pcall','B']
-		],[
-			['db.set',222],
-			['pcall','A']
-		],[
-			['db.set',333],
-			['pcall','B']
-		],[
-			['db.set',444],
-			['pcall','A']
-		],[
-			['db.set',555]
-		]]`
-		testDbStateRollback(t, bc, script,
-			map[string]int{"A": 555, "B": 444})
+			script = `[[
+				['db.set',111],
+				['pcall','A']
+			],[
+				['db.set',222],
+				['pcall','B'],
+				['fail']
+			],[
+				['db.set',333]
+			]]`
+			testDbStateRollback(t, bc, script,
+				map[string]int{"A": 111, "B": 0})
 
-		script = `[[
-			['db.set',111],
-			['pcall','B']
-		],[
-			['db.set',222],
-			['pcall','A']
-		],[
-			['db.set',333],
-			['pcall','B']
-		],[
-			['db.set',444],
-			['pcall','A']
-		],[
-			['db.set',555],
-			['fail']
-		]]`
-		testDbStateRollback(t, bc, script,
-			map[string]int{"A": 333, "B": 444})
+			script = `[[
+				['db.set',111],
+				['pcall','A'],
+				['fail']
+			],[
+				['db.set',222],
+				['pcall','B']
+			],[
+				['db.set',333]
+			]]`
+			testDbStateRollback(t, bc, script,
+				map[string]int{"A": 0, "B": 0})
 
-		script = `[[
-			['db.set',111],
-			['pcall','B']
-		],[
-			['db.set',222],
-			['pcall','A']
-		],[
-			['db.set',333],
-			['pcall','B']
-		],[
-			['db.set',444],
-			['pcall','A'],
-			['fail']
-		],[
-			['db.set',555]
-		]]`
-		testDbStateRollback(t, bc, script,
-			map[string]int{"A": 333, "B": 222})
+			// A -> B -> A -> B -> A  (zigzag)
 
-		script = `[[
-			['db.set',111],
-			['pcall','B']
-		],[
-			['db.set',222],
-			['pcall','A']
-		],[
-			['db.set',333],
-			['pcall','B'],
-			['fail']
-		],[
-			['db.set',444],
-			['pcall','A']
-		],[
-			['db.set',555]
-		]]`
-		testDbStateRollback(t, bc, script,
-			map[string]int{"A": 111, "B": 222})
+			script = `[[
+				['db.set',111],
+				['pcall','B']
+			],[
+				['db.set',222],
+				['pcall','A']
+			],[
+				['db.set',333],
+				['pcall','B']
+			],[
+				['db.set',444],
+				['pcall','A']
+			],[
+				['db.set',555]
+			]]`
+			testDbStateRollback(t, bc, script,
+				map[string]int{"A": 555, "B": 444})
 
-		script = `[[
-			['db.set',111],
-			['pcall','B']
-		],[
-			['db.set',222],
-			['pcall','A'],
-			['fail']
-		],[
-			['db.set',333],
-			['pcall','B']
-		],[
-			['db.set',444],
-			['pcall','A']
-		],[
-			['db.set',555]
-		]]`
-		testDbStateRollback(t, bc, script,
-			map[string]int{"A": 111, "B": 0})
+			script = `[[
+				['db.set',111],
+				['pcall','B']
+			],[
+				['db.set',222],
+				['pcall','A']
+			],[
+				['db.set',333],
+				['pcall','B']
+			],[
+				['db.set',444],
+				['pcall','A']
+			],[
+				['db.set',555],
+				['fail']
+			]]`
+			testDbStateRollback(t, bc, script,
+				map[string]int{"A": 333, "B": 444})
 
-		script = `[[
-			['db.set',111],
-			['pcall','B'],
-			['fail']
-		],[
-			['db.set',222],
-			['pcall','A']
-		],[
-			['db.set',333],
-			['pcall','B']
-		],[
-			['db.set',444],
-			['pcall','A']
-		],[
-			['db.set',555]
-		]]`
-		testDbStateRollback(t, bc, script,
-			map[string]int{"A": 0, "B": 0})
+			script = `[[
+				['db.set',111],
+				['pcall','B']
+			],[
+				['db.set',222],
+				['pcall','A']
+			],[
+				['db.set',333],
+				['pcall','B']
+			],[
+				['db.set',444],
+				['pcall','A'],
+				['fail']
+			],[
+				['db.set',555]
+			]]`
+			testDbStateRollback(t, bc, script,
+				map[string]int{"A": 333, "B": 222})
 
+			script = `[[
+				['db.set',111],
+				['pcall','B']
+			],[
+				['db.set',222],
+				['pcall','A']
+			],[
+				['db.set',333],
+				['pcall','B'],
+				['fail']
+			],[
+				['db.set',444],
+				['pcall','A']
+			],[
+				['db.set',555]
+			]]`
+			testDbStateRollback(t, bc, script,
+				map[string]int{"A": 111, "B": 222})
+
+			script = `[[
+				['db.set',111],
+				['pcall','B']
+			],[
+				['db.set',222],
+				['pcall','A'],
+				['fail']
+			],[
+				['db.set',333],
+				['pcall','B']
+			],[
+				['db.set',444],
+				['pcall','A']
+			],[
+				['db.set',555]
+			]]`
+			testDbStateRollback(t, bc, script,
+				map[string]int{"A": 111, "B": 0})
+
+			script = `[[
+				['db.set',111],
+				['pcall','B'],
+				['fail']
+			],[
+				['db.set',222],
+				['pcall','A']
+			],[
+				['db.set',333],
+				['pcall','B']
+			],[
+				['db.set',444],
+				['pcall','A']
+			],[
+				['db.set',555]
+			]]`
+			testDbStateRollback(t, bc, script,
+				map[string]int{"A": 0, "B": 0})
+
+		}
 	}
 }
 
 func testStateRollback(t *testing.T, bc *DummyChain, script string, expected_state map[string]int, expected_amount map[string]int64) {
 	t.Helper()
 
-	err := bc.ConnectBlock(
-		NewLuaTxCall("user", "A", 0, `{"Name":"set","Args":["x",0]}`),
-		NewLuaTxCall("user", "B", 0, `{"Name":"set","Args":["x",0]}`),
-		NewLuaTxCall("user", "C", 0, `{"Name":"set","Args":["x",0]}`),
-		NewLuaTxCall("user", "B", 0, `{"Name":"send_back","Args":["A"]}`),
-		NewLuaTxCall("user", "C", 0, `{"Name":"send_back","Args":["A"]}`),
-	)
-	require.NoErrorf(t, err, "failed to reset")
+	for n := 1; n <= 2; n++ {
 
-	account, _ := bc.GetAccountState("A")
-	if account.GetBalanceBigInt().Int64() != 3 {
-		amount := uint64(3 - account.GetBalanceBigInt().Int64())
-		err = bc.ConnectBlock(
-			NewLuaTxSendBig("user", "A", types.NewAmount(amount, types.Aer)),
+		err := bc.ConnectBlock(
+			NewLuaTxCall("user", "A", 0, `{"Name":"set","Args":["x",0]}`),
+			NewLuaTxCall("user", "B", 0, `{"Name":"set","Args":["x",0]}`),
+			NewLuaTxCall("user", "C", 0, `{"Name":"set","Args":["x",0]}`),
+			NewLuaTxCall("user", "B", 0, `{"Name":"send_back","Args":["A"]}`),
+			NewLuaTxCall("user", "C", 0, `{"Name":"send_back","Args":["A"]}`),
 		)
-		require.NoErrorf(t, err, "failed to send")
-	}
+		require.NoErrorf(t, err, "failed to reset")
 
-	names := make(map[string]int64)
-	names["A"] = 3
-	names["B"] = 0
-	names["C"] = 0
-	for name, amount := range names {
-		account, _ := bc.GetAccountState(name)
-		assert.Equal(t, amount, account.GetBalanceBigInt().Int64(), "balance of "+name+" is not reset")
-		err = bc.Query(name, `{"Name":"get", "Args":["x"]}`, "", "0")
-		require.NoErrorf(t, err, "failed to query on reset")
-	}
+		account, _ := bc.GetAccountState("A")
+		if account.GetBalanceBigInt().Int64() != 3 {
+			amount := uint64(3 - account.GetBalanceBigInt().Int64())
+			err = bc.ConnectBlock(
+				NewLuaTxSendBig("user", "A", types.NewAmount(amount, types.Aer)),
+			)
+			require.NoErrorf(t, err, "failed to send")
+		}
 
-	script = strings.ReplaceAll(script, "'", "\"")
-	tx := NewLuaTxCall("user", "A", 0, fmt.Sprintf(`{"Name":"test", "Args":[%s]}`, script))
-	err = bc.ConnectBlock(tx)
-	//require.NoErrorf(t, err, "failed to call tx")
-	//receipt := bc.GetReceipt(tx.Hash())
-	//assert.Equal(t, ``, receipt.GetRet(), "receipt ret error")
-	//fmt.Printf("events: %v\n", receipt.GetEvents())
+		names := make(map[string]int64)
+		names["A"] = 3
+		names["B"] = 0
+		names["C"] = 0
+		for name, amount := range names {
+			account, _ := bc.GetAccountState(name)
+			assert.Equal(t, amount, account.GetBalanceBigInt().Int64(), "balance of "+name+" is not reset")
+			err = bc.Query(name, `{"Name":"get", "Args":["x"]}`, "", "0")
+			require.NoErrorf(t, err, "failed to query on reset")
+		}
 
-	for contract, value := range expected_state {
-		err = bc.Query(contract, `{"Name":"get", "Args":["x"]}`, "", fmt.Sprintf("%d", value))
-		require.NoErrorf(t, err, "query failed")
-	}
+		script = strings.ReplaceAll(script, "'", "\"")
+		var tx LuaTxTester
+		if n == 1 {
+			tx = NewLuaTxCall("user", "A", 0, fmt.Sprintf(`{"Name":"test", "Args":[%s]}`, script))
+		} else {
+			tx = NewLuaTxMultiCall("user", fmt.Sprintf(`[["call","%s","test",%s]]`, nameToAddress("A"), script))
+		}
+		err = bc.ConnectBlock(tx)
+		//require.NoErrorf(t, err, "failed to call tx")
+		//receipt := bc.GetReceipt(tx.Hash())
+		//assert.Equal(t, ``, receipt.GetRet(), "receipt ret error")
+		//fmt.Printf("events: %v\n", receipt.GetEvents())
 
-	for name, amount := range expected_amount {
-		account, err := bc.GetAccountState(name)
-		require.NoErrorf(t, err, "failed to get account state")
-		assert.Equal(t, amount, account.GetBalanceBigInt().Int64(), "balance is different")
+		for contract, value := range expected_state {
+			err = bc.Query(contract, `{"Name":"get", "Args":["x"]}`, "", fmt.Sprintf("%d", value))
+			require.NoErrorf(t, err, "query failed")
+		}
+
+		for name, amount := range expected_amount {
+			account, err := bc.GetAccountState(name)
+			require.NoErrorf(t, err, "failed to get account state")
+			assert.Equal(t, amount, account.GetBalanceBigInt().Int64(), "balance is different")
+		}
 	}
 }
 
 func testDbStateRollback(t *testing.T, bc *DummyChain, script string, expected map[string]int) {
 	t.Helper()
 
-	err := bc.ConnectBlock(
-		NewLuaTxCall("user", "A", 0, `{"Name":"db_reset"}`),
-		NewLuaTxCall("user", "B", 0, `{"Name":"db_reset"}`),
-		NewLuaTxCall("user", "C", 0, `{"Name":"db_reset"}`),
-	)
-	require.NoErrorf(t, err, "failed to reset")
+	for n := 1; n <= 2; n++ {
 
-	names := []string{"A", "B", "C"}
-	for _, name := range names {
-		err = bc.Query(name, `{"Name":"db_get"}`, "", "0")
-		require.NoErrorf(t, err, "failed to query on reset")
-	}
+		err := bc.ConnectBlock(
+			NewLuaTxCall("user", "A", 0, `{"Name":"db_reset"}`),
+			NewLuaTxCall("user", "B", 0, `{"Name":"db_reset"}`),
+			NewLuaTxCall("user", "C", 0, `{"Name":"db_reset"}`),
+		)
+		require.NoErrorf(t, err, "failed to reset")
 
-	script = strings.ReplaceAll(script, "'", "\"")
-	tx := NewLuaTxCall("user", "A", 0, fmt.Sprintf(`{"Name":"test", "Args":[%s]}`, script))
-	err = bc.ConnectBlock(tx)
-	//require.NoErrorf(t, err, "failed to call tx")
-	//receipt := bc.GetReceipt(tx.Hash())
-	//assert.Equal(t, ``, receipt.GetRet(), "receipt ret error")
-	//fmt.Printf("events: %v\n", receipt.GetEvents())
+		names := []string{"A", "B", "C"}
+		for _, name := range names {
+			err = bc.Query(name, `{"Name":"db_get"}`, "", "0")
+			require.NoErrorf(t, err, "failed to query on reset")
+		}
 
-	for contract, value := range expected {
-		err = bc.Query(contract, `{"Name":"db_get"}`, "", fmt.Sprintf("%d", value))
-		require.NoErrorf(t, err, "query failed")
+		script = strings.ReplaceAll(script, "'", "\"")
+		var tx LuaTxTester
+		if n == 1 {
+			tx = NewLuaTxCall("user", "A", 0, fmt.Sprintf(`{"Name":"test", "Args":[%s]}`, script))
+		} else {
+			tx = NewLuaTxMultiCall("user", fmt.Sprintf(`[["call","%s","test",%s]]`, nameToAddress("A"), script))
+		}
+		err = bc.ConnectBlock(tx)
+		//require.NoErrorf(t, err, "failed to call tx")
+		//receipt := bc.GetReceipt(tx.Hash())
+		//assert.Equal(t, ``, receipt.GetRet(), "receipt ret error")
+		//fmt.Printf("events: %v\n", receipt.GetEvents())
+
+		for contract, value := range expected {
+			err = bc.Query(contract, `{"Name":"db_get"}`, "", fmt.Sprintf("%d", value))
+			require.NoErrorf(t, err, "query failed")
+		}
 	}
 }
 
@@ -4390,6 +4681,1585 @@ func TestContractIsolation(t *testing.T) {
 		require.Equalf(t, ``, receipt.GetRet(), "contract call ret error")
 
 	}
+}
+
+//////////////////////////////////////////////////////////////////////
+// COMPOSABLE TRANSACTIONS
+//////////////////////////////////////////////////////////////////////
+
+func multicall(t *testing.T, bc *DummyChain, params ...string) {
+	t.Helper()
+
+	var expectedError, expectedResult string
+	account := params[0]
+	payload := params[1]
+	if len(params) > 2 {
+		expectedError = params[2]
+	}
+	if len(params) > 3 {
+		expectedResult = params[3]
+	}
+
+	tx := NewLuaTxMultiCall(account, payload).Fail(expectedError)
+
+	err := bc.ConnectBlock(tx)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if expectedError == "" && expectedResult != "" {
+		receipt := bc.GetReceipt(tx.Hash())
+		if receipt.GetRet() != expectedResult {
+			t.Errorf("multicall invalid result - expected: %s	got: %s", expectedResult, receipt.GetRet())
+		}
+	}
+
+}
+
+func call(t *testing.T, bc *DummyChain,
+          account string, amount uint64,
+          contract string, function string, args string,
+          expectedError string, expectedResult string) {
+
+	t.Helper()
+
+	callinfo := fmt.Sprintf(`{"Name":"%s", "Args":%s}`, function, args)
+
+	tx := NewLuaTxCall(account, contract, amount, callinfo).Fail(expectedError)
+
+	err := bc.ConnectBlock(tx)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if expectedError == "" && expectedResult != "" {
+		receipt := bc.GetReceipt(tx.Hash())
+		if receipt.GetRet() != expectedResult {
+			t.Errorf("call invalid result - expected: %s  got: %s", expectedResult, receipt.GetRet())
+		}
+	}
+
+}
+
+func contract_multicall(t *testing.T, bc *DummyChain,
+          account string, contract string, function string, script string,
+          expectedError string, expectedResult string) {
+
+	t.Helper()
+
+	// escape the script JSON string
+	callinfo := fmt.Sprintf(`{"Name":"%s", "Args":[%s]}`, function, strconv.Quote(script))
+
+	tx := NewLuaTxCall(account, contract, 0, callinfo).Fail(expectedError)
+
+	err := bc.ConnectBlock(tx)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if expectedError == "" && expectedResult != "" {
+		receipt := bc.GetReceipt(tx.Hash())
+		if receipt.GetRet() != expectedResult {
+			t.Errorf("call invalid result - expected: %s  got: %s", expectedResult, receipt.GetRet())
+		}
+	}
+
+}
+
+func build_call_tx(account string, contract string, function string, args string) *luaTxCall {
+	callinfo := fmt.Sprintf(`{"Name":"%s", "Args":%s}`, function, args)
+	return NewLuaTxCall(account, contract, 0, callinfo)
+}
+
+func build_contract_multicall_tx(account string, contract string, function string, script string) *luaTxCall {
+	callinfo := fmt.Sprintf(`{"Name":"%s", "Args":[%s]}`, function, strconv.Quote(script))
+	return NewLuaTxCall(account, contract, 0, callinfo)
+}
+
+func execute_block(t *testing.T, bc *DummyChain, txns []*luaTxCall, expectedResults []string) {
+	t.Helper()
+
+	// Convert []*luaTxCall to []LuaTxTester
+	luaTxTesters := make([]LuaTxTester, len(txns))
+	for i, tx := range txns {
+		luaTxTesters[i] = LuaTxTester(tx)
+	}
+
+	err := bc.ConnectBlock(luaTxTesters...)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	for i, tx := range txns {
+		receipt := bc.GetReceipt(tx.Hash())
+		if receipt.GetRet() != expectedResults[i] {
+			t.Errorf("call invalid result - expected: %s  got: %s", expectedResults[i], receipt.GetRet())
+		}
+	}
+
+}
+
+func TestComposableTransactions(t *testing.T) {
+	code := readLuaCode(t, "feature_multicall.lua")
+
+	for version := min_version_multicall; version <= max_version; version++ {
+		bc, err := LoadDummyChain(SetHardForkVersion(version))
+		require.NoErrorf(t, err, "failed to create dummy chain")
+		defer bc.Release()
+
+		err = bc.ConnectBlock(
+			NewLuaTxAccount("ac0", 10, types.Aergo),
+			NewLuaTxAccount("ac1", 10, types.Aergo),
+			NewLuaTxAccount("ac2", 10, types.Aergo),
+			NewLuaTxAccount("ac3", 10, types.Aergo),
+			NewLuaTxAccount("ac4", 10, types.Aergo),
+			NewLuaTxAccount("ac5", 10, types.Aergo),
+			NewLuaTxDeploy("ac0", "tables", 0, code),
+			NewLuaTxDeploy("ac0", "c1", 0, code),
+			NewLuaTxDeploy("ac0", "c2", 0, code),
+			NewLuaTxDeploy("ac0", "c3", 0, code),
+		)
+		if err != nil {
+			t.Error(err)
+		}
+
+
+		multicall(t, bc, "ac1", `[
+		 ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","get_dict"],
+		 ["store result as","dict"],
+		 ["set","%dict%","two",22],
+		 ["set","%dict%","four",4],
+		 ["set","%dict%","one",null],
+		 ["get","%dict%","two"],
+		 ["set","%dict%","copy","%last result%"],
+		 ["return","%dict%"]
+		]`, ``, `{"copy":22,"four":4,"three":3,"two":22}`)
+
+		multicall(t, bc, "ac1", `[
+		 ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","get_list"],
+		 ["store result as","array"],
+		 ["set","%array%",2,"2nd"],
+		 ["insert","%array%",1,"zero"],
+		 ["insert","%array%","last"],
+		 ["return","%array%"]
+		]`, ``, `["zero","first","2nd","third",123,12.5,true,"last"]`)
+
+		multicall(t, bc, "ac1", `[
+		 ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","get_list"],
+		 ["store result as","array"],
+		 ["remove","%array%",3],
+		 ["return","%array%","%last result%"]
+		]`, ``, `[["first","second",123,12.5,true],"third"]`)
+
+
+		// create new dict or array using fromjson
+
+		multicall(t, bc, "ac1", `[
+		 ["from json","{\"one\":1,\"two\":2}"],
+		 ["set","%last result%","three",3],
+		 ["return","%last result%"]
+		]`, ``, `{"one":1,"three":3,"two":2}`)
+
+
+		// define dict or list using let
+
+		multicall(t, bc, "ac1", `[
+		 ["let","obj",{"one":1,"two":2}],
+		 ["set","%obj%","three",3],
+		 ["return","%obj%"]
+		]`, ``, `{"one":1,"three":3,"two":2}`)
+
+		multicall(t, bc, "ac1", `[
+		 ["let","list",["one",1,"two",2,2.5,true,false]],
+		 ["set","%list%",4,"three"],
+		 ["insert","%list%",1,"first"],
+		 ["insert","%list%","last"],
+		 ["return","%list%"]
+		]`, ``, `["first","one",1,"two","three",2.5,true,false,"last"]`)
+
+		multicall(t, bc, "ac1", `[
+		 ["let","list",["one",22,3.3,true,false]],
+		 ["get","%list%",1],
+		 ["assert","%last result%","=","one"],
+		 ["get","%list%",2],
+		 ["assert","%last result%","=",22],
+		 ["get","%list%",3],
+		 ["assert","%last result%","=",3.3],
+		 ["get","%list%",4],
+		 ["assert","%last result%","=",true],
+		 ["get","%list%",5],
+		 ["assert","%last result%","=",false],
+		 ["return","%list%"]
+		]`, ``, `["one",22,3.3,true,false]`)
+
+
+		// get size
+
+		multicall(t, bc, "ac1", `[
+		 ["let","str","this is a string"],
+		 ["get size","%str%"],
+		 ["return","%last result%"]
+		]`, ``, `16`)
+
+		multicall(t, bc, "ac1", `[
+		 ["let","list",["one",1,"two",2,2.5,true,false]],
+		 ["get size","%list%"],
+		 ["return","%last result%"]
+		]`, ``, `7`)
+
+		multicall(t, bc, "ac1", `[
+		 ["let","obj",{"one":1,"two":2,"three":3}],
+		 ["get size","%obj%"],
+		 ["return","%last result%"]
+		]`, ``, `0`)
+
+
+
+
+		// BIGNUM
+
+		multicall(t, bc, "ac1", `[
+		 ["to big number",123],
+		 ["store result as","a"],
+		 ["to big number",123],
+		 ["store result as","b"],
+		 ["multiply","%a%","%b%"],
+		 ["return","%last result%"]
+		]`, ``, `{"_bignum":"15129"}`)
+
+		multicall(t, bc, "ac1", `[
+		 ["to big number","500000000000000000000"],
+		 ["store result as","a"],
+		 ["to big number","100000"],
+		 ["store result as","b"],
+		 ["divide","%a%","%b%"],
+		 ["return","%last result%"]
+		]`, ``, `{"_bignum":"5000000000000000"}`)
+
+		multicall(t, bc, "ac1", `[
+		 ["to big number","500000000000000000000"],
+		 ["store result as","a"],
+		 ["to big number","100000"],
+		 ["store result as","b"],
+		 ["divide","%a%","%b%"],
+		 ["to string","%last result%"],
+		 ["return","%last result%"]
+		]`, ``, `"5000000000000000"`)
+
+		multicall(t, bc, "ac1", `[
+		 ["to big number","500000000000000000000"],
+		 ["store result as","a"],
+
+		 ["to big number","100000"],
+		 ["divide","%a%","%last result%"],
+		 ["store result as","a"],
+
+		 ["to big number","1000000000000000"],
+		 ["subtract","%a%","%last result%"],
+		 ["store result as","a"],
+
+		 ["to big number","1234"],
+		 ["add","%a%","%last result%"],
+		 ["store result as","a"],
+
+		 ["to big number","2"],
+		 ["remainder","%a%","10000"],
+
+		 ["return","%last result%"]
+		]`, ``, `{"_bignum":"1234"}`)
+
+
+
+		// STRINGS
+
+		multicall(t, bc, "ac1", `[
+		 ["format","%s%s%s","hello"," ","world"],
+		 ["return","%last result%"]
+		]`, ``, `"hello world"`)
+
+		multicall(t, bc, "ac1", `[
+		 ["let","s","hello world"],
+		 ["extract","%s%",1,4],
+		 ["return","%last result%"]
+		]`, ``, `"hell"`)
+
+		multicall(t, bc, "ac1", `[
+		 ["let","s","hello world"],
+		 ["extract","%s%",-2,-1],
+		 ["return","%last result%"]
+		]`, ``, `"ld"`)
+
+		multicall(t, bc, "ac1", `[
+		 ["let","s","the amount is 12345"],
+		 ["find","%s%","%d+"],
+		 ["to number"],
+		 ["return","%last result%"]
+		]`, ``, `12345`)
+
+		multicall(t, bc, "ac1", `[
+		 ["let","s","rate: 55 10%"],
+		 ["find","%s%","(%d+)%%"],
+		 ["to number"],
+		 ["return","%last result%"]
+		]`, ``, `10`)
+
+		multicall(t, bc, "ac1", `[
+		 ["let","s","rate: 12%"],
+		 ["find","%s%","%s*(%d+)%%"],
+		 ["to number"],
+		 ["return","%last result%"]
+		]`, ``, `12`)
+
+		multicall(t, bc, "ac1", `[
+		 ["let","s","hello world"],
+		 ["replace","%s%","hello","good bye"],
+		 ["return","%last result%"]
+		]`, ``, `"good bye world"`)
+
+		multicall(t, bc, "ac1", `[
+		 ["from json","{\"name\":\"ticket\",\"value\":12.5,\"amount\":10}"],
+		 ["replace","name = $name, value = $value, amount = $amount","%$(%w+)","%last result%"],
+		 ["return","%last result%"]
+		]`, ``, `"name = ticket, value = 12.5, amount = 10"`)
+
+
+		// IF THEN ELSE
+
+		multicall(t, bc, "ac1", `[
+		 ["let","s",20],
+		 ["if","%s%",">=",20],
+		 ["let","b","big"],
+		 ["else if","%s%",">=",10],
+		 ["let","b","medium"],
+		 ["else"],
+		 ["let","b","low"],
+		 ["end if"],
+		 ["let","c","after"],
+		 ["return","%b%","%c%"]
+		]`, ``, `["big","after"]`)
+
+		multicall(t, bc, "ac1", `[
+		 ["let","s",10],
+		 ["if","%s%",">=",20],
+		 ["let","b","big"],
+		 ["else if","%s%",">=",10],
+		 ["let","b","medium"],
+		 ["else"],
+		 ["let","b","low"],
+		 ["end if"],
+		 ["let","c","after"],
+		 ["return","%b%","%c%"]
+		]`, ``, `["medium","after"]`)
+
+		multicall(t, bc, "ac1", `[
+		 ["let","s",5],
+		 ["if","%s%",">=",20],
+		 ["let","b","big"],
+		 ["else if","%s%",">=",10],
+		 ["let","b","medium"],
+		 ["else"],
+		 ["let","b","low"],
+		 ["end if"],
+		 ["let","c","after"],
+		 ["return","%b%","%c%"]
+		]`, ``, `["low","after"]`)
+
+		multicall(t, bc, "ac1", `[
+		 ["let","s",20],
+		 ["if","%s%",">=",20],
+		 ["return","big"],
+		 ["else if","%s%",">=",10],
+		 ["return","medium"],
+		 ["else"],
+		 ["return","low"],
+		 ["end if"],
+		 ["return","after"]
+		]`, ``, `"big"`)
+
+		multicall(t, bc, "ac1", `[
+		 ["let","s",10],
+		 ["if","%s%",">=",20],
+		 ["return","big"],
+		 ["else if","%s%",">=",10],
+		 ["return","medium"],
+		 ["else"],
+		 ["return","low"],
+		 ["end if"],
+		 ["return","after"]
+		]`, ``, `"medium"`)
+
+		multicall(t, bc, "ac1", `[
+		 ["let","s",5],
+		 ["if","%s%",">=",20],
+		 ["return","big"],
+		 ["else if","%s%",">=",10],
+		 ["return","medium"],
+		 ["else"],
+		 ["return","low"],
+		 ["end if"],
+		 ["return","after"]
+		]`, ``, `"low"`)
+
+
+		multicall(t, bc, "ac1", `[
+		 ["to big number","500000000000000000000"],
+		 ["store result as","a"],
+		 ["to big number","500000000000000000000"],
+		 ["store result as","b"],
+		 ["if","%a%","=","%b%"],
+		 ["let","b","equal"],
+		 ["else"],
+		 ["let","b","diff"],
+		 ["end if"],
+		 ["return","%b%"]
+		]`, ``, `"equal"`)
+
+		multicall(t, bc, "ac1", `[
+		 ["to big number","500000000000000000000"],
+		 ["store result as","a"],
+		 ["to big number","500000000000000000001"],
+		 ["store result as","b"],
+		 ["if","%a%","=","%b%"],
+		 ["let","b","equal"],
+		 ["else"],
+		 ["let","b","diff"],
+		 ["end if"],
+		 ["return","%b%"]
+		]`, ``, `"diff"`)
+
+		multicall(t, bc, "ac1", `[
+		 ["to big number","500000000000000000001"],
+		 ["store result as","a"],
+		 ["to big number","500000000000000000000"],
+		 ["store result as","b"],
+		 ["if","%a%",">","%b%"],
+		 ["let","b","bigger"],
+		 ["else"],
+		 ["let","b","lower"],
+		 ["end if"],
+		 ["return","%b%"]
+		]`, ``, `"bigger"`)
+
+		multicall(t, bc, "ac1", `[
+		 ["to big number","500000000000000000000"],
+		 ["store result as","a"],
+		 ["to big number","500000000000000000001"],
+		 ["store result as","b"],
+		 ["if","%a%",">","%b%"],
+		 ["let","b","bigger"],
+		 ["else"],
+		 ["let","b","lower"],
+		 ["end if"],
+		 ["return","%b%"]
+		]`, ``, `"lower"`)
+
+
+		multicall(t, bc, "ac1", `[
+		 ["to big number","500000000000000000000"],
+		 ["store result as","a"],
+		 ["to big number","500000000000000000001"],
+		 ["store result as","b"],
+		 ["if","%a%","<","%b%","and","1","=","0"],
+		 ["let","b","wrong 1"],
+		 ["else if","%a%","<","%b%","and","1","=","1"],
+		 ["let","b","correct"],
+		 ["else"],
+		 ["let","b","wrong 2"],
+		 ["end if"],
+		 ["return","%b%"]
+		]`, ``, `"correct"`)
+
+		multicall(t, bc, "ac1", `[
+		 ["to big number","500000000000000000000"],
+		 ["store result as","a"],
+		 ["to big number","500000000000000000001"],
+		 ["store result as","b"],
+		 ["if","%a%","<","%b%","and",1,"=",0],
+		 ["let","b","wrong 1"],
+		 ["else if","%a%","<","%b%","and",1,"=",1],
+		 ["let","b","correct"],
+		 ["else"],
+		 ["let","b","wrong 2"],
+		 ["end if"],
+		 ["return","%b%"]
+		]`, ``, `"correct"`)
+
+		multicall(t, bc, "ac1", `[
+		 ["to big number","500000000000000000000"],
+		 ["store result as","a"],
+		 ["to big number","500000000000000000001"],
+		 ["store result as","b"],
+		 ["to big number","400000000000000000000"],
+		 ["store result as","c"],
+		 ["if","%a%","<","%b%","and","%a%","<","%c%"],
+		 ["let","b","wrong 1"],
+		 ["else if","%a%",">","%b%","and","%a%",">","%c%"],
+		 ["let","b","wrong 2"],
+		 ["else if","%a%","<","%b%","and","%a%",">","%c%"],
+		 ["let","b","correct"],
+		 ["else"],
+		 ["let","b","wrong 3"],
+		 ["end if"],
+		 ["return","%b%"]
+		]`, ``, `"correct"`)
+
+		multicall(t, bc, "ac1", `[
+		 ["to big number","500000000000000000000"],
+		 ["store result as","a"],
+		 ["to big number","500000000000000000001"],
+		 ["store result as","b"],
+		 ["to big number","400000000000000000000"],
+		 ["store result as","c"],
+		 ["to string",0],
+
+		 ["if","%a%",">","%b%","or","%a%","<","%c%"],
+		 ["format","%s%s","%last result%","1"],
+		 ["end if"],
+
+		 ["if","%a%","=","%b%","or","%a%","=","%c%"],
+		 ["format","%s%s","%last result%","2"],
+		 ["end if"],
+
+		 ["if","%a%","<","%b%","or","%a%","<","%c%"],
+		 ["format","%s%s","%last result%","3"],
+		 ["end if"],
+
+		 ["if","%a%",">","%b%","or","%a%",">","%c%"],
+		 ["format","%s%s","%last result%","4"],
+		 ["end if"],
+
+		 ["if","%a%","<","%b%","or","%a%",">","%c%"],
+		 ["format","%s%s","%last result%","5"],
+		 ["end if"],
+
+		 ["if","%a%","!=","%b%","or","%a%","=","%c%"],
+		 ["format","%s%s","%last result%","6"],
+		 ["end if"],
+
+		 ["if","%a%","=","%b%","or","%a%","!=","%c%"],
+		 ["format","%s%s","%last result%","7"],
+		 ["end if"],
+
+
+		 ["if","%a%",">=","%b%","and","%a%","<=","%c%"],
+		 ["format","%s%s","%last result%","8"],
+		 ["end if"],
+
+		 ["if","%a%",">=","%c%","and","%a%","<=","%b%"],
+		 ["format","%s%s","%last result%","9"],
+		 ["end if"],
+
+		 ["if","%b%",">=","%a%","and","%b%","<=","%c%"],
+		 ["format","%s%s","%last result%","A"],
+		 ["end if"],
+
+		 ["if","%b%",">=","%c%","and","%b%","<=","%a%"],
+		 ["format","%s%s","%last result%","B"],
+		 ["end if"],
+
+		 ["if","%c%",">=","%a%","and","%c%","<=","%b%"],
+		 ["format","%s%s","%last result%","C"],
+		 ["end if"],
+
+		 ["if","%c%",">=","%b%","and","%c%","<=","%a%"],
+		 ["format","%s%s","%last result%","D"],
+		 ["end if"],
+
+
+		 ["if","%a%",">=","%b%","and","%a%","<=","%c%","or",1,"=",0],
+		 ["format","%s%s","%last result%","E"],
+		 ["end if"],
+
+		 ["if","%a%",">=","%b%","and","%a%","<=","%c%","or",1,"=",1],
+		 ["format","%s%s","%last result%","F"],
+		 ["end if"],
+
+		 ["if","%a%",">=","%b%","and","%a%","<=","%c%","and",1,"=",0],
+		 ["format","%s%s","%last result%","G"],
+		 ["end if"],
+
+		 ["if","%a%",">=","%b%","and","%a%","<=","%c%","and",1,"=",1],
+		 ["format","%s%s","%last result%","H"],
+		 ["end if"],
+
+
+		 ["if","%a%",">=","%c%","and","%a%","<=","%b%","or",1,"=",0],
+		 ["format","%s%s","%last result%","I"],
+		 ["end if"],
+
+		 ["if","%a%",">=","%c%","and","%a%","<=","%b%","or",1,"=",1],
+		 ["format","%s%s","%last result%","J"],
+		 ["end if"],
+
+		 ["if","%a%",">=","%c%","and","%a%","<=","%b%","and",1,"=",0],
+		 ["format","%s%s","%last result%","K"],
+		 ["end if"],
+
+		 ["if","%a%",">=","%c%","and","%a%","<=","%b%","and",1,"=",1],
+		 ["format","%s%s","%last result%","L"],
+		 ["end if"],
+
+
+		 ["if",1,"=",0,"or","%a%",">=","%b%","and","%a%","<=","%c%"],
+		 ["format","%s%s","%last result%","M"],
+		 ["end if"],
+
+		 ["if",1,"=",1,"or","%a%",">=","%b%","and","%a%","<=","%c%"],
+		 ["format","%s%s","%last result%","N"],
+		 ["end if"],
+
+		 ["if",1,"=",0,"or","%a%",">=","%c%","and","%a%","<=","%b%"],
+		 ["format","%s%s","%last result%","O"],
+		 ["end if"],
+
+		 ["if",1,"=",1,"or","%a%",">=","%c%","and","%a%","<=","%b%"],
+		 ["format","%s%s","%last result%","P"],
+		 ["end if"],
+
+
+		 ["return","%last result%"]
+		]`, ``, `"0345679IJLNOP"`)
+
+
+
+
+		// FOR
+
+		multicall(t, bc, "ac1", `[
+		 ["for","n",1,5],
+		 ["loop"],
+		 ["return","%n%"]
+		]`, ``, `6`)
+
+		multicall(t, bc, "ac1", `[
+		 ["to number","0"],
+		 ["for","n",1,5],
+		 ["add","%last result%",1],
+		 ["loop"],
+		 ["return","%last result%"]
+		]`, ``, `5`)
+
+		multicall(t, bc, "ac1", `[
+		 ["to big number","10000000000000000001"],
+		 ["store result as","to_add"],
+		 ["to big number","100000000000000000000"],
+
+		 ["for","n",1,3],
+		 ["add","%last result%","%to_add%"],
+		 ["loop"],
+
+		 ["to string","%last result%"],
+		 ["return","%last result%"]
+		]`, ``, `"130000000000000000003"`)
+
+
+		multicall(t, bc, "ac1", `[
+		 ["to number","0"],
+		 ["for","n",500,10,-5],
+		 ["add","%last result%",1],
+		 ["loop"],
+		 ["return","%last result%"]
+		]`, ``, `99`)
+
+
+		multicall(t, bc, "ac1", `[
+		 ["to number","0"],
+		 ["for","n",5,1,-1],
+		 ["add","%last result%",1],
+		 ["loop"],
+		 ["return","%last result%"]
+		]`, ``, `5`)
+
+		multicall(t, bc, "ac1", `[
+		 ["to number","0"],
+		 ["for","n",5,1],
+		 ["add","%last result%",1],
+		 ["loop"],
+		 ["return","%last result%"]
+		]`, ``, `0`)
+
+		multicall(t, bc, "ac1", `[
+		 ["to number","0"],
+		 ["for","n",1,5],
+		 ["add","%last result%",1],
+		 ["loop"],
+		 ["return","%last result%"]
+		]`, ``, `5`)
+
+		multicall(t, bc, "ac1", `[
+		 ["to number","0"],
+		 ["for","n",1,5,-1],
+		 ["add","%last result%",1],
+		 ["loop"],
+		 ["return","%last result%"]
+		]`, ``, `0`)
+
+
+
+		// FOREACH
+
+		multicall(t, bc, "ac1", `[
+		 ["let","list",[11,22,33]],
+		 ["let","r",0],
+		 ["for each","item","in","%list%"],
+		 ["add","%r%","%item%"],
+		 ["store result as","r"],
+		 ["loop"],
+		 ["return","%r%"]
+		]`, ``, `66`)
+
+		multicall(t, bc, "ac1", `[
+		 ["let","list",[11,22,33]],
+		 ["let","counter",0],
+		 ["for each","item","in","%list%"],
+		 ["add","%counter%",1],
+		 ["store result as","counter"],
+		 ["loop"],
+		 ["return","%counter%"]
+		]`, ``, `3`)
+
+		multicall(t, bc, "ac1", `[
+		 ["let","list",[]],
+		 ["let","counter",0],
+		 ["for each","item","in","%list%"],
+		 ["add","%counter%",1],
+		 ["store result as","counter"],
+		 ["loop"],
+		 ["return","%counter%"]
+		]`, ``, `0`)
+
+		multicall(t, bc, "ac1", `[
+		 ["let","list",["one",1,"two",2,2.5,true,false]],
+		 ["let","counter",0],
+		 ["for each","item","in","%list%"],
+		 ["add","%counter%",1],
+		 ["store result as","counter"],
+		 ["loop"],
+		 ["return","%counter%"]
+		]`, ``, `7`)
+
+		multicall(t, bc, "ac1", `[
+		 ["let","list",[10,21,32]],
+		 ["let","r",0],
+		 ["for each","item","in","%list%"],
+		 ["if","%item%","<",30],
+		 ["add","%r%","%item%"],
+		 ["store result as","r"],
+		 ["end if"],
+		 ["loop"],
+		 ["return","%r%"]
+		]`, ``, `31`)
+
+
+
+		// FORPAIR
+
+		multicall(t, bc, "ac1", `[
+		 ["let","str",""],
+		 ["let","sum",0],
+		 ["let","obj",{"one":1,"two":2,"three":3}],
+		 ["for each","key","value","in","%obj%"],
+		 ["combine","%str%","%key%"],
+		 ["store result as","str"],
+		 ["add","%sum%","%value%"],
+		 ["store result as","sum"],
+		 ["loop"],
+		 ["return","%str%","%sum%"]
+		]`, ``, `["onethreetwo",6]`)
+
+		multicall(t, bc, "ac1", `[
+		 ["let","str",""],
+		 ["let","sum",0],
+		 ["let","obj",{"one":1.5,"two":2.5,"three":3.5,"four":4.5}],
+		 ["for each","key","value","in","%obj%"],
+		 ["combine","%str%","%key%"],
+		 ["store result as","str"],
+		 ["add","%sum%","%value%"],
+		 ["store result as","sum"],
+		 ["loop"],
+		 ["return","%str%","%sum%"]
+		]`, ``, `["fouronethreetwo",12]`)
+
+		multicall(t, bc, "ac1", `[
+		 ["let","names",[]],
+		 ["let","values",[]],
+		 ["let","obj",{"one":1.5,"two":2.5,"three":3.5,"four":4.5}],
+		 ["for each","key","value","in","%obj%"],
+		 ["insert","%names%","%key%"],
+		 ["insert","%values%","%value%"],
+		 ["loop"],
+		 ["return","%names%","%values%"]
+		]`, ``, `[["four","one","three","two"],[4.5,1.5,3.5,2.5]]`)
+
+		multicall(t, bc, "ac1", `[
+		 ["let","names",[]],
+		 ["let","values",[]],
+		 ["let","obj",{"one":1.5,"two":2.5,"three":3.5,"four":4.5}],
+		 ["for each","key","value","in","%obj%"],
+		 ["insert","%names%","%key%"],
+		 ["insert","%values%","%value%"],
+		 ["loop"],
+		 ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","sort","%values%"],
+		 ["store result as","values"],
+		 ["return","%names%","%values%"]
+		]`, ``, `[["four","one","three","two"],[1.5,2.5,3.5,4.5]]`)
+
+		multicall(t, bc, "ac1", `[
+		 ["let","obj",{}],
+		 ["let","counter",0],
+		 ["for each","key","value","in","%obj%"],
+		 ["add","%counter%",1],
+		 ["store result as","counter"],
+		 ["loop"],
+		 ["return","%counter%"]
+		]`, ``, `0`)
+
+
+
+		// FOR "BREAK"
+
+		multicall(t, bc, "ac1", `[
+		 ["let","c",0],
+		 ["for","n",1,10],
+		 ["add","%c%",1],
+		 ["store result as","c"],
+		 ["if","%n%","=",5],
+		 ["let","n",500],
+		 ["end if"],
+		 ["loop"],
+		 ["return","%c%"]
+		]`, ``, `5`)
+
+		multicall(t, bc, "ac1", `[
+		 ["to number","0"],
+		 ["for","n",500,10,-5],
+		 ["add","%last result%",1],
+		 ["if","%n%","=",475],
+		 ["let","n",2],
+		 ["end if"],
+		 ["loop"],
+		 ["return","%last result%"]
+		]`, ``, `6`)
+
+		multicall(t, bc, "ac1", `[
+		 ["let","c",0],
+		 ["for","n",1,10],
+		 ["add","%c%",1],
+		 ["store result as","c"],
+		 ["if","%n%","=",5],
+		 ["break"],
+		 ["end if"],
+		 ["loop"],
+		 ["return","%c%"]
+		]`, ``, `5`)
+
+		multicall(t, bc, "ac1", `[
+		 ["let","c",0],
+		 ["for","n",1,10],
+		 ["add","%c%",1],
+		 ["store result as","c"],
+		 ["break","if","%n%","=",5],
+		 ["loop"],
+		 ["return","%c%"]
+		]`, ``, `5`)
+
+		multicall(t, bc, "ac1", `[
+		 ["to number","0"],
+		 ["for","n",500,10,-5],
+		 ["add","%last result%",1],
+		 ["if","%n%","=",475],
+		 ["break"],
+		 ["end if"],
+		 ["loop"],
+		 ["return","%last result%"]
+		]`, ``, `6`)
+
+		multicall(t, bc, "ac1", `[
+		 ["to number","0"],
+		 ["for","n",500,10,-5],
+		 ["add","%last result%",1],
+		 ["break","if","%n%","=",475],
+		 ["loop"],
+		 ["return","%last result%"]
+		]`, ``, `6`)
+
+		multicall(t, bc, "ac1", `[
+		 ["for","n",1,5],
+		 ["loop"],
+		 ["return","%n%"]
+		]`, ``, `6`)
+
+		multicall(t, bc, "ac1", `[
+		 ["for","n",1,5],
+		 ["break"],
+		 ["loop"],
+		 ["return","%n%"]
+		]`, ``, `1`)
+
+		multicall(t, bc, "ac1", `[
+		 ["let","names",[]],
+		 ["let","list",["one","two","three","four"]],
+		 ["for each","item","in","%list%"],
+		 ["if","%item%","=","three"],
+		 ["break"],
+		 ["end if"],
+		 ["insert","%names%","%item%"],
+		 ["loop"],
+		 ["return","%names%"]
+		]`, ``, `["one","two"]`)
+
+		multicall(t, bc, "ac1", `[
+		 ["let","names",[]],
+		 ["let","list",["one","two","three","four"]],
+		 ["for each","item","in","%list%"],
+		 ["break","if","%item%","=","three"],
+		 ["insert","%names%","%item%"],
+		 ["loop"],
+		 ["return","%names%"]
+		]`, ``, `["one","two"]`)
+
+		multicall(t, bc, "ac1", `[
+		 ["let","names",[]],
+		 ["let","obj",{"one":true,"two":false,"three":false,"four":true}],
+		 ["for each","key","value","in","%obj%"],
+		 ["if","%value%","=",false],
+		 ["break"],
+		 ["end if"],
+		 ["insert","%names%","%key%"],
+		 ["loop"],
+		 ["return","%names%"]
+		]`, ``, `["four","one"]`)
+
+		multicall(t, bc, "ac1", `[
+		 ["let","names",[]],
+		 ["let","obj",{"one":true,"two":false,"three":false,"four":true}],
+		 ["for each","key","value","in","%obj%"],
+		 ["break","if","%value%","=",false],
+		 ["insert","%names%","%key%"],
+		 ["loop"],
+		 ["return","%names%"]
+		]`, ``, `["four","one"]`)
+
+
+
+		// RETURN before the end
+
+		multicall(t, bc, "ac1", `[
+		 ["let","v",123],
+		 ["if","%v%",">",100],
+		 ["return"],
+		 ["end if"],
+		 ["let","v",500],
+		 ["return","%v%"]
+		]`, ``, ``)
+
+		multicall(t, bc, "ac1", `[
+		 ["let","v",123],
+		 ["if","%v%",">",200],
+		 ["return"],
+		 ["end if"],
+		 ["let","v",500],
+		 ["return","%v%"]
+		]`, ``, `500`)
+
+
+
+		// FULL LOOPS
+
+		multicall(t, bc, "ac1", `[
+		 ["let","c","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
+		 ["call","%c%","inc","n"],
+		 ["call","%c%","get","n"],
+		 ["if","%last result%",">=",5],
+		 ["return","%last result%"],
+		 ["end if"],
+		 ["loop"]
+		]`, ``, `5`)
+
+
+
+
+		// CALLS
+
+		multicall(t, bc, "ac1", `[
+		 ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","works"],
+		 ["assert","%last result%","=",123],
+		 ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","works"],
+		 ["return","%last result%"]
+		]`, ``, `123`)
+
+		multicall(t, bc, "ac1", `[
+		 ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","works"],
+		 ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","fails"]
+		]`, `this call should fail`)
+
+
+		multicall(t, bc, "ac3", `[
+		 ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","set_name","test"],
+		 ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","get_name"],
+		 ["assert","%last result%","=","test"]
+		]`)
+
+		multicall(t, bc, "ac3", `[
+		 ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","set_name","wrong"],
+		 ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","get_name"],
+		 ["assert","%last result%","=","wrong"],
+		 ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","set_name",123]
+		]`, `must be string`)
+
+		multicall(t, bc, "ac3", `[
+		 ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","get_name"],
+		 ["assert","%last result%","=","test"],
+		 ["return","%last result%"]
+		]`, ``, `"test"`)
+
+
+		multicall(t, bc, "ac3", `[
+		 ["let","c","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
+		 ["call","%c%","set_name","test2"],
+		 ["call","%c%","get_name"],
+		 ["assert","%last result%","=","test2"]
+		]`)
+
+		multicall(t, bc, "ac3", `[
+		 ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","sender"],
+		 ["assert","%last result%","=","%my account address%"],
+		 ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","is_contract","%my account address%"],
+		 ["assert","%last result%","=",false],
+		 ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","set","account","%my account address%"],
+		 ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","get","account"],
+		 ["assert","%last result%","=","%my account address%"]
+		]`)
+
+		// CALL + SEND
+
+		multicall(t, bc, "ac3", `[
+		 ["get aergo balance","%my account address%"],
+		 ["store result as","my balance before"],
+		 ["get aergo balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
+		 ["store result as","contract balance before"],
+		 ["call + send","0.25 aergo","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","resend_to","%my account address%"],
+		 ["assert","%last result%","=","250000000000000000"],
+		 ["get aergo balance","%my account address%"],
+		 ["assert","%last result%","=","%my balance before%"],
+		 ["get aergo balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
+		 ["assert","%last result%","=","%contract balance before%"]
+		]`)
+
+		multicall(t, bc, "ac3", `[
+		 ["get aergo balance","%my account address%"],
+		 ["store result as","my balance before"],
+		 ["get aergo balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
+		 ["store result as","contract balance before"],
+
+		 ["let","amount","1.5","aergo"],
+		 ["call + send","%amount%","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","recv_aergo"],
+
+		 ["assert","%my aergo balance%","<","%my balance before%"],
+		 ["get aergo balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
+		 ["assert","%last result%",">","%contract balance before%"],
+
+		 ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","send_to","%my account address%","%amount%"],
+
+		 ["assert","%my aergo balance%","=","%my balance before%"],
+		 ["get aergo balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
+		 ["assert","%last result%","=","%contract balance before%"]
+		]`)
+
+
+		// CALL LOOP
+
+		multicall(t, bc, "ac3", `[
+		 ["let","list",["first","second","third"]],
+		 ["for each","item","in","%list%"],
+		 ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","add","%item%"],
+		 ["loop"]
+		]`)
+
+		multicall(t, bc, "ac1", `[
+		 ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","get","1"],
+		 ["assert","%last result%","=","first"],
+		 ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","get","2"],
+		 ["assert","%last result%","=","second"],
+		 ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","get","3"],
+		 ["assert","%last result%","=","third"]
+		]`)
+
+		multicall(t, bc, "ac3", `[
+		 ["let","list",["1st","2nd","3rd"]],
+		 ["let","n",1],
+		 ["for each","item","in","%list%"],
+		 ["to string","%n%"],
+		 ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","set","%last result%","%item%"],
+		 ["add","%n%",1],
+		 ["store result as","n"],
+		 ["loop"]
+		]`)
+
+		multicall(t, bc, "ac1", `[
+		 ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","get","1"],
+		 ["assert","%last result%","=","1st"],
+		 ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","get","2"],
+		 ["assert","%last result%","=","2nd"],
+		 ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","get","3"],
+		 ["assert","%last result%","=","3rd"]
+		]`)
+
+
+
+		// TRY CALL
+
+		multicall(t, bc, "ac1", `[
+		 ["try call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","works"],
+		 ["assert","%call succeeded%","=",true],
+		 ["try call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","fails"],
+		 ["assert","%call succeeded%","=",false]
+		]`)
+
+		multicall(t, bc, "ac3", `[
+		 ["try call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","set_name","1st"],
+		 ["assert","%call succeeded%"],
+
+		 ["try call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","get_name"],
+		 ["assert","%call succeeded%","=",true],
+		 ["assert","%last result%","=","1st"],
+
+		 ["try call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","set_name",22],
+		 ["assert","%call succeeded%","=",false],
+
+		 ["try call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","get_name"],
+		 ["assert","%call succeeded%","=",true],
+		 ["assert","%last result%","=","1st"],
+
+		 ["return","%last result%"]
+		]`, ``, `"1st"`)
+
+
+		// TRY CALL + SEND
+
+		multicall(t, bc, "ac1", `[
+		 ["get aergo balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
+		 ["assert","%last result%","=","0"],
+		 ["try call + send","0.25 aergo","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","recv_aergo"],
+		 ["assert","%call succeeded%"],
+		 ["try call + send","1 aergo","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","recv_aergo"],
+		 ["assert","%call succeeded%","=",true],
+		 ["get aergo balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
+		 ["assert","%last result%","=","1.25 aergo"],
+		 ["try call + send","1 aergo","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRB","recv_aergo"],
+		 ["assert","%call succeeded%","=",false]
+		]`)
+
+		// ac1: AmgMPiyZYr19kQ1kHFNiGenez1CRTBqNWqppj6gGZGEP6qszDGe1
+		// ac2: AmgeSw3M3V3orBMjf1j98kGne4WycnmQWVTJe6MYNrQ2wuVz3Li2
+
+		multicall(t, bc, "ac1", `[
+		 ["let","balance before","%my aergo balance%"],
+		 ["get aergo balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
+		 ["assert","%last result%","=","1.25 aergo"],
+
+		 ["try call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","send_and_fail","AmgMPiyZYr19kQ1kHFNiGenez1CRTBqNWqppj6gGZGEP6qszDGe1","0.5 aergo"],
+		 ["assert","%call succeeded%","=",false],
+		 ["get aergo balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
+		 ["assert","%last result%","=","1.25 aergo"],
+		 ["assert","%my aergo balance%","=","%balance before%"],
+
+		 ["try call + send","0.25 aergo","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","resend_and_fail","AmgMPiyZYr19kQ1kHFNiGenez1CRTBqNWqppj6gGZGEP6qszDGe1"],
+		 ["assert","%call succeeded%","=",false],
+		 ["get aergo balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
+		 ["assert","%last result%","=","1.25 aergo"],
+		 ["assert","%my aergo balance%","=","%balance before%"],
+
+		 ["try call + send","0.25 aergo","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","resend_and_fail","AmgeSw3M3V3orBMjf1j98kGne4WycnmQWVTJe6MYNrQ2wuVz3Li2"],
+		 ["assert","%call succeeded%","=",false],
+		 ["get aergo balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
+		 ["assert","%last result%","=","1.25 aergo"],
+		 ["assert","%my aergo balance%","=","%balance before%"],
+
+		 ["try call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","send_to","AmgMPiyZYr19kQ1kHFNiGenez1CRTBqNWqppj6gGZGEP6qszDGe1","0.5 aergo"],
+		 ["assert","%call succeeded%"],
+		 ["get aergo balance","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
+		 ["assert","%last result%","=","0.75 aergo"],
+		 ["subtract","%my aergo balance%","%balance before%"],
+		 ["assert","%last result%","=","0.5 aergo"]
+		]`)
+
+
+		// MULTICALL ON ACCOUNT ------------------------------------------
+
+
+		//deploy ac0 0 c1 test.lua
+		//deploy ac0 0 c2 test.lua
+		//deploy ac0 0 c3 test.lua
+
+		// c1: AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9
+		// c2: Amh8PekqkDmLiwE6FUX6JejjWk3R54cmTaa1Tc1VHZmTRJMruWe4
+		// c3: AmgtL32d1M56xGENKDnDqXFzkrYJwWidzSMtay3F8fFDU1VAEdvK
+
+		multicall(t, bc, "ac0", `[
+		 ["call","AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9","set_name","testing multicall"],
+		 ["call","Amh8PekqkDmLiwE6FUX6JejjWk3R54cmTaa1Tc1VHZmTRJMruWe4","set_name","contract 2"],
+		 ["call","AmgtL32d1M56xGENKDnDqXFzkrYJwWidzSMtay3F8fFDU1VAEdvK","set_name","third one"]
+		]`)
+
+		multicall(t, bc, "ac0", `[
+		 ["call","AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9","get_name"],
+		 ["assert","%last result%","=","testing multicall"],
+		 ["store result as","r1"],
+		 ["call","Amh8PekqkDmLiwE6FUX6JejjWk3R54cmTaa1Tc1VHZmTRJMruWe4","get_name"],
+		 ["assert","%last result%","=","contract 2"],
+		 ["store result as","r2"],
+		 ["call","AmgtL32d1M56xGENKDnDqXFzkrYJwWidzSMtay3F8fFDU1VAEdvK","get_name"],
+		 ["assert","%last result%","=","third one"],
+		 ["store result as","r3"],
+		 ["return","%r1%","%r2%","%r3%"]
+		]`, ``, `["testing multicall","contract 2","third one"]`)
+
+		multicall(t, bc, "ac0", `[
+		 ["from json","{}"],
+		 ["store result as","res"],
+		 ["call","AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9","get_name"],
+		 ["set","%res%","r1","%last result%"],
+		 ["call","Amh8PekqkDmLiwE6FUX6JejjWk3R54cmTaa1Tc1VHZmTRJMruWe4","get_name"],
+		 ["set","%res%","r2","%last result%"],
+		 ["call","AmgtL32d1M56xGENKDnDqXFzkrYJwWidzSMtay3F8fFDU1VAEdvK","get_name"],
+		 ["set","%res%","r3","%last result%"],
+		 ["return","%res%"]
+		]`, ``, `{"r1":"testing multicall","r2":"contract 2","r3":"third one"}`)
+
+
+		multicall(t, bc, "ac0", `[
+		 ["call","AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9","set_name","wohooooooo"],
+		 ["call","Amh8PekqkDmLiwE6FUX6JejjWk3R54cmTaa1Tc1VHZmTRJMruWe4","set_name","it works!"],
+		 ["call","AmgtL32d1M56xGENKDnDqXFzkrYJwWidzSMtay3F8fFDU1VAEdvK","set_name","it really works!"]
+		]`)
+
+		multicall(t, bc, "ac0", `[
+		 ["call","AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9","get_name"],
+		 ["assert","%last result%","=","wohooooooo"],
+		 ["store result as","r1"],
+		 ["call","Amh8PekqkDmLiwE6FUX6JejjWk3R54cmTaa1Tc1VHZmTRJMruWe4","get_name"],
+		 ["assert","%last result%","=","it works!"],
+		 ["store result as","r2"],
+		 ["call","AmgtL32d1M56xGENKDnDqXFzkrYJwWidzSMtay3F8fFDU1VAEdvK","get_name"],
+		 ["assert","%last result%","=","it really works!"],
+		 ["store result as","r3"],
+		 ["return","%r1%","%r2%","%r3%"]
+		]`, ``, `["wohooooooo","it works!","it really works!"]`)
+
+		multicall(t, bc, "ac0", `[
+		 ["from json","{}"],
+		 ["store result as","res"],
+		 ["call","AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9","get_name"],
+		 ["set","%res%","r1","%last result%"],
+		 ["call","Amh8PekqkDmLiwE6FUX6JejjWk3R54cmTaa1Tc1VHZmTRJMruWe4","get_name"],
+		 ["set","%res%","r2","%last result%"],
+		 ["call","AmgtL32d1M56xGENKDnDqXFzkrYJwWidzSMtay3F8fFDU1VAEdvK","get_name"],
+		 ["set","%res%","r3","%last result%"],
+		 ["return","%res%"]
+		]`, ``, `{"r1":"wohooooooo","r2":"it works!","r3":"it really works!"}`)
+
+
+
+		// aergo BALANCE and SEND
+
+		multicall(t, bc, "ac5", `[
+		 ["assert","%my aergo balance%","=","10 aergo"],
+
+		 ["send","AmhC1V24v3MM6EzLaypudkrEP4NyX3D44aU9vmzV9cAxXUjbRTK6","0.5 aergo"],
+		 ["assert","%my aergo balance%","=","9.5 aergo"],
+
+		 ["let","amount","1.5","aergo"],
+		 ["send","AmhC1V24v3MM6EzLaypudkrEP4NyX3D44aU9vmzV9cAxXUjbRTK6","%amount%"],
+		 ["assert","%my aergo balance%","=","8000000000000000000"],
+
+		 ["let","amount","2","aergo"],
+		 ["send","AmhC1V24v3MM6EzLaypudkrEP4NyX3D44aU9vmzV9cAxXUjbRTK6","%amount%"],
+		 ["assert","%my aergo balance%","=","6 aergo"],
+
+		 ["return","%my aergo balance%"]
+		]`, ``, `{"_bignum":"6000000000000000000"}`)
+
+		multicall(t, bc, "ac2", `[
+		 ["get aergo balance"],
+		 ["assert","%last result%","=","10000000000000000000"],
+
+		 ["get aergo balance","AmgHyfkUt5iuXJKZNTrdthtXWLLJCrKWdJ6H6Yshn6ZR285Wr2Hc"],
+		 ["assert","%last result%","=","0"],
+
+		 ["send","AmgHyfkUt5iuXJKZNTrdthtXWLLJCrKWdJ6H6Yshn6ZR285Wr2Hc","3000000000000000000"],
+
+		 ["get aergo balance","AmgHyfkUt5iuXJKZNTrdthtXWLLJCrKWdJ6H6Yshn6ZR285Wr2Hc"],
+		 ["assert","%last result%","=","3000000000000000000"],
+
+		 ["get aergo balance"],
+		 ["assert","%last result%","=","7000000000000000000"],
+
+		 ["to string"],
+		 ["return","%last result%"]
+		]`, ``, `"7000000000000000000"`)
+
+
+
+		// SECURITY CHECKS
+
+		// it should not be possible to call the code from another account
+
+		// a. from an account (via multicall, using the 'call' command)
+
+		multicall(t, bc, "ac1", `[
+		 ["call","AmgeSw3M3V3orBMjf1j98kGne4WycnmQWVTJe6MYNrQ2wuVz3Li2","execute",[["add",11,22],["return","%last result%"]]],
+		 ["return","%last result%"]
+		]`, `nd contract`)
+
+
+		// b. from an account (via a call tx)
+
+		call(t, bc, "ac1", 0, "ac1", "execute", `[[["add",11,22],["return","%last result%"]]]`, `nd contract`, ``)
+
+		call(t, bc, "ac1", 0, "ac2", "execute", `[[["add",11,22],["return","%last result%"]]]`, `nd contract`, ``)
+
+
+		// c. from a contract (calling back)
+
+		multicall(t, bc, "ac1", `[
+		 ["call","Amh8PekqkDmLiwE6FUX6JejjWk3R54cmTaa1Tc1VHZmTRJMruWe4","call","AmgMPiyZYr19kQ1kHFNiGenez1CRTBqNWqppj6gGZGEP6qszDGe1","execute",[["add",11,22],["return","%last result%"]]],
+		 ["return","%last result%"]
+		]`, `nd contract`)
+
+
+		// d. from a contract (calling another account)
+
+		multicall(t, bc, "ac1", `[
+		 ["call","Amh8PekqkDmLiwE6FUX6JejjWk3R54cmTaa1Tc1VHZmTRJMruWe4","call","AmgeSw3M3V3orBMjf1j98kGne4WycnmQWVTJe6MYNrQ2wuVz3Li2","execute",[["add",11,22],["return","%last result%"]]],
+		 ["return","%last result%"]
+		]`, `nd contract`)
+
+
+		// e. from a contract (via a call txn)
+
+		call(t, bc, "ac1", 0, "c2", "call", `["AmgMPiyZYr19kQ1kHFNiGenez1CRTBqNWqppj6gGZGEP6qszDGe1","execute",[["add",11,22],["return","%last result%"]]]`, `nd contract`, ``)
+
+		call(t, bc, "ac1", 0, "c2", "call", `["AmgeSw3M3V3orBMjf1j98kGne4WycnmQWVTJe6MYNrQ2wuVz3Li2","execute",[["add",11,22],["return","%last result%"]]]`, `nd contract`, ``)
+
+
+		// system.isContract() should return false on user accounts
+
+		call(t, bc, "ac1", 0, "c2", "is_contract", `["AmgMPiyZYr19kQ1kHFNiGenez1CRTBqNWqppj6gGZGEP6qszDGe1"]`, ``, `false`)
+
+		call(t, bc, "ac1", 0, "c2", "is_contract", `["AmgeSw3M3V3orBMjf1j98kGne4WycnmQWVTJe6MYNrQ2wuVz3Li2"]`, ``, `false`)
+
+		multicall(t, bc, "ac1", `[
+		 ["call","Amh8PekqkDmLiwE6FUX6JejjWk3R54cmTaa1Tc1VHZmTRJMruWe4","is_contract","AmgMPiyZYr19kQ1kHFNiGenez1CRTBqNWqppj6gGZGEP6qszDGe1"],
+		 ["assert","%last result%","=",false],
+		 ["return","%last result%"]
+		]`, ``, `false`)
+
+		multicall(t, bc, "ac1", `[
+		 ["call","Amh8PekqkDmLiwE6FUX6JejjWk3R54cmTaa1Tc1VHZmTRJMruWe4","is_contract","AmgeSw3M3V3orBMjf1j98kGne4WycnmQWVTJe6MYNrQ2wuVz3Li2"],
+		 ["assert","%last result%","=",false],
+		 ["return","%last result%"]
+		]`, ``, `false`)
+
+
+		// on a contract called by multicall, the system.getSender() and system.getOrigin() must be the same
+
+		multicall(t, bc, "ac1", `[
+		 ["call","Amh8PekqkDmLiwE6FUX6JejjWk3R54cmTaa1Tc1VHZmTRJMruWe4","sender"],
+		 ["store result as","sender"],
+		 ["call","Amh8PekqkDmLiwE6FUX6JejjWk3R54cmTaa1Tc1VHZmTRJMruWe4","origin"],
+		 ["store result as","origin"],
+		 ["assert","%sender%","=","%origin%"],
+		 ["return","%sender%"]
+		]`, ``, `"AmgMPiyZYr19kQ1kHFNiGenez1CRTBqNWqppj6gGZGEP6qszDGe1"`)
+
+	}
+}
+
+func TestContractMulticall(t *testing.T) {
+	code1 := readLuaCode(t, "feature_multicall_contract.lua")
+	code2 := readLuaCode(t, "feature_multicall.lua")
+
+	for version := min_version_multicall; version <= max_version; version++ {
+		bc, err := LoadDummyChain(SetHardForkVersion(version))
+		require.NoErrorf(t, err, "failed to create dummy chain")
+		defer bc.Release()
+
+		err = bc.ConnectBlock(
+			NewLuaTxAccount("ac0", 10, types.Aergo),
+			NewLuaTxAccount("ac1", 10, types.Aergo),
+			NewLuaTxAccount("ac2", 10, types.Aergo),
+			NewLuaTxAccount("ac3", 10, types.Aergo),
+
+			NewLuaTxDeploy("ac0", "caller", 0, code1),
+			NewLuaTxDeploy("ac0", "c1", 0, code2),
+			NewLuaTxDeploy("ac0", "c2", 0, code2),
+			NewLuaTxDeploy("ac0", "c3", 0, code2),
+		)
+		if err != nil {
+			t.Error(err)
+		}
+
+		// ac1: AmgMPiyZYr19kQ1kHFNiGenez1CRTBqNWqppj6gGZGEP6qszDGe1
+		// ac2: AmgeSw3M3V3orBMjf1j98kGne4WycnmQWVTJe6MYNrQ2wuVz3Li2
+
+		// caller: AmggmgtWPXtsDkC5hkYYx2iYaWfGs8D4ZvZNwxwdm4gxGSDaCqKn
+		// c1: AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9
+		// c2: Amh8PekqkDmLiwE6FUX6JejjWk3R54cmTaa1Tc1VHZmTRJMruWe4
+		// c3: AmgtL32d1M56xGENKDnDqXFzkrYJwWidzSMtay3F8fFDU1VAEdvK
+
+		// simple script, no state change
+		contract_multicall(t, bc, "ac1", "caller", "multicall", `[
+			["add",11,22],
+			["return","%last result%"]
+		]`, ``, `33`)
+
+		// state change
+		call(t, bc, "ac1", 0, "caller", "set_value", `["num",111]`, ``, ``)
+		call(t, bc, "ac1", 0, "caller", "get_value", `["num"]`, ``, `111`)
+
+		// check balance
+		state, err := bc.GetAccountState("caller")
+		assert.Equalf(t, uint64(0), state.GetBalanceBigInt().Uint64(), "balance error")
+
+		contract_multicall(t, bc, "ac1", "caller", "multicall", `[
+			["return","%my aergo balance%"]
+		]`, ``, `{"_bignum":"0"}`)
+
+		// transfer aergo to the 'caller' contract
+		call(t, bc, "ac1", types.NewAmount(1,types.Aergo).Uint64(), "caller", "recv_aergo", `[]`, ``, ``)
+
+		// use the multicall contract in a delegated call
+		contract_multicall(t, bc, "ac1", "caller", "multicall_and_check", `[
+			["assert","%my aergo balance%","=","1 aergo"],
+			["call + send","0.125 aergo","AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9","recv_aergo"],
+			["assert","%my aergo balance%","=","0.875 aergo"],
+			["get aergo balance","AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9"],
+			["assert","%last result%","=","0.125 aergo"],
+			["return","%my aergo balance%","%last result%"]
+		]`, ``, `[{"_bignum":"875000000000000000"},{"_bignum":"125000000000000000"}]`)
+
+		// check the state of the 2 contracts
+
+		state, err = bc.GetAccountState("caller")
+		assert.Equalf(t, int64(875000000000000000), state.GetBalanceBigInt().Int64(), "balance error")
+
+		state, err = bc.GetAccountState("AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9")
+		assert.Equalf(t, int64(125000000000000000), state.GetBalanceBigInt().Int64(), "balance error")
+
+		contract_multicall(t, bc, "ac1", "caller", "multicall", `[
+			["assert","%my aergo balance%","=","0.875 aergo"],
+			["get aergo balance","AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9"],
+			["assert","%last result%","=","0.125 aergo"],
+			["return","%my aergo balance%","%last result%"]
+		]`, ``, `[{"_bignum":"875000000000000000"},{"_bignum":"125000000000000000"}]`)
+
+		// send the aergo back to the 'caller' contract
+		call(t, bc, "ac1", 0, "c1", "send_to", `["AmggmgtWPXtsDkC5hkYYx2iYaWfGs8D4ZvZNwxwdm4gxGSDaCqKn","0.125 aergo"]`, ``, ``)
+
+		contract_multicall(t, bc, "ac1", "caller", "multicall", `[
+			["assert","%my aergo balance%","=","1 aergo"],
+			["get aergo balance","AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9"],
+			["assert","%last result%","=","0 aergo"],
+			["return","%my aergo balance%","%last result%"]
+		]`, ``, `[{"_bignum":"1000000000000000000"},{"_bignum":"0"}]`)
+
+
+		// make sure that the called contract state is not replaced by the multicall contract
+
+		// transfer tokens to other contract and:
+		// - check amounts on the same transaction (in the multicall contract)
+		// - check amounts on the same transaction (in the caller contract, after returning from the multicall contract)
+		// - check amounts on the same block (another transaction)
+		// - check amounts on the next block
+		// and different ABI on all 3 contracts
+
+		tx1 := build_contract_multicall_tx("ac1", "caller", "multicall_and_check", `[
+			["send","AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9","0.125 aergo"],
+			["assert","%my aergo balance%","=","0.875 aergo"],
+			["get aergo balance","AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9"],
+			["assert","%last result%","=","0.125 aergo"],
+			["return","%my aergo balance%","%last result%"]
+		]`)
+		tx2 := build_call_tx("ac1", "caller", "get_balance", `[]`)
+		tx3 := build_call_tx("ac1", "c1", "get_aergo_balance", `[]`)
+
+		execute_block(t, bc, []*luaTxCall{tx1, tx2, tx3}, []string{`[{"_bignum":"875000000000000000"},{"_bignum":"125000000000000000"}]`, `"875000000000000000"`, `"125000000000000000"`})
+
+
+		// now the same with just delegate call (no multicall)
+
+		call(t, bc, "ac1", 0, "caller", "get_value", `["num"]`, ``, `111`)
+
+		tx1 = build_call_tx("ac1", "caller", "delegate_call", `["AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9","set","num",222]`)
+		tx2 = build_call_tx("ac1", "caller", "get_value", `["num"]`)
+		tx3 = build_call_tx("ac1", "c1", "get", `["num"]`)
+
+		execute_block(t, bc, []*luaTxCall{tx1, tx2, tx3}, []string{``, `222`, `null`})
+
+		call(t, bc, "ac1", 0, "caller", "get_value", `["num"]`, ``, `222`)
+
+
+		// test state recovery - normal atomic txn
+
+		tx1 = build_contract_multicall_tx("ac1", "caller", "multicall_and_check", `[
+			["assert","%my aergo balance%","=","0.875 aergo"],
+			["get aergo balance","AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9"],
+			["assert","%last result%","=","0.125 aergo"],
+
+			["send","AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9","0.125 aergo"],
+			["assert","%my aergo balance%","=","0.75 aergo"],
+			["get aergo balance","AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9"],
+			["assert","%last result%","=","0.25 aergo"],
+
+			["call","AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9","fails"],
+
+			["return","%my aergo balance%","%last result%"]
+		]`)
+		tx2 = build_call_tx("ac1", "caller", "get_balance", `[]`)
+		tx3 = build_call_tx("ac1", "c1", "get_aergo_balance", `[]`)
+
+		tx1 = tx1.Fail("this call should fail")
+
+		execute_block(t, bc, []*luaTxCall{tx1, tx2, tx3}, []string{`[Contract.LuaDelegateCallContract] call error: [Contract.LuaCallContract] call err: AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9:0: this call should fail`, `"875000000000000000"`, `"125000000000000000"`})
+
+
+		// test state recovery - pcall
+
+		tx1 = build_contract_multicall_tx("ac1", "caller", "multicall_and_check", `[
+			["assert","%my aergo balance%","=","0.875 aergo"],
+			["get aergo balance","AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9"],
+			["assert","%last result%","=","0.125 aergo"],
+
+			["try call","AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9","send_and_fail","AmgtL32d1M56xGENKDnDqXFzkrYJwWidzSMtay3F8fFDU1VAEdvK","0.125 aergo"],
+
+			["assert","%my aergo balance%","=","0.875 aergo"],
+			["get aergo balance","AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9"],
+			["assert","%last result%","=","0.125 aergo"],
+
+			["return","%my aergo balance%","%last result%"]
+		]`)
+		tx2 = build_call_tx("ac1", "caller", "get_balance", `[]`)
+		tx3 = build_call_tx("ac1", "c1", "get_aergo_balance", `[]`)
+		tx4 := build_call_tx("ac1", "c3", "get_aergo_balance", `[]`)
+
+		execute_block(t, bc, []*luaTxCall{tx1, tx2, tx3, tx4}, []string{`[{"_bignum":"875000000000000000"},{"_bignum":"125000000000000000"}]`, `"875000000000000000"`, `"125000000000000000"`, `"0"`})
+
+		state, err = bc.GetAccountState("caller")
+		assert.Equalf(t, int64(875000000000000000), state.GetBalanceBigInt().Int64(), "balance error")
+
+		state, err = bc.GetAccountState("c1")
+		assert.Equalf(t, int64(125000000000000000), state.GetBalanceBigInt().Int64(), "balance error")
+
+		state, err = bc.GetAccountState("c3")
+		assert.Equalf(t, int64(0), state.GetBalanceBigInt().Int64(), "balance error")
+
+	}
+
 }
 
 // ----------------------------------------------------------------------------
