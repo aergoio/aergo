@@ -16,6 +16,7 @@ import (
 	"github.com/aergoio/aergo/v2/internal/enc/hex"
 	"math/big"
 	"sort"
+	"os"
 
 	"github.com/aergoio/aergo/v2/consensus"
 	"github.com/aergoio/aergo/v2/contract"
@@ -42,9 +43,17 @@ var (
 
 	InAddBlock      = make(chan struct{}, 1)
 	SendBlockReward = sendRewardCoinbase
+
+	logAccountFix   = false
 )
 
 type BlockRewardFn = func(*state.BlockState, []byte) error
+
+func init() {
+	if os.Getenv("FIX_LOG") == "1" {
+		logAccountFix = true
+	}
+}
 
 type ErrReorg struct {
 	err error
@@ -1259,12 +1268,16 @@ func fixAccount(address string, amountStr string, bs *state.BlockState, clearCod
 		return errors.New("account state not found")
 	}
 	// subtract amount from balance
-	logger.Info().Str("address", address).Str("amount", amountStr).Msg("fixAccount")
+	if logAccountFix {
+		logger.Info().Str("address", address).Str("amount", amountStr).Msg("fixAccount")
+	}
 	if len(amountStr) > 0 {
 		amount, _ := new(big.Int).SetString(amountStr, 10)
 		balance := new(big.Int).SetBytes(accountState.Balance)
 		newbalance := new(big.Int).Sub(balance, amount)
-		logger.Info().Str("prev_balance", balance.String()).Str("new_balance", newbalance.String()).Msg("fixAccount")
+		if logAccountFix {
+			logger.Info().Str("prev", balance.String()).Str("new", newbalance.String()).Msg("fixAccount")
+		}
 		accountState.Balance = newbalance.Bytes()
 	}
 	// accounts wrongly marked as contract are fixed
@@ -1277,7 +1290,9 @@ func fixAccount(address string, amountStr string, bs *state.BlockState, clearCod
 
 func ResetAccounts(bs *state.BlockState) error {
 
-	logger.Info().Msg("--- running resetAccounts ---")
+	if logAccountFix {
+		logger.Info().Msg("--- running resetAccounts ---")
+	}
 
 	accountsToReset := map[string]string{
 		// these accounts will no longer be marked as contract
@@ -1341,7 +1356,9 @@ func ResetAccounts(bs *state.BlockState) error {
 		amountStr := accountsToReset[k]
 		err := fixAccount(address, amountStr, bs, true)
 		if err != nil {
-			logger.Error().Err(err).Str("address", address).Msg("failed to fix account")
+			if logAccountFix {
+				logger.Error().Err(err).Str("address", address).Msg("failed to fix account")
+			}
 			return err
 		}
 	}
@@ -1351,11 +1368,15 @@ func ResetAccounts(bs *state.BlockState) error {
 
 	err := fixAccount(address, amountStr, bs, false)
 	if err != nil {
-		logger.Error().Err(err).Msg("failed to fix contract account")
+		if logAccountFix {
+			logger.Error().Err(err).Msg("failed to fix contract account")
+		}
 		return err
 	}
 
-	logger.Info().Msg("--- resetAccounts OK ---")
+	if logAccountFix {
+		logger.Info().Msg("--- resetAccounts OK ---")
+	}
 
 	return nil
 }
