@@ -44,6 +44,7 @@ import (
 	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/dbkey"
+	"github.com/aergoio/aergo/v2/types/verificationstore"
 	"github.com/aergoio/aergo/v2/blacklist"
 	jsoniter "github.com/json-iterator/go"
 )
@@ -1243,6 +1244,12 @@ func Create(
 
 	if len(payload) == 0 {
 		return "", nil, ctx.usedFee(), errors.New("contract code is required")
+	}
+
+	codeVerificationResult, exists := verificationstore.GetResult(types.ToTxID(ctx.txHash))
+	if exists && codeVerificationResult != "accepted" {
+		ctrLgr.Error().Msg("deploy rejected")
+		return "", nil, ctx.usedFee(), errors.New("deploy rejected")
 	}
 
 	if ctrLgr.IsDebugEnabled() {

@@ -16,10 +16,14 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"fmt"
+	"net/http"
+	"mime/multipart"
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-actor/router"
 	"github.com/aergoio/aergo-lib/log"
+	luacUtil "github.com/aergoio/aergo/v2/cmd/aergoluac/util"
 	"github.com/aergoio/aergo/v2/account/key"
 	"github.com/aergoio/aergo/v2/chain"
 	cfg "github.com/aergoio/aergo/v2/config"
@@ -35,6 +39,7 @@ import (
 	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/message"
+	"github.com/aergoio/aergo/v2/types/verificationstore"
 	"github.com/aergoio/aergo/v2/blacklist"
 )
 
@@ -76,6 +81,7 @@ type MemPool struct {
 	isPublic          bool
 	whitelist         *whitelistConf
 	blockDeploy       bool
+	contractVerifierURL string
 	// followings are for test
 	testConfig bool
 	deadtx     int
@@ -95,16 +101,17 @@ func NewMemPoolService(cfg *cfg.Config, cs *chain.ChainService) *MemPool {
 	}
 
 	actor := &MemPool{
-		cfg: cfg,
-		sdb: sdb,
-		//cache:    map[types.TxID]types.Transaction{},
-		cache:    sync.Map{},
-		pool:     map[types.AccountID]*txList{},
-		dumpPath: cfg.Mempool.DumpFilePath,
-		status:   initial,
-		verifier: nil,
-		quit:     make(chan bool),
-		blockDeploy: cfg.Mempool.BlockDeploy,
+		cfg:                 cfg,
+		sdb:                 sdb,
+		//cache:             map[types.TxID]types.Transaction{},
+		cache:               sync.Map{},
+		pool:                map[types.AccountID]*txList{},
+		dumpPath:            cfg.Mempool.DumpFilePath,
+		status:              initial,
+		verifier:            nil,
+		quit:                make(chan bool),
+		blockDeploy:         cfg.Mempool.BlockDeploy,
+		contractVerifierURL: cfg.Mempool.ContractVerifierURL,
 	}
 	actor.BaseComponent = component.NewBaseComponent(message.MemPoolSvc, actor, log.NewLogger("mempool"))
 	if cfg.Mempool.EnableFadeout == false {
@@ -114,6 +121,9 @@ func NewMemPoolService(cfg *cfg.Config, cs *chain.ChainService) *MemPool {
 	}
 	if cfg.Mempool.Blacklist != nil {
 		blacklist.Initialize(cfg.Mempool.Blacklist)
+	}
+	if cfg.Mempool.ContractVerifierURL != "" {
+		chain.SetUseContractVerification(true)
 	}
 	return actor
 }
@@ -217,7 +227,9 @@ L:
 		orphan := len(txs) - list.Len()
 
 		for _, tx := range txs {
-			mp.cache.Delete(types.ToTxID(tx.GetHash()))
+			txID := types.ToTxID(tx.GetHash())
+			mp.cache.Delete(txID)
+			verificationstore.DeleteResult(txID)
 			mp.length--
 		}
 
@@ -233,6 +245,13 @@ L:
 // and number of orphan transaction
 func (mp *MemPool) Size() (int, int) {
 	return mp.length, mp.orphan
+}
+
+// Message type for deploy check results
+type msgDeployCheckResult struct {
+    txID   types.TxID
+    tx     types.Transaction
+    result string
 }
 
 // Receive handles requested messages from other services
@@ -300,6 +319,17 @@ func (mp *MemPool) Receive(context actor.Context) {
 	case *actor.Started:
 		mp.loadTxs() // FIXME :work-around for actor settled
 
+	case *msgDeployCheckResult:
+		tx := msg.tx
+		acc := tx.GetBody().GetAccount()
+		if tx.HasVerifedAccount() {
+			acc = tx.GetVerifedAccount()
+		}
+		err := mp.proceedPut(tx, acc, msg.result)
+		if err != nil {
+			mp.Error().Err(err).Str("txid", msg.txID.String()).Msg("failed to process deploy transaction after check")
+		}
+
 	default:
 		//mp.Debug().Str("type", reflect.TypeOf(msg).String()).Msg("unhandled message")
 	}
@@ -364,29 +394,168 @@ func (mp *MemPool) put(tx types.Transaction) error {
 	if err != nil && err != types.ErrTxNonceToohigh {
 		return err
 	}
+
+	if tx.GetBody().GetType() == types.TxType_DEPLOY && mp.contractVerifierURL != "" && mp.nextBlockVersion() >= 4 {
+		_, exists := verificationstore.GetResult(id)
+		if exists {
+			return nil // to prevent error when the same tx is put into the mempool multiple times
+		}
+		verificationstore.StoreResult(id, "pending")
+		go mp.checkDeployTx(id, tx)
+		return nil // Return nil to prevent further processing for now
+	}
+
+	return mp.proceedPut(tx, acc, "accepted")
+}
+
+func (mp *MemPool) proceedPut(tx types.Transaction, acc types.Address, codeVerificationResult string) error {
+	id := types.ToTxID(tx.GetHash())
+
+	if tx.GetBody().GetType() == types.TxType_DEPLOY {
+		// store the code verification result
+		verificationstore.StoreResult(id, codeVerificationResult)
+		switch codeVerificationResult {
+		case "accepted":
+			// the transaction is processed normally
+		case "rejected":
+			// the transaction is processed and marked as rejected, to charge the gas and verification fee
+		default:
+			// do not process the transaction if the code verification failed
+			mp.Error().Str("txid", types.ToTxID(tx.GetHash()).String()).Str("result", codeVerificationResult).Msg("deploy transaction verification failed")
+			// remove the transaction from the verification store after 30 seconds
+			go func() {
+				select {
+				case <-time.After(time.Second * 30):
+					verificationstore.DeleteResult(id)
+				case <-mp.quit:
+					return
+				}
+			}()
+			return fmt.Errorf("contract verification failed: %s", codeVerificationResult)
+		}
+	}
+
 	mp.Lock()
 	defer mp.Unlock()
 
+	// get the list of txs for the given account
 	list, err := mp.acquireMemPoolList(acc)
 	if err != nil {
 		return err
 	}
 	defer mp.releaseMemPoolList(list)
+	// attempt to put the tx into the list
 	diff, err := list.Put(tx)
 	if err != nil {
 		mp.Error().Err(err).Msg("fail to put at a mempool list")
 		return err
 	}
-
 	mp.orphan -= diff
+
 	mp.cache.Store(id, tx)
 	mp.length++
 	mp.Trace().Object("tx", types.LogTx{Tx: tx.GetTx()}).Msg("tx added")
 
 	if !mp.testConfig {
+		// distribute the tx to the network peers
 		mp.notifyNewTx(tx)
 	}
+
 	return nil
+}
+
+// this runs on a separate goroutine
+func (mp *MemPool) checkDeployTx(txID types.TxID, tx types.Transaction) {
+	result := mp.callExternalService(tx.GetBody().GetPayload())
+	mp.Tell(&msgDeployCheckResult{txID: txID, tx: tx, result: result})
+}
+
+// send the contract source code to the contract verifier service
+// expect the response to be "accepted" or "rejected"
+func (mp *MemPool) callExternalService(payload []byte) string {
+	// get the source code of the contract
+	sourceCode, args, err := mp.getSourceCodeAndArguments(payload)
+	if err != nil {
+		mp.Error().Err(err).Msg("deploy tx with invalid payload")
+		return "rejected"
+	}
+
+	// Create a new multipart writer
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+
+	// Add the source code field
+	part, err := writer.CreateFormField("source_code")
+	if err == nil {
+		_, err = io.WriteString(part, sourceCode)
+	}
+	if err != nil {
+		mp.Error().Err(err).Msg("contract verification: failed to write source code")
+		return "failed"
+	}
+
+	// Add the arguments field
+	part, err = writer.CreateFormField("arguments")
+	if err == nil {
+		_, err = io.WriteString(part, args)
+	}
+	if err != nil {
+		mp.Error().Err(err).Msg("contract verification: failed to write arguments")
+		return "failed"
+	}
+
+	// Close the multipart writer
+	err = writer.Close()
+	if err != nil {
+		mp.Error().Err(err).Msg("contract verification: failed to close multipart writer")
+		return "failed"
+	}
+
+	// Create the request
+	req, err := http.NewRequest("POST", mp.contractVerifierURL, body)
+	if err != nil {
+		mp.Error().Err(err).Msg("contract verification: failed to create request")
+		return "failed"
+	}
+
+	// Set the content type
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	// Send the request
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		mp.Error().Err(err).Msg("contract verification: failed to send request")
+		return "failed"
+	}
+	defer resp.Body.Close()
+
+	// Read the response
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		mp.Error().Err(err).Msg("contract verification: failed to read response body")
+		return "failed"
+	}
+
+	// Check the response status
+	if resp.StatusCode != http.StatusOK {
+		mp.Error().Int("status", resp.StatusCode).Msg("contract verification: external service returned non-OK status")
+		return "failed"
+	}
+
+	// Return the response as a string
+	return string(respBody)
+}
+
+func (mp *MemPool) getSourceCodeAndArguments(payload []byte) (string, string, error) {
+	// on hardfork 4 the payload contains: lua source code + constructor function call arguments
+	codePayload := luacUtil.LuaCodePayload(payload)
+	if _, err := codePayload.IsValidFormat(); err != nil {
+		return "", "", err
+	}
+	sourceCode := string(codePayload.Code())
+	args := string(codePayload.Args())
+	return sourceCode, args, nil
 }
 
 func (mp *MemPool) puts(txs ...types.Transaction) []error {
@@ -535,7 +704,9 @@ func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 		diff, delTxs := list.FilterByState(ns)
 		mp.orphan -= diff
 		for _, tx := range delTxs {
-			mp.cache.Delete(types.ToTxID(tx.GetHash()))
+			txID := types.ToTxID(tx.GetHash())
+			mp.cache.Delete(txID)
+			verificationstore.DeleteResult(txID)
 			mp.length--
 		}
 		if len(delTxs) > 0 {
@@ -976,7 +1147,9 @@ func (mp *MemPool) removeTx(tx *types.Tx) error {
 	mp.orphan += newOrphan
 	mp.releaseMemPoolList(list)
 
-	mp.cache.Delete(types.ToTxID(tx.GetHash()))
+	txID := types.ToTxID(tx.GetHash())
+	mp.cache.Delete(txID)
+	verificationstore.DeleteResult(txID)
 	mp.length--
 	mp.Trace().Object("tx", types.LogTx{Tx: tx}).Msg("removed tx")
 	return nil
