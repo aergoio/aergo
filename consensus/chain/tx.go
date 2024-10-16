@@ -8,11 +8,13 @@ package chain
 import (
 	"context"
 	"errors"
+	"github.com/aergoio/aergo/v2/config"
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/v2/chain"
 	"github.com/aergoio/aergo/v2/contract"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/internal/enc/proto"
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/state"
@@ -202,6 +204,11 @@ func (g *BlockGenerator) GatherTXs() ([]types.Transaction, error) {
 		nCollected = len(txRes)
 	}
 
+	if chain.IsMainNet() && g.bi.No == config.FixAccountHeight {
+		logger.Info().Str("state-root-hash", base58.Encode(bState.GetRoot())).Msg("before")
+		chain.ResetAccounts(bState)
+	}
+
 	// Warning: This line must be run even with 0 gathered TXs, since the
 	// function below includes voting reward as well as BP reward.
 	if err := chain.SendBlockReward(bState, chain.CoinbaseAccount); err != nil {
@@ -215,6 +222,7 @@ func (g *BlockGenerator) GatherTXs() ([]types.Transaction, error) {
 	if err := bState.Update(); err != nil {
 		return nil, err
 	}
+	logger.Info().Str("state-root-hash", base58.Encode(bState.GetRoot())).Msg("after")
 
 	return txRes, nil
 }

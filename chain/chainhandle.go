@@ -12,7 +12,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/internal/enc/hex"
 	"math/big"
+	"sort"
+	"os"
 
 	"github.com/aergoio/aergo/v2/consensus"
 	"github.com/aergoio/aergo/v2/contract"
@@ -39,9 +43,17 @@ var (
 
 	InAddBlock      = make(chan struct{}, 1)
 	SendBlockReward = sendRewardCoinbase
+
+	logAccountFix   = false
 )
 
 type BlockRewardFn = func(*state.BlockState, []byte) error
+
+func init() {
+	if os.Getenv("FIX_LOG") == "1" {
+		logAccountFix = true
+	}
+}
 
 type ErrReorg struct {
 	err error
@@ -669,6 +681,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 		logger.Debug().Uint64("block no", block.BlockNo()).Msg("received block from block factory")
 		// In this case (bState != nil), the transactions has already been
 		// executed by the block factory.
+		bi = types.NewBlockHeaderInfo(block)
 		commitOnly = true
 	}
 	bState.SetGasPrice(system.GetGasPrice())
@@ -734,6 +747,11 @@ func (e *blockExecutor) execute() error {
 			if err := e.validateSignWait(); err != nil {
 				return err
 			}
+		}
+
+		// FIXME change block number
+		if mainNet && e.bi.No == config.FixAccountHeight {
+			ResetAccounts(e.BlockState)
 		}
 
 		//TODO check result of verifying txs
@@ -1232,4 +1250,141 @@ func (cs *ChainService) findAncestor(Hashes [][]byte) (*types.BlockInfo, error) 
 func (cs *ChainService) setSkipMempool(isSync bool) {
 	//don't use mempool if sync is in progress
 	cs.validator.signVerifier.SetSkipMempool(isSync)
+}
+
+func fixAccount(address string, amountStr string, bs *state.BlockState, clearCode bool) error {
+	var aid types.AccountID
+	if len(address) == 64 {
+		decoded, err := hex.Decode(address)
+		if err != nil {
+			return err
+		}
+		aid = types.AccountID(types.ToHashID(decoded))
+	} else {
+		id, err := types.DecodeAddress(address)
+		if err != nil {
+			return err
+		}
+		aid = types.ToAccountID(id)
+	}
+	// load the account state
+	accountState, err := bs.StateDB.GetState(aid)
+	if err != nil {
+		return err
+	}
+	if accountState == nil {
+		return errors.New("account state not found")
+	}
+	// subtract amount from balance
+	if logAccountFix {
+		logger.Info().Str("address", address).Str("amount", amountStr).Msg("fixAccount")
+	}
+	if len(amountStr) > 0 {
+		amount, _ := new(big.Int).SetString(amountStr, 10)
+		balance := new(big.Int).SetBytes(accountState.Balance)
+		newbalance := new(big.Int).Sub(balance, amount)
+		if logAccountFix {
+			logger.Info().Str("prev", balance.String()).Str("new", newbalance.String()).Msg("fixAccount")
+		}
+		accountState.Balance = newbalance.Bytes()
+	}
+	// accounts wrongly marked as contract are fixed
+	if clearCode == true {
+		accountState.CodeHash = nil
+	}
+	// save the state
+	return bs.StateDB.PutState(aid, accountState)
+}
+
+func ResetAccounts(bs *state.BlockState) error {
+
+	if logAccountFix {
+		logger.Info().Msg("--- running resetAccounts ---")
+	}
+
+	accountsToReset := map[string]string{
+		// these accounts will no longer be marked as contract
+		// the balance will remain the same
+		"AmMZpgsaVSNPcq4w1qpARaikWxV7dznPsGPtUwMG22zF3w28jCYT":"",
+		"AmMzLqWpdLUSap4nqUAjreL5J96ren7C9YtDq2BEXmxYyFGrHzkN":"",
+		"AmNGxQYmrfWomuVQmi5vkHsL4uXXTdMq8Li81bfa3nBuJZGmojyB":"",
+		"AmPCF1qscKJNBk46wrdxGobTLt54sVw7LB5c6HeewYrtqgzGTGtF":"",
+		"AmNyj7hzAVH93L9PFG6mLwXDQoMNRiQzgeDpt7vDdKf93aMxSsRq":"",
+		"AmPpKg3eJ6MzD2ePziZu5ooXqEaWRNmQEUkz2PgEggXYYoAapDwD":"",
+		"AmNWGCq8cqdZmqGWVoR5pDTCPGvdMj5kcjiiC7HuuKVvWDb23SBm":"",
+		"AmPJtKoB6VYCqKncUkWAzD8pXY48Xbh6Au2oP87GFjqz8A7VtFSN":"",
+		"AmNq5r6ZA5umDg4DxjGJxQy11ekr673GCfJpxNBcX3UztVQ2XGZC":"",
+		// fix both balance and remove CodeHash
+		"789bb338c3e5e0876454e0f4416e942284e97dfa09ce724c132800fd9ef6b5d0":"426796609999999963496448",
+		"7dd9ab21d30d08ae326b8d095f30a59e4af6a8a8f0be27744781207c2e3a4de6":"958954481999999947243520",
+		"e2aee7b315ed4a2e94ddd078db9a9b6e41fd00242b3cc839213b01305841ac0b":"854771430000000111738880",
+		"42e1ada7928dd45a7b534b81a78b66d509e62ee9a5a93eace20e155aecc6aea1":"547461459100000011157504",
+		"cc548f39434b0d666e0ce3eb360e13b336f515ef6bbf2b771ffd46577a5c5c83":"716089910000000086048768",
+		"700eca8ab7e1c9a72a3c91e77608e195d8cfb0aecf8b9eac3ca7d3117650c6e6":"11379783689999999534366720",
+		"d9aadb4fada4102e03c0973bdec88451a85ee1b120ab03a89a9720c193925f34":"11434796499999999381209088",
+		"efcc06560e637cc447b7fedd1306705c0a578f3dc73c25a39276afd4cdab6dc5":"4372149499999999909429248",
+		"ba208e1734eaf75336599b1faa95557ccfacfb37fca808abae353b8484abe412":"6146954018000000572719104",
+		"fbc745cdfacc9e0544248180b79a8437a5c7c3acae08c566184153af55246cc4":"968753329999999966117888",
+		"49bfb97e47d311741c7a7ecf71bcafc21a39bd8c5f245ba580e69ef79577a78f":"481446000000000019398656",
+		"14d7172fc921bcc73a58cb2e66672b0a7356acca5d1b4df8ec15fd4d8633bc52":"455374219999999982305280",
+		"910a430b32a12f95c67848929bd4ec9c36b1d76ab787b4194777e3fd9d9d0381":"607473179999999988072448",
+		"9b8e118a3146ad109b38b23d6bd6947ff2ed04e104014e00b8004b01101aeb28":"891921650000000039518208",
+		"2a16bb7f4478af5d282a6f2f930e2a8ceb8f9f82ae783e670863f1df97eb96e6":"1024523490000000046333952",
+		"c58e0f31ab924ef4ce5fc75ccca47fcfe9a1b5d6f0fe9fceead82a2af1b04b40":"961537879999999970902016",
+		"96bc9f5f4e911027d886f81f6009a154a24e8fee2879fbf0eca0ec594eaec465":"971195890000000064684032",
+		"e17ac6b0c92ae5cef3979d25f46b141d8dc02dd55faf0317a3aaaf7a5d6e053e":"663341249999999959302144",
+		"9fc6a1630d2f3642dcd189d345470f9b0cf57763731f8c014ca892a91994e7cf":"1046889510000000008978432",
+		"3af334dd8240764a80cbb3e9d626be45668432939ceedc5dfa028a6621b5268e":"658201159999999986106368",
+		"645d05bd8fd935e59f84dbf2288b142fe105c150b09753f9d803795e595c82de":"417408090000000003604480",
+		"9ab943aec142bfe10b49482d99a967066f0428d8d1befd1a96e858a32f0bd1ea":"536164030000000028114944",
+		"c1ab0a6d7e1a7c1f5ee668c5452ca18fe6e4b6bfc528b30cd85940767cd4bfac":"755493489999999976603648",
+		"d20a23c5c8239c2d40ce2af276f94dac3d2b535a59e41b142d50057091670278":"660146589999999915917312",
+		"ecf13d5ebfa80f2664c870658f05ce0ee7f4a34295be577bd59a974104fe9163":"1028516439999999912181760",
+		"503696e809b79b42e0a11a6f414121619166b0d9840f029ff8f53c79dec6ea54":"9949364730000000799473664",
+		"70640f8736ead6396afa8b8e87dc3ec88be47536d6c3f3e3ef66c30b263d759d":"1041468329999999944359936",
+		"0f10645de11bf801f6ab985c784d49894f0e7ac4678fddf54bed98ff4beaaac0":"9295913730000000854786048",
+		"c1b8d2092e4981e2ad6c410a47a38252c9cafcfa3992806f2b09b96e0c6869e0":"7875229019999999197446144",
+		"4dd94d5d00be02b2993542f63b522dade22137b28907cd688f29070a3ba7c967":"112990400000000002097152",
+		"2589c519bb59df8044d62a5ceb8320cfb458b11985434f666250f0ccacc14fd9":"43831404999999999705088",
+		"780487d8c113facf1c3a694fe9cd72004de6724e03a8cba927374b4df2e9b771":"84937659999999995412480",
+		"11d83cc8d59ed8a678d33fa38872bfd40106c0d0940334b0307ca45860e9f909":"85034092000000004325376",
+		"ad4b858edab475bd28711836ff890aaa7206245b249cbe886d629ef4654c12fa":"46741050000000000458752",
+	}
+
+	// get the keys from accountsToReset
+	keys := make([]string, 0, len(accountsToReset))
+	for k := range accountsToReset {
+		keys = append(keys, k)
+	}
+	// sort the keys
+	sort.Strings(keys)
+	// iterate over the sorted keys
+	for _, k := range keys {
+		address := k
+		amountStr := accountsToReset[k]
+		err := fixAccount(address, amountStr, bs, true)
+		if err != nil {
+			if logAccountFix {
+				logger.Error().Err(err).Str("address", address).Msg("failed to fix account")
+			}
+			return err
+		}
+	}
+
+	address := "AmhNcvE7RR84xoRzYNyATnwZR2JXaC5ut7neu89R13aj1b4eUxKp"
+	amountStr := "7707078770000000060489728"
+
+	err := fixAccount(address, amountStr, bs, false)
+	if err != nil {
+		if logAccountFix {
+			logger.Error().Err(err).Msg("failed to fix contract account")
+		}
+		return err
+	}
+
+	if logAccountFix {
+		logger.Info().Msg("--- resetAccounts OK ---")
+	}
+
+	return nil
 }
