@@ -13,7 +13,7 @@ var (
 	MainNetHardforkConfig = &HardforkConfig{
 		V2: types.BlockNo(19611555),
 		V3: types.BlockNo(111499715),
-		V4: types.BlockNo(173677571),
+		V4: types.BlockNo(171905035),
 	}
 	TestNetHardforkConfig = &HardforkConfig{
 		V2: types.BlockNo(18714241),
@@ -27,7 +27,7 @@ var (
 	}
 
 	// block height at which account should be fixed, for debug_aergo only.
-	FixAccountHeight types.BlockNo = 173850371
+	FixAccountHeight types.BlockNo = 171905047
 )
 
 const hardforkConfigTmpl = `[hardfork]
