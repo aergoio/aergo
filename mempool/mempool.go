@@ -35,6 +35,7 @@ import (
 	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/message"
+	"github.com/aergoio/aergo/v2/blacklist"
 )
 
 const (
@@ -74,6 +75,7 @@ type MemPool struct {
 	acceptChainIdHash []byte
 	isPublic          bool
 	whitelist         *whitelistConf
+	blockDeploy       bool
 	// followings are for test
 	testConfig bool
 	deadtx     int
@@ -102,12 +104,16 @@ func NewMemPoolService(cfg *cfg.Config, cs *chain.ChainService) *MemPool {
 		status:   initial,
 		verifier: nil,
 		quit:     make(chan bool),
+		blockDeploy: cfg.Mempool.BlockDeploy,
 	}
 	actor.BaseComponent = component.NewBaseComponent(message.MemPoolSvc, actor, log.NewLogger("mempool"))
 	if cfg.Mempool.EnableFadeout == false {
 		evictPeriod = 0
 	} else if cfg.Mempool.FadeoutPeriod > 0 {
 		evictPeriod = time.Duration(cfg.Mempool.FadeoutPeriod) * time.Hour
+	}
+	if cfg.Mempool.Blacklist != nil {
+		blacklist.Initialize(cfg.Mempool.Blacklist)
 	}
 	return actor
 }
@@ -607,11 +613,15 @@ func (mp *MemPool) nextBlockVersion() int32 {
 }
 
 // check tx sanity
+// check if sender is on blacklist
 // check if sender has enough balance
 // check if recipient is valid name
 // check tx account is lower than known value
 func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error {
 	if !mp.whitelist.Check(types.EncodeAddress(account)) {
+		return types.ErrTxNotAllowedAccount
+	}
+	if blacklist.Check(types.EncodeAddress(account)) {
 		return types.ErrTxNotAllowedAccount
 	}
 	ns, err := mp.getAccountState(account)
@@ -656,6 +666,9 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 	case types.TxType_DEPLOY:
 		if tx.GetBody().GetRecipient() != nil {
 			return types.ErrTxInvalidRecipient
+		}
+		if mp.blockDeploy {
+			return types.ErrTxInvalidType
 		}
 	case types.TxType_GOVERNANCE:
 		id := tx.GetBody().GetRecipient()

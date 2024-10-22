@@ -127,6 +127,8 @@ type MempoolConfig struct {
 	FadeoutPeriod  int    `mapstructure:"fadeoutperiod" description:"time period for evict transactions(in hour)"`
 	VerifierNumber int    `mapstructure:"verifiers" description:"number of concurrent verifier"`
 	DumpFilePath   string `mapstructure:"dumpfilepath" description:"file path for recording mempool at process termintation"`
+	BlockDeploy    bool   `mapstructure:"blockdeploy" description:"block the deployment of new contracts"`
+	Blacklist      []string `mapstructure:"blacklist" description:"List of account addresses or ids to be blocked"`
 }
 
 // ConsensusConfig defines configurations for consensus service
@@ -258,6 +260,10 @@ enablefadeout = {{.Mempool.EnableFadeout}}
 fadeoutperiod = {{.Mempool.FadeoutPeriod}}
 verifiers = {{.Mempool.VerifierNumber}}
 dumpfilepath = "{{.Mempool.DumpFilePath}}"
+blockdeploy = {{.Mempool.BlockDeploy}}
+blacklist = [{{range .Mempool.Blacklist}}
+"{{.}}", {{end}}
+]
 
 [consensus]
 enablebp = {{.Consensus.EnableBp}}

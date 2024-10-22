@@ -38,7 +38,16 @@ func init() {
 }
 
 // Execute executes a normal transaction which is possibly executing smart contract.
-func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, tx *types.Tx, sender, receiver *state.AccountState, bi *types.BlockHeaderInfo, executionMode int, isFeeDelegation bool) (rv string, events []*types.Event, usedFee *big.Int, err error) {
+func Execute(
+	execCtx context.Context,
+	bs *state.BlockState,
+	cdb ChainAccessor,
+	tx *types.Tx,
+	sender, receiver *state.AccountState,
+	bi *types.BlockHeaderInfo,
+	executionMode int,
+	isFeeDelegation bool,
+) (rv string, events []*types.Event, usedFee *big.Int, err error) {
 
 	var (
 		txBody     = tx.GetBody()
@@ -46,13 +55,14 @@ func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, t
 		txPayload  = txBody.GetPayload()
 		txAmount   = txBody.GetAmountBigInt()
 		txGasLimit = txBody.GetGasLimit()
+		isMultiCall= (txType == types.TxType_MULTICALL)
 	)
 
 	// compute the base fee
 	usedFee = fee.TxBaseFee(bi.ForkVersion, bs.GasPrice, len(txPayload))
 
 	// transfer the amount from the sender to the receiver
-	if err = state.SendBalance(sender, receiver, txBody.GetAmountBigInt()); err != nil {
+	if err = state.SendBalance(sender, receiver, txAmount); err != nil {
 		return
 	}
 
@@ -70,7 +80,12 @@ func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, t
 	}
 
 	// open the contract state
-	contractState, err := statedb.OpenContractState(receiver.ID(), receiver.State(), bs.StateDB)
+	var contractState *statedb.ContractState
+	if isMultiCall {
+		contractState = statedb.GetMultiCallState(sender.ID(), sender.State())
+	} else {
+		contractState, err = statedb.OpenContractState(receiver.ID(), receiver.State(), bs.StateDB)
+	}
 	if err != nil {
 		return
 	}
@@ -87,13 +102,13 @@ func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, t
 	var ctrFee *big.Int
 
 	// create a new context
-	ctx := NewVmContext(execCtx, bs, cdb, sender, receiver, contractState, sender.ID(), tx.GetHash(), bi, "", true, false, receiver.RP(), executionMode, txBody.GetAmountBigInt(), gasLimit, isFeeDelegation)
+	ctx := NewVmContext(execCtx, bs, cdb, sender, receiver, contractState, sender.ID(), tx.GetHash(), bi, "", true, false, receiver.RP(), executionMode, txAmount, gasLimit, isFeeDelegation, isMultiCall)
 
 	// execute the transaction
 	if receiver.IsDeploy() {
-		rv, events, ctrFee, err = Create(contractState, txBody.Payload, receiver.ID(), ctx)
+		rv, events, ctrFee, err = Create(contractState, txPayload, receiver.ID(), ctx)
 	} else {
-		rv, events, ctrFee, err = Call(contractState, txBody.Payload, receiver.ID(), ctx)
+		rv, events, ctrFee, err = Call(contractState, txPayload, receiver.ID(), ctx)
 	}
 
 	// close the trace file
@@ -127,10 +142,12 @@ func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, t
 		}
 	}
 
-	// save the contract state
-	err = statedb.StageContractState(contractState, bs.StateDB)
-	if err != nil {
-		return "", events, usedFee, err
+	if !isMultiCall {
+		// save the contract state
+		err = statedb.StageContractState(contractState, bs.StateDB)
+		if err != nil {
+			return "", events, usedFee, err
+		}
 	}
 
 	// return the result
@@ -139,6 +156,21 @@ func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, t
 
 // check if the tx is valid and if the code should be executed
 func checkExecution(txType types.TxType, amount *big.Int, payloadSize int, version int32, isDeploy, isContract bool) (do_execute bool, err error) {
+
+	if txType == types.TxType_MULTICALL {
+		return true, nil
+	}
+
+	// transactions with type NORMAL should not call smart contracts
+	// transactions with type TRANSFER can only call smart contracts when:
+	//  * the amount is greater than 0
+	//  * the payload is empty (only transfer to "default" function)
+	if version >= 4 && isContract {
+		if txType == types.TxType_NORMAL || (txType == types.TxType_TRANSFER && (payloadSize > 0 || types.IsZeroAmount(amount))) {
+			// emit an error
+			return false, newVmError(types.ErrTxNotAllowedRecipient)
+		}
+	}
 
 	// check if the receiver is a not contract
 	if !isDeploy && !isContract {
@@ -160,14 +192,6 @@ func checkExecution(txType types.TxType, amount *big.Int, payloadSize int, versi
 	return true, nil
 }
 
-func CreateContractID(account []byte, nonce uint64) []byte {
-	h := sha256.New()
-	h.Write(account)
-	h.Write([]byte(strconv.FormatUint(nonce, 10)))
-	recipientHash := h.Sum(nil)                   // byte array with length 32
-	return append([]byte{0x0C}, recipientHash...) // prepend 0x0C to make it same length as account addresses
-}
-
 func checkRedeploy(sender, receiver *state.AccountState, contractState *statedb.ContractState) error {
 	// check if the contract exists
 	if !receiver.IsContract() || receiver.IsNew() {
@@ -186,6 +210,14 @@ func checkRedeploy(sender, receiver *state.AccountState, contractState *statedb.
 	}
 	// no problem found
 	return nil
+}
+
+func CreateContractID(account []byte, nonce uint64) []byte {
+	h := sha256.New()
+	h.Write(account)
+	h.Write([]byte(strconv.FormatUint(nonce, 10)))
+	recipientHash := h.Sum(nil)                   // byte array with length 32
+	return append([]byte{0x0C}, recipientHash...) // prepend 0x0C to make it same length as account addresses
 }
 
 func SetStateSQLMaxDBSize(size uint64) {

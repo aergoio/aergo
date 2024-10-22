@@ -1,8 +1,6 @@
 package statedb
 
 import (
-	"bytes"
-
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/v2/internal/common"
 	"github.com/aergoio/aergo/v2/internal/enc/proto"
@@ -18,18 +16,39 @@ type ContractState struct {
 	store   db.DB
 }
 
-func (cs *ContractState) SetCode(code []byte) error {
-	codeHash := common.Hasher(code)
-	storedCode, err := cs.GetRawKV(codeHash[:])
-	if err == nil && !bytes.Equal(code, storedCode) {
-		err = cs.SetRawKV(codeHash[:], code)
-	}
+func (cs *ContractState) SetCode(sourceCode []byte, bytecode []byte) error {
+	var err error
+
+	// hash the bytecode
+	bytecodeHash := common.Hasher(bytecode)
+	// save the bytecode to the database
+	err = cs.SetRawKV(bytecodeHash[:], bytecode)
 	if err != nil {
 		return err
 	}
-	cs.State.CodeHash = codeHash[:]
-	cs.code = code
+	// update the contract state
+	cs.State.CodeHash = bytecodeHash[:]
+	// update the contract bytecode
+	cs.code = bytecode
+
+	if len(sourceCode) > 0 {
+		// hash the source code
+		sourceCodeHash := common.Hasher(sourceCode)
+		// save the source code to the database
+		err = cs.SetRawKV(sourceCodeHash[:], sourceCode)
+		if err != nil {
+			return err
+		}
+		// update the contract state
+		cs.State.SourceHash = sourceCodeHash[:]
+	}
+
 	return nil
+}
+
+func (cs *ContractState) SetMultiCallCode(code []byte) {
+	// no codeHash means it is not a contract
+	cs.code = code
 }
 
 func (cs *ContractState) GetCode() ([]byte, error) {
@@ -42,11 +61,26 @@ func (cs *ContractState) GetCode() ([]byte, error) {
 		// not defined. do nothing.
 		return nil, nil
 	}
-	err := loadData(cs.store, cs.State.GetCodeHash(), &cs.code)
+	// load the code into the contract state
+	err := loadData(cs.store, codeHash, &cs.code)
 	if err != nil {
 		return nil, err
 	}
 	return cs.code, nil
+}
+
+func (cs *ContractState) GetSourceCode() []byte {
+	sourceCodeHash := cs.GetSourceHash()
+	if sourceCodeHash == nil {
+		return nil
+	}
+	// load the source code from the database
+	var sourceCode []byte
+	err := loadData(cs.store, sourceCodeHash, &sourceCode)
+	if err != nil {
+		return nil
+	}
+	return sourceCode
 }
 
 func (cs *ContractState) GetAccountID() types.AccountID {
@@ -147,6 +181,20 @@ func (cs *ContractState) cache() *stateBuffer {
 
 //---------------------------------------------------------------//
 // global functions
+
+func GetMultiCallState(id []byte, st *types.State) (*ContractState) {
+	aid := types.ToAccountID(id)
+	res := &ContractState{
+		State:   st,
+		account: aid,
+	}
+	return res
+}
+
+// this refers to the specific contract, not the transaction
+func (ctrState *ContractState) IsMultiCall() bool {
+	return ctrState.storage == nil
+}
 
 func OpenContractStateAccount(id []byte, states *StateDB) (*ContractState, error) {
 	aid := types.ToAccountID(id)

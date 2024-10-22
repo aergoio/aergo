@@ -20,6 +20,8 @@ import (
 	"runtime"
 	"unsafe"
 
+	"github.com/aergoio/aergo/v2/internal/enc/hex"
+	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/cmd/aergoluac/encoding"
 )
 
@@ -129,6 +131,97 @@ func dumpToBytes(L *C.lua_State) LuaCode {
 	a = C.lua_tolstring(L, -1, &la)
 	return NewLuaCode(C.GoBytes(unsafe.Pointer(c), C.int(lc)), C.GoBytes(unsafe.Pointer(a), C.int(la)))
 }
+
+func Decode(srcFileName string, payload string) error {
+	var decoded []byte
+	var err error
+
+	// check if the payload is in hex format
+	if hex.IsHexString(payload) {
+		// the data is expected to be copied from aergoscan view of
+		// the transaction that deployed the contract
+		decoded, err = hex.Decode(payload)
+	} else {
+		// the data is the output of aergoluac
+		decoded, err = encoding.DecodeCode(payload)
+		if err != nil {
+			// the data is extracted from JSON transaction from aergocli
+			decoded, err = base58.Decode(payload)
+		}
+	}
+	if err != nil {
+		return fmt.Errorf("failed to decode payload 1: %v", err.Error())
+	}
+
+	data := LuaCodePayload(decoded)
+	_, err = data.IsValidFormat()
+	if err != nil {
+		return fmt.Errorf("failed to decode payload 2: %v", err.Error())
+	}
+
+	contract := data.Code()
+	if !contract.IsValidFormat() {
+		// the data is the output of aergoluac, so it does not contain deploy arguments
+		contract = LuaCode(decoded)
+		data = NewLuaCodePayload(contract, []byte{})
+	}
+
+	err = os.WriteFile(srcFileName + "-bytecode", contract.ByteCode(), 0644);
+	if err != nil {
+		return fmt.Errorf("failed to write bytecode file: %v", err.Error())
+	}
+
+	err = os.WriteFile(srcFileName + "-abi", contract.ABI(), 0644);
+	if err != nil {
+		return fmt.Errorf("failed to write ABI file: %v", err.Error())
+	}
+
+	var deployArgs []byte
+	if data.HasArgs() {
+		deployArgs = data.Args()
+	}
+	err = os.WriteFile(srcFileName + "-deploy-arguments", deployArgs, 0644);
+	if err != nil {
+		return fmt.Errorf("failed to write deploy-arguments file: %v", err.Error())
+	}
+
+	fmt.Println("done.")
+	return nil
+}
+
+func DecodeFromFile(srcFileName string) error {
+	payload, err := os.ReadFile(srcFileName)
+	if err != nil {
+		return fmt.Errorf("failed to read payload file: %v", err.Error())
+	}
+	return Decode(srcFileName, string(payload))
+}
+
+func DecodeFromStdin() error {
+	fi, err := os.Stdin.Stat()
+	if err != nil {
+		return err
+	}
+	var buf []byte
+	if (fi.Mode() & os.ModeCharDevice) == 0 {
+		buf, err = ioutil.ReadAll(os.Stdin)
+		if err != nil {
+			return err
+		}
+	} else {
+		var bBuf bytes.Buffer
+		scanner := bufio.NewScanner(os.Stdin)
+		for scanner.Scan() {
+			bBuf.WriteString(scanner.Text() + "\n")
+		}
+		if err = scanner.Err(); err != nil {
+			return err
+		}
+		buf = bBuf.Bytes()
+	}
+	return Decode("contract", string(buf))
+}
+
 
 type LuaCode []byte
 

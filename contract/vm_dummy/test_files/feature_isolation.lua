@@ -22,8 +22,10 @@ function override_functions()
     -- override contract.balance
     contract.balance = function() return "123" end
 
-    -- override the __add metamethod on bignum module
-    getmetatable(bignum.number(0)).__add = function(x,y) return x-y end
+    if getmetatable ~= nil then
+      -- override the __add metamethod on bignum module
+      getmetatable(bignum.number(0)).__add = function(x,y) return x-y end
+    end
 
 end
 
@@ -37,7 +39,9 @@ function check_local_overridden_functions()
     assert2(test_sender() == "overridden", "system.getSender() override failed")
     assert2(test_origin() == "overridden", "system.getOrigin() override failed")
     assert2(test_balance() == "123", "contract.balance() override failed")
-    assert2(test_bignum() == bignum.number(3), "metamethod override failed")
+    if getmetatable ~= nil then
+      assert2(test_bignum() == bignum.number(3), "metamethod override failed")
+    end
 
 end
 

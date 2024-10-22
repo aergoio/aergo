@@ -29,8 +29,13 @@ ret=$(cat receipt.json | jq .ret | sed 's/"//g')
 gasUsed=$(cat receipt.json | jq .gasUsed | sed 's/"//g')
 
 assert_equals "$status"   "SUCCESS"
-#assert_equals "$ret"      "{}"
-assert_equals "$gasUsed"  "154137"
+#assert_equals "$ret"      ""
+
+if [ "$fork_version" -eq "4" ]; then
+  assert_equals "$gasUsed"  "160281"
+else
+  assert_equals "$gasUsed"  "154137"
+fi
 
 
 echo "-- call 2 --"
@@ -46,5 +51,10 @@ ret=$(cat receipt.json | jq .ret | sed 's/"//g')
 gasUsed=$(cat receipt.json | jq .gasUsed | sed 's/"//g')
 
 assert_equals "$status"   "SUCCESS"
-#assert_equals "$ret"      "{}"
-assert_equals "$gasUsed"  "108404"
+#assert_equals "$ret"      ""
+
+if [ "$fork_version" -eq "4" ]; then
+  assert_equals "$gasUsed"  "108404"
+else
+  assert_equals "$gasUsed"  "108404"
+fi
