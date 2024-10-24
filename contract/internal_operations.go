@@ -5,7 +5,6 @@ import (
 	"log"
 	"sync"
 
-	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 )
 
@@ -28,8 +27,7 @@ type InternalCall struct {
 
 type InternalOperations struct {
 	TxHash    string   `json:"txhash"`
-	Contract  string   `json:"contract"`
-	Operations []InternalOperation `json:"operations"`
+	Call      InternalCall `json:"call"`
 }
 
 var (
@@ -142,6 +140,20 @@ func logInternalCall(ctx *vmContext, contract string, function string, args stri
 	return nil
 }
 
+func logFirstCall(ctx *vmContext, contract string, function string, args string) {
+	ctx.internalOpsCall.Contract = contract
+	ctx.internalOpsCall.Function = function
+	ctx.internalOpsCall.Args = args
+}
+
+func logCall(ctx *vmContext, contract string, function string, args string) {
+	if ctx.internalOpsCall.Contract == "" {
+		logFirstCall(ctx, contract, function, args)
+	} else {
+		logInternalCall(ctx, contract, function, args)
+	}
+}
+
 func getInternalOperations(ctx *vmContext) string {
 	if doNotLog(ctx) {
 		return ""
@@ -155,8 +167,7 @@ func getInternalOperations(ctx *vmContext) string {
 
 	internalOps := InternalOperations{
 		TxHash: base58.Encode(ctx.txHash),
-		Contract: types.EncodeAddress(ctx.curContract.contractId),
-		Operations: ctx.internalOpsCall.Operations,
+		Call: ctx.internalOpsCall,
 	}
 
 	data, err := json.Marshal(internalOps)

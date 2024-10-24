@@ -264,8 +264,6 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 		return -1, C.CString("[Contract.LuaCallContract] invalid arguments: " + err.Error())
 	}
 
-	logInternalCall(ctx, contractAddress, fnameStr, argsStr)
-
 	// get the remaining gas from the parent LState
 	ctx.refreshRemainingGas(L)
 	// create a new executor with the remaining gas on the child LState
@@ -421,8 +419,6 @@ func luaDelegateCallContract(L *LState, service C.int, contractId *C.char,
 		return -1, C.CString("[Contract.LuaDelegateCallContract] invalid arguments: " + err.Error())
 	}
 
-	logInternalCall(ctx, contractIdStr, fnameStr, argsStr)
-
 	// get the remaining gas from the parent LState
 	ctx.refreshRemainingGas(L)
 	// create a new executor with the remaining gas on the child LState
@@ -565,8 +561,6 @@ func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char)
 		if bytecode == nil {
 			return C.CString("[Contract.LuaSendAmount] cannot find contract:" + contractAddress)
 		}
-
-		logInternalCall(ctx, contractAddress, "default", "[]")
 
 		// get the remaining gas from the parent LState
 		ctx.refreshRemainingGas(L)
@@ -1312,8 +1306,6 @@ func luaDeployContract(
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDeployContract]:" + err.Error())
 	}
-
-	logInternalCall(ctx, types.EncodeAddress(newContract.ID()), "constructor", argsStr)
 
 	// get the remaining gas from the parent LState
 	ctx.refreshRemainingGas(L)

@@ -418,6 +418,17 @@ func (ce *executor) processArgs() {
 	}
 }
 
+func convertArgs(argsList []interface{}) (string) {
+	if argsList == nil {
+		return ""
+	}
+	args, err := json.Marshal(argsList)
+	if err != nil {
+		return ""
+	}
+	return string(args)
+}
+
 func (ce *executor) getEvents() []*types.Event {
 	if ce == nil || ce.ctx == nil {
 		return nil
@@ -559,11 +570,11 @@ func (ce *executor) call(instLimit C.int, target *LState) (ret C.int) {
 		ce.err = ce.preErr
 		return 0
 	}
+	contract := types.EncodeAddress(ce.ctx.curContract.contractId)
 	if ce.isAutoload {
 		if loaded := vmAutoload(ce.L, ce.fname); !loaded {
 			if ce.fname != constructor {
-				ce.err = errors.New(fmt.Sprintf("contract autoload failed %s : %s",
-					types.EncodeAddress(ce.ctx.curContract.contractId), ce.fname))
+				ce.err = errors.New(fmt.Sprintf("contract autoload failed %s : %s", contract, ce.fname))
 			}
 			return 0
 		}
@@ -575,10 +586,10 @@ func (ce *executor) call(instLimit C.int, target *LState) (ret C.int) {
 	}
 	ce.processArgs()
 	if ce.err != nil {
-		ctrLgr.Debug().Err(ce.err).Stringer("contract",
-			types.LogAddr(ce.ctx.curContract.contractId)).Msg("invalid argument")
+		ctrLgr.Debug().Err(ce.err).Str("contract", contract).Msg("invalid argument")
 		return 0
 	}
+	logCall(ce.ctx, contract, ce.fname, convertArgs(ce.ci.Args))
 	ce.setCountHook(instLimit)
 	nRet := C.int(0)
 	cErrMsg := C.vm_pcall(ce.L, ce.numArgs, &nRet)
@@ -594,10 +605,7 @@ func (ce *executor) call(instLimit C.int, target *LState) (ret C.int) {
 				ce.err = errors.New(errMsg)
 			}
 		}
-		ctrLgr.Debug().Err(ce.err).Stringer(
-			"contract",
-			types.LogAddr(ce.ctx.curContract.contractId),
-		).Msg("contract is failed")
+		ctrLgr.Debug().Err(ce.err).Str("contract", contract).Msg("contract is failed")
 		return 0
 	}
 	if target == nil {
@@ -612,15 +620,11 @@ func (ce *executor) call(instLimit C.int, target *LState) (ret C.int) {
 		if c2ErrMsg := C.vm_copy_result(ce.L, target, nRet); c2ErrMsg != nil {
 			errMsg := C.GoString(c2ErrMsg)
 			ce.err = errors.New(errMsg)
-			ctrLgr.Debug().Err(ce.err).Stringer(
-				"contract",
-				types.LogAddr(ce.ctx.curContract.contractId),
-			).Msg("failed to move results")
+			ctrLgr.Debug().Err(ce.err).Str("contract", contract).Msg("failed to move results")
 		}
 	}
 	if ce.ctx.traceFile != nil {
-		address := types.EncodeAddress(ce.ctx.curContract.contractId)
-		codeFile := fmt.Sprintf("%s%s%s.code", os.TempDir(), string(os.PathSeparator), address)
+		codeFile := fmt.Sprintf("%s%s%s.code", os.TempDir(), string(os.PathSeparator), contract)
 		if _, err := os.Stat(codeFile); os.IsNotExist(err) {
 			f, err := os.OpenFile(codeFile, os.O_WRONLY|os.O_CREATE, 0644)
 			if err == nil {
@@ -629,7 +633,7 @@ func (ce *executor) call(instLimit C.int, target *LState) (ret C.int) {
 			}
 		}
 		_, _ = ce.ctx.traceFile.WriteString(fmt.Sprintf("contract %s used fee: %s\n",
-			address, ce.ctx.usedFee().String()))
+			contract, ce.ctx.usedFee().String()))
 	}
 	return nRet
 }
@@ -1047,7 +1051,7 @@ func Create(
 	ce := newExecutor(bytecode, contractAddress, ctx, &ci, ctx.curContract.amount, true, false, contractState)
 	defer ce.close()
 
-	if err == nil {
+	if ce.err == nil {
 		// call the constructor
 		ce.call(callMaxInstLimit, nil)
 	}
