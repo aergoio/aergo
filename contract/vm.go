@@ -1051,7 +1051,7 @@ func Create(
 	ce := newExecutor(bytecode, contractAddress, ctx, &ci, ctx.curContract.amount, true, false, contractState)
 	defer ce.close()
 
-	if err == nil {
+	if ce.err == nil {
 		// call the constructor
 		ce.call(callMaxInstLimit, nil)
 	}
