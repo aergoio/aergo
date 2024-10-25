@@ -11,18 +11,18 @@ import (
 type InternalOperation struct {
 	Id        int64    `json:"-"`
 	Operation string   `json:"op"`
-	Amount    string   `json:"amount"`
+	Amount    string   `json:"amount,omitempty"`
 	Args      []string `json:"args"`
-	Result    string   `json:"result"`
-	Call      InternalCall `json:"call"`
+	Result    string   `json:"result,omitempty"`
+	Call      *InternalCall `json:"call,omitempty"`
 }
 
 type InternalCall struct {
-	Contract  string   `json:"contract"`
-	Function  string   `json:"function"`
-	Args      string   `json:"args"`
-	Amount    string   `json:"amount"`
-	Operations []InternalOperation `json:"operations"`
+	Contract  string   `json:"contract,omitempty"`
+	Function  string   `json:"function,omitempty"`
+	Args      string   `json:"args,omitempty"`
+	Amount    string   `json:"amount,omitempty"`
+	Operations []InternalOperation `json:"operations,omitempty"`
 }
 
 type InternalOperations struct {
@@ -54,7 +54,7 @@ func getCurrentCall(ctx *vmContext, callDepth int32) *InternalCall {
 			log.Printf("no operations found at depth %d", depth)
 			break
 		}
-		opCall = &opCall.Operations[len(opCall.Operations)-1].Call
+		opCall = opCall.Operations[len(opCall.Operations)-1].Call
 		depth++
 	}
 	return nil
@@ -131,7 +131,7 @@ func logInternalCall(ctx *vmContext, contract string, function string, args stri
 	op := &opCall.Operations[len(opCall.Operations)-1]
 
 	// add this call to the last operation
-	op.Call = InternalCall{
+	op.Call = &InternalCall{
 		Contract: contract,
 		Function: function,
 		Args: args,
