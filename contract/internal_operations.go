@@ -158,7 +158,7 @@ func getInternalOperations(ctx *vmContext) string {
 	if doNotLog(ctx) {
 		return ""
 	}
-	if len(ctx.internalOpsCall.Operations) == 0 {
+	if ctx.internalOpsCall.Contract == "" {
 		return ""
 	}
 
