@@ -2,7 +2,6 @@ package contract
 
 import (
 	"encoding/json"
-	"log"
 	"sync"
 
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
@@ -20,7 +19,7 @@ type InternalOperation struct {
 type InternalCall struct {
 	Contract  string   `json:"contract,omitempty"`
 	Function  string   `json:"function,omitempty"`
-	Args      string   `json:"args,omitempty"`
+	Args      []interface{} `json:"args,omitempty"`
 	Amount    string   `json:"amount,omitempty"`
 	Operations []InternalOperation `json:"operations,omitempty"`
 }
@@ -44,14 +43,14 @@ func getCurrentCall(ctx *vmContext, callDepth int32) *InternalCall {
 	opCall := &ctx.internalOpsCall
 	for {
 		if opCall == nil {
-			log.Printf("no call found at depth %d", depth)
+			ctrLgr.Printf("no call found at depth %d", depth)
 			break
 		}
 		if depth == callDepth {
 			return opCall
 		}
 		if len(opCall.Operations) == 0 {
-			log.Printf("no operations found at depth %d", depth)
+			ctrLgr.Printf("no operations found at depth %d", depth)
 			break
 		}
 		opCall = opCall.Operations[len(opCall.Operations)-1].Call
@@ -64,6 +63,8 @@ func logOperation(ctx *vmContext, amount string, operation string, args ...strin
 	if doNotLog(ctx) {
 		return 0
 	}
+
+	ctrLgr.Printf("logOperation: depth: %d, amount: %s, operation: %s, args: %v", ctx.callDepth, amount, operation, args)
 
 	opsLock.Lock()
 	defer opsLock.Unlock()
@@ -82,7 +83,7 @@ func logOperation(ctx *vmContext, amount string, operation string, args ...strin
 
 	opCall := getCurrentCall(ctx, ctx.callDepth)
 	if opCall == nil {
-		log.Printf("no call found")
+		ctrLgr.Printf("no call found")
 		return 0
 	}
 	// add the operation to the list
@@ -95,6 +96,8 @@ func logOperationResult(ctx *vmContext, operationId int64, result string) {
 	if doNotLog(ctx) {
 		return
 	}
+
+	ctrLgr.Printf("logOperationResult: depth: %d, operationId: %d, result: %s", ctx.callDepth, operationId, result)
 
 	opsLock.Lock()
 	defer opsLock.Unlock()
@@ -113,17 +116,19 @@ func logOperationResult(ctx *vmContext, operationId int64, result string) {
 		}
 	}
 
-	log.Printf("no operation found with ID %d to store result", operationId)
+	ctrLgr.Printf("no operation found with ID %d to store result", operationId)
 }
 
-func logInternalCall(ctx *vmContext, contract string, function string, args string) error {
+func logInternalCall(ctx *vmContext, contract string, function string, args []interface{}) error {
 	if doNotLog(ctx) {
 		return nil
 	}
 
-	opCall := getCurrentCall(ctx, ctx.callDepth)
+	ctrLgr.Printf("logInternalCall: depth: %d, contract: %s, function: %s, args: %s", ctx.callDepth, contract, function, argsToJson(args))
+
+	opCall := getCurrentCall(ctx, ctx.callDepth-1)
 	if opCall == nil {
-		log.Printf("no call found")
+		ctrLgr.Printf("no call found")
 		return nil
 	}
 
@@ -140,18 +145,30 @@ func logInternalCall(ctx *vmContext, contract string, function string, args stri
 	return nil
 }
 
-func logFirstCall(ctx *vmContext, contract string, function string, args string) {
+func logFirstCall(ctx *vmContext, contract string, function string, args []interface{}) {
+	ctrLgr.Printf("logFirstCall: depth: %d, contract: %s, function: %s, args: %s", ctx.callDepth, contract, function, argsToJson(args))
 	ctx.internalOpsCall.Contract = contract
 	ctx.internalOpsCall.Function = function
 	ctx.internalOpsCall.Args = args
 }
 
-func logCall(ctx *vmContext, contract string, function string, args string) {
+func logCall(ctx *vmContext, contract string, function string, args []interface{}) {
 	if ctx.internalOpsCall.Contract == "" {
 		logFirstCall(ctx, contract, function, args)
 	} else {
 		logInternalCall(ctx, contract, function, args)
 	}
+}
+
+func argsToJson(argsList []interface{}) (string) {
+	if argsList == nil {
+		return ""
+	}
+	args, err := json.Marshal(argsList)
+	if err != nil {
+		return ""
+	}
+	return string(args)
 }
 
 func getInternalOperations(ctx *vmContext) string {
@@ -172,7 +189,7 @@ func getInternalOperations(ctx *vmContext) string {
 
 	data, err := json.Marshal(internalOps)
 	if err != nil {
-		log.Fatal("Failed to marshal operations:", err)
+		ctrLgr.Fatal().Err(err).Msg("Failed to marshal operations")
 		return ""
 	}
 
