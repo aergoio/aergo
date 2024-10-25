@@ -121,7 +121,7 @@ func logInternalCall(ctx *vmContext, contract string, function string, args stri
 		return nil
 	}
 
-	opCall := getCurrentCall(ctx, ctx.callDepth)
+	opCall := getCurrentCall(ctx, ctx.callDepth-1)
 	if opCall == nil {
 		log.Printf("no call found")
 		return nil
