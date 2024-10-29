@@ -239,6 +239,26 @@ get_receipt() {
   rm receipt{2..5}.json
 }
 
+get_internal_operations() {
+  txhash=$1
+  # do not stop on errors
+  set +e
+
+  output=$(../bin/aergocli operations $txhash --port $query_port 2>&1 > internal_operations.json)
+
+  #echo "output: $output"
+
+  if [[ $output == *"No internal operations found for this transaction"* ]]; then
+    echo -n "" > internal_operations.json
+  elif [[ -n $output ]]; then
+    echo "Error: $output"
+    exit 1
+  fi
+
+  # stop on errors
+  set -e
+}
+
 assert_equals() {
   local var="$1"
   local expected="$2"
