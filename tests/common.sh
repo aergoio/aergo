@@ -95,7 +95,7 @@ get_receipt() {
   set +e
 
   while true; do
-    output=$(../bin/aergocli receipt get --port $query_port $txhash 2>&1 > receipt.json)
+    output=$(../bin/aergocli receipt get $txhash --port $query_port 2>&1 > receipt.json)
 
     #echo "output: $output"
 
@@ -113,6 +113,26 @@ get_receipt() {
       break
     fi
   done
+
+  # stop on errors
+  set -e
+}
+
+get_internal_operations() {
+  txhash=$1
+  # do not stop on errors
+  set +e
+
+  output=$(../bin/aergocli operations $txhash --port $query_port 2>&1 > internal_operations.json)
+
+  #echo "output: $output"
+
+  if [[ $output == *"No internal operations found for this transaction"* ]]; then
+    echo -n "" > internal_operations.json
+  elif [[ -n $output ]]; then
+    echo "Error: $output"
+    exit 1
+  fi
 
   # stop on errors
   set -e
