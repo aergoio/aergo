@@ -418,17 +418,6 @@ func (ce *executor) processArgs() {
 	}
 }
 
-func convertArgs(argsList []interface{}) (string) {
-	if argsList == nil {
-		return ""
-	}
-	args, err := json.Marshal(argsList)
-	if err != nil {
-		return ""
-	}
-	return string(args)
-}
-
 func (ce *executor) getEvents() []*types.Event {
 	if ce == nil || ce.ctx == nil {
 		return nil
@@ -589,7 +578,7 @@ func (ce *executor) call(instLimit C.int, target *LState) (ret C.int) {
 		ctrLgr.Debug().Err(ce.err).Str("contract", contract).Msg("invalid argument")
 		return 0
 	}
-	logCall(ce.ctx, contract, ce.fname, convertArgs(ce.ci.Args))
+	logCall(ce.ctx, contract, ce.fname, ce.ci.Args)
 	ce.setCountHook(instLimit)
 	nRet := C.int(0)
 	cErrMsg := C.vm_pcall(ce.L, ce.numArgs, &nRet)
