@@ -172,6 +172,7 @@ else
   check ./test-pcall-events.sh
   check ./test-transaction-types.sh
   check ./test-name-service.sh
+  check ./test-internal-operations.sh
 fi
 
 # change the hardfork version
@@ -193,6 +194,7 @@ else
   check ./test-name-service.sh
   check ./test-multicall.sh
   check ./test-disabled-functions.sh
+  check ./test-internal-operations.sh
 fi
 
 # terminate the server process
