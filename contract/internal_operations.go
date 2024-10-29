@@ -20,7 +20,7 @@ type InternalOperation struct {
 type InternalCall struct {
 	Contract  string   `json:"contract,omitempty"`
 	Function  string   `json:"function,omitempty"`
-	Args      string   `json:"args,omitempty"`
+	Args      []interface{} `json:"args,omitempty"`
 	Amount    string   `json:"amount,omitempty"`
 	Operations []InternalOperation `json:"operations,omitempty"`
 }
@@ -116,7 +116,7 @@ func logOperationResult(ctx *vmContext, operationId int64, result string) {
 	log.Printf("no operation found with ID %d to store result", operationId)
 }
 
-func logInternalCall(ctx *vmContext, contract string, function string, args string) error {
+func logInternalCall(ctx *vmContext, contract string, function string, args []interface{}) error {
 	if doNotLog(ctx) {
 		return nil
 	}
@@ -140,13 +140,13 @@ func logInternalCall(ctx *vmContext, contract string, function string, args stri
 	return nil
 }
 
-func logFirstCall(ctx *vmContext, contract string, function string, args string) {
+func logFirstCall(ctx *vmContext, contract string, function string, args []interface{}) {
 	ctx.internalOpsCall.Contract = contract
 	ctx.internalOpsCall.Function = function
 	ctx.internalOpsCall.Args = args
 }
 
-func logCall(ctx *vmContext, contract string, function string, args string) {
+func logCall(ctx *vmContext, contract string, function string, args []interface{}) {
 	if ctx.internalOpsCall.Contract == "" {
 		logFirstCall(ctx, contract, function, args)
 	} else {
