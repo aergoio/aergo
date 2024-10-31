@@ -234,6 +234,8 @@ func (rpc *AergoRPCService) getChainInfo(ctx context.Context) (*types.ChainInfo,
 		return nil, err
 	}
 
+	chainInfo.Hardfork = rpc.actorHelper.GetChainAccessor().HardforkHeights()
+
 	return chainInfo, nil
 }
 

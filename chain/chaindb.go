@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"sync/atomic"
 
 	"github.com/aergoio/aergo-lib/db"
@@ -779,10 +780,40 @@ func (cdb *ChainDB) Hardfork(hConfig config.HardforkConfig) config.HardforkDbCon
 	if err := json.Unmarshal(data, &c); err != nil {
 		return nil
 	}
-	// When a new hardkfork height is added, the hardfork config from DB  (HardforkDBConfig)
+	// When a new hardfork height is added, the hardfork config from DB  (HardforkDBConfig)
 	// must be modified by using the height from HardforkConfig. Without this, aergosvr fails
-	// to start, since a harfork heght value not stored on DB is evaluated as 0.
+	// to start, since a hardfork height value not stored on DB is evaluated as 0.
 	return c.FixDbConfig(hConfig)
+}
+
+func (cdb *ChainDB) hardforkHeights() config.HardforkDbConfig {
+	var c config.HardforkDbConfig
+	data := cdb.store.Get(dbkey.HardFork())
+	if len(data) == 0 {
+		return c
+	}
+	// TODO Hardfork status is not changed during the lifetime of server process.
+	//    We can optimize this
+	if err := json.Unmarshal(data, &c); err != nil {
+		logger.Error().Msg("Failed to read hardfork from cdb")
+		return c
+	}
+	returned := make(map[string]uint64, len(c))
+	for key, value := range c {
+		newKey := key[1:]
+		if key[0] != 'V' || !IsInteger(newKey) {
+			return make(map[string]uint64, 0)
+		}
+		returned[newKey] = value
+	}
+
+	return returned
+}
+
+// IsInteger check the parameter is integer form or not
+func IsInteger(s string) bool {
+	_, err := strconv.Atoi(s)
+	return err == nil
 }
 
 func (cdb *ChainDB) WriteHardfork(c *config.HardforkConfig) error {
