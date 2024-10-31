@@ -218,6 +218,11 @@ func (tchain *StubBlockChain) ChainID(bno types.BlockNo) *types.ChainID {
 	return nil
 }
 
+func (tchain *StubBlockChain) HardforkHeights() map[string]types.BlockNo {
+	// FIXME: maybe it should return at least latest hardfork
+	return nil
+}
+
 func (tchain *StubBlockChain) Rollback(ancestor *types.BlockInfo) {
 	prevBest := tchain.Best
 	tchain.Best = int(ancestor.No)
