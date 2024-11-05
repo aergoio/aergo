@@ -219,7 +219,7 @@ func (tchain *StubBlockChain) ChainID(bno types.BlockNo) *types.ChainID {
 }
 
 func (tchain *StubBlockChain) HardforkHeights() map[string]types.BlockNo {
-	// FIXME: maybe it should return at least latest hardfork
+	// Maybe it need to return hardfork history, if some tests invoke this function.
 	return nil
 }
 
