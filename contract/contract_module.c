@@ -48,7 +48,7 @@ static int set_value(lua_State *L, const char *str) {
 			luaL_error(L, "not enough memory");
 		}
 		lua_pushstring(L, str);
-		free (str);
+		free(str);
 		break;
 	}
 	default:
@@ -280,6 +280,14 @@ static int moduleBalance(lua_State *L) {
 	}
 
 	strPushAndRelease(L, balance.r0);
+	return 1;
+}
+
+static int moduleGasLeft(lua_State *L) {
+	char str[64];
+	// do not charge gas for this call for easier calculations
+	snprintf(str, sizeof(str), "%llu", lua_gasget(L));
+	lua_pushstring(L, str);
 	return 1;
 }
 
@@ -515,7 +523,20 @@ static const luaL_Reg deploy_call_meta[] = {
 	{NULL, NULL}
 };
 
-static const luaL_Reg contract_lib[] = {
+static const luaL_Reg contract_lib_v3[] = {
+	{"balance", moduleBalance},
+	{"send", moduleSend},
+	{"pcall", modulePcall},
+	{"event", moduleEvent},
+	{"stake", moduleStake},
+	{"unstake", moduleUnstake},
+	{"vote", moduleVote},
+	{"voteDao", moduleVoteDao},
+	{NULL, NULL}
+};
+
+static const luaL_Reg contract_lib_v4[] = {
+	{"gasLeft", moduleGasLeft},
 	{"balance", moduleBalance},
 	{"send", moduleSend},
 	{"pcall", modulePcall},
@@ -529,7 +550,11 @@ static const luaL_Reg contract_lib[] = {
 
 int luaopen_contract(lua_State *L) {
 
-	luaL_register(L, contract_str, contract_lib);
+	if (vm_is_hardfork(L, 4)) {
+		luaL_register(L, contract_str, contract_lib_v4);
+	} else {
+		luaL_register(L, contract_str, contract_lib_v3);
+	}
 
 	lua_createtable(L, 0, 3);
 	luaL_register(L, NULL, call_methods);
