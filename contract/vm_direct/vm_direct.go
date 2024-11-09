@@ -135,7 +135,7 @@ func LoadDummyChainEx(chainType ChainType) (*DummyChain, error) {
 	contract.SetStateSQLMaxDBSize(1024)
 
 	contract.StartLStateFactory(lStateMaxSize, config.GetDefaultNumLStateClosers(), 1)
-	contract.InitContext(3)
+	contract.InitContext(3, false)
 
 	// To pass the governance tests.
 	types.InitGovernance("dpos", true)

@@ -130,7 +130,7 @@ func LoadDummyChain(opts ...DummyChainOptions) (*DummyChain, error) {
 	contract.LoadTestDatabase(dataPath) // sql database
 	contract.SetStateSQLMaxDBSize(1024)
 	contract.StartLStateFactory(lStateMaxSize, config.GetDefaultNumLStateClosers(), 1)
-	contract.InitContext(3)
+	contract.InitContext(3, false)
 
 	bc.HardforkVersion = 2
 
