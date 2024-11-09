@@ -67,6 +67,7 @@ var (
 	lastQueryIndex     int
 	querySync          sync.Mutex
 	currentForkVersion int32
+	logInternalOperations bool
 )
 
 type ChainAccessor interface {
@@ -131,9 +132,10 @@ func init() {
 	lastQueryIndex = ChainService
 }
 
-func InitContext(numCtx int) {
+func InitContext(numCtx int, logInternalOps bool) {
 	maxContext = numCtx
 	contexts = make([]*vmContext, maxContext)
+	logInternalOperations = logInternalOps
 }
 
 func NewVmContext(
