@@ -10,6 +10,7 @@ nstls = false
 nscert = ""
 nskey = ""
 nsallowcors = false
+internal_operations = true
 
 [p2p]
 netprotocoladdr = "127.0.0.1"
