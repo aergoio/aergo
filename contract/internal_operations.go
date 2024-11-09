@@ -35,6 +35,9 @@ var (
 )
 
 func doNotLog(ctx *vmContext) bool {
+	if logInternalOperations == false {
+		return true
+	}
 	return ctx.isQuery
 }
 
