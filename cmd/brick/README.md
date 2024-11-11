@@ -10,7 +10,7 @@ This also provides a batch function to test and help to develop smart contracts.
 
 ### Aergo VM for Testing
 
-* provides an way to run smart contracts in same environment with aergo
+* provides a way to run smart contracts in same environment with aergo
 * supports state db, sql
 * alias for account and contract address
 * able to debug smart contracts
@@ -42,7 +42,7 @@ powered by [go-prompt](https://github.com/c-bata/go-prompt)
 
 ### inject
 
-creates an account and deposite aergo. `inject inject <account_name> <amount>`
+creates an account and deposit aergo. `inject inject <account_name> <amount>`
 
 ``` lua
 0> inject tester 100
@@ -148,7 +148,7 @@ clear all txs and reset the chain. `reset`
 0>
 ```
 
-Number before cursor is a block height. Each block contains one tx. So after reset, number becames 0
+Number before cursor is a block height. Each block contains one tx. So after reset, number became 0
 
 ### batch in command line
 
@@ -189,7 +189,7 @@ $ ./brick ./example/hello.brick -v
 Batch is successfully finished
   INF batch exec is finished cmd=batch module=brick
 ```
-Or user can set the option `-w` to display the batch execution results continuously according to the file changes. This is an useful feature for the development phase.
+Or user can set the option `-w` to display the batch execution results continuously according to the file changes. This is a useful feature for the development phase.
 
 ## Debugging
 
@@ -213,7 +213,7 @@ Clear all breakpoints. `resetb`
 
 ### setw (brick / debugmode)
 
-Set an watchpoint expression. If one of watchpoint expressions is satisfied without regard to which contract is being executed, debug mode is activated. `setw <watch_expression>`
+Set a watchpoint expression. If one of watchpoint expressions is satisfied without regard to which contract is being executed, debug mode is activated. `setw <watch_expression>`
 
 ### delw (brick / debugmode)
 
@@ -236,7 +236,7 @@ When vm enters debugmode, prompt changes to `[DEBUG]>`. In debugmode, command se
 Here we describe GUI based debugging using the zerobrane studio.
 
 1. download [zerobrane studio](https://studio.zerobrane.com/support) (lua ide)
-2. set envoronment var `LUA_PATH, LUACPATH` following an [instruction](https://studio.zerobrane.com/doc-remote-debugging)
+2. set environment var `LUA_PATH, LUACPATH` following an [instruction](https://studio.zerobrane.com/doc-remote-debugging)
 3. Paste `require('mobdebug').start()` at the beginning of a smart contract, you want to investigate
 4. Open the contract file you want to investigate in the editor
 5. In the editor, run debug server `project -> start debugger server`

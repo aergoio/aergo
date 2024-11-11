@@ -6,11 +6,10 @@ package mock_types
 
 import (
 	context "context"
-	reflect "reflect"
-
 	types "github.com/aergoio/aergo/v2/types"
 	gomock "github.com/golang/mock/gomock"
 	grpc "google.golang.org/grpc"
+	reflect "reflect"
 )
 
 // MockAergoRPCServiceClient is a mock of AergoRPCServiceClient interface
@@ -74,26 +73,6 @@ func (mr *MockAergoRPCServiceClientMockRecorder) ChainStat(arg0, arg1 interface{
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ChainStat", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).ChainStat), varargs...)
-}
-
-// ChangeMembership mocks base method
-func (m *MockAergoRPCServiceClient) ChangeMembership(arg0 context.Context, arg1 *types.MembershipChange, arg2 ...grpc.CallOption) (*types.MembershipChangeReply, error) {
-	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	for _, a := range arg2 {
-		varargs = append(varargs, a)
-	}
-	ret := m.ctrl.Call(m, "ChangeMembership", varargs...)
-	ret0, _ := ret[0].(*types.MembershipChangeReply)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ChangeMembership indicates an expected call of ChangeMembership
-func (mr *MockAergoRPCServiceClientMockRecorder) ChangeMembership(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{arg0, arg1}, arg2...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ChangeMembership", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).ChangeMembership), varargs...)
 }
 
 // CommitTX mocks base method
@@ -394,6 +373,26 @@ func (mr *MockAergoRPCServiceClientMockRecorder) GetEnterpriseConfig(arg0, arg1 
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEnterpriseConfig", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).GetEnterpriseConfig), varargs...)
+}
+
+// GetInternalOperations mocks base method
+func (m *MockAergoRPCServiceClient) GetInternalOperations(arg0 context.Context, arg1 *types.BlockNumberParam, arg2 ...grpc.CallOption) (*types.SingleBytes, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{arg0, arg1}
+	for _, a := range arg2 {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "GetInternalOperations", varargs...)
+	ret0, _ := ret[0].(*types.SingleBytes)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetInternalOperations indicates an expected call of GetInternalOperations
+func (mr *MockAergoRPCServiceClientMockRecorder) GetInternalOperations(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{arg0, arg1}, arg2...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInternalOperations", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).GetInternalOperations), varargs...)
 }
 
 // GetNameInfo mocks base method

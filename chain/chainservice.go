@@ -995,3 +995,7 @@ func (cs *ChainService) ChainID(bno types.BlockNo) *types.ChainID {
 	cid.Version = cs.cfg.Hardfork.Version(bno)
 	return cid
 }
+
+func (cs *ChainService) HardforkHeights() map[string]types.BlockNo {
+	return cs.cdb.hardforkHeights()
+}
