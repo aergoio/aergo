@@ -95,7 +95,7 @@ get_receipt() {
   set +e
 
   while true; do
-    output=$(../bin/aergocli receipt get --port $query_port $txhash 2>&1 > receipt.json)
+    output=$(../bin/aergocli receipt get $txhash 2>&1 > receipt.json)
 
     #echo "output: $output"
 
