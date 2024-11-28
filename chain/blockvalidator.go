@@ -123,8 +123,8 @@ func (bv *BlockValidator) ValidateBody(block *types.Block) error {
 		return nil
 	}
 
-	bv.signVerifier.RequestVerifyTxs(&types.TxList{Txs: txs})
-	bv.isNeedWait = true
+	//bv.signVerifier.RequestVerifyTxs(&types.TxList{Txs: txs})
+	//bv.isNeedWait = true
 
 	return nil
 }
