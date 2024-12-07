@@ -233,6 +233,7 @@ internal_operations=$(cat internal_operations.json)
 
 assert_equals "$internal_operations" '{
   "call": {
+    "amount": "1000000000000000000",
     "contract": "'$test_args_address'",
     "function": "default",
     "operations": [
@@ -325,6 +326,7 @@ assert_equals "$internal_operations" '{
           "'$test_args_address'"
         ],
         "call": {
+          "amount": "125000000000000000",
           "contract": "'$test_args_address'",
           "function": "default",
           "operations": [

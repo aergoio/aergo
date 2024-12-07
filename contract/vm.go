@@ -113,6 +113,7 @@ type executor struct {
 	numArgs    C.int
 	ci         *types.CallInfo
 	fname      string
+	amount     *big.Int
 	ctx        *vmContext
 	jsonRet    string
 	isView     bool
@@ -407,6 +408,7 @@ func newExecutor(
 		ce.numArgs = C.int(len(ci.Args) + 1)
 	}
 	ce.ci = ci
+	ce.amount = amount
 
 	return ce
 }
@@ -580,7 +582,7 @@ func (ce *executor) call(instLimit C.int, target *LState) (ret C.int) {
 		ctrLgr.Debug().Err(ce.err).Str("contract", contract).Msg("invalid argument")
 		return 0
 	}
-	logCall(ce.ctx, contract, ce.fname, ce.ci.Args)
+	logCall(ce.ctx, contract, ce.fname, ce.ci.Args, ce.amount.String())
 	ce.setCountHook(instLimit)
 	nRet := C.int(0)
 	cErrMsg := C.vm_pcall(ce.L, ce.numArgs, &nRet)

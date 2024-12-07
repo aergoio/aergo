@@ -122,12 +122,12 @@ func logOperationResult(ctx *vmContext, operationId int64, result string) {
 	ctrLgr.Printf("no operation found with ID %d to store result", operationId)
 }
 
-func logInternalCall(ctx *vmContext, contract string, function string, args []interface{}) error {
+func logInternalCall(ctx *vmContext, contract string, function string, args []interface{}, amount string) error {
 	if doNotLog(ctx) {
 		return nil
 	}
 
-	ctrLgr.Printf("logInternalCall: depth: %d, contract: %s, function: %s, args: %s", ctx.callDepth, contract, function, argsToJson(args))
+	ctrLgr.Printf("logInternalCall: depth: %d, contract: %s, function: %s, args: %s, amount: %s", ctx.callDepth, contract, function, argsToJson(args), amount)
 
 	opCall := getCurrentCall(ctx, ctx.callDepth-1)
 	if opCall == nil {
@@ -143,23 +143,28 @@ func logInternalCall(ctx *vmContext, contract string, function string, args []in
 		Contract: contract,
 		Function: function,
 		Args: args,
+		Amount: amount,
 	}
 
 	return nil
 }
 
-func logFirstCall(ctx *vmContext, contract string, function string, args []interface{}) {
-	ctrLgr.Printf("logFirstCall: depth: %d, contract: %s, function: %s, args: %s", ctx.callDepth, contract, function, argsToJson(args))
+func logFirstCall(ctx *vmContext, contract string, function string, args []interface{}, amount string) {
+	ctrLgr.Printf("logFirstCall: depth: %d, contract: %s, function: %s, args: %s, amount: %s", ctx.callDepth, contract, function, argsToJson(args), amount)
 	ctx.internalOpsCall.Contract = contract
 	ctx.internalOpsCall.Function = function
 	ctx.internalOpsCall.Args = args
+	ctx.internalOpsCall.Amount = amount
 }
 
-func logCall(ctx *vmContext, contract string, function string, args []interface{}) {
+func logCall(ctx *vmContext, contract string, function string, args []interface{}, amount string) {
+	if amount == "0" {
+		amount = ""
+	}
 	if ctx.internalOpsCall.Contract == "" {
-		logFirstCall(ctx, contract, function, args)
+		logFirstCall(ctx, contract, function, args, amount)
 	} else {
-		logInternalCall(ctx, contract, function, args)
+		logInternalCall(ctx, contract, function, args, amount)
 	}
 }
 
