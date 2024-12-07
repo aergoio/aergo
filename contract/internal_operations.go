@@ -158,6 +158,9 @@ func logFirstCall(ctx *vmContext, contract string, function string, args []inter
 }
 
 func logCall(ctx *vmContext, contract string, function string, args []interface{}, amount string) {
+	if amount == "0" {
+		amount = ""
+	}
 	if ctx.internalOpsCall.Contract == "" {
 		logFirstCall(ctx, contract, function, args, amount)
 	} else {
