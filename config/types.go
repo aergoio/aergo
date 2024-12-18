@@ -147,7 +147,7 @@ type RaftConfig struct {
 	BlockFactoryTickMs int64         `mapstructure:"blockfactorytickms" description:"interval to check if block factory should run new task(millisec)"`
 	BlockIntervalMs    int64         `mapstructure:"blockintervalms" description:"block interval for raft (millisec). It overrides BlockInterval of consensus"`
 	NewCluster         bool          `mapstructure:"newcluster" description:"create a new raft cluster if it doesn't already exist"`
-	UseBackup          bool          `mapstructure:"usebackup" description:"use backup datafiles when creating a new cluster or joining to a existing cluster"`
+	UseBackup          bool          `mapstructure:"usebackup" description:"use backup datafiles when creating a new cluster or joining to an existing cluster"`
 	SnapFrequency      uint64        `mapstructure:"snapfrequency" description:"frequency which raft make snapshot with log"`
 	SlowNodeGap        uint          `mapstructure:"slownodegap" description:"frequency which raft make snapshot with log"`
 	RecoverBP          *RaftBPConfig `mapstructure:"recoverbp" description:"bp info for creating a new cluster from backup"`
