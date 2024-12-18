@@ -88,7 +88,7 @@ func GetOpSysTx(vName string) OpSysTx {
 	return cmdToOp[vName]
 }
 
-// Name returns a unprefixed name corresponding to op.
+// Name returns an unprefixed name corresponding to op.
 func (op OpSysTx) ID() string {
 	const prefixLen = 2 // prefix = "Op"
 
