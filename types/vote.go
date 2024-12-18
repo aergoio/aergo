@@ -57,7 +57,7 @@ const (
 	OpvoteDAO
 	// Opstake represents a staking tranaction.
 	Opstake
-	// Opunstake represents a unstaking tranaction.
+	// Opunstake represents an unstaking tranaction.
 	Opunstake
 	// OpSysTxMax is the maximum of system tx OP numbers.
 	OpSysTxMax
