@@ -101,7 +101,7 @@ get_receipt() {
   # wait for a total of (0.4 * 100) = 40 seconds
 
   while true; do
-    output=$(../bin/aergocli receipt get $txhash --port $query_port 2>&1 > receipt.json)
+    output=$(../bin/aergocli receipt get $txhash 2>&1 > receipt.json)
 
     #echo "output: $output"
 

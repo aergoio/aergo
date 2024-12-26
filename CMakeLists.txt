@@ -40,6 +40,9 @@ add_custom_target(brick GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS} ${
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     DEPENDS libtool)
 
+add_custom_target(mpdumpdiag GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X main.githash=`git describe --tags`\" ./tools/mpdumpdiag/...
+    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR})
+
 add_custom_target(deps DEPENDS libtool)
 
 add_custom_target(check GO111MODULE=on go test -timeout 600s ./...

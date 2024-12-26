@@ -102,6 +102,14 @@ func ConvTxBody(msg *types.TxBody, payloadType EncodingType) *InOutTxBody {
 	switch payloadType {
 	case Raw:
 		tb.Payload = string(msg.Payload)
+	case Obj:
+		var v map[string]interface{}
+		err := json.Unmarshal(msg.Payload, &v)
+		if err != nil {
+			tb.Payload = ""
+		} else {
+			tb.Payload = v
+		}
 	case Base58:
 		tb.Payload = base58.Encode(msg.Payload)
 	}
@@ -141,11 +149,16 @@ func ParseTxBody(tb *InOutTxBody) (msg *types.TxBody, err error) {
 		}
 		msg.Amount = amount.Bytes()
 	}
-	if tb.Payload != "" {
-		msg.Payload, err = base58.Decode(tb.Payload)
-		if err != nil {
-			return nil, err
+	switch v := tb.Payload.(type) {
+	case string:
+		if tb.Payload != "" {
+			msg.Payload, err = base58.Decode(v)
+			if err != nil {
+				return nil, err
+			}
 		}
+	default:
+		msg.Payload, _ = json.Marshal(v)
 	}
 
 	if tb.PayloadJson != nil && tb.PayloadJson.Name != "" {
@@ -192,7 +205,7 @@ type InOutTxBody struct {
 	Account     string          `json:"account,omitempty"`
 	Recipient   string          `json:"recipient,omitempty"`
 	Amount      string          `json:"amount,omitempty"`
-	Payload     string          `json:"payload,omitempty"`
+	Payload     any             `json:"payload,omitempty"`
 	PayloadJson *types.CallInfo `json:"payloadJson,omitempty"`
 	GasLimit    uint64          `json:"gasLimit,omitempty"`
 	GasPrice    string          `json:"gasPrice,omitempty"`
@@ -239,9 +252,24 @@ func (t *InOutTxInBlock) String() string {
 	return MarshalJSON(t)
 }
 
+// CovPayloadJson unmarshal payload bytes and store it to member variable PayloadJson .
 func CovPayloadJson(tx *InOutTx) {
-	if tx.Body.Payload != "" {
-		payload, err := base58.Decode(tx.Body.Payload)
+	var payload []byte
+	var err error
+	switch v := tx.Body.Payload.(type) {
+	case string:
+		if v != "" {
+			payload, err = base58.Decode(v)
+			if err != nil {
+				return
+			}
+		}
+	default:
+		payload, _ = json.Marshal(v)
+	}
+	if len(payload) > 0 {
+		payloadString := string(payload)
+		payload, err := base58.Decode(payloadString)
 		if err == nil {
 			tx.Body.PayloadJson = &types.CallInfo{}
 			_ = json.Unmarshal(payload, tx.Body.PayloadJson)

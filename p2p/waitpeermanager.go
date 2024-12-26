@@ -206,7 +206,7 @@ func (dpm *basePeerManager) getStream(meta p2pcommon.PeerMeta) (network.Stream, 
 func (dpm *basePeerManager) tryAddPeer(outbound bool, meta p2pcommon.PeerMeta, s network.Stream, h p2pcommon.HSHandler) (p2pcommon.PeerMeta, bool) {
 	hResult, err := h.Handle(s, defaultHandshakeTTL)
 	if err != nil {
-		dpm.logger.Debug().Err(err).Bool("outbound", outbound).Stringer(p2putil.LogPeerID, types.LogPeerShort(meta.ID)).Msg("Failed to handshake")
+		dpm.logger.Info().Err(err).Bool("outbound", outbound).Stringer(p2putil.LogPeerID, types.LogPeerShort(meta.ID)).Msg("Failed to handshake")
 		return meta, false
 	}
 
@@ -254,7 +254,7 @@ func (dpm *basePeerManager) OnWorkDone(result p2pcommon.ConnWorkResult) {
 	delete(dpm.workingJobs, meta.ID)
 	wp, ok := dpm.pm.waitingPeers[meta.ID]
 	if !ok {
-		dpm.logger.Debug().Str(p2putil.LogPeerName, p2putil.ShortMetaForm(meta)).Err(result.Result).Msg("Connection job finished")
+		dpm.logger.Info().Str(p2putil.LogPeerName, p2putil.ShortMetaForm(meta)).Err(result.Result).Msg("Connection job finished")
 		return
 	} else {
 		dpm.logger.Debug().Str(p2putil.LogPeerName, p2putil.ShortMetaForm(meta)).Int("trial", wp.TrialCnt).Err(result.Result).Msg("Connection job finished")

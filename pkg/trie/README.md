@@ -49,7 +49,7 @@ For example, a proof that key=0000 is not included in the tree is a proof that L
 ### Deleting from the tree
 When a leaf is removed from the tree, special care is taken by the Update() function to keep leaf nodes at the highest subtree containing only 1 key. Otherwise, if a node has a different position in the tree, the resulting trie root would be different even though keys and values are the same.
 
-So, when a key is deleted, Update() checks if it’s sibling is also a leaf node and moves it up until the highest subtree root containing only that non-default key.
+So, when a key is deleted, Update() checks if its sibling is also a leaf node and moves it up until the highest subtree root containing only that non-default key.
 
 ![deleted](pictures/deleted.png)
 *Figure 3. The same tree after deleting a blue key : LeafNode1 moves up to the highest subtree containing one key*
@@ -67,7 +67,7 @@ A node is encoded as follows:
 
 For example, to get the children of node 3–0 at index id=1 in the array, we can access the left child 2–0 at index (2 * id + 1) = index 3 and the right child 2–1 at index (2 * id + 2) = index 4.
 
-To each node, we append a byte flag to recognize the leaf nodes. Since the nature of Root is not know ahead of time, the byte flag is stored at the first index of the nodes array.
+To each node, we append a byte flag to recognize the leaf nodes. Since the nature of Root is not known ahead of time, the byte flag is stored at the first index of the nodes array.
 
 ![batch](pictures/batch.png)
 *Figure 4. A visual representation of node batching. The first batch is blue, and all 16 leaves of a batch are roots to other batches (green). A batch contains 30 nodes.*

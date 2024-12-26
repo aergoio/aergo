@@ -18,7 +18,7 @@ endif
 
 BUILD_RULES := \
 	deps \
-	aergocli aergosvr aergoluac polaris colaris brick \
+	aergocli aergosvr aergoluac polaris colaris brick mpdumpdiag\
 	libtool libtool-clean \
 	libluajit liblmdb libgmp \
 	libluajit-clean liblmdb-clean libgmp-clean \

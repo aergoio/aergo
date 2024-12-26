@@ -206,7 +206,7 @@ READNOPLOOP:
 		}
 	}
 
-	p.logger.Info().Str(p2putil.LogPeerName, p.Name()).Msg("Finishing peer")
+	p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Msg("Finishing peer")
 	txNoticeTicker.Stop()
 	pingTicker.Stop()
 	// finish goroutine write. read goroutine will be closed automatically when disconnect

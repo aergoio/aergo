@@ -13,6 +13,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var payloadType string
+
 var (
 	rootCmd = &cobra.Command{
 		Use: "mpdumpdiag",
@@ -30,9 +32,10 @@ var (
 )
 
 func init() {
-	rootCmd.SetOutput(os.Stdout)
+	rootCmd.SetOut(os.Stdout)
 	rootCmd.AddCommand(printCmd)
 	rootCmd.AddCommand(genCmd)
+	printCmd.Flags().StringVar(&payloadType, "payload", "base58", "output format of payload")
 }
 
 func main() {
@@ -43,6 +46,8 @@ func main() {
 
 func runPrintCmd(cmd *cobra.Command, args []string) {
 	filename := args[0]
+
+	payloadEncodingType := jsonrpc.ParseEncodingType(payloadType)
 
 	file, err := os.Open(filename)
 	if err != nil {
@@ -82,7 +87,7 @@ func runPrintCmd(cmd *cobra.Command, args []string) {
 		count++
 		//mp.put(types.NewTransaction(&buf)) // nolint: errcheck
 
-		out = append(out, jsonrpc.ConvTx(types.NewTransaction(&buf).GetTx(), jsonrpc.Base58))
+		out = append(out, jsonrpc.ConvTx(types.NewTransaction(&buf).GetTx(), payloadEncodingType))
 	}
 	b, e := json.MarshalIndent(out, "", " ")
 	if e == nil {
