@@ -78,7 +78,7 @@ func (id HashID) Equal(alt HashID) bool {
 	return bytes.Equal(id.Bytes(), alt.Bytes())
 }
 
-// ParseToTxID parse BlockID from bytes. it return error if length of parameter is not fit.
+// ParseToBlockID parse BlockID from bytes. it return error if length of parameter is not fit.
 func ParseToBlockID(blockHash []byte) (BlockID, error) {
 	var hash BlockID
 	if len(blockHash) != HashIDLength {
