@@ -55,9 +55,9 @@ const (
 	OpvoteBP OpSysTx = iota
 	// OpvoteDAO corresponds to a proposal transaction for a system parameter change.
 	OpvoteDAO
-	// Opstake represents a staking tranaction.
+	// Opstake represents a staking transaction.
 	Opstake
-	// Opunstake represents an unstaking tranaction.
+	// Opunstake represents an unstaking transaction.
 	Opunstake
 	// OpSysTxMax is the maximum of system tx OP numbers.
 	OpSysTxMax
