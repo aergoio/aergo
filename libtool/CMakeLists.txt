@@ -36,7 +36,7 @@ elseif( GMP_VERSION EQUAL "6.2.1" )
     set(GMP_HASH eae9326beb4158c386e39a356818031bd28f3124cf915f8c5b1dc4c7a36b4d7c)
 else()
     # hash of libgmp-6.3.0
-    set(GMP_HASH 29df1150be857d94323e8c57f509b0314e56a4953712639f2c9e3b9aefc553ac)
+    set(GMP_HASH 9435004a7c01c78be00ba671c9adb5af77f7d5bd1ceff8c057947c42598968e0)
 endif()
 
 set(GMP_NAME gmp-${GMP_VERSION})
