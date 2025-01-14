@@ -7,7 +7,8 @@ import (
 	"github.com/aergoio/aergo/v2/internal/network"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/btcec/v2/ecdsa"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/minio/sha256-simd"
 )
@@ -86,7 +87,7 @@ func CheckAndGetV1(cert *types.AgentCertificate) (*p2pcommon.AgentCertificateV1,
 	if err != nil {
 		return nil, p2pcommon.ErrInvalidPeerID
 	}
-	wrap.BPPubKey, err = btcec.ParsePubKey(cert.BPPubKey, btcec.S256())
+	wrap.BPPubKey, err = btcec.ParsePubKey(cert.BPPubKey)
 	if err != nil {
 		return nil, p2pcommon.ErrInvalidKey
 	}
@@ -121,7 +122,7 @@ func CheckAndGetV1(cert *types.AgentCertificate) (*p2pcommon.AgentCertificateV1,
 		}
 		wrap.AgentAddress[i] = addrStr
 	}
-	wrap.Signature, err = btcec.ParseSignature(cert.Signature, btcec.S256())
+	wrap.Signature, err = ecdsa.ParseSignature(cert.Signature)
 	if err != nil {
 		return nil, p2pcommon.ErrInvalidCertField
 	}
@@ -138,10 +139,7 @@ func SignCert(key *btcec.PrivateKey, wrap *p2pcommon.AgentCertificateV1) error {
 	if err != nil {
 		return err
 	}
-	sign, err := key.Sign(hash)
-	if err != nil {
-		return err
-	}
+	sign := ecdsa.Sign(key, hash)
 	wrap.BPPubKey = key.PubKey()
 	wrap.Signature = sign
 	return nil

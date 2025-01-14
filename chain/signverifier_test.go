@@ -8,7 +8,7 @@ import (
 	"github.com/aergoio/aergo/v2/account/key"
 	crypto "github.com/aergoio/aergo/v2/account/key/crypto"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -41,12 +41,12 @@ func beforeTest(txCount int) error {
 	}
 
 	for i := 0; i < maxAccount; i++ {
-		privkey, err := btcec.NewPrivateKey(btcec.S256())
+		privkey, err := btcec.NewPrivateKey()
 		if err != nil {
 			return err
 		}
 		//gen new address
-		accs[i] = crypto.GenerateAddress(&privkey.PublicKey)
+		accs[i] = crypto.GenerateAddress(privkey.PubKey().ToECDSA())
 		sign[i] = privkey
 		recipient[i] = _itobU32(uint32(i))
 	}
