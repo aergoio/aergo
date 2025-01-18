@@ -71,7 +71,7 @@ func TestNewListEntry(t *testing.T) {
 				}
 
 				if (got.PeerID != NotSpecifiedID) != tt.wantID {
-					t.Errorf("ParseListEntry().PeerID = %v, want not", got.PeerID.Pretty())
+					t.Errorf("ParseListEntry().PeerID = %v, want not", got.PeerID.String())
 				}
 			}
 		})

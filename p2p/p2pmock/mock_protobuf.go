@@ -6,36 +6,37 @@ package p2pmock
 
 import (
 	context "context"
+	reflect "reflect"
+
 	types "github.com/aergoio/aergo/v2/types"
 	gomock "github.com/golang/mock/gomock"
 	metadata "google.golang.org/grpc/metadata"
-	reflect "reflect"
 )
 
-// MockAergoRPCService_ListBlockStreamServer is a mock of AergoRPCService_ListBlockStreamServer interface
+// MockAergoRPCService_ListBlockStreamServer is a mock of AergoRPCService_ListBlockStreamServer interface.
 type MockAergoRPCService_ListBlockStreamServer struct {
 	ctrl     *gomock.Controller
 	recorder *MockAergoRPCService_ListBlockStreamServerMockRecorder
 }
 
-// MockAergoRPCService_ListBlockStreamServerMockRecorder is the mock recorder for MockAergoRPCService_ListBlockStreamServer
+// MockAergoRPCService_ListBlockStreamServerMockRecorder is the mock recorder for MockAergoRPCService_ListBlockStreamServer.
 type MockAergoRPCService_ListBlockStreamServerMockRecorder struct {
 	mock *MockAergoRPCService_ListBlockStreamServer
 }
 
-// NewMockAergoRPCService_ListBlockStreamServer creates a new mock instance
+// NewMockAergoRPCService_ListBlockStreamServer creates a new mock instance.
 func NewMockAergoRPCService_ListBlockStreamServer(ctrl *gomock.Controller) *MockAergoRPCService_ListBlockStreamServer {
 	mock := &MockAergoRPCService_ListBlockStreamServer{ctrl: ctrl}
 	mock.recorder = &MockAergoRPCService_ListBlockStreamServerMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockAergoRPCService_ListBlockStreamServer) EXPECT() *MockAergoRPCService_ListBlockStreamServerMockRecorder {
 	return m.recorder
 }
 
-// Context mocks base method
+// Context mocks base method.
 func (m *MockAergoRPCService_ListBlockStreamServer) Context() context.Context {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Context")
@@ -43,13 +44,13 @@ func (m *MockAergoRPCService_ListBlockStreamServer) Context() context.Context {
 	return ret0
 }
 
-// Context indicates an expected call of Context
+// Context indicates an expected call of Context.
 func (mr *MockAergoRPCService_ListBlockStreamServerMockRecorder) Context() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Context", reflect.TypeOf((*MockAergoRPCService_ListBlockStreamServer)(nil).Context))
 }
 
-// RecvMsg mocks base method
+// RecvMsg mocks base method.
 func (m *MockAergoRPCService_ListBlockStreamServer) RecvMsg(arg0 interface{}) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RecvMsg", arg0)
@@ -57,13 +58,13 @@ func (m *MockAergoRPCService_ListBlockStreamServer) RecvMsg(arg0 interface{}) er
 	return ret0
 }
 
-// RecvMsg indicates an expected call of RecvMsg
+// RecvMsg indicates an expected call of RecvMsg.
 func (mr *MockAergoRPCService_ListBlockStreamServerMockRecorder) RecvMsg(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RecvMsg", reflect.TypeOf((*MockAergoRPCService_ListBlockStreamServer)(nil).RecvMsg), arg0)
 }
 
-// Send mocks base method
+// Send mocks base method.
 func (m *MockAergoRPCService_ListBlockStreamServer) Send(arg0 *types.Block) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Send", arg0)
@@ -71,13 +72,13 @@ func (m *MockAergoRPCService_ListBlockStreamServer) Send(arg0 *types.Block) erro
 	return ret0
 }
 
-// Send indicates an expected call of Send
+// Send indicates an expected call of Send.
 func (mr *MockAergoRPCService_ListBlockStreamServerMockRecorder) Send(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockAergoRPCService_ListBlockStreamServer)(nil).Send), arg0)
 }
 
-// SendHeader mocks base method
+// SendHeader mocks base method.
 func (m *MockAergoRPCService_ListBlockStreamServer) SendHeader(arg0 metadata.MD) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SendHeader", arg0)
@@ -85,13 +86,13 @@ func (m *MockAergoRPCService_ListBlockStreamServer) SendHeader(arg0 metadata.MD)
 	return ret0
 }
 
-// SendHeader indicates an expected call of SendHeader
+// SendHeader indicates an expected call of SendHeader.
 func (mr *MockAergoRPCService_ListBlockStreamServerMockRecorder) SendHeader(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendHeader", reflect.TypeOf((*MockAergoRPCService_ListBlockStreamServer)(nil).SendHeader), arg0)
 }
 
-// SendMsg mocks base method
+// SendMsg mocks base method.
 func (m *MockAergoRPCService_ListBlockStreamServer) SendMsg(arg0 interface{}) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SendMsg", arg0)
@@ -99,13 +100,13 @@ func (m *MockAergoRPCService_ListBlockStreamServer) SendMsg(arg0 interface{}) er
 	return ret0
 }
 
-// SendMsg indicates an expected call of SendMsg
+// SendMsg indicates an expected call of SendMsg.
 func (mr *MockAergoRPCService_ListBlockStreamServerMockRecorder) SendMsg(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendMsg", reflect.TypeOf((*MockAergoRPCService_ListBlockStreamServer)(nil).SendMsg), arg0)
 }
 
-// SetHeader mocks base method
+// SetHeader mocks base method.
 func (m *MockAergoRPCService_ListBlockStreamServer) SetHeader(arg0 metadata.MD) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SetHeader", arg0)
@@ -113,19 +114,19 @@ func (m *MockAergoRPCService_ListBlockStreamServer) SetHeader(arg0 metadata.MD) 
 	return ret0
 }
 
-// SetHeader indicates an expected call of SetHeader
+// SetHeader indicates an expected call of SetHeader.
 func (mr *MockAergoRPCService_ListBlockStreamServerMockRecorder) SetHeader(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetHeader", reflect.TypeOf((*MockAergoRPCService_ListBlockStreamServer)(nil).SetHeader), arg0)
 }
 
-// SetTrailer mocks base method
+// SetTrailer mocks base method.
 func (m *MockAergoRPCService_ListBlockStreamServer) SetTrailer(arg0 metadata.MD) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "SetTrailer", arg0)
 }
 
-// SetTrailer indicates an expected call of SetTrailer
+// SetTrailer indicates an expected call of SetTrailer.
 func (mr *MockAergoRPCService_ListBlockStreamServerMockRecorder) SetTrailer(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetTrailer", reflect.TypeOf((*MockAergoRPCService_ListBlockStreamServer)(nil).SetTrailer), arg0)

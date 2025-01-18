@@ -78,7 +78,7 @@ type LogPeerShort PeerID
 
 func (t LogPeerShort) String() string {
 	// basically this function is same as function p2putils.ShortForm()
-	pretty := PeerID(t).Pretty()
+	pretty := PeerID(t).String()
 	if len(pretty) > 10 {
 		return fmt.Sprintf("%s*%s", pretty[:2], pretty[len(pretty)-6:])
 	} else {

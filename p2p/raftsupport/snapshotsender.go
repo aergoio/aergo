@@ -23,7 +23,7 @@ import (
 	"github.com/aergoio/etcd/raft"
 	"github.com/aergoio/etcd/raft/raftpb"
 	"github.com/aergoio/etcd/snap"
-	core "github.com/libp2p/go-libp2p-core"
+	core "github.com/libp2p/go-libp2p/core"
 )
 
 type snapshotSender struct {

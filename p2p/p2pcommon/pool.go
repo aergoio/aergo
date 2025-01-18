@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/libp2p/go-libp2p-core/network"
+	"github.com/libp2p/go-libp2p/core/network"
 )
 
 const (

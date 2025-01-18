@@ -126,9 +126,9 @@ func Test_polarisListManager_IsBanned(t *testing.T) {
 	thirdAddr := "222.8.8.8"
 	thirdID := types.RandomPeerID()
 
-	IDOnly, e1 := types.ParseListEntry(`{"peerid":"` + id1.Pretty() + `"}`)
+	IDOnly, e1 := types.ParseListEntry(`{"peerid":"` + id1.String() + `"}`)
 	AddrOnly, e2 := types.ParseListEntry(`{"address":"` + addr1 + `"}`)
-	IDAddr, e3 := types.ParseListEntry(`{"peerid":"` + idother.Pretty() + `", "address":"` + addrother + `"}`)
+	IDAddr, e3 := types.ParseListEntry(`{"peerid":"` + idother.String() + `", "address":"` + addrother + `"}`)
 	if e1 != nil || e2 != nil || e3 != nil {
 		t.Fatalf("Inital entry value failure %v , %v , %v", e1, e2, e3)
 	}
