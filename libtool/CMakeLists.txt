@@ -20,19 +20,23 @@ if(NOT EXISTS ${LMDB_SRC_DIR})
     execute_process(COMMAND git clone https://github.com/lmdb/lmdb.git ${LMDB_SRC_DIR})
 endif()
 
-set(GMP_VERSION "6.1.2" CACHE STRING "Override libgmp version" )
+set(GMP_VERSION "6.3.0" CACHE STRING "Override libgmp version" )
 if (NOT "$ENV{GMP_VERSION}" STREQUAL "")
     message(STATUS "Overriding libgmp version to $ENV{GMP_VERSION} by environment variable")
     set(GMP_VERSION "$ENV{GMP_VERSION}" )
 endif()
 message(STATUS "Using libgmp version ${GMP_VERSION}")
 
-if( GMP_VERSION EQUAL "6.2.1" )
+# set default version of libgmp to v6.3.0
+if( GMP_VERSION EQUAL "6.1.2" )
+    # hash of libgmp-6.1.2
+    set(GMP_HASH 5275bb04f4863a13516b2f39392ac5e272f5e1bb8057b18aec1c9b79d73d8fb2)
+elseif( GMP_VERSION EQUAL "6.2.1" )
     # hash of libgmp-6.2.1
     set(GMP_HASH eae9326beb4158c386e39a356818031bd28f3124cf915f8c5b1dc4c7a36b4d7c)
 else()
-    # hash of libgmp-6.1.2
-    set(GMP_HASH 5275bb04f4863a13516b2f39392ac5e272f5e1bb8057b18aec1c9b79d73d8fb2)
+    # hash of libgmp-6.3.0
+    set(GMP_HASH 9435004a7c01c78be00ba671c9adb5af77f7d5bd1ceff8c057947c42598968e0)
 endif()
 
 set(GMP_NAME gmp-${GMP_VERSION})
