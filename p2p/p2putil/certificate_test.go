@@ -10,11 +10,11 @@ import (
 	"github.com/aergoio/aergo/v2/internal/enc/proto"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/btcec/v2"
 )
 
 func TestNewAgentCertV1(t *testing.T) {
-	pk, _ := btcec.NewPrivateKey(btcec.S256())
+	pk, _ := btcec.NewPrivateKey()
 	pid1, pid2 := types.RandomPeerID(), types.RandomPeerID()
 	addr0 := "192.168.0.2"
 	addr1 := "2001:0db8:85a3:08d3:1319:8a2e:370:7334"
@@ -63,9 +63,9 @@ func TestNewAgentCertV1(t *testing.T) {
 }
 
 func TestCheckAndGetV1(t *testing.T) {
-	pk1, _ := btcec.NewPrivateKey(btcec.S256())
+	pk1, _ := btcec.NewPrivateKey()
 	libp2pKey1 := ConvertPKToLibP2P(pk1)
-	//pk2, _ := btcec.NewPrivateKey(btcec.S256())
+	//pk2, _ := btcec.NewPrivateKey()
 	pid1, _ := types.IDFromPrivateKey(libp2pKey1)
 	pid2 := types.RandomPeerID()
 	addrs := []string{"192.168.0.2", "2001:0db8:85a3:08d3:1319:8a2e:370:7334", "tester.aergo.io"}
@@ -177,8 +177,8 @@ func (b *cb) Build() *types.AgentCertificate {
 }
 
 func TestAgentCertificateV1_Convert(t *testing.T) {
-	pk1, _ := btcec.NewPrivateKey(btcec.S256())
-	//pk2, _ := btcec.NewPrivateKey(btcec.S256())
+	pk1, _ := btcec.NewPrivateKey()
+	//pk2, _ := btcec.NewPrivateKey()
 
 	pid1, _ := types.IDFromPrivateKey(ConvertPKToLibP2P(pk1))
 	pid2 := types.RandomPeerID()
@@ -234,8 +234,8 @@ func TestAgentCertificateV1_Convert(t *testing.T) {
 }
 
 func Test_calculateCertificateHash(t *testing.T) {
-	pk1, _ := btcec.NewPrivateKey(btcec.S256())
-	//pk2, _ := btcec.NewPrivateKey(btcec.S256())
+	pk1, _ := btcec.NewPrivateKey()
+	//pk2, _ := btcec.NewPrivateKey()
 	pid1, pid2 := types.RandomPeerID(), types.RandomPeerID()
 	addrs := []string{"192.168.0.2", "2001:0db8:85a3:08d3:1319:8a2e:370:7334", "tester.aergo.io"}
 	DAY := time.Hour * 24

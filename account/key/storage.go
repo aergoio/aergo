@@ -6,7 +6,7 @@
 package key
 
 import (
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/btcec/v2"
 )
 
 // Identity is a raw, i.e. decoded address generated from a public key

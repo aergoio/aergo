@@ -5,7 +5,8 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/btcec/v2/ecdsa"
 )
 
 var (
@@ -35,7 +36,7 @@ type AgentCertificateV1 struct {
 	ExpireTime   time.Time
 	AgentID      types.PeerID
 	AgentAddress []string
-	Signature    *btcec.Signature
+	Signature    *ecdsa.Signature
 }
 
 // IsValidInTime check if this certificate is expired
