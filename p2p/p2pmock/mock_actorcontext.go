@@ -5,36 +5,37 @@
 package p2pmock
 
 import (
-	actor "github.com/aergoio/aergo-actor/actor"
-	gomock "github.com/golang/mock/gomock"
 	reflect "reflect"
 	time "time"
+
+	actor "github.com/aergoio/aergo-actor/actor"
+	gomock "github.com/golang/mock/gomock"
 )
 
-// MockContext is a mock of Context interface
+// MockContext is a mock of Context interface.
 type MockContext struct {
 	ctrl     *gomock.Controller
 	recorder *MockContextMockRecorder
 }
 
-// MockContextMockRecorder is the mock recorder for MockContext
+// MockContextMockRecorder is the mock recorder for MockContext.
 type MockContextMockRecorder struct {
 	mock *MockContext
 }
 
-// NewMockContext creates a new mock instance
+// NewMockContext creates a new mock instance.
 func NewMockContext(ctrl *gomock.Controller) *MockContext {
 	mock := &MockContext{ctrl: ctrl}
 	mock.recorder = &MockContextMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockContext) EXPECT() *MockContextMockRecorder {
 	return m.recorder
 }
 
-// Actor mocks base method
+// Actor mocks base method.
 func (m *MockContext) Actor() actor.Actor {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Actor")
@@ -42,25 +43,25 @@ func (m *MockContext) Actor() actor.Actor {
 	return ret0
 }
 
-// Actor indicates an expected call of Actor
+// Actor indicates an expected call of Actor.
 func (mr *MockContextMockRecorder) Actor() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Actor", reflect.TypeOf((*MockContext)(nil).Actor))
 }
 
-// AwaitFuture mocks base method
+// AwaitFuture mocks base method.
 func (m *MockContext) AwaitFuture(arg0 *actor.Future, arg1 func(interface{}, error)) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "AwaitFuture", arg0, arg1)
 }
 
-// AwaitFuture indicates an expected call of AwaitFuture
+// AwaitFuture indicates an expected call of AwaitFuture.
 func (mr *MockContextMockRecorder) AwaitFuture(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AwaitFuture", reflect.TypeOf((*MockContext)(nil).AwaitFuture), arg0, arg1)
 }
 
-// Children mocks base method
+// Children mocks base method.
 func (m *MockContext) Children() []*actor.PID {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Children")
@@ -68,25 +69,25 @@ func (m *MockContext) Children() []*actor.PID {
 	return ret0
 }
 
-// Children indicates an expected call of Children
+// Children indicates an expected call of Children.
 func (mr *MockContextMockRecorder) Children() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Children", reflect.TypeOf((*MockContext)(nil).Children))
 }
 
-// Forward mocks base method
+// Forward mocks base method.
 func (m *MockContext) Forward(arg0 *actor.PID) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Forward", arg0)
 }
 
-// Forward indicates an expected call of Forward
+// Forward indicates an expected call of Forward.
 func (mr *MockContextMockRecorder) Forward(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Forward", reflect.TypeOf((*MockContext)(nil).Forward), arg0)
 }
 
-// Message mocks base method
+// Message mocks base method.
 func (m *MockContext) Message() interface{} {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Message")
@@ -94,13 +95,13 @@ func (m *MockContext) Message() interface{} {
 	return ret0
 }
 
-// Message indicates an expected call of Message
+// Message indicates an expected call of Message.
 func (mr *MockContextMockRecorder) Message() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Message", reflect.TypeOf((*MockContext)(nil).Message))
 }
 
-// MessageHeader mocks base method
+// MessageHeader mocks base method.
 func (m *MockContext) MessageHeader() actor.ReadonlyMessageHeader {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "MessageHeader")
@@ -108,13 +109,13 @@ func (m *MockContext) MessageHeader() actor.ReadonlyMessageHeader {
 	return ret0
 }
 
-// MessageHeader indicates an expected call of MessageHeader
+// MessageHeader indicates an expected call of MessageHeader.
 func (mr *MockContextMockRecorder) MessageHeader() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MessageHeader", reflect.TypeOf((*MockContext)(nil).MessageHeader))
 }
 
-// Parent mocks base method
+// Parent mocks base method.
 func (m *MockContext) Parent() *actor.PID {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Parent")
@@ -122,37 +123,37 @@ func (m *MockContext) Parent() *actor.PID {
 	return ret0
 }
 
-// Parent indicates an expected call of Parent
+// Parent indicates an expected call of Parent.
 func (mr *MockContextMockRecorder) Parent() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Parent", reflect.TypeOf((*MockContext)(nil).Parent))
 }
 
-// PopBehavior mocks base method
+// PopBehavior mocks base method.
 func (m *MockContext) PopBehavior() {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "PopBehavior")
 }
 
-// PopBehavior indicates an expected call of PopBehavior
+// PopBehavior indicates an expected call of PopBehavior.
 func (mr *MockContextMockRecorder) PopBehavior() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PopBehavior", reflect.TypeOf((*MockContext)(nil).PopBehavior))
 }
 
-// PushBehavior mocks base method
+// PushBehavior mocks base method.
 func (m *MockContext) PushBehavior(arg0 actor.ActorFunc) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "PushBehavior", arg0)
 }
 
-// PushBehavior indicates an expected call of PushBehavior
+// PushBehavior indicates an expected call of PushBehavior.
 func (mr *MockContextMockRecorder) PushBehavior(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PushBehavior", reflect.TypeOf((*MockContext)(nil).PushBehavior), arg0)
 }
 
-// ReceiveTimeout mocks base method
+// ReceiveTimeout mocks base method.
 func (m *MockContext) ReceiveTimeout() time.Duration {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ReceiveTimeout")
@@ -160,25 +161,25 @@ func (m *MockContext) ReceiveTimeout() time.Duration {
 	return ret0
 }
 
-// ReceiveTimeout indicates an expected call of ReceiveTimeout
+// ReceiveTimeout indicates an expected call of ReceiveTimeout.
 func (mr *MockContextMockRecorder) ReceiveTimeout() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReceiveTimeout", reflect.TypeOf((*MockContext)(nil).ReceiveTimeout))
 }
 
-// Request mocks base method
+// Request mocks base method.
 func (m *MockContext) Request(arg0 *actor.PID, arg1 interface{}) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Request", arg0, arg1)
 }
 
-// Request indicates an expected call of Request
+// Request indicates an expected call of Request.
 func (mr *MockContextMockRecorder) Request(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Request", reflect.TypeOf((*MockContext)(nil).Request), arg0, arg1)
 }
 
-// RequestFuture mocks base method
+// RequestFuture mocks base method.
 func (m *MockContext) RequestFuture(arg0 *actor.PID, arg1 interface{}, arg2 time.Duration) *actor.Future {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RequestFuture", arg0, arg1, arg2)
@@ -186,25 +187,25 @@ func (m *MockContext) RequestFuture(arg0 *actor.PID, arg1 interface{}, arg2 time
 	return ret0
 }
 
-// RequestFuture indicates an expected call of RequestFuture
+// RequestFuture indicates an expected call of RequestFuture.
 func (mr *MockContextMockRecorder) RequestFuture(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestFuture", reflect.TypeOf((*MockContext)(nil).RequestFuture), arg0, arg1, arg2)
 }
 
-// Respond mocks base method
+// Respond mocks base method.
 func (m *MockContext) Respond(arg0 interface{}) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Respond", arg0)
 }
 
-// Respond indicates an expected call of Respond
+// Respond indicates an expected call of Respond.
 func (mr *MockContextMockRecorder) Respond(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Respond", reflect.TypeOf((*MockContext)(nil).Respond), arg0)
 }
 
-// Self mocks base method
+// Self mocks base method.
 func (m *MockContext) Self() *actor.PID {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Self")
@@ -212,13 +213,13 @@ func (m *MockContext) Self() *actor.PID {
 	return ret0
 }
 
-// Self indicates an expected call of Self
+// Self indicates an expected call of Self.
 func (mr *MockContextMockRecorder) Self() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Self", reflect.TypeOf((*MockContext)(nil).Self))
 }
 
-// Sender mocks base method
+// Sender mocks base method.
 func (m *MockContext) Sender() *actor.PID {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Sender")
@@ -226,37 +227,37 @@ func (m *MockContext) Sender() *actor.PID {
 	return ret0
 }
 
-// Sender indicates an expected call of Sender
+// Sender indicates an expected call of Sender.
 func (mr *MockContextMockRecorder) Sender() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Sender", reflect.TypeOf((*MockContext)(nil).Sender))
 }
 
-// SetBehavior mocks base method
+// SetBehavior mocks base method.
 func (m *MockContext) SetBehavior(arg0 actor.ActorFunc) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "SetBehavior", arg0)
 }
 
-// SetBehavior indicates an expected call of SetBehavior
+// SetBehavior indicates an expected call of SetBehavior.
 func (mr *MockContextMockRecorder) SetBehavior(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetBehavior", reflect.TypeOf((*MockContext)(nil).SetBehavior), arg0)
 }
 
-// SetReceiveTimeout mocks base method
+// SetReceiveTimeout mocks base method.
 func (m *MockContext) SetReceiveTimeout(arg0 time.Duration) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "SetReceiveTimeout", arg0)
 }
 
-// SetReceiveTimeout indicates an expected call of SetReceiveTimeout
+// SetReceiveTimeout indicates an expected call of SetReceiveTimeout.
 func (mr *MockContextMockRecorder) SetReceiveTimeout(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetReceiveTimeout", reflect.TypeOf((*MockContext)(nil).SetReceiveTimeout), arg0)
 }
 
-// Spawn mocks base method
+// Spawn mocks base method.
 func (m *MockContext) Spawn(arg0 *actor.Props) *actor.PID {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Spawn", arg0)
@@ -264,13 +265,13 @@ func (m *MockContext) Spawn(arg0 *actor.Props) *actor.PID {
 	return ret0
 }
 
-// Spawn indicates an expected call of Spawn
+// Spawn indicates an expected call of Spawn.
 func (mr *MockContextMockRecorder) Spawn(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Spawn", reflect.TypeOf((*MockContext)(nil).Spawn), arg0)
 }
 
-// SpawnNamed mocks base method
+// SpawnNamed mocks base method.
 func (m *MockContext) SpawnNamed(arg0 *actor.Props, arg1 string) (*actor.PID, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SpawnNamed", arg0, arg1)
@@ -279,13 +280,13 @@ func (m *MockContext) SpawnNamed(arg0 *actor.Props, arg1 string) (*actor.PID, er
 	return ret0, ret1
 }
 
-// SpawnNamed indicates an expected call of SpawnNamed
+// SpawnNamed indicates an expected call of SpawnNamed.
 func (mr *MockContextMockRecorder) SpawnNamed(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SpawnNamed", reflect.TypeOf((*MockContext)(nil).SpawnNamed), arg0, arg1)
 }
 
-// SpawnPrefix mocks base method
+// SpawnPrefix mocks base method.
 func (m *MockContext) SpawnPrefix(arg0 *actor.Props, arg1 string) *actor.PID {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SpawnPrefix", arg0, arg1)
@@ -293,55 +294,55 @@ func (m *MockContext) SpawnPrefix(arg0 *actor.Props, arg1 string) *actor.PID {
 	return ret0
 }
 
-// SpawnPrefix indicates an expected call of SpawnPrefix
+// SpawnPrefix indicates an expected call of SpawnPrefix.
 func (mr *MockContextMockRecorder) SpawnPrefix(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SpawnPrefix", reflect.TypeOf((*MockContext)(nil).SpawnPrefix), arg0, arg1)
 }
 
-// Stash mocks base method
+// Stash mocks base method.
 func (m *MockContext) Stash() {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Stash")
 }
 
-// Stash indicates an expected call of Stash
+// Stash indicates an expected call of Stash.
 func (mr *MockContextMockRecorder) Stash() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stash", reflect.TypeOf((*MockContext)(nil).Stash))
 }
 
-// Tell mocks base method
+// Tell mocks base method.
 func (m *MockContext) Tell(arg0 *actor.PID, arg1 interface{}) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Tell", arg0, arg1)
 }
 
-// Tell indicates an expected call of Tell
+// Tell indicates an expected call of Tell.
 func (mr *MockContextMockRecorder) Tell(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Tell", reflect.TypeOf((*MockContext)(nil).Tell), arg0, arg1)
 }
 
-// Unwatch mocks base method
+// Unwatch mocks base method.
 func (m *MockContext) Unwatch(arg0 *actor.PID) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Unwatch", arg0)
 }
 
-// Unwatch indicates an expected call of Unwatch
+// Unwatch indicates an expected call of Unwatch.
 func (mr *MockContextMockRecorder) Unwatch(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Unwatch", reflect.TypeOf((*MockContext)(nil).Unwatch), arg0)
 }
 
-// Watch mocks base method
+// Watch mocks base method.
 func (m *MockContext) Watch(arg0 *actor.PID) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Watch", arg0)
 }
 
-// Watch indicates an expected call of Watch
+// Watch indicates an expected call of Watch.
 func (mr *MockContextMockRecorder) Watch(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Watch", reflect.TypeOf((*MockContext)(nil).Watch), arg0)

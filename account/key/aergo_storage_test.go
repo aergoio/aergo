@@ -12,7 +12,7 @@ import (
 	"testing"
 
 	crypto "github.com/aergoio/aergo/v2/account/key/crypto"
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -24,12 +24,12 @@ func TestSaveAndLoadOnAergo(t *testing.T) {
 	if nil != err {
 		assert.FailNow(t, "Could not create storage", err)
 	}
-	expected, err := btcec.NewPrivateKey(btcec.S256())
+	expected, err := btcec.NewPrivateKey()
 	if nil != err {
 		assert.FailNow(t, "Could not create private key", err)
 	}
 
-	identity := crypto.GenerateAddress(&expected.PublicKey)
+	identity := crypto.GenerateAddress(expected.PubKey().ToECDSA())
 	password := "password"
 	saved, err := storage.Save(identity, password, expected)
 	if nil != err {
@@ -52,12 +52,12 @@ func TestSaveAndListOnAergo(t *testing.T) {
 	if nil != err {
 		assert.FailNow(t, "Could not create storage", err)
 	}
-	expected, err := btcec.NewPrivateKey(btcec.S256())
+	expected, err := btcec.NewPrivateKey()
 	if nil != err {
 		assert.FailNow(t, "Could not create private key", err)
 	}
 
-	identity := crypto.GenerateAddress(&expected.PublicKey)
+	identity := crypto.GenerateAddress(expected.PubKey().ToECDSA())
 	password := "password"
 	saved, err := storage.Save(identity, password, expected)
 	if nil != err {

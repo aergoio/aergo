@@ -37,7 +37,7 @@ func TestNewCluster(t *testing.T) {
 		assert.Nil(t, err)
 		b, err := types.IDFromPublicKey(pubKey)
 		assert.Nil(t, err)
-		return b.Pretty()
+		return b.String()
 	}
 
 	genIds := func() []string {

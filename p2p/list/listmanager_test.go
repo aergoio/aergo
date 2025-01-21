@@ -80,9 +80,9 @@ func Test_blacklistManagerImpl_IsBanned(t *testing.T) {
 	thirdAddr := "222.8.8.8"
 	thirdID := types.RandomPeerID()
 
-	IDOnly := `{"peerid":"` + id1.Pretty() + `"}`
+	IDOnly := `{"peerid":"` + id1.String() + `"}`
 	AddrOnly := `{"address":"` + addr1 + `"}`
-	IDAddr := `{"peerid":"` + idother.Pretty() + `", "address":"` + addrother + `"}`
+	IDAddr := `{"peerid":"` + idother.String() + `", "address":"` + addrother + `"}`
 
 	logger := log.NewLogger("p2p.list.test")
 	listCfg := &types.EnterpriseConfig{Key: enterprise.P2PWhite, On: true, Values: []string{IDOnly, AddrOnly, IDAddr}}

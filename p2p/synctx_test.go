@@ -240,7 +240,7 @@ func Test_txSyncManager_refineFrontCacheConsumption(t *testing.T) {
 			mockActor := p2pmock.NewMockActorService(ctrl)
 			mockPeer := p2pmock.NewMockRemotePeer(ctrl)
 			mockPeer.EXPECT().ID().Return(sampleMeta.ID).AnyTimes()
-			mockPeer.EXPECT().Name().Return(sampleMeta.ID.Pretty()).AnyTimes()
+			mockPeer.EXPECT().Name().Return(sampleMeta.ID.String()).AnyTimes()
 			mockPM.EXPECT().GetPeer(gomock.Any()).Return(mockPeer, true).AnyTimes()
 
 			tm := newTxSyncManager(nil, mockActor, mockPM, logger)
