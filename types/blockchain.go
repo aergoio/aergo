@@ -126,7 +126,7 @@ const (
   }
 */
 
-// ChainAccessor is an interface for an another actor module to get info of chain
+// ChainAccessor is an interface for another actor module to get info of chain
 type ChainAccessor interface {
 	GetGenesisInfo() *Genesis
 	GetConsensusInfo() string
