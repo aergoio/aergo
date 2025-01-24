@@ -57,7 +57,7 @@ const (
 	OpvoteDAO
 	// Opstake represents a staking transaction.
 	Opstake
-	// Opunstake represents an unstaking transaction.
+	// Opunstake represents the unstaking transaction.
 	Opunstake
 	// OpSysTxMax is the maximum of system tx OP numbers.
 	OpSysTxMax
@@ -88,7 +88,7 @@ func GetOpSysTx(vName string) OpSysTx {
 	return cmdToOp[vName]
 }
 
-// Name returns an unprefixed name corresponding to op.
+// Name returns the unprefixed name corresponding to op.
 func (op OpSysTx) ID() string {
 	const prefixLen = 2 // prefix = "Op"
 
