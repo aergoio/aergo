@@ -16,7 +16,7 @@ type CompStatReq struct {
 
 // CompStatRsp contains component's internal info, used to help debugging
 // - Status is a string representation of a component's status
-// - AccProcessedMsg is an accumulated number of message that this component processes
+// - AccProcessedMsg is the accumulated number of message that this component processes
 // - MsgQueueLen is a current number of message at this component's mailbox
 // - MsgProcessLatency is an estimated latency to process a msg
 // - Error is an error msg when a requester fails to get statics
