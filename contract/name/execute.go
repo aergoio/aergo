@@ -39,7 +39,7 @@ func ExecuteNameTx(bs *state.BlockState, scs *statedb.ContractState, txBody *typ
 	switch ci.Name {
 	case types.NameCreate:
 		nameArg := ci.Args[0].(string)
-		if err = CreateName(scs, txBody, sender, nameState, nameArg); err != nil {
+		if err = CreateName(scs, txBody, sender, nameState, nameArg, blockInfo.ForkVersion); err != nil {
 			return nil, err
 		}
 		jsonArgs := ""
@@ -57,7 +57,7 @@ func ExecuteNameTx(bs *state.BlockState, scs *statedb.ContractState, txBody *typ
 	case types.NameUpdate:
 		nameArg := ci.Args[0].(string)
 		toArg := ci.Args[1].(string)
-		if err = UpdateName(bs, scs, txBody, sender, nameState, nameArg, toArg); err != nil {
+		if err = UpdateName(bs, scs, txBody, sender, nameState, nameArg, toArg, blockInfo.ForkVersion); err != nil {
 			return nil, err
 		}
 		jsonArgs := ""
@@ -74,7 +74,7 @@ func ExecuteNameTx(bs *state.BlockState, scs *statedb.ContractState, txBody *typ
 		})
 	case types.SetNameOperator:
 		if err = UpdateOperator(bs, scs, txBody, sender, nameState,
-			ci.Args[0].(string), ci.Args[1].(string)); err != nil {
+			ci.Args[0].(string), ci.Args[1].(string), blockInfo.ForkVersion); err != nil {
 			return nil, err
 		}
 		jsonArgs := `["` + ci.Args[0].(string) + `","` + ci.Args[1].(string) + `"]`
@@ -86,7 +86,7 @@ func ExecuteNameTx(bs *state.BlockState, scs *statedb.ContractState, txBody *typ
 		})
 	case types.SetContractOwner:
 		ownerArg := ci.Args[0].(string)
-		ownerState, err := SetContractOwner(bs, scs, ownerArg, nameState)
+		ownerState, err := SetContractOwner(bs, scs, ownerArg, nameState, blockInfo.ForkVersion)
 		if err != nil {
 			return nil, err
 		}
@@ -145,7 +145,7 @@ func ValidateNameTx(tx *types.TxBody, sender *state.AccountState, scs *statedb.C
 }
 
 func SetContractOwner(bs *state.BlockState, scs *statedb.ContractState,
-	address string, nameState *state.AccountState) (*state.AccountState, error) {
+	address string, nameState *state.AccountState, forkVersion int32) (*state.AccountState, error) {
 
 	rawaddr, err := types.DecodeAddress(address)
 	if err != nil {
@@ -162,6 +162,7 @@ func SetContractOwner(bs *state.BlockState, scs *statedb.ContractState,
 	}
 
 	name := []byte(types.AergoName)
+	currentForkVersion = forkVersion
 	if err = registerOwner(scs, name, rawaddr, name); err != nil {
 		return nil, err
 	}

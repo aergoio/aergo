@@ -18,11 +18,14 @@ type NameMap struct {
 	Operator    []byte
 }
 
-func CreateName(scs *statedb.ContractState, tx *types.TxBody, sender, receiver *state.AccountState, name string) error {
+var currentForkVersion int32
+
+func CreateName(scs *statedb.ContractState, tx *types.TxBody, sender, receiver *state.AccountState, name string, forkVersion int32) error {
 	amount := tx.GetAmountBigInt()
 	if err := state.SendBalance(sender, receiver, amount); err != nil {
 		return err
 	}
+	currentForkVersion = forkVersion
 	return createName(scs, []byte(name), sender.ID())
 }
 
@@ -33,7 +36,7 @@ func createName(scs *statedb.ContractState, name []byte, owner []byte) error {
 
 //UpdateOperator sets the operator for a given name
 func UpdateOperator(bs *state.BlockState, scs *statedb.ContractState, tx *types.TxBody,
-	sender, receiver *state.AccountState, name, operator string) error {
+	sender, receiver *state.AccountState, name, operator string, forkVersion int32) error {
 	if len(getAddress(scs, []byte(name))) <= types.NameLength {
 		return fmt.Errorf("%s is not created yet", string(name))
 	}
@@ -44,6 +47,7 @@ func UpdateOperator(bs *state.BlockState, scs *statedb.ContractState, tx *types.
 		// if it is a name, resolve it to an address
 		operatorAddr = GetAddress(scs, operatorAddr)
 	}
+	currentForkVersion = forkVersion
 	return updateOperator(scs, []byte(name), operatorAddr)
 }
 
@@ -55,7 +59,7 @@ func updateOperator(scs *statedb.ContractState, name []byte, operator []byte) er
 
 //UpdateName changes the destination and the owner
 func UpdateName(bs *state.BlockState, scs *statedb.ContractState, tx *types.TxBody,
-	sender, receiver *state.AccountState, name, to string) error {
+	sender, receiver *state.AccountState, name, to string, forkVersion int32) error {
 	if len(getAddress(scs, []byte(name))) <= types.NameLength {
 		return fmt.Errorf("%s is not created yet", string(name))
 	}
@@ -82,6 +86,7 @@ func UpdateName(bs *state.BlockState, scs *statedb.ContractState, tx *types.TxBo
 			return types.ErrTxInvalidRecipient
 		}
 	}
+	currentForkVersion = forkVersion
 	return updateName(scs, []byte(name), ownerAddr, destination)
 }
 
@@ -208,11 +213,16 @@ func GetNameInfo(ncs *statedb.ContractState, name string) (*types.NameInfo, erro
 }
 
 func registerOwner(scs *statedb.ContractState, name, owner, destination []byte) error {
-	nameMap := &NameMap{Version: 1, Owner: owner, Destination: destination}
+	nameMap := &NameMap{Owner: owner, Destination: destination}
 	return setNameMap(scs, name, nameMap)
 }
 
 func setNameMap(scs *statedb.ContractState, name []byte, n *NameMap) error {
+	if currentForkVersion >= 4 {
+		n.Version = 2
+	} else {
+		n.Version = 1
+	}
 	return scs.SetData(dbkey.Name(name), serializeNameMap(n))
 }
 
