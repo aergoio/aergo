@@ -436,7 +436,7 @@ func (block *Block) BPID() (id PeerID, err error) {
 	return block.Header.BPID()
 }
 
-// BpID2Str returns its Block Producer's ID in base64 format.
+// BPID2Str returns its Block Producer's ID in base64 format.
 func (block *Block) BPID2Str() string {
 	id, err := block.BPID()
 	if err != nil {
@@ -468,7 +468,7 @@ func (block *Block) PrevID() string {
 
 }
 
-// SetPubKey sets block.Header.PubKey to pubkey.
+// setPubKey sets block.Header.PubKey to pubkey.
 func (block *Block) setPubKey(pubKey crypto.PubKey) error {
 	var pk []byte
 	var err error
