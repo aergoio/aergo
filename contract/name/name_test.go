@@ -16,6 +16,8 @@ import (
 var sdb *state.ChainStateDB
 var block *types.Block
 
+var forkVersion int32 = 0
+
 func initTest(t *testing.T) {
 	genesis := types.GetTestGenesis()
 	sdb = state.NewChainStateDB()
@@ -47,7 +49,7 @@ func TestName(t *testing.T) {
 	bs := sdb.NewBlockState(sdb.GetRoot())
 	scs := openContractState(t, bs)
 
-	err := CreateName(scs, tx, sender, receiver, name)
+	err := CreateName(scs, tx, sender, receiver, name, forkVersion)
 	assert.NoError(t, err, "create name")
 
 	scs = nextBlockContractState(t, bs, scs)
@@ -58,7 +60,7 @@ func TestName(t *testing.T) {
 	assert.Equal(t, owner, ret, "registed owner")
 
 	tx.Payload = buildNamePayload(name, types.NameUpdate, buyer)
-	err = UpdateName(bs, scs, tx, sender, receiver, name, buyer)
+	err = UpdateName(bs, scs, tx, sender, receiver, name, buyer, forkVersion)
 	assert.NoError(t, err, "update name")
 
 	scs = nextBlockContractState(t, bs, scs)
@@ -81,7 +83,7 @@ func TestNameRecursive(t *testing.T) {
 	receiver, _ := state.GetAccountState(tx.Recipient, sdb.GetStateDB())
 	bs := sdb.NewBlockState(sdb.GetRoot())
 	scs := openContractState(t, bs)
-	err := CreateName(scs, tx, sender, receiver, name1)
+	err := CreateName(scs, tx, sender, receiver, name1, forkVersion)
 	assert.NoError(t, err, "create name")
 
 	tx.Account = []byte(name1)
@@ -89,7 +91,7 @@ func TestNameRecursive(t *testing.T) {
 	tx.Payload = buildNamePayload(name2, types.NameCreate, "")
 
 	scs = nextBlockContractState(t, bs, scs)
-	err = CreateName(scs, tx, sender, receiver, name2)
+	err = CreateName(scs, tx, sender, receiver, name2, forkVersion)
 	assert.NoError(t, err, "redirect name")
 
 	scs = nextBlockContractState(t, bs, scs)
@@ -104,7 +106,7 @@ func TestNameRecursive(t *testing.T) {
 
 	tx.Payload = buildNamePayload(name1, types.NameUpdate, buyer)
 
-	err = UpdateName(bs, scs, tx, sender, receiver, name1, buyer)
+	err = UpdateName(bs, scs, tx, sender, receiver, name1, buyer, forkVersion)
 	assert.NoError(t, err, "update name")
 	scs = nextBlockContractState(t, bs, scs)
 	ret = getAddress(scs, []byte(name1))
@@ -123,7 +125,7 @@ func TestNameNil(t *testing.T) {
 	sender, _ := state.GetAccountState(tx.Account, sdb.GetStateDB())
 	receiver, _ := state.GetAccountState(tx.Recipient, sdb.GetStateDB())
 
-	err = CreateName(scs, tx, sender, receiver, name2)
+	err = CreateName(scs, tx, sender, receiver, name2, forkVersion)
 	assert.NoError(t, err, "create name")
 }
 
