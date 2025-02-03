@@ -990,7 +990,7 @@ func setContract(contractState *statedb.ContractState, contractAddress, payload 
 	if ctx.blockInfo.ForkVersion >= 4 {
 		// the payload must be lua code. compile it to bytecode
 		sourceCode = code
-		bytecodeABI, err = Compile(string(sourceCode), nil)
+		bytecodeABI, err = Compile(string(sourceCode), false)
 		if err != nil {
 			ctrLgr.Warn().Err(err).Str("contract", types.EncodeAddress(contractAddress)).Msg("deploy")
 			return nil, nil, err
@@ -1078,7 +1078,7 @@ func getMultiCallCode(contractState *statedb.ContractState) []byte {
 	if multicall_compiled == nil {
 		// compile the Lua code used to execute multicall txns
 		var err error
-		multicall_compiled, err = Compile(multicall_code, nil)
+		multicall_compiled, err = Compile(multicall_code, false)
 		if err != nil {
 			ctrLgr.Error().Err(err).Msg("multicall compile")
 			return nil

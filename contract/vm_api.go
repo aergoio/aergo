@@ -393,13 +393,12 @@ func (ctx *vmContext) handleDelegateCall(args []string) (result string, err erro
 
 	var isMultiCall bool
 	var cid []byte
-	var err error
 
 	// get the contract address
 	if contractAddress == "multicall" {
 		isMultiCall = true
-		argsStr = fnameStr
-		fnameStr = "execute"
+		fargs = fname
+		fname = "execute"
 		cid = ctx.curContract.contractId
 	} else {
 		cid, err = getAddressNameResolved(contractAddress, ctx.bs)
@@ -773,7 +772,7 @@ func (ctx *vmContext) handleSetRecoveryPoint() (result string, err error) {
 	curContract := ctx.curContract
 	// if it is the multicall code, ignore
 	if curContract.callState.ctrState.IsMultiCall() {
-		return 0, nil
+		return "", nil
 	}
 	aid := types.ToAccountID(curContract.contractId)
 	seq, err := setRecoveryPoint(aid, ctx, nil, curContract.callState, zeroBig, false, false)
@@ -1351,7 +1350,7 @@ func (ctx *vmContext) handleDeploy(args []string) (result string, err error) {
 
 	// compile contract code if not found
 	if len(codeABI) == 0 {
-		code, err = Compile(codeOrAddress, true)
+		codeABI, err = Compile(codeOrAddress, true)
 		if err != nil {
 			// check if string contains timeout error
 			if strings.Contains(err.Error(), C.ERR_BF_TIMEOUT) {
@@ -1362,7 +1361,7 @@ func (ctx *vmContext) handleDeploy(args []string) (result string, err error) {
 			return "", errors.New("[Contract.Deploy] compile error: " + err.Error())
 		}
 		if ctx.blockInfo.ForkVersion >= 4 {
-			sourceCode = []byte(contractStr)
+			sourceCode = []byte(codeOrAddress)
 		}
 	}
 
