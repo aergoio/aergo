@@ -31,10 +31,6 @@ func (ce *executor) call(extractUsedGas bool) {
 	if ce.err != nil {
 		return
 	}
-	if ce.preErr != nil {
-		ce.err = ce.preErr
-		return
-	}
 
 	/*
 	defer func() {
@@ -81,9 +77,13 @@ func (ce *executor) call(extractUsedGas bool) {
 	sender := types.EncodeAddress(ce.ctx.curContract.sender)
 	hasParent := strconv.FormatBool(ce.ctx.callDepth > 1)
 	isFeeDelegation := strconv.FormatBool(ce.ctx.isFeeDelegation)
+	abiError := ""
+	if ce.abiErr != nil {
+		abiError = ce.abiErr.Error()
+	}
 
 	// build the message
-	message := msg.SerializeMessage("execute", address, bytecode, fname, args, gas, sender, hasParent, isFeeDelegation)
+	message := msg.SerializeMessage("execute", address, bytecode, fname, args, gas, sender, hasParent, isFeeDelegation, abiError)
 
 	// send the execution request to the VM instance
 	err = ce.SendMessage(message)

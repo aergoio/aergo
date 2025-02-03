@@ -157,7 +157,7 @@ func processCommand(command string, args []string) (string, error) {
 
 	switch command {
 	case "execute":
-		if len(args) != 8 {
+		if len(args) != 9 {
 			fmt.Println("execute: invalid number of arguments")
 			sendMessage([]string{"", "execute: invalid number of arguments"})
 			closeApp(1)
@@ -180,6 +180,7 @@ func processCommand(command string, args []string) (string, error) {
 			sendMessage([]string{"", "execute: invalid isFeeDelegation argument"})
 			closeApp(1)
 		}
+		abiError := args[8]
 
 		var gas uint64
 		gasBytes := []byte(gasStr)
@@ -190,7 +191,7 @@ func processCommand(command string, args []string) (string, error) {
 		}
 		gas = binary.LittleEndian.Uint64(gasBytes)
 
-		res, err, usedGas := Execute(address, code, fname, fargs, gas, caller, hasParent, isFeeDelegation)
+		res, err, usedGas := Execute(address, code, fname, fargs, gas, caller, hasParent, isFeeDelegation, abiError)
 
 		// encode the gas together with the result
 		gasBytes = make([]byte, 8)

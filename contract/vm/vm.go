@@ -66,13 +66,18 @@ type executor struct {
 	isAutoload bool
 	jsonRet    string
 	err        error
+	abiErr     error
 }
 
-func newExecutor(bytecode []byte, fname string, args string) *executor {
+func newExecutor(bytecode []byte, fname string, args string, abiError string) *executor {
 
 	ce := &executor{
 		L: lstate,
 		code: bytecode,
+	}
+
+	if abiError != "" {
+		ce.abiErr = errors.New(abiError)
 	}
 
 	// set the gas limit on the Lua state
@@ -241,6 +246,11 @@ func (ce *executor) call(hasParent bool) {
 	// as well as abi.register, abi.register_view, abi.payable, etc.
 	ce.vmPreRun()
 	if ce.err != nil {
+		return
+	}
+	// if there is no error in the code pre-execution but failed to process the ABI, return the error now
+	if ce.abiErr != nil {
+		ce.err = ce.abiErr
 		return
 	}
 
@@ -465,6 +475,7 @@ func Execute(
 	caller string,
 	hasParent bool,
 	isFeeDelegation bool,
+	abiError string,
 ) (string, error, uint64) {
 
 	contractAddress = address
@@ -472,7 +483,7 @@ func Execute(
 	contractGasLimit = gas
 	contractIsFeeDelegation = isFeeDelegation
 
-	ex := newExecutor([]byte(code), fname, args)
+	ex := newExecutor([]byte(code), fname, args, abiError)
 
 	ex.call(hasParent)
 

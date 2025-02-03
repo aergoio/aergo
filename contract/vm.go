@@ -102,7 +102,7 @@ type executor struct {
 	jsonRet    string
 	isView     bool
 	isAutoload bool
-	preErr     error
+	abiErr     error
 }
 
 func MaxCallDepth(version int32) int32 {
@@ -343,7 +343,7 @@ func newExecutor(
 	if isCreate {
 		f, err := resolveFunction(ctrState, ctx.bs, constructor, isCreate)
 		if err != nil {
-			ce.preErr = err
+			ce.abiErr = err
 			ctrLgr.Debug().Err(ce.err).Str("contract", types.EncodeAddress(contractId)).Msg("not found function")
 			return ce
 		}
@@ -356,7 +356,7 @@ func newExecutor(
 		}
 		err = checkPayable(f, amount)
 		if err != nil {
-			ce.preErr = err
+			ce.abiErr = err
 			ctrLgr.Debug().Err(ce.err).Str("contract", types.EncodeAddress(contractId)).Msg("check payable function")
 			return ce
 		}
@@ -366,7 +366,7 @@ func newExecutor(
 	} else if isFeeDelegation {
 		_, err := resolveFunction(ctrState, ctx.bs, checkFeeDelegationFn, false)
 		if err != nil {
-			ce.preErr = err
+			ce.abiErr = err
 			ctrLgr.Debug().Err(ce.err).Str("contract", types.EncodeAddress(contractId)).Msg("not found function")
 			return ce
 		}
@@ -376,13 +376,13 @@ func newExecutor(
 	} else {
 		f, err := resolveFunction(ctrState, ctx.bs, ci.Name, false)
 		if err != nil {
-			ce.preErr = err
+			ce.abiErr = err
 			ctrLgr.Debug().Err(ce.err).Str("contract", types.EncodeAddress(contractId)).Msg("not found function")
 			return ce
 		}
 		err = checkPayable(f, amount)
 		if err != nil {
-			ce.preErr = err
+			ce.abiErr = err
 			ctrLgr.Debug().Err(ce.err).Str("contract", types.EncodeAddress(contractId)).Msg("check payable function")
 			return ce
 		}
@@ -601,12 +601,14 @@ func Call(
 	// set the gas limit from the transaction
 	ce.contractGasLimit = ctx.gasLimit
 
-	// execute the contract call
-	ce.call(true)
-
-	err = ctx.updateUsedGas(ce.usedGas)
-	if err != nil {
-		return "", nil, ctx.usedFee(), err
+	if ce.err == nil {
+		// execute the contract call
+		ce.call(true)
+		// update the total used gas
+		err = ctx.updateUsedGas(ce.usedGas)
+		if err != nil {
+			return "", nil, ctx.usedFee(), err
+		}
 	}
 
 	// check if there is an error
@@ -712,11 +714,11 @@ func Create(
 	if ce.err == nil {
 		// call the constructor
 		ce.call(true)
-	}
-
-	err = ctx.updateUsedGas(ce.usedGas)
-	if err != nil {
-		return "", nil, ctx.usedFee(), err
+		// update the total used gas
+		err = ctx.updateUsedGas(ce.usedGas)
+		if err != nil {
+			return "", nil, ctx.usedFee(), err
+		}
 	}
 
 	// check if the call failed
@@ -848,12 +850,13 @@ func Query(contractAddress []byte, bs *state.BlockState, cdb ChainAccessor, cont
 	ce.contractGasLimit = ctx.gasLimit
 
 	if ce.err == nil {
+		// execute the contract call
 		ce.call(true)
-	}
-
-	err = ctx.updateUsedGas(ce.usedGas)
-	if err != nil {
-		return nil, err
+		// update the total used gas
+		err = ctx.updateUsedGas(ce.usedGas)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return []byte(ce.jsonRet), ce.err
@@ -937,12 +940,13 @@ func CheckFeeDelegation(contractAddress []byte, bs *state.BlockState, bi *types.
 	ce.contractGasLimit = ctx.gasLimit
 
 	if ce.err == nil {
+		// execute the contract call
 		ce.call(true)
-	}
-
-	err = ctx.updateUsedGas(ce.usedGas)
-	if err != nil {
-		return err
+		// update the total used gas
+		err = ctx.updateUsedGas(ce.usedGas)
+		if err != nil {
+			return err
+		}
 	}
 
 	if ce.err != nil {
@@ -1018,14 +1022,6 @@ func setContract(contractState *statedb.ContractState, contractAddress, payload 
 	}
 
 	return bytecode, codePayload.Args(), nil
-}
-
-func getContract(contractState *statedb.ContractState, bs *state.BlockState) []byte {
-	code, err := getCode(contractState, bs)
-	if err != nil {
-		return nil
-	}
-	return luacUtil.LuaCode(code).ByteCode()
 }
 
 func getCode(contractState *statedb.ContractState, bs *state.BlockState) ([]byte, error) {
