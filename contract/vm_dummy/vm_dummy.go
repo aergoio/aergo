@@ -79,6 +79,18 @@ func SetPubNet() DummyChainOptions {
 	}
 }
 
+func SetPrivNet() DummyChainOptions {
+	return func(dc *DummyChain) {
+		dc.PubNet = false
+	}
+}
+
+func SetAllNets() DummyChainOptions {
+	return func(dc *DummyChain) {
+		dc.PubNet = contract.PubNet
+	}
+}
+
 func LoadDummyChain(opts ...DummyChainOptions) (*DummyChain, error) {
 
 	// skip test if pubnet is different

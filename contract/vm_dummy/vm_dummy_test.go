@@ -48,7 +48,7 @@ func TestDisabledFunctions(t *testing.T) {
 		t.Skipf("skipping test for version %d", currentVersion)
 	}
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetPubNet())
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -339,7 +339,7 @@ func TestMaxCallDepth(t *testing.T) {
 func TestContractSystem(t *testing.T) {
 	code := readLuaCode(t, "contract_system.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -425,7 +425,7 @@ func TestContractSystem(t *testing.T) {
 func TestContractHello(t *testing.T) {
 	code := readLuaCode(t, "contract_hello.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -453,7 +453,7 @@ func TestContractSend(t *testing.T) {
 	code3 := readLuaCode(t, "contract_send_3.lua")
 	code4 := readLuaCode(t, "contract_send_4.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -497,7 +497,7 @@ func TestContractSend(t *testing.T) {
 func TestContractQuery(t *testing.T) {
 	code := readLuaCode(t, "contract_query.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -530,7 +530,7 @@ func TestContractCall(t *testing.T) {
 	code2 := readLuaCode(t, "contract_call_2.lua")
 	code3 := readLuaCode(t, "contract_call_3.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -689,7 +689,7 @@ func TestContractCall(t *testing.T) {
 func TestContractCallSelf(t *testing.T) {
 	code := readLuaCode(t, "contract_call_self.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -722,7 +722,7 @@ func TestContractPingPongCall(t *testing.T) {
 	code1 := readLuaCode(t, "contract_pingpongcall_1.lua")
 	code2 := readLuaCode(t, "contract_pingpongcall_2.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -756,7 +756,7 @@ func TestContractPingPongCall(t *testing.T) {
 func TestRollback(t *testing.T) {
 	code := readLuaCode(t, "rollback.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -800,7 +800,7 @@ func TestAbi(t *testing.T) {
 	codeEmpty := readLuaCode(t, "abi_empty.lua")
 	codeLocalFunc := readLuaCode(t, "abi_localfunc.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -824,7 +824,7 @@ func TestAbi(t *testing.T) {
 func TestGetABI(t *testing.T) {
 	code := readLuaCode(t, "getabi.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -846,7 +846,7 @@ func TestGetABI(t *testing.T) {
 func TestPayable(t *testing.T) {
 	code := readLuaCode(t, "payable.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -880,7 +880,7 @@ func TestPayable(t *testing.T) {
 func TestDefault(t *testing.T) {
 	code := readLuaCode(t, "default.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -912,7 +912,7 @@ func TestReturn(t *testing.T) {
 	code := readLuaCode(t, "return_1.lua")
 	code2 := readLuaCode(t, "return_2.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -943,7 +943,7 @@ func TestReturn(t *testing.T) {
 func TestReturnUData(t *testing.T) {
 	code := readLuaCode(t, "return_udata.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetPrivNet())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -964,7 +964,7 @@ func TestReturnUData(t *testing.T) {
 func TestEvent(t *testing.T) {
 	code := readLuaCode(t, "event.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -985,7 +985,7 @@ func TestEvent(t *testing.T) {
 func TestView(t *testing.T) {
 	code := readLuaCode(t, "view.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -1016,15 +1016,17 @@ func TestView(t *testing.T) {
 		err = bc.ConnectBlock(NewLuaTxCall("user1", "view", 0, `{"Name": "k3", "Args":[]}`))
 		require.NoErrorf(t, err, "failed to connect new block")
 
-		err = bc.ConnectBlock(NewLuaTxCall("user1", "view", 0, `{"Name": "sqltest", "Args":[]}`).Fail("not permitted in view function"))
-		require.NoErrorf(t, err, "failed to connect new block")
+		if bc.PubNet == false {
+			err = bc.ConnectBlock(NewLuaTxCall("user1", "view", 0, `{"Name": "sqltest", "Args":[]}`).Fail("not permitted in view function"))
+			require.NoErrorf(t, err, "failed to connect new block")
+		}
 
 }
 
 func TestDeploy(t *testing.T) {
 	code := readLuaCode(t, "deploy.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -1085,7 +1087,7 @@ func TestDeploy(t *testing.T) {
 func TestDeploy2(t *testing.T) {
 	code := readLuaCode(t, "deploy2.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -1110,7 +1112,7 @@ func TestDeploy2(t *testing.T) {
 func TestNDeploy(t *testing.T) {
 	code := readLuaCode(t, "deployn.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -1212,7 +1214,7 @@ func TestInfiniteLoopOnPubNet(t *testing.T) {
 func TestUpdateSize(t *testing.T) {
 	code := readLuaCode(t, "updatesize.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -1266,7 +1268,7 @@ func TestTimeoutCnt(t *testing.T) {
 func TestSnapshot(t *testing.T) {
 	code := readLuaCode(t, "snapshot.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -1305,7 +1307,7 @@ func TestSnapshot(t *testing.T) {
 func TestKvstore(t *testing.T) {
 	code := readLuaCode(t, "kvstore.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -1358,7 +1360,7 @@ func TestKvstore(t *testing.T) {
 func TestSqlConstrains(t *testing.T) {
 	code := readLuaCode(t, "sql_constrains.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetPrivNet())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -1382,7 +1384,7 @@ func TestSqlConstrains(t *testing.T) {
 func TestSqlAutoincrement(t *testing.T) {
 	code := readLuaCode(t, "sql_autoincrement.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetPrivNet())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -1405,7 +1407,7 @@ func TestSqlAutoincrement(t *testing.T) {
 func TestSqlOnConflict(t *testing.T) {
 	code := readLuaCode(t, "sql_onconflict.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetPrivNet())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -1486,7 +1488,7 @@ func TestSqlOnConflict(t *testing.T) {
 func TestSqlDupCol(t *testing.T) {
 	code := readLuaCode(t, "sql_dupcol.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetPrivNet())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -1507,7 +1509,7 @@ func TestSqlDupCol(t *testing.T) {
 func TestSqlVmSimple(t *testing.T) {
 	code := readLuaCode(t, "sql_vm_simple.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetPrivNet())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -1556,7 +1558,7 @@ func TestSqlVmSimple(t *testing.T) {
 func TestSqlVmFail(t *testing.T) {
 	code := readLuaCode(t, "sql_vm_fail.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetPrivNet())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -1618,7 +1620,7 @@ func TestSqlVmPubNet(t *testing.T) {
 func TestSqlVmDateTime(t *testing.T) {
 	code := readLuaCode(t, "sql_vm_datetime.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetPrivNet())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -1649,7 +1651,7 @@ func TestSqlVmDateTime(t *testing.T) {
 func TestSqlVmCustomer(t *testing.T) {
 	code := readLuaCode(t, "sql_vm_customer.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetPrivNet())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -1692,7 +1694,7 @@ func TestSqlVmCustomer(t *testing.T) {
 func TestSqlVmDataType(t *testing.T) {
 	code := readLuaCode(t, "sql_vm_datatype.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetPrivNet())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -1727,7 +1729,7 @@ func TestSqlVmDataType(t *testing.T) {
 func TestSqlVmFunction(t *testing.T) {
 	code := readLuaCode(t, "sql_vm_function.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetPrivNet())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -1754,7 +1756,7 @@ func TestSqlVmFunction(t *testing.T) {
 func TestSqlVmBook(t *testing.T) {
 	code := readLuaCode(t, "sql_vm_book.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetPrivNet())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -1782,7 +1784,7 @@ func TestSqlVmBook(t *testing.T) {
 func TestSqlVmDateformat(t *testing.T) {
 	code := readLuaCode(t, "sql_vm_dateformat.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetPrivNet())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -1804,7 +1806,7 @@ func TestSqlVmDateformat(t *testing.T) {
 func TestSqlVmRecursiveData(t *testing.T) {
 	code := readLuaCode(t, "sql_vm_recursivedata.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetPrivNet())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -1825,7 +1827,7 @@ func TestSqlVmRecursiveData(t *testing.T) {
 func TestSqlJdbc(t *testing.T) {
 	code := readLuaCode(t, "sql_jdbc.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetPrivNet())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -1863,7 +1865,7 @@ func TestSqlJdbc(t *testing.T) {
 func TestTypeMaxString(t *testing.T) {
 	code := readLuaCode(t, "type_maxstring.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetPrivNet())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -1973,7 +1975,7 @@ func TestTypeMaxStringOnPubNet(t *testing.T) {
 func TestTypeNsec(t *testing.T) {
 	code := readLuaCode(t, "type_nsec.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -1991,7 +1993,7 @@ func TestTypeNsec(t *testing.T) {
 func TestTypeUtf(t *testing.T) {
 	code := readLuaCode(t, "type_utf.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -2016,7 +2018,7 @@ func TestTypeDupVar(t *testing.T) {
 	code := readLuaCode(t, "type_dupvar_1.lua")
 	code2 := readLuaCode(t, "type_dupvar_2.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -2042,7 +2044,7 @@ func TestTypeDupVar(t *testing.T) {
 func TestTypeByteKey(t *testing.T) {
 	code := readLuaCode(t, "type_bytekey.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -2065,7 +2067,7 @@ func TestTypeArray(t *testing.T) {
 
 	code2 := readLuaCode(t, "type_array_overflow.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -2116,7 +2118,7 @@ func TestTypeMultiArray(t *testing.T) {
 	code := readLuaCode(t, "type_multiarray_1.lua")
 	code2 := readLuaCode(t, "type_multiarray_2.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -2168,7 +2170,7 @@ func TestTypeMultiArray(t *testing.T) {
 func TestTypeArrayArg(t *testing.T) {
 	code := readLuaCode(t, "type_arrayarg.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -2211,7 +2213,7 @@ func TestTypeArrayArg(t *testing.T) {
 func TestTypeMapKey(t *testing.T) {
 	code := readLuaCode(t, "type_mapkey.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -2273,7 +2275,7 @@ func TestTypeMapKey(t *testing.T) {
 func TestTypeStateVarFieldUpdate(t *testing.T) {
 	code := readLuaCode(t, "type_statevarfieldupdate.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -2300,7 +2302,7 @@ func TestTypeStateVarFieldUpdate(t *testing.T) {
 func TestTypeDatetime(t *testing.T) {
 	code := readLuaCode(t, "type_datetime.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -2418,7 +2420,7 @@ func TestTypeDynamicArray(t *testing.T) {
 	code := readLuaCode(t, "type_dynamicarray_zerolen.lua")
 	code2 := readLuaCode(t, "type_dynamicarray.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -2474,7 +2476,7 @@ func TestTypeDynamicArray(t *testing.T) {
 func TestTypeCrypto(t *testing.T) {
 	code := readLuaCode(t, "type_crypto.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -2508,7 +2510,7 @@ func TestTypeBignum(t *testing.T) {
 	bignum := readLuaCode(t, "type_bignum.lua")
 	callee := readLuaCode(t, "type_bignum_callee.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -2570,7 +2572,7 @@ func TestBignumValues(t *testing.T) {
 		// hardfork 2
 		// process octal, hex, binary
 
-	bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+	bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 	require.NoErrorf(t, err, "failed to create dummy chain")
 	if bc == nil {
 		t.Skip("skipping test")
@@ -2611,7 +2613,7 @@ func TestBignumValues(t *testing.T) {
 		// hardfork 3
 		// block octal, hex and binary
 
-	bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+	bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 	require.NoErrorf(t, err, "failed to create dummy chain")
 	if bc == nil {
 		t.Skip("skipping test")
@@ -2663,7 +2665,7 @@ func TestBignumValues(t *testing.T) {
 	} else {
 		// hardfork 4 and after
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -2723,7 +2725,7 @@ func TestTypeRandom(t *testing.T) {
 	code1 := readLuaCode(t, "type_random.lua")
 	code2 := readLuaCode(t, "type_random_caller.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -2782,7 +2784,7 @@ func TestTypeRandom(t *testing.T) {
 func TestTypeSparseTable(t *testing.T) {
 	code := readLuaCode(t, "type_sparsetable.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -2801,7 +2803,7 @@ func TestTypeSparseTable(t *testing.T) {
 func TestTypeJson(t *testing.T) {
 	code := readLuaCode(t, "type_json.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -2871,7 +2873,7 @@ func TestTypeJson(t *testing.T) {
 func TestFeatureVote(t *testing.T) {
 	code := readLuaCode(t, "feature_vote.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -2935,7 +2937,7 @@ func TestFeatureVote(t *testing.T) {
 func TestFeatureGovernance(t *testing.T) {
 	code := readLuaCode(t, "feature_governance.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -2987,7 +2989,7 @@ func TestFeaturePcallRollback(t *testing.T) {
 	code2 := readLuaCode(t, "feature_pcall_rollback_2.lua")
 	code3 := readLuaCode(t, "feature_pcall_rollback_3.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -3010,14 +3012,18 @@ func TestFeaturePcallRollback(t *testing.T) {
 		)
 		require.NoErrorf(t, err, "failed to deploy")
 
-		err = bc.ConnectBlock(NewLuaTxCall("user1", "caller", 0, `{"Name":"sql", "Args":[]}`))
-		require.NoErrorf(t, err, "failed to call tx")
+		if bc.PubNet == false {
+			err = bc.ConnectBlock(NewLuaTxCall("user1", "caller", 0, `{"Name":"sql", "Args":[]}`))
+			require.NoErrorf(t, err, "failed to call tx")
+		}
 
 		err = bc.Query("caller", `{"Name":"get", "Args":[]}`, "", "2")
 		require.NoErrorf(t, err, "failed to query")
 
-		err = bc.Query("caller", `{"Name":"sqlget", "Args":[]}`, "", "2")
-		require.NoErrorf(t, err, "failed to query")
+		if bc.PubNet == false {
+			err = bc.Query("caller", `{"Name":"sqlget", "Args":[]}`, "", "2")
+			require.NoErrorf(t, err, "failed to query")
+		}
 
 		tx := NewLuaTxCall("user1", "caller", 0, `{"Name":"getOrigin", "Args":[]}`)
 		err = bc.ConnectBlock(tx)
@@ -3028,7 +3034,7 @@ func TestFeaturePcallRollback(t *testing.T) {
 
 		// create new dummy chain
 
-		bc, err = LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err = LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -3072,7 +3078,7 @@ func TestFeaturePcallRollback(t *testing.T) {
 func TestFeaturePcallNested(t *testing.T) {
 	code := readLuaCode(t, "feature_pcall_nested.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -3118,7 +3124,7 @@ func TestPcallStateRollback1(t *testing.T) {
 
 			code := readLuaCode(t, file)
 
-			bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+			bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 			require.NoErrorf(t, err, "failed to create dummy chain")
 			if bc == nil {
 				t.Skip("skipping test")
@@ -3137,9 +3143,9 @@ func TestPcallStateRollback1(t *testing.T) {
 
 			// deploy the contracts
 			err = bc.ConnectBlock(
-				NewLuaTxDeploy("user", "A", 3, code).Constructor(fmt.Sprintf(`["%s","A"]`, nameToAddress("resolver"))),
-				NewLuaTxDeploy("user", "B", 0, code).Constructor(fmt.Sprintf(`["%s","B"]`, nameToAddress("resolver"))),
-				NewLuaTxDeploy("user", "C", 0, code).Constructor(fmt.Sprintf(`["%s","C"]`, nameToAddress("resolver"))),
+				NewLuaTxDeploy("user", "A", 3, code).Constructor(fmt.Sprintf(`["%s","A",false]`, nameToAddress("resolver"))),
+				NewLuaTxDeploy("user", "B", 0, code).Constructor(fmt.Sprintf(`["%s","B",false]`, nameToAddress("resolver"))),
+				NewLuaTxDeploy("user", "C", 0, code).Constructor(fmt.Sprintf(`["%s","C",false]`, nameToAddress("resolver"))),
 			)
 			require.NoErrorf(t, err, "failed to deploy the contracts")
 
@@ -3565,7 +3571,7 @@ func TestPcallStateRollback2(t *testing.T) {
 
 			code := readLuaCode(t, file)
 
-			bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+			bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 			require.NoErrorf(t, err, "failed to create dummy chain")
 			if bc == nil {
 				t.Skip("skipping test")
@@ -3586,9 +3592,9 @@ func TestPcallStateRollback2(t *testing.T) {
 
 			// deploy the contracts
 			err = bc.ConnectBlock(
-				NewLuaTxDeploy("user", "A", 3, code).Constructor(fmt.Sprintf(`["%s","A"]`, nameToAddress("resolver"))),
-				NewLuaTxDeploy("user", "B", 0, code).Constructor(fmt.Sprintf(`["%s","B"]`, nameToAddress("resolver"))),
-				NewLuaTxDeploy("user", "C", 0, code).Constructor(fmt.Sprintf(`["%s","C"]`, nameToAddress("resolver"))),
+				NewLuaTxDeploy("user", "A", 3, code).Constructor(fmt.Sprintf(`["%s","A",false]`, nameToAddress("resolver"))),
+				NewLuaTxDeploy("user", "B", 0, code).Constructor(fmt.Sprintf(`["%s","B",false]`, nameToAddress("resolver"))),
+				NewLuaTxDeploy("user", "C", 0, code).Constructor(fmt.Sprintf(`["%s","C",false]`, nameToAddress("resolver"))),
 			)
 			require.NoErrorf(t, err, "failed to deploy the contracts")
 
@@ -4108,7 +4114,7 @@ func TestPcallStateRollback3(t *testing.T) {
 
 			code := readLuaCode(t, file)
 
-			bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+			bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetPrivNet())
 			require.NoErrorf(t, err, "failed to create dummy chain")
 			if bc == nil {
 				t.Skip("skipping test")
@@ -4118,9 +4124,9 @@ func TestPcallStateRollback3(t *testing.T) {
 			err = bc.ConnectBlock(
 				NewLuaTxAccount("user", 1, types.Aergo),
 				NewLuaTxDeploy("user", "resolver", 0, resolver),
-				NewLuaTxDeploy("user", "A", 0, code).Constructor(fmt.Sprintf(`["%s","A"]`, nameToAddress("resolver"))),
-				NewLuaTxDeploy("user", "B", 0, code).Constructor(fmt.Sprintf(`["%s","B"]`, nameToAddress("resolver"))),
-				NewLuaTxDeploy("user", "C", 0, code).Constructor(fmt.Sprintf(`["%s","C"]`, nameToAddress("resolver"))),
+				NewLuaTxDeploy("user", "A", 0, code).Constructor(fmt.Sprintf(`["%s","A",true]`, nameToAddress("resolver"))),
+				NewLuaTxDeploy("user", "B", 0, code).Constructor(fmt.Sprintf(`["%s","B",true]`, nameToAddress("resolver"))),
+				NewLuaTxDeploy("user", "C", 0, code).Constructor(fmt.Sprintf(`["%s","C",true]`, nameToAddress("resolver"))),
 			)
 			require.NoErrorf(t, err, "failed to deploy")
 
@@ -4615,7 +4621,7 @@ func testDbStateRollback(t *testing.T, bc *DummyChain, script string, expected m
 func TestFeatureLuaCryptoVerifyProof(t *testing.T) {
 	code := readLuaCode(t, "feature_crypto_verify_proof.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -4747,7 +4753,7 @@ func TestFeatureFeeDelegationLoop(t *testing.T) {
 func TestContractIsolation(t *testing.T) {
 	code := readLuaCode(t, "feature_isolation.lua")
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -4911,7 +4917,7 @@ func TestComposableTransactions(t *testing.T) {
 		t.Skipf("skipping test for version %d", currentVersion)
 	}
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -6194,7 +6200,7 @@ func TestContractMulticall(t *testing.T) {
 		t.Skipf("skipping test for version %d", currentVersion)
 	}
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")

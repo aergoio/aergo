@@ -787,7 +787,7 @@ func TestTypeInvalidKey(t *testing.T) {
 		t.Skip()
 	}
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -833,7 +833,7 @@ func TestTypeBigTable(t *testing.T) {
 		t.Skip()
 	}
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetPrivNet())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")

@@ -4,19 +4,21 @@ state.var {
     values = state.map()
 }
 
-function constructor(resolver_address, contract_name)
+function constructor(resolver_address, contract_name, use_db)
     -- initialize state variables
     resolver:set(resolver_address)
     name:set(contract_name)
     -- initialize db
-    db.exec("create table config (value integer primary key) without rowid")
-    db.exec("insert into config values (0)")
-    db.exec([[create table products (
-        id integer primary key,
-        name text not null,
-        price real)
-    ]])
-    db.exec("insert into products (name,price) values ('first', 1234.56)")
+    if use_db then
+        db.exec("create table config (value integer primary key) without rowid")
+        db.exec("insert into config values (0)")
+        db.exec([[create table products (
+            id integer primary key,
+            name text not null,
+            price real)
+        ]])
+        db.exec("insert into products (name,price) values ('first', 1234.56)")
+    end
 end
 
 function resolve(name)
