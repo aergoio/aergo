@@ -4907,9 +4907,15 @@ func execute_block(t *testing.T, bc *DummyChain, txns []*luaTxCall, expectedResu
 func TestComposableTransactions(t *testing.T) {
 	code := readLuaCode(t, "feature_multicall.lua")
 
-	for version := min_version_multicall; version <= max_version; version++ {
-		bc, err := LoadDummyChain(SetHardForkVersion(version))
+	if currentVersion < min_version_multicall {
+		t.Skipf("skipping test for version %d", currentVersion)
+	}
+
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -6178,16 +6184,21 @@ func TestComposableTransactions(t *testing.T) {
 		 ["return","%sender%"]
 		]`, ``, `"AmgMPiyZYr19kQ1kHFNiGenez1CRTBqNWqppj6gGZGEP6qszDGe1"`)
 
-	}
 }
 
 func TestContractMulticall(t *testing.T) {
 	code1 := readLuaCode(t, "feature_multicall_contract.lua")
 	code2 := readLuaCode(t, "feature_multicall.lua")
 
-	for version := min_version_multicall; version <= max_version; version++ {
-		bc, err := LoadDummyChain(SetHardForkVersion(version))
+	if currentVersion < min_version_multicall {
+		t.Skipf("skipping test for version %d", currentVersion)
+	}
+
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion))
 		require.NoErrorf(t, err, "failed to create dummy chain")
+		if bc == nil {
+			t.Skip("skipping test")
+		}
 		defer bc.Release()
 
 		err = bc.ConnectBlock(
@@ -6359,7 +6370,6 @@ func TestContractMulticall(t *testing.T) {
 		state, err = bc.GetAccountState("c3")
 		assert.Equalf(t, int64(0), state.GetBalanceBigInt().Int64(), "balance error")
 
-	}
 
 }
 
