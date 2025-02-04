@@ -73,19 +73,37 @@ func SetTimeout(timeout int) DummyChainOptions {
 	}
 }
 
+// used on brick
+
 func SetPubNet() DummyChainOptions {
 	return func(dc *DummyChain) {
+		contract.PubNet = true
 		dc.PubNet = true
 	}
 }
 
 func SetPrivNet() DummyChainOptions {
 	return func(dc *DummyChain) {
+		contract.PubNet = false
 		dc.PubNet = false
 	}
 }
 
-func SetAllNets() DummyChainOptions {
+// used on tests
+
+func RunOnPubNet() DummyChainOptions {
+	return func(dc *DummyChain) {
+		dc.PubNet = true
+	}
+}
+
+func RunOnPrivNet() DummyChainOptions {
+	return func(dc *DummyChain) {
+		dc.PubNet = false
+	}
+}
+
+func RunOnAllNets() DummyChainOptions {
 	return func(dc *DummyChain) {
 		dc.PubNet = contract.PubNet
 	}

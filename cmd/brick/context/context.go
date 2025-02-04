@@ -12,7 +12,6 @@ import (
 	"log"
 	"strconv"
 
-	"github.com/aergoio/aergo/v2/contract"
 	"github.com/aergoio/aergo/v2/contract/vm_dummy"
 )
 
@@ -33,10 +32,8 @@ func Open(private bool) {
 		err   error
 	)
 	if privateNet {
-		contract.PubNet = false
 		chain, err = vm_dummy.LoadDummyChain(vm_dummy.SetPrivNet())
 	} else {
-		contract.PubNet = true
 		chain, err = vm_dummy.LoadDummyChain(vm_dummy.SetPubNet())
 	}
 	if err != nil {

@@ -33,7 +33,7 @@ func TestContractSendF(t *testing.T) {
 		t.Skipf("%s: skip version less than 3", t.Name())
 	}
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetPubNet())
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), RunOnPubNet())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -77,7 +77,7 @@ func TestGasPerFunction(t *testing.T) {
 	var err error
 	code := readLuaCode(t, "gas_per_function.lua")
 
-	bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetPubNet())
+	bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), RunOnPubNet())
 	require.NoErrorf(t, err, "failed to create dummy chain")
 	if bc == nil {
 		t.Skip("skipping test")
@@ -725,7 +725,7 @@ func TestGasLuaCryptoVerifyProof(t *testing.T) {
 
 func expectGas(contractCode string, amount int64, funcName, funcArgs string, expectGas int64, opt ...DummyChainOptions) error {
 	// append set pubnet
-	bc, err := LoadDummyChain(append(opt, SetPubNet(), SetHardForkVersion(currentVersion))...)
+	bc, err := LoadDummyChain(append(opt, RunOnPubNet(), SetHardForkVersion(currentVersion))...)
 	if err != nil {
 		return err
 	}
@@ -787,7 +787,7 @@ func TestTypeInvalidKey(t *testing.T) {
 		t.Skip()
 	}
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetAllNets())
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), RunOnAllNets())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
@@ -833,7 +833,7 @@ func TestTypeBigTable(t *testing.T) {
 		t.Skip()
 	}
 
-		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), SetPrivNet())
+		bc, err := LoadDummyChain(SetHardForkVersion(currentVersion), RunOnPrivNet())
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		if bc == nil {
 			t.Skip("skipping test")
