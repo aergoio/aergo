@@ -26,7 +26,7 @@ var timedout bool
 
 
 func main(){
-  var socketName string
+	var socketName string
 	var err error
 
 	args := os.Args
@@ -37,38 +37,38 @@ func main(){
 		return
 	}
 
-  // get the hardfork version from command line
+	// get the hardfork version from command line
 	hardforkVersion, err = strconv.Atoi(args[1])
 	if err != nil {
 		fmt.Println("Error: Invalid hardfork version")
 		return
 	}
 
-  // get PubNet from command line
+	// get PubNet from command line
 	isPubNet, err = strconv.ParseBool(args[2])
 	if err != nil {
 		fmt.Println("Error: Invalid PubNet")
 		return
 	}
 
-  // get socket name from command line
+	// get socket name from command line
 	socketName = args[3]
 	if socketName == "" {
 		fmt.Println("Error: Invalid socket name")
 		return
 	}
 
-  // get secret key from command line
+	// get secret key from command line
 	secretKey = args[4]
 	if secretKey == "" {
 		fmt.Println("Error: Invalid secret key")
 		return
 	}
 
-  // initialize Lua modules
+	// initialize Lua modules
 	InitializeVM()
 
-  // connect to the server
+	// connect to the server
 	err = connectToServer(socketName)
 	if err != nil {
 		fmt.Println("Error: Could not connect to server")
@@ -87,12 +87,12 @@ func main(){
 
 // connect to the server using an abstract unix domain socket (they start with a null byte)
 func connectToServer(socketName string) (err error) {
-  rawConn, err := net.Dial("unix", "\x00"+socketName)
-  if err != nil {
-    return err
-  }
-  conn = rawConn.(*net.UnixConn)
-  return nil
+	rawConn, err := net.Dial("unix", "\x00"+socketName)
+	if err != nil {
+		return err
+	}
+	conn = rawConn.(*net.UnixConn)
+	return nil
 }
 
 func sendReadyMessage() {
@@ -109,7 +109,7 @@ func sendReadyMessage() {
 func MessageLoop() {
 
 	for {
-  	// wait for command to execute, with null deadline
+		// wait for command to execute, with null deadline
 		message, err := msg.WaitForMessage(conn, time.Time{})
 		if err != nil {
 			fmt.Printf("Error: failed to receive message: %v\n", err)
