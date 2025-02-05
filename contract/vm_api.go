@@ -66,6 +66,11 @@ const (
 	luaCallCountDeduc = 1000
 )
 
+const (
+	OLD_MSG = 0
+	NEW_MSG = 1
+)
+
 func init() {
 	mulAergo = types.NewAmount(1, types.Aergo)
 	mulGaer = types.NewAmount(1, types.Gaer)
@@ -78,6 +83,13 @@ func maxEventCnt(ctx *vmContext) int32 {
 	} else {
 		return maxEventCntV2
 	}
+}
+
+func iif[T any](condition bool, trueVal, falseVal T) T {
+	if condition {
+			return trueVal
+	}
+	return falseVal
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -218,50 +230,46 @@ func (ctx *vmContext) minusCallCount(curCount, deduc C.int) C.int {
 
 func (ctx *vmContext) handleCall(args []string) (result string, err error) {
 	if len(args) != 5 {
-		if CurrentForkVersion >= 5 {
-			return "", errors.New("[Contract.Call] invalid number of arguments")
-		}
-		return "", errors.New("[Contract.LuaCallContract] invalid number of arguments")
+		return "", errors.New("[Contract.Call] invalid number of arguments")
 	}
 	contractAddress, fname, fargs, amount, gas := args[0], args[1], args[2], args[3], args[4]
 	// gas => remaining gas
 	// but it can also be the gas limit set by the caller contract
 
+	errmsg := [2]string{}
+	errnum := iif(CurrentForkVersion >= 5, NEW_MSG, OLD_MSG)
+
 	// get the contract address
 	cid, err := getAddressNameResolved(contractAddress, ctx.bs)
 	if err != nil {
-		if CurrentForkVersion >= 5 {
-			return "", errors.New("[Contract.Call] invalid contractId: " + err.Error())
-		}
-		return "", errors.New("[Contract.LuaCallContract] invalid contractId: " + err.Error())
+		errmsg[NEW_MSG] = "[Contract.Call] invalid contractId: "
+		errmsg[OLD_MSG] = "[Contract.LuaCallContract] invalid contractId: "
+		return "", errors.New(errmsg[errnum] + err.Error())
 	}
 	aid := types.ToAccountID(cid)
 
 	// read the amount for the contract call
 	amountBig, err := transformAmount(amount, ctx.blockInfo.ForkVersion)
 	if err != nil {
-		if CurrentForkVersion >= 5 {
-			return "", errors.New("[Contract.Call] invalid amount: " + err.Error())
-		}
-		return "", errors.New("[Contract.LuaCallContract] invalid amount: " + err.Error())
+		errmsg[NEW_MSG] = "[Contract.Call] invalid amount: "
+		errmsg[OLD_MSG] = "[Contract.LuaCallContract] invalid amount: "
+		return "", errors.New(errmsg[errnum] + err.Error())
 	}
 
 	// get the contract state
 	cs, err := getContractState(ctx, cid)
 	if err != nil {
-		if CurrentForkVersion >= 5 {
-			return "", errors.New("[Contract.Call] getAccount error: " + err.Error())
-		}
-		return "", errors.New("[Contract.LuaCallContract] getAccount error: " + err.Error())
+		errmsg[NEW_MSG] = "[Contract.Call] getAccount error: "
+		errmsg[OLD_MSG] = "[Contract.LuaCallContract] getAccount error: "
+		return "", errors.New(errmsg[errnum] + err.Error())
 	}
 
 	// check if the contract exists
 	bytecode := getContractCode(cs.ctrState, ctx.bs)
 	if bytecode == nil {
-		if CurrentForkVersion >= 5 {
-			return "", errors.New("[Contract.Call] cannot find contract " + contractAddress)
-		}
-		return "", errors.New("[Contract.LuaCallContract] cannot find contract " + contractAddress)
+		errmsg[NEW_MSG] = "[Contract.Call] cannot find contract " + contractAddress
+		errmsg[OLD_MSG] = "[Contract.LuaCallContract] cannot find contract " + contractAddress
+		return "", errors.New(errmsg[errnum])
 	}
 
 	// read the arguments for the contract call
@@ -269,10 +277,9 @@ func (ctx *vmContext) handleCall(args []string) (result string, err error) {
 	ci.Name = fname
 	err = getCallInfo(&ci.Args, []byte(fargs), cid)
 	if err != nil {
-		if CurrentForkVersion >= 5 {
-			return "", errors.New("[Contract.Call] invalid arguments: " + err.Error())
-		}
-		return "", errors.New("[Contract.LuaCallContract] invalid arguments: " + err.Error())
+		errmsg[NEW_MSG] = "[Contract.Call] invalid arguments: "
+		errmsg[OLD_MSG] = "[Contract.LuaCallContract] invalid arguments: "
+		return "", errors.New(errmsg[errnum] + err.Error())
 	}
 
 	// get the remaining gas or gas limit from the parent contract
@@ -285,10 +292,9 @@ func (ctx *vmContext) handleCall(args []string) (result string, err error) {
 	ce := newExecutor(bytecode, cid, ctx, &ci, amountBig, false, false, cs.ctrState)
 	defer ce.close()  // close the executor and the VM instance
 	if ce.err != nil {
-		if CurrentForkVersion >= 5 {
-			return "", errors.New("[Contract.Call] newExecutor error: " + ce.err.Error())
-		}
-		return "", errors.New("[Contract.LuaCallContract] newExecutor error: " + ce.err.Error())
+		errmsg[NEW_MSG] = "[Contract.Call] newExecutor error: "
+		errmsg[OLD_MSG] = "[Contract.LuaCallContract] newExecutor error: "
+		return "", errors.New(errmsg[errnum] + ce.err.Error())
 	}
 
 	// set the remaining gas or gas limit from the parent contract
@@ -299,16 +305,14 @@ func (ctx *vmContext) handleCall(args []string) (result string, err error) {
 	receiverState := cs.accState
 	if amountBig.Cmp(zeroBig) > 0 {
 		if ctx.isQuery == true || ctx.nestedView > 0 {
-			if CurrentForkVersion >= 5 {
-				return "", errors.New("[Contract.Call] send not permitted in query")
-			}
-			return "", errors.New("[Contract.LuaCallContract] send not permitted in query")
+			errmsg[NEW_MSG] = "[Contract.Call] send not permitted in query"
+			errmsg[OLD_MSG] = "[Contract.LuaCallContract] send not permitted in query"
+			return "", errors.New(errmsg[errnum])
 		}
 		if r := sendBalance(senderState, receiverState, amountBig); r != nil {
-			if CurrentForkVersion >= 5 {
-				return "", errors.New("[Contract.Call] " + r.Error())
-			}
-			return "", errors.New("[Contract.LuaCallContract] " + r.Error())
+			errmsg[NEW_MSG] = "[Contract.Call] "
+			errmsg[OLD_MSG] = "[Contract.LuaCallContract] "
+			return "", errors.New(errmsg[errnum] + r.Error())
 		}
 	}
 
@@ -322,10 +326,9 @@ func (ctx *vmContext) handleCall(args []string) (result string, err error) {
 			senderState.Balance().String(), receiverState.Balance().String()))
 	}
 	if err != nil {
-		if CurrentForkVersion >= 5 {
-			return "", errors.New("[Contract.Call] database error: " + err.Error())
-		}
-		return "", errors.New("[Contract.LuaCallContract] database error: " + err.Error())
+		errmsg[NEW_MSG] = "[Contract.Call] database error: "
+		errmsg[OLD_MSG] = "[System.LuaCallContract] database error: "
+		return "", errors.New(errmsg[errnum] + err.Error())
 	}
 
 	// set the current contract info
@@ -346,10 +349,9 @@ func (ctx *vmContext) handleCall(args []string) (result string, err error) {
 		// revert the contract to the previous state
 		err := clearRecovery(ctx, seq, true)
 		if err != nil {
-			if CurrentForkVersion >= 5 {
-				return result, errors.New("[Contract.Call] recovery err: " + err.Error())
-			}
-			return "", errors.New("[Contract.LuaCallContract] recovery err: " + err.Error())
+			errmsg[NEW_MSG] = "[Contract.Call] recovery err: "
+			errmsg[OLD_MSG] = "[Contract.LuaCallContract] recovery err: "
+			return "", errors.New(errmsg[errnum] + err.Error())
 		}
 		// log some info
 		if ctx.traceFile != nil {
@@ -360,10 +362,9 @@ func (ctx *vmContext) handleCall(args []string) (result string, err error) {
 		case *VmTimeoutError:
 			return result, errors.New(ceErr.Error())
 		default:
-			if CurrentForkVersion >= 5 {
-				return result, errors.New("[Contract.Call] call err: " + ceErr.Error())
-			}
-			return "", errors.New("[Contract.LuaCallContract] call err: " + ceErr.Error())
+			errmsg[NEW_MSG] = "[Contract.Call] call err: "
+			errmsg[OLD_MSG] = "[Contract.LuaCallContract] call err: "
+			return "", errors.New(errmsg[errnum] + ceErr.Error())
 		}
 	}
 
@@ -371,10 +372,9 @@ func (ctx *vmContext) handleCall(args []string) (result string, err error) {
 	if seq == 1 {
 		err := clearRecovery(ctx, seq, false)
 		if err != nil {
-			if CurrentForkVersion >= 5 {
-				return result, errors.New("[Contract.Call] recovery err: " + err.Error())
-			}
-			return "", errors.New("[Contract.LuaCallContract] recovery err: " + err.Error())
+			errmsg[NEW_MSG] = "[Contract.Call] recovery err: "
+			errmsg[OLD_MSG] = "[Contract.LuaCallContract] recovery err: "
+			return "", errors.New(errmsg[errnum] + err.Error())
 		}
 	}
 
@@ -384,12 +384,12 @@ func (ctx *vmContext) handleCall(args []string) (result string, err error) {
 
 func (ctx *vmContext) handleDelegateCall(args []string) (result string, err error) {
 	if len(args) != 4 {
-		if CurrentForkVersion >= 5 {
-			return "", errors.New("[Contract.DelegateCall] invalid number of arguments")
-		}
-		return "", errors.New("[Contract.LuaDelegateCallContract] invalid number of arguments")
+		return "", errors.New("[Contract.DelegateCall] invalid number of arguments")
 	}
 	contractAddress, fname, fargs, gas := args[0], args[1], args[2], args[3]
+
+	errmsg := [2]string{}
+	errnum := iif(CurrentForkVersion >= 5, NEW_MSG, OLD_MSG)
 
 	var isMultiCall bool
 	var cid []byte
@@ -403,10 +403,9 @@ func (ctx *vmContext) handleDelegateCall(args []string) (result string, err erro
 	} else {
 		cid, err = getAddressNameResolved(contractAddress, ctx.bs)
 		if err != nil {
-			if CurrentForkVersion >= 5 {
-				return "", errors.New("[Contract.DelegateCall] invalid contractId: " + err.Error())
-			}
-			return "", errors.New("[Contract.LuaDelegateCallContract] invalid contractId: " + err.Error())
+			errmsg[NEW_MSG] = "[Contract.DelegateCall] invalid contractId: "
+			errmsg[OLD_MSG] = "[Contract.LuaDelegateCallContract] invalid contractId: "
+			return "", errors.New(errmsg[errnum] + err.Error())
 		}
 	}
 	aid := types.ToAccountID(cid)
@@ -419,10 +418,9 @@ func (ctx *vmContext) handleDelegateCall(args []string) (result string, err erro
 		contractState, err = getOnlyContractState(ctx, cid)
 	}
 	if err != nil {
-		if CurrentForkVersion >= 5 {
-			return "", errors.New("[Contract.DelegateCall] getContractState error: " + err.Error())
-		}
-		return "", errors.New("[Contract.LuaDelegateCallContract] getContractState error: " + err.Error())
+		errmsg[NEW_MSG] = "[Contract.DelegateCall] getContractState error: "
+		errmsg[OLD_MSG] = "[Contract.LuaDelegateCallContract]getContractState error"
+		return "", errors.New(errmsg[errnum] + err.Error())
 	}
 
 	// get the contract code
@@ -433,10 +431,9 @@ func (ctx *vmContext) handleDelegateCall(args []string) (result string, err erro
 		bytecode = getContractCode(contractState, ctx.bs)
 	}
 	if bytecode == nil {
-		if CurrentForkVersion >= 5 {
-			return "", errors.New("[Contract.DelegateCall] cannot find contract " + contractAddress)
-		}
-		return "", errors.New("[Contract.LuaDelegateCallContract] cannot find contract " + contractAddress)
+		errmsg[NEW_MSG] = "[Contract.DelegateCall] cannot find contract "
+		errmsg[OLD_MSG] = "[Contract.LuaDelegateCallContract] cannot find contract "
+		return "", errors.New(errmsg[errnum] + contractAddress)
 	}
 
 	// read the arguments for the contract call
@@ -448,10 +445,9 @@ func (ctx *vmContext) handleDelegateCall(args []string) (result string, err erro
 		err = getCallInfo(&ci.Args, []byte(fargs), cid)
 	}
 	if err != nil {
-		if CurrentForkVersion >= 5 {
-			return "", errors.New("[Contract.DelegateCall] invalid arguments: " + err.Error())
-		}
-		return "", errors.New("[Contract.LuaDelegateCallContract] invalid arguments: " + err.Error())
+		errmsg[NEW_MSG] = "[Contract.DelegateCall] invalid arguments: "
+		errmsg[OLD_MSG] = "[Contract.LuaDelegateCallContract] invalid arguments: "
+		return "", errors.New(errmsg[errnum] + err.Error())
 	}
 
 	// get the remaining gas or gas limit from the parent contract
@@ -464,10 +460,9 @@ func (ctx *vmContext) handleDelegateCall(args []string) (result string, err erro
 	ce := newExecutor(bytecode, cid, ctx, &ci, zeroBig, false, false, contractState)
 	defer ce.close()  // close the executor and the VM instance
 	if ce.err != nil {
-		if CurrentForkVersion >= 5 {
-			return "", errors.New("[Contract.DelegateCall] newExecutor error: " + ce.err.Error())
-		}
-		return "", errors.New("[Contract.LuaDelegateCallContract] newExecutor error: " + ce.err.Error())
+		errmsg[NEW_MSG] = "[Contract.DelegateCall] newExecutor error: "
+		errmsg[OLD_MSG] = "[Contract.LuaDelegateCallContract] newExecutor error: "
+		return "", errors.New(errmsg[errnum] + ce.err.Error())
 	}
 
 	// set the remaining gas or gas limit from the parent contract
@@ -475,10 +470,9 @@ func (ctx *vmContext) handleDelegateCall(args []string) (result string, err erro
 
 	seq, err := setRecoveryPoint(aid, ctx, nil, ctx.curContract.callState, zeroBig, false, false)
 	if err != nil {
-		if CurrentForkVersion >= 5 {
-			return "", errors.New("[Contract.DelegateCall] database error: " + err.Error())
-		}
-		return "", errors.New("[Contract.LuaDelegateCallContract] database error: " + err.Error())
+		errmsg[NEW_MSG] = "[Contract.DelegateCall] database error: "
+		errmsg[OLD_MSG] = "[System.LuaDelegateCallContract] database error: "
+		return "", errors.New(errmsg[errnum] + err.Error())
 	}
 	if ctx.traceFile != nil {
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[DELEGATECALL Contract %v %v]\n", contractAddress, fname))
@@ -496,10 +490,9 @@ func (ctx *vmContext) handleDelegateCall(args []string) (result string, err erro
 		// revert the contract to the previous state
 		err := clearRecovery(ctx, seq, true)
 		if err != nil {
-			if CurrentForkVersion >= 5 {
-				return result, errors.New("[Contract.DelegateCall] recovery error: " + err.Error())
-			}
-			return "", errors.New("[Contract.LuaDelegateCallContract] recovery error: " + err.Error())
+			errmsg[NEW_MSG] = "[Contract.DelegateCall] recovery error: "
+			errmsg[OLD_MSG] = "[Contract.LuaDelegateCallContract] recovery error: "
+			return "", errors.New(errmsg[errnum] + err.Error())
 		}
 		// log some info
 		if ctx.traceFile != nil {
@@ -510,10 +503,9 @@ func (ctx *vmContext) handleDelegateCall(args []string) (result string, err erro
 		case *VmTimeoutError:
 			return result, errors.New(ceErr.Error())
 		default:
-			if CurrentForkVersion >= 5 {
-				return result, errors.New("[Contract.DelegateCall] call error: " + ce.err.Error())
-			}
-			return "", errors.New("[Contract.LuaDelegateCallContract] call error: " + ce.err.Error())
+			errmsg[NEW_MSG] = "[Contract.DelegateCall] call error: "
+			errmsg[OLD_MSG] = "[Contract.LuaDelegateCallContract] call error: "
+			return "", errors.New(errmsg[errnum] + ce.err.Error())
 		}
 	}
 
@@ -521,10 +513,9 @@ func (ctx *vmContext) handleDelegateCall(args []string) (result string, err erro
 	if seq == 1 {
 		err := clearRecovery(ctx, seq, false)
 		if err != nil {
-			if CurrentForkVersion >= 5 {
-				return result, errors.New("[Contract.DelegateCall] recovery error: " + err.Error())
-			}
-			return "", errors.New("[Contract.LuaDelegateCallContract] recovery error: " + err.Error())
+			errmsg[NEW_MSG] = "[Contract.DelegateCall] recovery error: "
+			errmsg[OLD_MSG] = "[Contract.LuaDelegateCallContract] recovery error: "
+			return "", errors.New(errmsg[errnum] + err.Error())
 		}
 	}
 
@@ -551,47 +542,43 @@ func getAddressNameResolved(account string, bs *state.BlockState) ([]byte, error
 
 func (ctx *vmContext) handleSend(args []string) (result string, err error) {
 	if len(args) != 3 {
-		if CurrentForkVersion >= 5 {
-			return "", errors.New("[Contract.Send] invalid number of arguments")
-		}
-		return "", errors.New("[Contract.LuaSendAmount] invalid number of arguments")
+		return "", errors.New("[Contract.Send] invalid number of arguments")
 	}
 	contractAddress, amount, gas := args[0], args[1], args[2]
+
+	errmsg := [2]string{}
+	errnum := iif(CurrentForkVersion >= 5, NEW_MSG, OLD_MSG)
 
 	// read the amount to be sent
 	amountBig, err := transformAmount(amount, ctx.blockInfo.ForkVersion)
 	if err != nil {
-		if CurrentForkVersion >= 5 {
-			return "", errors.New("[Contract.Send] invalid amount: " + err.Error())
-		}
-		return "", errors.New("[Contract.LuaSendAmount] invalid amount: " + err.Error())
+		errmsg[NEW_MSG] = "[Contract.Send] invalid amount: "
+		errmsg[OLD_MSG] = "[Contract.LuaSendAmount] invalid amount: "
+		return "", errors.New(errmsg[errnum] + err.Error())
 	}
 
 	// cannot send amount in query
 	if (ctx.isQuery == true || ctx.nestedView > 0) && amountBig.Cmp(zeroBig) > 0 {
-		if CurrentForkVersion >= 5 {
-			return "", errors.New("[Contract.Send] send not permitted in query")
-		}
-		return "", errors.New("[Contract.LuaSendAmount] send not permitted in query")
+		errmsg[NEW_MSG] = "[Contract.Send] send not permitted in query"
+		errmsg[OLD_MSG] = "[Contract.LuaSendAmount] send not permitted in query"
+		return "", errors.New(errmsg[errnum])
 	}
 
 	// get the receiver account
 	cid, err := getAddressNameResolved(contractAddress, ctx.bs)
 	if err != nil {
-		if CurrentForkVersion >= 5 {
-			return "", errors.New("[Contract.Send] invalid contractId: " + err.Error())
-		}
-		return "", errors.New("[Contract.LuaSendAmount] invalid contractId: " + err.Error())
+		errmsg[NEW_MSG] = "[Contract.Send] invalid contractId: "
+		errmsg[OLD_MSG] = "[Contract.LuaSendAmount] invalid contractId: "
+		return "", errors.New(errmsg[errnum] + err.Error())
 	}
 
 	// get the receiver state
 	aid := types.ToAccountID(cid)
 	cs, err := getCallState(ctx, cid)
 	if err != nil {
-		if CurrentForkVersion >= 5 {
-			return "", errors.New("[Contract.Send] getAccount error: " + err.Error())
-		}
-		return "", errors.New("[Contract.LuaSendAmount] getAccount error: " + err.Error())
+		errmsg[NEW_MSG] = "[Contract.Send] getAccount error: "
+		errmsg[OLD_MSG] = "[Contract.LuaSendAmount] getAccount error: "
+		return "", errors.New(errmsg[errnum] + err.Error())
 	}
 
 	// get the sender state
@@ -605,10 +592,9 @@ func (ctx *vmContext) handleSend(args []string) (result string, err error) {
 		if cs.ctrState == nil {
 			cs.ctrState, err = statedb.OpenContractState(cid, receiverState.State(), ctx.bs.StateDB)
 			if err != nil {
-				if CurrentForkVersion >= 5 {
-					return "", errors.New("[Contract.Send] getContractState error: " + err.Error())
-				}
-				return "", errors.New("[Contract.LuaSendAmount] getContractState error: " + err.Error())
+				errmsg[NEW_MSG] = "[Contract.Send] getContractState error: "
+				errmsg[OLD_MSG] = "[Contract.LuaSendAmount] getContractState error: "
+				return "", errors.New(errmsg[errnum] + err.Error())
 			}
 		}
 
@@ -619,10 +605,9 @@ func (ctx *vmContext) handleSend(args []string) (result string, err error) {
 		// get the contract code
 		bytecode := getContractCode(cs.ctrState, ctx.bs)
 		if bytecode == nil {
-			if CurrentForkVersion >= 5 {
-				return "", errors.New("[Contract.Send] cannot find contract:" + contractAddress)
-			}
-			return "", errors.New("[Contract.LuaSendAmount] cannot find contract:" + contractAddress)
+			errmsg[NEW_MSG] = "[Contract.Send] cannot find contract:"
+			errmsg[OLD_MSG] = "[Contract.LuaSendAmount] cannot find contract:"
+			return "", errors.New(errmsg[errnum] + contractAddress)
 		}
 
 		// get the remaining gas or gas limit from the parent contract
@@ -635,10 +620,9 @@ func (ctx *vmContext) handleSend(args []string) (result string, err error) {
 		ce := newExecutor(bytecode, cid, ctx, &ci, amountBig, false, false, cs.ctrState)
 		defer ce.close()  // close the executor and the VM instance
 		if ce.err != nil {
-			if CurrentForkVersion >= 5 {
-				return "", errors.New("[Contract.Send] newExecutor error: " + ce.err.Error())
-			}
-			return "", errors.New("[Contract.LuaSendAmount] newExecutor error: " + ce.err.Error())
+			errmsg[NEW_MSG] = "[Contract.Send] newExecutor error: "
+			errmsg[OLD_MSG] = "[Contract.LuaSendAmount] newExecutor error: "
+			return "", errors.New(errmsg[errnum] + ce.err.Error())
 		}
 
 		// set the remaining gas or gas limit from the parent contract
@@ -647,20 +631,18 @@ func (ctx *vmContext) handleSend(args []string) (result string, err error) {
 		// send the amount to the contract
 		if amountBig.Cmp(zeroBig) > 0 {
 			if r := sendBalance(senderState, receiverState, amountBig); r != nil {
-				if CurrentForkVersion >= 5 {
-					return "", errors.New("[Contract.Send] " + r.Error())
-				}
-				return "", errors.New("[Contract.LuaSendAmount] " + r.Error())
+				errmsg[NEW_MSG] = "[Contract.Send] "
+				errmsg[OLD_MSG] = "[Contract.LuaSendAmount] "
+				return "", errors.New(errmsg[errnum] + r.Error())
 			}
 		}
 
 		// create a recovery point
 		seq, err := setRecoveryPoint(aid, ctx, senderState, cs, amountBig, false, false)
 		if err != nil {
-			if CurrentForkVersion >= 5 {
-				return "", errors.New("[Contract.Send] database error: " + err.Error())
-			}
-			return "", errors.New("[Contract.LuaSendAmount] database error: " + err.Error())
+			errmsg[NEW_MSG] = "[Contract.Send] database error: "
+			errmsg[OLD_MSG] = "[System.LuaSendAmount] database error: "
+			return "", errors.New(errmsg[errnum] + err.Error())
 		}
 
 		// log some info
@@ -690,10 +672,9 @@ func (ctx *vmContext) handleSend(args []string) (result string, err error) {
 			// revert the contract to the previous state
 			err := clearRecovery(ctx, seq, true)
 			if err != nil {
-				if CurrentForkVersion >= 5 {
-					return result, errors.New("[Contract.Send] recovery err: " + err.Error())
-				}
-				return "", errors.New("[Contract.LuaSendAmount] recovery err: " + err.Error())
+				errmsg[NEW_MSG] = "[Contract.Send] recovery err: "
+				errmsg[OLD_MSG] = "[Contract.LuaSendAmount] recovery err: "
+				return "", errors.New(errmsg[errnum] + err.Error())
 			}
 			// log some info
 			if ctx.traceFile != nil {
@@ -704,10 +685,9 @@ func (ctx *vmContext) handleSend(args []string) (result string, err error) {
 			case *VmTimeoutError:
 				return result, errors.New(ceErr.Error())
 			default:
-				if CurrentForkVersion >= 5 {
-					return result, errors.New("[Contract.Send] call err: " + ce.err.Error())
-				}
-				return "", errors.New("[Contract.LuaSendAmount] call err: " + ce.err.Error())
+				errmsg[NEW_MSG] = "[Contract.Send] call err: "
+				errmsg[OLD_MSG] = "[Contract.LuaSendAmount] call err: "
+				return "", errors.New(errmsg[errnum] + ce.err.Error())
 			}
 		}
 
@@ -715,10 +695,9 @@ func (ctx *vmContext) handleSend(args []string) (result string, err error) {
 		if seq == 1 {
 			err := clearRecovery(ctx, seq, false)
 			if err != nil {
-				if CurrentForkVersion >= 5 {
-					return result, errors.New("[Contract.Send] recovery err: " + err.Error())
-				}
-				return "", errors.New("[Contract.LuaSendAmount] recovery err: " + err.Error())
+				errmsg[NEW_MSG] = "[Contract.Send] recovery err: "
+				errmsg[OLD_MSG] = "[Contract.LuaSendAmount] recovery err: "
+				return "", errors.New(errmsg[errnum] + err.Error())
 			}
 		}
 
@@ -730,15 +709,14 @@ func (ctx *vmContext) handleSend(args []string) (result string, err error) {
 
 	// if amount is zero, do nothing
 	if amountBig.Cmp(zeroBig) == 0 {
-		return "", nil
+		return result, nil
 	}
 
 	// send the amount to the receiver
 	if r := sendBalance(senderState, receiverState, amountBig); r != nil {
-		if CurrentForkVersion >= 5 {
-			return "", errors.New("[Contract.Send] " + r.Error())
-		}
-		return "", errors.New("[Contract.LuaSendAmount] " + r.Error())
+		errmsg[NEW_MSG] = "[Contract.Send] "
+		errmsg[OLD_MSG] = "[Contract.LuaSendAmount] "
+		return "", errors.New(errmsg[errnum] + r.Error())
 	}
 
 	// update the recovery point
@@ -754,7 +732,7 @@ func (ctx *vmContext) handleSend(args []string) (result string, err error) {
 			senderState.Balance().String(), receiverState.Balance().String()))
 	}
 
-	return "", nil
+	return result, nil
 }
 
 func (ctx *vmContext) handlePrint(args []string) (result string, err error) {
@@ -769,6 +747,8 @@ func (ctx *vmContext) handleSetRecoveryPoint() (result string, err error) {
 	if ctx.isQuery || ctx.nestedView > 0 {
 		return "", nil
 	}
+	errmsg := [2]string{}
+	errnum := iif(CurrentForkVersion >= 5, NEW_MSG, OLD_MSG)
 	curContract := ctx.curContract
 	// if it is the multicall code, ignore
 	if curContract.callState.ctrState.IsMultiCall() {
@@ -777,10 +757,9 @@ func (ctx *vmContext) handleSetRecoveryPoint() (result string, err error) {
 	aid := types.ToAccountID(curContract.contractId)
 	seq, err := setRecoveryPoint(aid, ctx, nil, curContract.callState, zeroBig, false, false)
 	if err != nil {
-		if CurrentForkVersion >= 5 {
-			return "", errors.New("[Contract.SetRecoveryPoint] database error: " + err.Error())
-		}
-		return "", errors.New("[Contract.pcall] database error: " + err.Error())
+		errmsg[NEW_MSG] = "[Contract.SetRecoveryPoint] database error: "
+		errmsg[OLD_MSG] = "[Contract.pcall] database error: "
+		return "", errors.New(errmsg[errnum] + err.Error())
 	}
 	if ctx.traceFile != nil {
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[pcall] snapshot set %d\n", seq))
@@ -833,31 +812,28 @@ func (ctx *vmContext) handleClearRecovery(args []string) (result string, err err
 
 func (ctx *vmContext) handleGetBalance(args []string) (result string, err error) {
 	if len(args) != 1 {
-		if CurrentForkVersion >= 5 {
-			return "", errors.New("[Contract.GetBalance] invalid number of arguments")
-		}
-		return "", errors.New("[Contract.LuaGetBalance] invalid number of arguments")
+		return "", errors.New("[Contract.GetBalance] invalid number of arguments")
 	}
+	errmsg := [2]string{}
+	errnum := iif(CurrentForkVersion >= 5, NEW_MSG, OLD_MSG)
 	contractAddress := args[0]
 	if contractAddress == "" {
 		return ctx.curContract.callState.ctrState.GetBalanceBigInt().String(), nil
 	}
 	cid, err := getAddressNameResolved(contractAddress, ctx.bs)
 	if err != nil {
-		if CurrentForkVersion >= 5 {
-			return "", errors.New("[Contract.GetBalance] invalid contractId: " + err.Error())
-		}
-		return "", errors.New("[Contract.LuaGetBalance] invalid contractId: " + err.Error())
+		errmsg[NEW_MSG] = "[Contract.GetBalance] invalid contractId: "
+		errmsg[OLD_MSG] = "[Contract.LuaGetBalance] invalid contractId: "
+		return "", errors.New(errmsg[errnum] + err.Error())
 	}
 	aid := types.ToAccountID(cid)
 	cs := ctx.callState[aid]
 	if cs == nil {
 		as, err := ctx.bs.GetAccountState(aid)
 		if err != nil {
-			if CurrentForkVersion >= 5 {
-				return "", errors.New("[Contract.GetBalance] getAccount error: " + err.Error())
-			}
-			return "", errors.New("[Contract.LuaGetBalance] getAccount error: " + err.Error())
+			errmsg[NEW_MSG] = "[Contract.GetBalance] getAccount error: "
+			errmsg[OLD_MSG] = "[Contract.LuaGetBalance] getAccount error: "
+			return "", errors.New(errmsg[errnum] + err.Error())
 		}
 		return as.GetBalanceBigInt().String(), nil
 	}
@@ -1012,7 +988,11 @@ func (ctx *vmContext) handleCryptoSha256(args []string) (string, error) {
 		var err error
 		data, err = hex.Decode(string(dataStr))
 		if err != nil {
-			return "", fmt.Errorf("[Contract.CryptoSha256] hex decoding error: %v", err)
+			errmsg := [2]string{}
+			errnum := iif(CurrentForkVersion >= 5, NEW_MSG, OLD_MSG)
+			errmsg[NEW_MSG] = "[Contract.CryptoSha256] hex decoding error: "
+			errmsg[OLD_MSG] = "[Contract.LuaCryptoSha256] hex decoding error: "
+			return "", errors.New(errmsg[errnum] + err.Error())
 		}
 	}
 	h := sha256.New()
@@ -1033,13 +1013,21 @@ func (ctx *vmContext) handleECVerify(args []string) (result string, err error) {
 		return "", errors.New("[Contract.EcVerify] invalid number of arguments")
 	}
 	msg, sig, addr := args[0], args[1], args[2]
+
+	errmsg := [2]string{}
+	errnum := iif(CurrentForkVersion >= 5, NEW_MSG, OLD_MSG)
+
 	bMsg, err := decodeHex(msg)
 	if err != nil {
-		return "", errors.New("[Contract.EcVerify] invalid message format: " + err.Error())
+		errmsg[NEW_MSG] = "[Contract.EcVerify] invalid message format: "
+		errmsg[OLD_MSG] = "[Contract.LuaEcVerify] invalid message format: "
+		return "", errors.New(errmsg[errnum] + err.Error())
 	}
 	bSig, err := decodeHex(sig)
 	if err != nil {
-		return "", errors.New("[Contract.EcVerify] invalid signature format: " + err.Error())
+		errmsg[NEW_MSG] = "[Contract.EcVerify] invalid signature format: "
+		errmsg[OLD_MSG] = "[Contract.LuaEcVerify] invalid signature format: "
+		return "", errors.New(errmsg[errnum] + err.Error())
 	}
 
 	var pubKey *btcec.PublicKey
@@ -1050,11 +1038,15 @@ func (ctx *vmContext) handleECVerify(args []string) (result string, err error) {
 	if isAergo {
 		bAddress, err := types.DecodeAddress(addr)
 		if err != nil {
-			return "", errors.New("[Contract.EcVerify] invalid aergo address: " + err.Error())
+			errmsg[NEW_MSG] = "[Contract.EcVerify] invalid aergo address: "
+			errmsg[OLD_MSG] = "[Contract.LuaEcVerify] invalid aergo address: "
+			return "", errors.New(errmsg[errnum] + err.Error())
 		}
 		pubKey, err = btcec.ParsePubKey(bAddress)
 		if err != nil {
-			return "", errors.New("[Contract.EcVerify] error parsing pubKey: " + err.Error())
+			errmsg[NEW_MSG] = "[Contract.EcVerify] error parsing pubKey: "
+			errmsg[OLD_MSG] = "[Contract.LuaEcVerify] error parsing pubKey: "
+			return "", errors.New(errmsg[errnum] + err.Error())
 		}
 	}
 
@@ -1069,14 +1061,18 @@ func (ctx *vmContext) handleECVerify(args []string) (result string, err error) {
 		}
 		pub, _, err := ecdsa.RecoverCompact(bSig, bMsg)
 		if err != nil {
-			return "", errors.New("[Contract.EcVerify] error recoverCompact: " + err.Error())
+			errmsg[NEW_MSG] = "[Contract.EcVerify] error recoverCompact: "
+			errmsg[OLD_MSG] = "[Contract.LuaEcVerify] error recoverCompact: "
+			return "", errors.New(errmsg[errnum] + err.Error())
 		}
 		if pubKey != nil {
 			verifyResult = pubKey.IsEqual(pub)
 		} else {
 			bAddress, err := decodeHex(addr)
 			if err != nil {
-				return "", errors.New("[Contract.EcVerify] invalid Ethereum address: " + err.Error())
+				errmsg[NEW_MSG] = "[Contract.EcVerify] invalid Ethereum address: "
+				errmsg[OLD_MSG] = "[Contract.LuaEcVerify] invalid Ethereum address: "
+				return "", errors.New(errmsg[errnum] + err.Error())
 			}
 			bPub := pub.SerializeUncompressed()
 			h := sha256.New()
@@ -1087,10 +1083,14 @@ func (ctx *vmContext) handleECVerify(args []string) (result string, err error) {
 	} else {
 		sign, err := ecdsa.ParseSignature(bSig)
 		if err != nil {
-			return "", errors.New("[Contract.EcVerify] error parsing signature: " + err.Error())
+			errmsg[NEW_MSG] = "[Contract.EcVerify] error parsing signature: "
+			errmsg[OLD_MSG] = "[Contract.LuaEcVerify] error parsing signature: "
+			return "", errors.New(errmsg[errnum] + err.Error())
 		}
 		if pubKey == nil {
-			return "", errors.New("[Contract.EcVerify] error recovering pubKey")
+			errmsg[NEW_MSG] = "[Contract.EcVerify] error recovering pubKey"
+			errmsg[OLD_MSG] = "[Contract.LuaEcVerify] error recovering pubKey"
+			return "", errors.New(errmsg[errnum])
 		}
 		verifyResult = sign.Verify(bMsg, pubKey)
 	}
@@ -1316,8 +1316,13 @@ func (ctx *vmContext) handleDeploy(args []string) (result string, err error) {
 	}
 	codeOrAddress, fargs, amount, gas := args[0], args[1], args[2], args[3]
 
+	errmsg := [2]string{}
+	errnum := iif(CurrentForkVersion >= 5, NEW_MSG, OLD_MSG)
+
 	if ctx.isQuery || ctx.nestedView > 0 {
-		return "", errors.New("[Contract.Deploy] deploy not permitted in query")
+		errmsg[NEW_MSG] = "[Contract.Deploy] deploy not permitted in view"
+		errmsg[OLD_MSG] = "[Contract.LuaDeployContract]send not permitted in query"
+		return "", errors.New(errmsg[errnum])
 	}
 	bs := ctx.bs
 
@@ -1331,14 +1336,20 @@ func (ctx *vmContext) handleDeploy(args []string) (result string, err error) {
 		// check if contract exists
 		contractState, err := getOnlyContractState(ctx, cid)
 		if err != nil {
-			return "", errors.New("[Contract.Deploy] " + err.Error())
+			errmsg[NEW_MSG] = "[Contract.Deploy] "
+			errmsg[OLD_MSG] = "[Contract.LuaDeployContract]"
+			return "", errors.New(errmsg[errnum] + err.Error())
 		}
 		// read the contract code
 		codeABI, err = contractState.GetCode()
 		if err != nil {
-			return "", errors.New("[Contract.Deploy] " + err.Error())
+			errmsg[NEW_MSG] = "[Contract.Deploy] "
+			errmsg[OLD_MSG] = "[Contract.LuaDeployContract]"
+			return "", errors.New(errmsg[errnum] + err.Error())
 		} else if len(codeABI) == 0 {
-			return "", errors.New("[Contract.Deploy] not found code")
+			errmsg[NEW_MSG] = "[Contract.Deploy] not found code"
+			errmsg[OLD_MSG] = "[Contract.LuaDeployContract]: not found code"
+			return "", errors.New(errmsg[errnum])
 		}
 		if ctx.blockInfo.ForkVersion >= 4 {
 			sourceCode = contractState.GetSourceCode()
@@ -1356,9 +1367,13 @@ func (ctx *vmContext) handleDeploy(args []string) (result string, err error) {
 			if strings.Contains(err.Error(), C.ERR_BF_TIMEOUT) {
 				return "", err  //errors.New(C.ERR_BF_TIMEOUT)
 			} else if err == ErrVmStart {
-				return "", errors.New("[Contract.Deploy] get luaState error")
+				errmsg[NEW_MSG] = "[Contract.Deploy] get luaState error"
+				errmsg[OLD_MSG] = "[Contract.LuaDeployContract]get luaState error"
+				return "", errors.New(errmsg[errnum])
 			}
-			return "", errors.New("[Contract.Deploy] compile error: " + err.Error())
+			errmsg[NEW_MSG] = "[Contract.Deploy] compile error: "
+			errmsg[OLD_MSG] = "[Contract.LuaDeployContract]compile error:"
+			return "", errors.New(errmsg[errnum] + err.Error())
 		}
 		if ctx.blockInfo.ForkVersion >= 4 {
 			sourceCode = []byte(codeOrAddress)
@@ -1367,18 +1382,24 @@ func (ctx *vmContext) handleDeploy(args []string) (result string, err error) {
 
 	err = ctx.addUpdateSize(int64(len(codeABI) + len(sourceCode)))
 	if err != nil {
-		return "", errors.New("[Contract.Deploy] " + err.Error())
+		errmsg[NEW_MSG] = "[Contract.Deploy] "
+		errmsg[OLD_MSG] = "[Contract.LuaDeployContract]:"
+		return "", errors.New(errmsg[errnum] + err.Error())
 	}
 
 	// create account for the contract
 	creator := ctx.curContract.callState.accState
 	newContract, err := state.CreateAccountState(CreateContractID(ctx.curContract.contractId, creator.Nonce()), bs.StateDB)
 	if err != nil {
-		return "", errors.New("[Contract.Deploy] " + err.Error())
+		errmsg[NEW_MSG] = "[Contract.Deploy] "
+		errmsg[OLD_MSG] = "[Contract.LuaDeployContract]:"
+		return "", errors.New(errmsg[errnum] + err.Error())
 	}
 	contractState, err := statedb.OpenContractState(newContract.ID(), newContract.State(), bs.StateDB)
 	if err != nil {
-		return "", errors.New("[Contract.Deploy] " + err.Error())
+		errmsg[NEW_MSG] = "[Contract.Deploy] "
+		errmsg[OLD_MSG] = "[Contract.LuaDeployContract]:"
+		return "", errors.New(errmsg[errnum] + err.Error())
 	}
 
 	cs := &callState{isCallback: true, isDeploy: true, ctrState: contractState, accState: newContract}
@@ -1387,14 +1408,18 @@ func (ctx *vmContext) handleDeploy(args []string) (result string, err error) {
 	// read the amount transferred to the contract
 	amountBig, err := transformAmount(amount, ctx.blockInfo.ForkVersion)
 	if err != nil {
-		return "", errors.New("[Contract.Deploy] value not proper format: " + err.Error())
+		errmsg[NEW_MSG] = "[Contract.Deploy] value not proper format: "
+		errmsg[OLD_MSG] = "[Contract.LuaDeployContract]value not proper format:"
+		return "", errors.New(errmsg[errnum] + err.Error())
 	}
 
 	// read the arguments for the constructor call
 	var ci types.CallInfo
 	err = getCallInfo(&ci.Args, []byte(fargs), newContract.ID())
 	if err != nil {
-		return "", errors.New("[Contract.Deploy] invalid args: " + err.Error())
+		errmsg[NEW_MSG] = "[Contract.Deploy] invalid args: "
+		errmsg[OLD_MSG] = "[Contract.LuaDeployContract]invalid args:"
+		return "", errors.New(errmsg[errnum] + err.Error())
 	}
 
 	// send the amount to the contract
@@ -1402,14 +1427,18 @@ func (ctx *vmContext) handleDeploy(args []string) (result string, err error) {
 	receiverState := cs.accState
 	if amountBig.Cmp(zeroBig) > 0 {
 		if rv := sendBalance(senderState, receiverState, amountBig); rv != nil {
-			return "", errors.New("[Contract.Deploy] " + rv.Error())
+			errmsg[NEW_MSG] = "[Contract.Deploy] "
+			errmsg[OLD_MSG] = "[Contract.LuaDeployContract]"
+			return "", errors.New(errmsg[errnum] + rv.Error())
 		}
 	}
 
 	// create a recovery point
 	seq, err := setRecoveryPoint(newContract.AccountID(), ctx, senderState, cs, amountBig, false, true)
 	if err != nil {
-		return "", errors.New("[System.DeployContract] DB err: " + err.Error())
+		errmsg[NEW_MSG] = "[Contract.Deploy] DB err: "
+		errmsg[OLD_MSG] = "[System.LuaDeployContract] DB err:"
+		return "", errors.New(errmsg[errnum] + err.Error())
 	}
 
 	// log some info
@@ -1434,13 +1463,17 @@ func (ctx *vmContext) handleDeploy(args []string) (result string, err error) {
 	// save the contract code
 	err = contractState.SetCode(sourceCode, codeABI)
 	if err != nil {
-		return "", errors.New("[Contract.Deploy] " + err.Error())
+		errmsg[NEW_MSG] = "[Contract.Deploy] "
+		errmsg[OLD_MSG] = "[Contract.LuaDeployContract]"
+		return "", errors.New(errmsg[errnum] + err.Error())
 	}
 
 	// save the contract creator
 	err = contractState.SetData(dbkey.CreatorMeta(), []byte(types.EncodeAddress(prevContract.contractId)))
 	if err != nil {
-		return "", errors.New("[Contract.Deploy] " + err.Error())
+		errmsg[NEW_MSG] = "[Contract.Deploy] "
+		errmsg[OLD_MSG] = "[Contract.LuaDeployContract]"
+		return "", errors.New(errmsg[errnum] + err.Error())
 	}
 
 	// get the remaining gas or gas limit from the parent contract
@@ -1453,7 +1486,9 @@ func (ctx *vmContext) handleDeploy(args []string) (result string, err error) {
 	ce := newExecutor(bytecode, newContract.ID(), ctx, &ci, amountBig, true, false, contractState)
 	defer ce.close()  // close the executor and the VM instance
 	if ce.err != nil {
-		return "", errors.New("[Contract.Deploy] newExecutor Error: " + ce.err.Error())
+		errmsg[NEW_MSG] = "[Contract.Deploy] newExecutor Error: "
+		errmsg[OLD_MSG] = "[Contract.LuaDeployContract]newExecutor Error :"
+		return "", errors.New(errmsg[errnum] + ce.err.Error())
 	}
 
 	// set the remaining gas or gas limit from the parent contract
@@ -1476,7 +1511,9 @@ func (ctx *vmContext) handleDeploy(args []string) (result string, err error) {
 			// revert the contract to the previous state
 			err := clearRecovery(ctx, seq, true)
 			if err != nil {
-				return result, errors.New("[Contract.Deploy] recovery error: " + err.Error())
+				errmsg[NEW_MSG] = "[Contract.Deploy] recovery error: "
+				errmsg[OLD_MSG] = "[Contract.LuaDeployContract] recovery error: "
+				return result, errors.New(errmsg[errnum] + err.Error())
 			}
 			// log some info
 			if ctx.traceFile != nil {
@@ -1487,7 +1524,9 @@ func (ctx *vmContext) handleDeploy(args []string) (result string, err error) {
 			case *VmTimeoutError:
 				return result, errors.New(ceErr.Error())
 			default:
-				return result, errors.New("[Contract.Deploy] call err: " + ce.err.Error())
+				errmsg[NEW_MSG] = "[Contract.Deploy] call err: "
+				errmsg[OLD_MSG] = "[Contract.LuaDeployContract] call err:"
+				return result, errors.New(errmsg[errnum] + ce.err.Error())
 			}
 		}
 	}
@@ -1496,7 +1535,9 @@ func (ctx *vmContext) handleDeploy(args []string) (result string, err error) {
 	if seq == 1 {
 		err := clearRecovery(ctx, seq, false)
 		if err != nil {
-			return result, errors.New("[Contract.Deploy] recovery error: " + err.Error())
+			errmsg[NEW_MSG] = "[Contract.Deploy] recovery error: "
+			errmsg[OLD_MSG] = "[Contract.LuaDeployContract] recovery error: "
+			return result, errors.New(errmsg[errnum] + err.Error())
 		}
 	}
 
@@ -1574,14 +1615,20 @@ func (ctx *vmContext) handleToPubkey(args []string) (result string, err error) {
 		return "", errors.New("[Contract.ToPubkey] invalid number of arguments")
 	}
 	address := args[0]
+	errmsg := [2]string{}
+	errnum := iif(CurrentForkVersion >= 5, NEW_MSG, OLD_MSG)
 	// check the length of address
 	if len(address) != types.EncodedAddressLength {
-		return "", errors.New("[Contract.ToPubkey] invalid address length")
+		errmsg[NEW_MSG] = "[Contract.ToPubkey] invalid address length"
+		errmsg[OLD_MSG] = "[Contract.LuaToPubkey] invalid address length"
+		return "", errors.New(errmsg[errnum])
 	}
 	// decode the address in string format to bytes (public key)
 	pubkey, err := types.DecodeAddress(address)
 	if err != nil {
-		return "", errors.New("[Contract.ToPubkey] invalid address")
+		errmsg[NEW_MSG] = "[Contract.ToPubkey] invalid address"
+		errmsg[OLD_MSG] = "[Contract.LuaToPubkey] invalid address"
+		return "", errors.New(errmsg[errnum])
 	}
 	// return the public key in hex format
 	return "0x" + hex.Encode(pubkey), nil
@@ -1592,14 +1639,20 @@ func (ctx *vmContext) handleToAddress(args []string) (result string, err error) 
 		return "", errors.New("[Contract.ToAddress] invalid number of arguments")
 	}
 	pubkey := args[0]
+	errmsg := [2]string{}
+	errnum := iif(CurrentForkVersion >= 5, NEW_MSG, OLD_MSG)
 	// decode the pubkey in hex format to bytes
 	pubkeyBytes, err := decodeHex(pubkey)
 	if err != nil {
-		return "", errors.New("[Contract.ToAddress] invalid public key")
+		errmsg[NEW_MSG] = "[Contract.ToAddress] invalid public key"
+		errmsg[OLD_MSG] = "[Contract.LuaToAddress] invalid public key"
+		return "", errors.New(errmsg[errnum])
 	}
 	// check the length of pubkey
 	if len(pubkeyBytes) != types.AddressLength {
-		return "", errors.New("[Contract.ToAddress] invalid public key length")
+		errmsg[NEW_MSG] = "[Contract.ToAddress] invalid public key length"
+		errmsg[OLD_MSG] = "[Contract.LuaToAddress] invalid public key length"
+		return "", errors.New(errmsg[errnum])
 		// or convert the pubkey to compact format - SerializeCompressed()
 	}
 	// encode the pubkey in bytes to an address in string format
@@ -1614,14 +1667,21 @@ func (ctx *vmContext) handleIsContract(args []string) (result string, err error)
 	}
 	contractAddress := args[0]
 
+	errmsg := [2]string{}
+	errnum := iif(CurrentForkVersion >= 5, NEW_MSG, OLD_MSG)
+
 	cid, err := getAddressNameResolved(contractAddress, ctx.bs)
 	if err != nil {
-		return "", errors.New("[Contract.IsContract] invalid contractId: " + err.Error())
+		errmsg[NEW_MSG] = "[Contract.IsContract] invalid contractId: "
+		errmsg[OLD_MSG] = "[Contract.LuaIsContract] invalid contractId: "
+		return "", errors.New(errmsg[errnum] + err.Error())
 	}
 
 	cs, err := getCallState(ctx, cid)
 	if err != nil {
-		return "", errors.New("[Contract.IsContract] getAccount error: " + err.Error())
+		errmsg[NEW_MSG] = "[Contract.IsContract] getAccount error: "
+		errmsg[OLD_MSG] = "[Contract.LuaIsContract] getAccount error: "
+		return "", errors.New(errmsg[errnum] + err.Error())
 	}
 
 	return strconv.Itoa(len(cs.accState.CodeHash())), nil
@@ -1640,7 +1700,11 @@ func (ctx *vmContext) handleNameResolve(args []string) (result string, err error
 		addr, err = name.Resolve(ctx.bs, []byte(account), false)
 	}
 	if err != nil {
-		return "", errors.New("[Contract.NameResolve] " + err.Error())
+		errmsg := [2]string{}
+		errnum := iif(CurrentForkVersion >= 5, NEW_MSG, OLD_MSG)
+		errmsg[NEW_MSG] = "[Contract.NameResolve] "
+		errmsg[OLD_MSG] = "[Contract.LuaNameResolve] "
+		return "", errors.New(errmsg[errnum] + err.Error())
 	}
 	return types.EncodeAddress(addr), nil
 }
@@ -1651,8 +1715,13 @@ func (ctx *vmContext) handleGovernance(args []string) (result string, err error)
 	}
 	gType, arg := args[0], args[1]
 
+	errmsg := [2]string{}
+	errnum := iif(CurrentForkVersion >= 5, NEW_MSG, OLD_MSG)
+
 	if ctx.isQuery || ctx.nestedView > 0 {
-		return "", errors.New("[Contract.Governance] governance not permitted in query")
+		errmsg[NEW_MSG] = "[Contract.Governance] governance not permitted in query"
+		errmsg[OLD_MSG] = "[Contract.LuaGovernance] governance not permitted in query"
+		return "", errors.New(errmsg[errnum])
 	}
 
 	var amountBig *big.Int
@@ -1663,7 +1732,9 @@ func (ctx *vmContext) handleGovernance(args []string) (result string, err error)
 		var err error
 		amountBig, err = transformAmount(arg, ctx.blockInfo.ForkVersion)
 		if err != nil {
-			return "", errors.New("[Contract.Governance] invalid amount: " + err.Error())
+			errmsg[NEW_MSG] = "[Contract.Governance] invalid amount: "
+			errmsg[OLD_MSG] = "[Contract.LuaGovernance] invalid amount: "
+			return "", errors.New(errmsg[errnum] + err.Error())
 		}
 		if gType == "S" {
 			payload = []byte(fmt.Sprintf(`{"Name":"%s"}`, types.Opstake.Cmd()))
@@ -1682,7 +1753,9 @@ func (ctx *vmContext) handleGovernance(args []string) (result string, err error)
 	aid := types.ToAccountID(cid)
 	scsState, err := getContractState(ctx, cid)
 	if err != nil {
-		return "", errors.New("[Contract.Governance] getAccount error: " + err.Error())
+		errmsg[NEW_MSG] = "[Contract.Governance] getAccount error: "
+		errmsg[OLD_MSG] = "[Contract.LuaGovernance] getAccount error: "
+		return "", errors.New(errmsg[errnum] + err.Error())
 	}
 
 	curContract := ctx.curContract
@@ -1700,13 +1773,17 @@ func (ctx *vmContext) handleGovernance(args []string) (result string, err error)
 
 	err = types.ValidateSystemTx(&txBody)
 	if err != nil {
-		return "", errors.New("[Contract.Governance] error: " + err.Error())
+		errmsg[NEW_MSG] = "[Contract.Governance] error: "
+		errmsg[OLD_MSG] = "[Contract.LuaGovernance] error: "
+		return "", errors.New(errmsg[errnum] + err.Error())
 	}
 
 	// create a recovery point
 	seq, err := setRecoveryPoint(aid, ctx, senderState, scsState, zeroBig, false, false)
 	if err != nil {
-		return "", errors.New("[Contract.Governance] database error: " + err.Error())
+		errmsg[NEW_MSG] = "[Contract.Governance] database error: "
+		errmsg[OLD_MSG] = "[Contract.LuaGovernance] database error: "
+		return "", errors.New(errmsg[errnum] + err.Error())
 	}
 
 	// execute the system transaction
@@ -1715,16 +1792,22 @@ func (ctx *vmContext) handleGovernance(args []string) (result string, err error)
 		// revert the contract to the previous state
 		rErr := clearRecovery(ctx, seq, true)
 		if rErr != nil {
-			return "", errors.New("[Contract.Governance] recovery error: " + rErr.Error())
+			errmsg[NEW_MSG] = "[Contract.Governance] recovery error: "
+			errmsg[OLD_MSG] = "[Contract.LuaGovernance] recovery error: "
+			return "", errors.New(errmsg[errnum] + rErr.Error())
 		}
-		return "", errors.New("[Contract.Governance] error: " + err.Error())
+		errmsg[NEW_MSG] = "[Contract.Governance] error: "
+		errmsg[OLD_MSG] = "[Contract.LuaGovernance] error: "
+		return "", errors.New(errmsg[errnum] + err.Error())
 	}
 
 	// release the recovery point
 	if seq == 1 {
 		err := clearRecovery(ctx, seq, false)
 		if err != nil {
-			return "", errors.New("[Contract.Governance] recovery error: " + err.Error())
+			errmsg[NEW_MSG] = "[Contract.Governance] recovery error: "
+			errmsg[OLD_MSG] = "[Contract.LuaGovernance] recovery error: "
+			return "", errors.New(errmsg[errnum] + err.Error())
 		}
 	}
 
@@ -1977,23 +2060,34 @@ func LuaGetDbHandleSnap(service C.int, snapshot *C.char) *C.char {
 	curContract := ctx.curContract
 	callState := curContract.callState
 
+	errmsg := [2]string{}
+	errnum := iif(CurrentForkVersion >= 5, NEW_MSG, OLD_MSG)
+
 	if ctx.isQuery != true {
-		return C.CString("[Contract.SetDbSnap] not permitted in transaction")
+		errmsg[NEW_MSG] = "[Contract.SetDbSnap] not permitted in transaction"
+		errmsg[OLD_MSG] = "[Contract.LuaSetDbSnap] not permitted in transaction"
+		return C.CString(errmsg[errnum])
 	}
 
 	if callState.tx != nil {
-		return C.CString("[Contract.SetDbSnap] transaction already started")
+		errmsg[NEW_MSG] = "[Contract.SetDbSnap] transaction already started"
+		errmsg[OLD_MSG] = "[Contract.LuaSetDbSnap] transaction already started"
+		return C.CString(errmsg[errnum])
 	}
 
 	rp, err := strconv.ParseUint(C.GoString(snapshot), 10, 64)
 	if err != nil {
-		return C.CString("[Contract.SetDbSnap] snapshot is not valid: " + C.GoString(snapshot))
+		errmsg[NEW_MSG] = "[Contract.SetDbSnap] snapshot is not valid: "
+		errmsg[OLD_MSG] = "[Contract.LuaSetDbSnap] snapshot is not valid"
+		return C.CString(errmsg[errnum] + C.GoString(snapshot))
 	}
 
 	aid := types.ToAccountID(curContract.contractId)
 	tx, err := beginReadOnly(aid.String(), rp)
 	if err != nil {
-		return C.CString("[Contract.SetDbSnap] Error Begin SQL Transaction")
+		errmsg[NEW_MSG] = "[Contract.SetDbSnap] Error Begin SQL Transaction"
+		errmsg[OLD_MSG] = "Error Begin SQL Transaction"
+		return C.CString(errmsg[errnum])
 	}
 
 	callState.tx = tx
@@ -2040,8 +2134,13 @@ func (ctx *vmContext) handleGetStaking(args []string) (result string, err error)
 
 func sendBalance(sender *state.AccountState, receiver *state.AccountState, amount *big.Int) error {
 	if err := state.SendBalance(sender, receiver, amount); err != nil {
-		return errors.New("insufficient balance: " + sender.Balance().String() +
-		                  " amount to transfer: " + amount.String())
+		if CurrentForkVersion >= 5 {
+			return errors.New("insufficient balance: " + sender.Balance().String() +
+			                  " - amount to transfer: " + amount.String())
+		} else {
+			return errors.New("[Contract.sendBalance] insufficient balance: " +
+				sender.Balance().String() + " : " + amount.String())
+		}
 	}
 	return nil
 }
