@@ -348,7 +348,7 @@ func TestGasPerFunction(t *testing.T) {
 		//{ "system.getPrevBlockHash", "", 0, 135132 },
 
 		{"contract.send", "", 0, 135716},
-		{"contract.balance", "", 0, 135728},
+		{"contract.balance", "", 0, 135605},
 		{"contract.deploy", "", 0, 158752},
 		{"contract.call", "", 0, 149642},
 		{"contract.pcall", "", 0, 150563},
@@ -465,7 +465,7 @@ func TestGasPerFunction(t *testing.T) {
 		{"system.getOrigin", "", 0, 144261},
 
 		{"contract.send", "", 0, 144321},
-		{"contract.balance", "", 0, 144333},
+		{"contract.balance", "", 0, 144210},
 		{"contract.deploy", "", 0, 168092},
 		{"contract.call", "", 0, 159738},
 		{"contract.pcall", "", 0, 160659},
