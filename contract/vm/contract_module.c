@@ -116,9 +116,12 @@ static int moduleCall(lua_State *L) {
 	}
 
 	lua_pop(L, 2);
+
+	// get the contract address
 	contract = (char *)luaL_checkstring(L, 2);
+
+	// when called with contract.call.value(amount)(address) - this triggers a call to the default() function
 	if (lua_gettop(L) == 2) {
-		// when called with contract.call.value(amount)(address) - this triggers a call to the default() function
 		char *errStr = luaSendAmount(L, contract, amount);
 		reset_amount_info(L);
 		if (errStr != NULL) {
@@ -127,13 +130,17 @@ static int moduleCall(lua_State *L) {
 		}
 		return 0;
 	}
+
+	// get the function name
 	fname = (char *)luaL_checkstring(L, 3);
+	// get the arguments
 	json_args = lua_util_get_json_from_stack (L, 4, lua_gettop(L), false);
 	if (json_args == NULL) {
 		reset_amount_info(L);
 		luaL_throwerror(L);
 	}
 
+	// call the function on the contract
 	ret = luaCallContract(L, contract, fname, json_args, amount, gas);
 	free(json_args);
 	reset_amount_info(L);
@@ -143,9 +150,19 @@ static int moduleCall(lua_State *L) {
 		strPushAndRelease(L, ret.r1);
 		luaL_throwerror(L);
 	}
+
+	// disable gas while importing the returned values
+	if (lua_usegas(L)) {
+		lua_disablegas(L);
+	}
 	// push the returned values to the stack
 	int count = lua_util_json_array_to_lua(L, ret.r0, true);
 	free(ret.r0);
+	// enable gas again
+	if (lua_usegas(L)) {
+		lua_enablegas(L);
+	}
+	// check for invalid result format
 	if (count == -1) {
 		luaL_setuncatchablerror(L);
 		lua_pushstring(L, "internal error: result from call is not a valid JSON array");
@@ -176,8 +193,8 @@ static int moduleDelegateCall(lua_State *L) {
 	} else {
 		gas = luaL_checkinteger(L, -1);
 	}
-
 	lua_pop(L, 1);
+
 	contract = (char *) luaL_checkstring(L, 2);
 	fname = (char *) luaL_checkstring(L, 3);
 	json_args = lua_util_get_json_from_stack(L, 4, lua_gettop(L), false);
@@ -195,9 +212,19 @@ static int moduleDelegateCall(lua_State *L) {
 		strPushAndRelease(L, ret.r1);
 		luaL_throwerror(L);
 	}
+
+	// disable gas while importing the returned values
+	if (lua_usegas(L)) {
+		lua_disablegas(L);
+	}
 	// push the returned values to the stack
 	int count = lua_util_json_array_to_lua(L, ret.r0, true);
 	free(ret.r0);
+	// enable gas again
+	if (lua_usegas(L)) {
+		lua_enablegas(L);
+	}
+	// check for invalid result format
 	if (count == -1) {
 		luaL_setuncatchablerror(L);
 		lua_pushstring(L, "internal error: result from call is not a valid JSON array");
@@ -404,9 +431,19 @@ static int moduleDeploy(lua_State *L) {
 		strPushAndRelease(L, ret.r1);
 		luaL_throwerror(L);
 	}
+
+	// disable gas while importing the returned values
+	if (lua_usegas(L)) {
+		lua_disablegas(L);
+	}
 	// push the returned values to the stack
 	int count = lua_util_json_array_to_lua(L, ret.r0, true);
 	free(ret.r0);
+	// enable gas again
+	if (lua_usegas(L)) {
+		lua_enablegas(L);
+	}
+	// check for invalid result format
 	if (count == -1) {
 		luaL_setuncatchablerror(L);
 		lua_pushstring(L, "internal error: result from call is not a valid JSON array");
