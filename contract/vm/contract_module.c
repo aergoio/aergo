@@ -432,25 +432,57 @@ static int moduleDeploy(lua_State *L) {
 		luaL_throwerror(L);
 	}
 
-	// disable gas while importing the returned values
-	if (lua_usegas(L)) {
-		lua_disablegas(L);
+	// the previous version had a bug:
+	// the values returned by the constructor were pushed to the stack without charging gas
+	// but then the gas was enabled and the contract address was pushed to the stack, using gas
+	// the code below tries to reproduce the old behavior
+
+	// the returned JSON array is like this:
+	// ["Amhs9v8EeAAWrrvEFrvMng4UksHRsR7wN1iLqKkXw5bqMV18JP3h"]
+	// ["Amhmj6kKZz7mPstBAPJWRe1e8RHP7bZ5pV35XatqTHMWeAVSyMkc","key",2]
+
+	char *json = ret.r0;
+	int jsonlen = strlen(json);
+	int count = 0;
+
+	if (jsonlen > 56) {
+		// the array contains the contract address and other returned values
+		// get a JSON array with the remaining values
+		json += 55;
+		json[0] = '[';
+		// disable gas while importing the returned values
+		if (lua_usegas(L)) {
+			lua_disablegas(L);
+		}
+		// push the returned values to the stack
+		count = lua_util_json_array_to_lua(L, json, true);
+		// enable gas again
+		if (lua_usegas(L)) {
+			lua_enablegas(L);
+		}
 	}
-	// push the returned values to the stack
-	int count = lua_util_json_array_to_lua(L, ret.r0, true);
+
+	if (jsonlen >= 56) {
+		// push the contract address to the stack
+		lua_pushlstring(L, ret.r0 + 2, 52);
+		// move the address before the returned values
+		if (count > 0) {
+			lua_insert(L, -(count + 1));
+		}
+	}
+
+	// release the returned values
 	free(ret.r0);
-	// enable gas again
-	if (lua_usegas(L)) {
-		lua_enablegas(L);
-	}
+
 	// check for invalid result format
-	if (count == -1) {
+	if (jsonlen < 56 || count == -1) {
 		luaL_setuncatchablerror(L);
 		lua_pushstring(L, "internal error: result from call is not a valid JSON array");
 		luaL_throwerror(L);
 	}
+
 	// return the number of items in the stack
-	return count;
+	return 1 + count;
 }
 
 static int moduleEvent(lua_State *L) {

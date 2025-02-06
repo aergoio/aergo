@@ -1544,7 +1544,13 @@ func (ctx *vmContext) handleDeploy(args []string) (result string, err error) {
 	// the result already contains a JSON array
 	// insert the contract address before the other returned values
 	// the first 8 bytes contain the used gas
-	result = result[:8] + `["` + addr + `",` + result[9:]
+	if len(result) == 10 {
+		result = result[:8] + `["` + addr + `"]`
+	} else if len(result) > 10 {
+		result = result[:8] + `["` + addr + `",` + result[9:]
+	} else {
+		panic("invalid result format")
+	}
 
 	return result, nil
 }
