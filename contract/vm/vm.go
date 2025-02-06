@@ -26,6 +26,8 @@ import (
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/v2/cmd/aergoluac/luac"
+	"github.com/aergoio/aergo/v2/internal/enc/hex"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 const vmTimeoutErrMsg = "contract timeout during vm execution"
@@ -354,7 +356,17 @@ func vmPushAbiFunction(L *LState, funcName string) {
 
 // load the contract code
 func (ce *executor) vmLoadCode() {
-	chunkId := C.CString("@" + contractAddress)
+	var chunkId *C.char
+	if hardforkVersion >= 3 {
+		chunkId = C.CString("@" + contractAddress)
+	} else {
+		contractId, err := types.DecodeAddress(contractAddress)
+		if err != nil {
+			ce.err = err
+			return
+		}
+		chunkId = C.CString(hex.Encode(contractId))
+	}
 	defer C.free(unsafe.Pointer(chunkId))
 
 	cErrMsg := C.vm_load_code(
