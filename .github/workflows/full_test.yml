@@ -45,6 +45,7 @@ jobs:
       uses: paambaati/codeclimate-action@v4
       env:
         CC_TEST_REPORTER_ID: ${{secrets.CC_TEST_REPORTER_ID}}
+        AERGOVM_PATH: "${{ github.workspace }}/bin/aergovm"
       with:
         coverageCommand: go test -timeout 999s -coverprofile build/c.out ./...
         prefix: github.com/aergoio/aergo/v2
@@ -54,7 +55,7 @@ jobs:
       # run unit test only in other cases
     - name: Unit Tests
       if: github.event_name != 'push' || github.ref_name != 'master' || github.ref_type != 'branch'
-      run: go test -timeout 999s ./...
+      run: make check
 
     - name: Integration Tests - brick
       run: cd tests && ./run_tests.sh brick

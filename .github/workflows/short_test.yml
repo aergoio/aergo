@@ -47,4 +47,5 @@ jobs:
     - name: Short Unit Tests
       run: go test -short -timeout 999s ./...
       env:
+        AERGOVM_PATH: "${{ github.workspace }}/bin/aergovm"
         ARGLIB_LOGCONFIG: "${{ github.workspace }}/.github/arglog-shorttest.toml"
