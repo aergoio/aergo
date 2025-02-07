@@ -142,11 +142,11 @@ static int moduleCall(lua_State *L) {
 
 	// call the function on the contract
 	ret = luaCallContract(L, contract, fname, json_args, amount, gas);
-	free(json_args);
-	reset_amount_info(L);
 
 	// if it returned an error message, push it to the stack and throw an error
 	if (ret.r1 != NULL) {
+		free(json_args);
+		reset_amount_info(L);
 		strPushAndRelease(L, ret.r1);
 		luaL_throwerror(L);
 	}
@@ -162,6 +162,10 @@ static int moduleCall(lua_State *L) {
 	if (lua_usegas(L)) {
 		lua_enablegas(L);
 	}
+
+	free(json_args);
+	reset_amount_info(L);
+
 	// check for invalid result format
 	if (count == -1) {
 		luaL_setuncatchablerror(L);
@@ -204,11 +208,11 @@ static int moduleDelegateCall(lua_State *L) {
 	}
 
 	ret = luaDelegateCallContract(L, contract, fname, json_args, gas);
-	free(json_args);
-	reset_amount_info(L);
 
 	// if it returned an error message, push it to the stack and throw an error
 	if (ret.r1 != NULL) {
+		free(json_args);
+		reset_amount_info(L);
 		strPushAndRelease(L, ret.r1);
 		luaL_throwerror(L);
 	}
@@ -224,6 +228,10 @@ static int moduleDelegateCall(lua_State *L) {
 	if (lua_usegas(L)) {
 		lua_enablegas(L);
 	}
+
+	free(json_args);
+	reset_amount_info(L);
+
 	// check for invalid result format
 	if (count == -1) {
 		luaL_setuncatchablerror(L);
@@ -423,11 +431,11 @@ static int moduleDeploy(lua_State *L) {
 	}
 
 	ret = luaDeployContract(L, contract, json_args, amount);
-	free(json_args);
-	reset_amount_info(L);
 
 	// if it returned an error message, push it to the stack and throw an error
 	if (ret.r1 != NULL) {
+		free(json_args);
+		reset_amount_info(L);
 		strPushAndRelease(L, ret.r1);
 		luaL_throwerror(L);
 	}
@@ -461,6 +469,10 @@ static int moduleDeploy(lua_State *L) {
 			lua_enablegas(L);
 		}
 	}
+
+	// before pushing the contract address to the stack, for backward compatibility
+	free(json_args);
+	reset_amount_info(L);
 
 	if (jsonlen >= 56) {
 		// push the contract address to the stack
