@@ -433,14 +433,13 @@ func TestExecuteWithCallback(t *testing.T) {
 
 	// execute contract - deploy
 	callbacks = []vmCallback{
-		{"deploy", []string{contractCode, "[]", "", "\xd5\x17\x0f\x00\x00\x00\x00\x00"}, "\x09\x00\x01\x00\x00\x00\x00\x00[]", nil},
+		{"deploy", []string{contractCode, "[]", "", "\xd5\x17\x0f\x00\x00\x00\x00\x00"}, "\x09\x00\x01\x00\x00\x00\x00\x00[\"Amhs9v8EeAAWrrvEFrvMng4UksHRsR7wN1iLqKkXw5bqMV18JP3h\"]", nil},
 	}
 	result, err, usedGas = Execute("testAddress", string(bytecode), "deploy", `["`+contractCode+`"]`, 1000005, "testCaller", false, false, "")
 	assert.NoError(t, err)
-	assert.Empty(t, result)
+	assert.Equal(t, `"Amhs9v8EeAAWrrvEFrvMng4UksHRsR7wN1iLqKkXw5bqMV18JP3h"`, result)
 	assert.Greater(t, usedGas, uint64(0), "Expected some gas to be used")
 	fmt.Println("used gas: ", usedGas)
-	assert.Equal(t, ``, result)
 
 	InitializeVM()
 
@@ -457,16 +456,28 @@ func TestExecuteWithCallback(t *testing.T) {
 
 	InitializeVM()
 
-	// execute contract - deploy with send
+	// execute contract - deploy with incomplete return
 	callbacks = []vmCallback{
-		{"deploy", []string{contract2, "[250]", "9876543210", "|\x11\x0f\x00\x00\x00\x00\x00"}, "\x09\x00\x01\x00\x00\x00\x00\x00[]", nil},
+		{"deploy", []string{contractCode, "[]", "", "\xd5\x17\x0f\x00\x00\x00\x00\x00"}, "\x09\x00\x01\x00\x00\x00\x00\x00[]", nil},
 	}
-	result, err, usedGas = Execute("testAddress", string(bytecode), "deploy_with_send", `["9876543210","`+contract2+`",250]`, 1000005, "testCaller", false, false, "")
-	assert.NoError(t, err)
+	result, err, usedGas = Execute("testAddress", string(bytecode), "deploy", `["`+contractCode+`"]`, 1000005, "testCaller", false, false, "")
+	assert.Error(t, err)
+	assert.Equal(t, err.Error(), "uncatchable: internal error: result from call is not a valid JSON array")
 	assert.Empty(t, result)
 	assert.Greater(t, usedGas, uint64(0), "Expected some gas to be used")
 	fmt.Println("used gas: ", usedGas)
-	assert.Equal(t, ``, result)
+
+	InitializeVM()
+
+	// execute contract - deploy with send
+	callbacks = []vmCallback{
+		{"deploy", []string{contract2, "[250]", "9876543210", "|\x11\x0f\x00\x00\x00\x00\x00"}, "\x09\x00\x01\x00\x00\x00\x00\x00[\"Amhs9v8EeAAWrrvEFrvMng4UksHRsR7wN1iLqKkXw5bqMV18JP3h\"]", nil},
+	}
+	result, err, usedGas = Execute("testAddress", string(bytecode), "deploy_with_send", `["9876543210","`+contract2+`",250]`, 1000005, "testCaller", false, false, "")
+	assert.NoError(t, err)
+	assert.Equal(t, `"Amhs9v8EeAAWrrvEFrvMng4UksHRsR7wN1iLqKkXw5bqMV18JP3h"`, result)
+	assert.Greater(t, usedGas, uint64(0), "Expected some gas to be used")
+	fmt.Println("used gas: ", usedGas)
 
 	InitializeVM()
 
