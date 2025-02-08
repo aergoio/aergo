@@ -275,12 +275,15 @@ const char *vm_pre_run(lua_State *L) {
 		} else {
 			vm_set_count_hook(L, 5000000);
 		}
+		luaL_enablemaxmem(L);
 	}
 
 	err = lua_pcall(L, 0, 0, 0);
 
 	if (lua_usegas(L)) {
 		lua_disablegas(L);
+	} else {
+		luaL_disablemaxmem(L);
 	}
 
 	// remove hook
@@ -296,8 +299,6 @@ const char *vm_pre_run(lua_State *L) {
 const char *vm_load_code(lua_State *L, const char *code, size_t sz, char *hex_id) {
 	int err;
 
-	// enable check for memory limit
-	luaL_enablemaxmem(L);
 	// mark as running on global scope
 	luaL_set_loading(L, true);
 
@@ -334,12 +335,16 @@ const char *vm_call(lua_State *L, int argc, int *nresult) {
 
 	if (lua_usegas(L)) {
 		lua_enablegas(L);
+	} else {
+		luaL_enablemaxmem(L);
 	}
 
 	err = lua_pcall(L, argc, LUA_MULTRET, 0);
 
 	if (lua_usegas(L)) {
 		lua_disablegas(L);
+	} else {
+		luaL_disablemaxmem(L);
 	}
 
 	if (err != 0) {

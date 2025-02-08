@@ -154,6 +154,8 @@ static int moduleCall(lua_State *L) {
 	// disable gas while importing the returned values
 	if (lua_usegas(L)) {
 		lua_disablegas(L);
+	} else {
+		luaL_disablemaxmem(L);
 	}
 	// push the returned values to the stack
 	int count = lua_util_json_array_to_lua(L, ret.r0, true);
@@ -161,6 +163,8 @@ static int moduleCall(lua_State *L) {
 	// enable gas again
 	if (lua_usegas(L)) {
 		lua_enablegas(L);
+	} else {
+		luaL_enablemaxmem(L);
 	}
 
 	free(json_args);
@@ -220,6 +224,8 @@ static int moduleDelegateCall(lua_State *L) {
 	// disable gas while importing the returned values
 	if (lua_usegas(L)) {
 		lua_disablegas(L);
+	} else {
+		luaL_disablemaxmem(L);
 	}
 	// push the returned values to the stack
 	int count = lua_util_json_array_to_lua(L, ret.r0, true);
@@ -227,6 +233,8 @@ static int moduleDelegateCall(lua_State *L) {
 	// enable gas again
 	if (lua_usegas(L)) {
 		lua_enablegas(L);
+	} else {
+		luaL_enablemaxmem(L);
 	}
 
 	free(json_args);
@@ -461,12 +469,16 @@ static int moduleDeploy(lua_State *L) {
 		// disable gas while importing the returned values
 		if (lua_usegas(L)) {
 			lua_disablegas(L);
+		} else {
+			luaL_disablemaxmem(L);
 		}
 		// push the returned values to the stack
 		count = lua_util_json_array_to_lua(L, json, true);
 		// enable gas again
 		if (lua_usegas(L)) {
 			lua_enablegas(L);
+		} else {
+			luaL_enablemaxmem(L);
 		}
 	}
 
