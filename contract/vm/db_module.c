@@ -192,7 +192,7 @@ static int db_pstmt_tostr(lua_State *L) {
 
 static int add_parameters(lua_State *L, buffer *req) {
 	buffer buf = {0}, *params = &buf;
-	int rc, i;
+	int i;
 	int argc = lua_gettop(L) - 1;
 
 	for (i = 1; i <= argc; i++) {
@@ -243,12 +243,6 @@ static int add_parameters(lua_State *L, buffer *req) {
 			}
 		default:
 			lua_pushfstring(L, "unsupported type: %s", lua_typename(L, n));
-			free_buffer(params);
-			return -1;
-		}
-
-		if (rc != 0) {
-			lua_pushfstring(L, "add parameter failed");
 			free_buffer(params);
 			return -1;
 		}
