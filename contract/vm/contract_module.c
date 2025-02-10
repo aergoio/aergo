@@ -370,6 +370,13 @@ static int modulePcall(lua_State *L) {
 	// call the function
 	ret = lua_pcall(L, argc, LUA_MULTRET, 0);
 	if (ret != 0) {
+		// if out of memory, throw error
+		if (ret == LUA_ERRMEM) {
+			luaL_throwerror(L);
+		}
+		// add 'success = false' as the first returned value
+		lua_pushboolean(L, false);
+		lua_insert(L, 1);
 		// revert the contract state
 		if (start_seq.r0 > 0) {
 			char *errStr = luaClearRecovery(L, start_seq.r0, true);
@@ -378,13 +385,6 @@ static int modulePcall(lua_State *L) {
 				luaL_throwerror(L);
 			}
 		}
-		// if out of memory, throw error
-		if (ret == LUA_ERRMEM) {
-			luaL_throwerror(L);
-		}
-		// add 'success = false' as the first returned value
-		lua_pushboolean(L, false);
-		lua_insert(L, 1);
 		// return the 2 values
 		return 2;
 	}

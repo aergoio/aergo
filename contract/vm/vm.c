@@ -25,7 +25,7 @@ extern void (*lj_internal_view_end)(lua_State *);
 
 void checkLuaExecContext(lua_State *L) {
 	if (luaL_is_loading(L)) {
-		luaL_error(L, "state referencing not permitted at global scope");
+		luaL_error(L, "not permitted state referencing at global scope");
 	}
 }
 
@@ -122,16 +122,6 @@ static int pcall(lua_State *L) {
 	// call the function
 	ret = lua_pcall(L, argc - 1, LUA_MULTRET, 0);
 
-	// release the recovery point (on success) or revert the contract state (on error)
-	if (start_seq.r0 > 0) {
-		bool is_error = (ret != 0);
-		char *errStr = luaClearRecovery(L, start_seq.r0, is_error);
-		if (errStr != NULL) {
-			strPushAndRelease(L, errStr);
-			luaL_throwerror(L);
-		}
-	}
-
 	// throw the error if out of memory
 	if (ret == LUA_ERRMEM) {
 		luaL_throwerror(L);
@@ -140,6 +130,16 @@ static int pcall(lua_State *L) {
 	// insert the status at the bottom of the stack
 	lua_pushboolean(L, ret == 0);
 	lua_insert(L, 1);
+
+	// release the recovery point or revert the contract state
+	if (start_seq.r0 > 0) {
+		bool is_error = (ret != 0);
+		char *errStr = luaClearRecovery(L, start_seq.r0, is_error);
+		if (errStr != NULL) {
+			strPushAndRelease(L, errStr);
+			luaL_throwerror(L);
+		}
+	}
 
 	// return the number of items in the stack
 	return lua_gettop(L);
@@ -189,22 +189,11 @@ static int xpcall(lua_State *L) {
 	// call the function
 	ret = lua_pcall(L, argc - 2, LUA_MULTRET, errfunc);
 
-	// release the recovery point (on success) or revert the contract state (on error)
-	if (start_seq.r0 > 0) {
-		bool is_error = (ret != 0);
-		char *errStr = luaClearRecovery(L, start_seq.r0, is_error);
-		if (errStr != NULL) {
-			strPushAndRelease(L, errStr);
-			luaL_throwerror(L);
-		}
-	}
-
 	// throw the error if out of memory
 	if (ret == LUA_ERRMEM) {
 		luaL_throwerror(L);
 	}
 
-/*
 	// ensure the stack has 1 free slot
 	if (!lua_checkstack(L, 1)) {
 		// return: false, "stack overflow"
@@ -213,11 +202,20 @@ static int xpcall(lua_State *L) {
 		lua_pushliteral(L, "stack overflow");
 		return 2;
 	}
-*/
 
 	// store the status at the bottom of the stack, replacing the error handler
 	lua_pushboolean(L, ret == 0);
 	lua_replace(L, 1);
+
+	// release the recovery point or revert the contract state
+	if (start_seq.r0 > 0) {
+		bool is_error = (ret != 0);
+		char *errStr = luaClearRecovery(L, start_seq.r0, is_error);
+		if (errStr != NULL) {
+			strPushAndRelease(L, errStr);
+			luaL_throwerror(L);
+		}
+	}
 
 	// return the number of items in the stack
 	return lua_gettop(L);

@@ -1103,7 +1103,7 @@ func TestDeploy2(t *testing.T) {
 		)
 		require.NoErrorf(t, err, "failed to connect new block")
 
-		tx := NewLuaTxCall("user1", "deploy", 0, `{"Name":"hello"}`).Fail(`state referencing not permitted at global scope`)
+		tx := NewLuaTxCall("user1", "deploy", 0, `{"Name":"hello"}`).Fail(`not permitted state referencing at global scope`)
 		err = bc.ConnectBlock(tx)
 		require.NoErrorf(t, err, "failed to connect new block")
 
