@@ -41,6 +41,11 @@ func Decode(srcFileName string, payload string) error {
 		return fmt.Errorf("failed to decode payload 1: %v", err.Error())
 	}
 
+	err = os.WriteFile(srcFileName + "-raw", decoded, 0644);
+	if err != nil {
+		return fmt.Errorf("failed to write raw file: %v", err.Error())
+	}
+
 	data := LuaCodePayload(decoded)
 	_, err = data.IsValidFormat()
 	if err != nil {
@@ -118,14 +123,12 @@ func DecodeFromStdin() error {
 
 type LuaCode []byte
 
-const byteCodeLenLen = 4
-
 func NewLuaCode(byteCode, abi []byte) LuaCode {
 	byteCodeLen := len(byteCode)
-	code := make(LuaCode, byteCodeLenLen+byteCodeLen+len(abi))
+	code := make(LuaCode, 4+byteCodeLen+len(abi))
 	binary.LittleEndian.PutUint32(code, uint32(byteCodeLen))
-	copy(code[byteCodeLenLen:], byteCode)
-	copy(code[byteCodeLenLen+byteCodeLen:], abi)
+	copy(code[4:], byteCode)
+	copy(code[4+byteCodeLen:], abi)
 	return code
 }
 
@@ -133,21 +136,21 @@ func (c LuaCode) ByteCode() []byte {
 	if !c.IsValidFormat() {
 		return nil
 	}
-	return c[byteCodeLenLen : byteCodeLenLen+c.byteCodeLen()]
+	return c[4:4+c.byteCodeLen()]
 }
 
 func (c LuaCode) byteCodeLen() int {
-	if c.Len() < byteCodeLenLen {
+	if c.Len() < 4 {
 		return 0
 	}
-	return int(binary.LittleEndian.Uint32(c[:byteCodeLenLen]))
+	return int(binary.LittleEndian.Uint32(c[:4]))
 }
 
 func (c LuaCode) ABI() []byte {
 	if !c.IsValidFormat() {
 		return nil
 	}
-	return c[byteCodeLenLen+c.byteCodeLen():]
+	return c[4+c.byteCodeLen():]
 }
 
 func (c LuaCode) Len() int {
@@ -155,40 +158,40 @@ func (c LuaCode) Len() int {
 }
 
 func (c LuaCode) IsValidFormat() bool {
-	if c.Len() <= byteCodeLenLen {
+	if c.Len() <= 4 {
 		return false
 	}
-	return byteCodeLenLen+c.byteCodeLen() < c.Len()
+	return 4 + c.byteCodeLen() < c.Len()
 }
 
 func (c LuaCode) Bytes() []byte {
 	return c
 }
 
+//------------------------------------------------------------------------------
+
 type LuaCodePayload []byte
 
-const codeLenLen = 4
-
 func NewLuaCodePayload(code LuaCode, args []byte) LuaCodePayload {
-	payload := make([]byte, codeLenLen+code.Len()+len(args))
-	binary.LittleEndian.PutUint32(payload[0:], uint32(code.Len()+codeLenLen))
-	copy(payload[codeLenLen:], code.Bytes())
-	copy(payload[codeLenLen+code.Len():], args)
+	payload := make([]byte, 4+code.Len()+len(args))
+	binary.LittleEndian.PutUint32(payload[0:], uint32(4+code.Len()))
+	copy(payload[4:], code.Bytes())
+	copy(payload[4+code.Len():], args)
 	return payload
 }
 
 func (p LuaCodePayload) headLen() int {
-	if p.Len() < codeLenLen {
+	if p.Len() < 4 {
 		return 0
 	}
-	return int(binary.LittleEndian.Uint32(p[:codeLenLen]))
+	return int(binary.LittleEndian.Uint32(p[:4]))
 }
 
 func (p LuaCodePayload) Code() LuaCode {
 	if v, _ := p.IsValidFormat(); !v {
 		return nil
 	}
-	return LuaCode(p[codeLenLen:p.headLen()])
+	return LuaCode(p[4:p.headLen()])
 }
 
 func (p LuaCodePayload) HasArgs() bool {
@@ -210,7 +213,7 @@ func (p LuaCodePayload) Len() int {
 }
 
 func (p LuaCodePayload) IsValidFormat() (bool, error) {
-	if p.Len() <= codeLenLen {
+	if p.Len() <= 4 {
 		return false, fmt.Errorf("invalid code (%d bytes is too short)", p.Len())
 	}
 	if p.Len() < p.headLen() {
