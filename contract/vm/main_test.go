@@ -6,6 +6,8 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -60,14 +62,21 @@ var initDone = false
 
 func compileVmExecutable(t *testing.T) {
 
-	// Change the current working directory to the root directory
-	os.Chdir("../..")
+	// Get the root folder based on the current file's directory
+	_, filename, _, _ := runtime.Caller(0)
+	rootDir := filepath.Join(filepath.Dir(filename), "../..")
 
-	// Compile the VM binary
-	t.Log("Compiling the VM binary")
-	cmd := exec.Command("make", "aergovm")
-	err := cmd.Run()
-	require.NoError(t, err, "Failed to compile the VM executable")
+	// Change the current working directory to the root directory
+	err := os.Chdir(rootDir)
+	require.NoError(t, err, "Failed to change working directory")
+
+	// Check if the VM binary exists
+	if _, err := os.Stat("bin/aergovm"); os.IsNotExist(err) {
+		t.Log("VM binary does not exist, compiling it")
+		cmd := exec.Command("make", "aergovm")
+		err := cmd.Run()
+		require.NoError(t, err, "Failed to compile the VM executable")
+	}
 
 }
 
