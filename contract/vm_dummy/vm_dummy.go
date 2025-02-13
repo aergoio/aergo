@@ -593,7 +593,7 @@ func (l *luaTxDeploy) run(execCtx context.Context, bs *state.BlockState, bc *Dum
 		// compile the plain code to bytecode
 		payload := util.LuaCodePayload(l._payload)
 		code := string(payload.Code())
-		byteCode, err := contract.Compile(code, false)
+		byteCode, err := contract.Compile(code, nil)
 		if err != nil {
 			return err
 		}
