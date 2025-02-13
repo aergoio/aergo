@@ -5,6 +5,7 @@
 
 package contract
 
+import "C"
 import (
 	"bytes"
 	"context"
@@ -703,6 +704,13 @@ func Create(
 	}
 
 	contexts[ctx.service] = ctx
+
+	if ctx.blockInfo.ForkVersion < 2 {
+		// create a sql database for the contract
+		if db := luaGetDbHandle(C.int(ctx.service)); db == nil {
+			return "", nil, ctx.usedFee(), newVmError(errors.New("can't open a database connection"))
+		}
+	}
 
 	// create a new executor for the constructor
 	ce := newExecutor(bytecode, contractAddress, ctx, &ci, ctx.curContract.amount, true, false, contractState)
