@@ -741,11 +741,11 @@ func expectGas(contractCode string, amount int64, funcName, funcArgs string, exp
 		return err
 	}
 
-	var code string
+	var payload string
 	if len(funcArgs) == 0 {
-		code = fmt.Sprintf(`{"Name":%s}`, funcName)
+		payload = fmt.Sprintf(`{"Name":%s}`, funcName)
 	} else {
-		code = fmt.Sprintf(`{"Name":%s, "Args":[%s]}`, funcName, funcArgs)
+		payload = fmt.Sprintf(`{"Name":%s, "Args":[%s]}`, funcName, funcArgs)
 	}
 
 	var balanceBefore, balanceAfter int64
@@ -756,7 +756,7 @@ func expectGas(contractCode string, amount int64, funcName, funcArgs string, exp
 		balanceBefore = state.GetBalanceBigInt().Int64()
 	}
 	// execute tx in block
-	tx := NewLuaTxCall(DEF_TEST_ACCOUNT, DEF_TEST_CONTRACT, uint64(amount), code)
+	tx := NewLuaTxCall(DEF_TEST_ACCOUNT, DEF_TEST_CONTRACT, uint64(amount), payload)
 	if err = bc.ConnectBlock(tx); err != nil {
 		return err
 	}

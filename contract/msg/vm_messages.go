@@ -20,8 +20,7 @@ func SerializeMessage(strings ...string) []byte {
 
 	// write each string's length and content
 	for _, s := range strings {
-		length := uint32(len(s))
-		binary.Write(&buf, binary.LittleEndian, length)
+		binary.Write(&buf, binary.LittleEndian, uint32(len(s)))
 		buf.WriteString(s)
 	}
 
@@ -36,8 +35,7 @@ func SerializeMessageBytes(args ...[]byte) []byte {
 
 	// write each string's length and content
 	for _, b := range args {
-		length := uint32(len(b))
-		binary.Write(&buf, binary.LittleEndian, length)
+		binary.Write(&buf, binary.LittleEndian, uint32(len(b)))
 		buf.Write(b)
 	}
 

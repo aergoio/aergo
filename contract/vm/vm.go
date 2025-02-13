@@ -310,9 +310,9 @@ func (ce *executor) call(hasParent bool) {
 	}
 
 	// convert the result to json
-	var errRet C.int
-	retMsg := C.GoString(C.vm_get_json_ret(ce.L, nRet, C.bool(hasParent), &errRet))
-	if errRet == 1 {
+	var isError C.int
+	retMsg := C.GoString(C.vm_get_json_ret(ce.L, nRet, C.bool(hasParent), &isError))
+	if isError == 1 {
 		ce.err = errors.New(retMsg)
 	} else {
 		ce.jsonRet = retMsg
@@ -516,7 +516,7 @@ func Compile(code string, hasParent bool) ([]byte, error) {
 
 	if hasParent {
 		// mark as running a call
-		C.luaL_set_loading(lState, C.bool(false))
+		//C.luaL_set_loading(lState, C.bool(false))
 		// set the hardfork version
 		//C.luaL_set_hardforkversion(lState, 5)
 		// set the timeout hook
