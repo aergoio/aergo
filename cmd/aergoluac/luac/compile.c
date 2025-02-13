@@ -8,7 +8,7 @@
 #include "_cgo_export.h"
 
 lua_State *luac_vm_newstate() {
-	lua_State *L = luaL_newstate(5);
+	lua_State *L = luaL_newstate(3);
 	if (L == NULL) {
 		return NULL;
 	}
@@ -111,4 +111,3 @@ const char *vm_stringdump(lua_State *L) {
 	lua_remove(L, -2);  /* code dump abi */
 	return NULL;
 }
-
