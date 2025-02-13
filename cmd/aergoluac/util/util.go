@@ -7,12 +7,164 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"net/http"
+	"path/filepath"
+	"strings"
 
 	"github.com/aergoio/aergo/v2/internal/enc/hex"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/cmd/aergoluac/encoding"
 )
 
+
+////////////////////////////////////////////////////////////////////////////////
+// Pack/Bundle
+////////////////////////////////////////////////////////////////////////////////
+
+// Set to track imported files
+var importedFiles = make(map[string]bool)
+
+// ProcessLines processes a string containing contract code, handling imports
+func processLines(input string, currentDir string) (string, error) {
+
+	// Create a string builder for the output
+	var output strings.Builder
+
+	// Process each line
+	scanner := bufio.NewScanner(strings.NewReader(input))
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		// Check if line starts with "import "
+		if strings.HasPrefix(line, "import ") {
+			// Extract the file name from import statement
+			importLine := strings.TrimSpace(line[6:]) // Remove "import " prefix
+
+			// Check if it has minimum length for a valid import
+			if len(importLine) < 3 {
+				return "", fmt.Errorf("invalid import format: %s", line)
+			}
+
+			// Check if it starts with a valid quote character
+			quoteChar := importLine[0]
+			if quoteChar != '"' && quoteChar != '\'' {
+				return "", fmt.Errorf("import statement must use quotes: %s", line)
+			}
+
+			// Check if it ends with the same quote character
+			if importLine[len(importLine)-1] != quoteChar {
+				return "", fmt.Errorf("mismatched quotes in import: %s", line)
+			}
+
+			// Extract the file path between quotes
+			importFile := importLine[1 : len(importLine)-1]
+
+			// If it's not a URL and not an absolute path, make it relative to the current file's directory
+			if !strings.HasPrefix(importFile, "http") && !filepath.IsAbs(importFile) {
+				importFile = filepath.Join(currentDir, importFile)
+			}
+
+			// Get absolute path to check for circular imports
+			absImportPath, err := filepath.Abs(importFile)
+			if err != nil {
+				return "", fmt.Errorf("error getting absolute path: %w", err)
+			}
+
+			// Skip if already imported
+			if importedFiles[absImportPath] {
+				continue
+			}
+
+			// Mark as imported
+			importedFiles[absImportPath] = true
+
+			// Read the imported file
+			importContent, err := readContractFile(importFile)
+			if err != nil {
+				return "", fmt.Errorf("error importing file '%s': %w", importFile, err)
+			}
+
+			// Get the directory of the imported file for nested imports
+			importedFileDir := filepath.Dir(importFile)
+
+			// Process the imported content recursively
+			processedImport, err := processLines(importContent, importedFileDir)
+			if err != nil {
+				return "", err
+			}
+
+			// Add the processed import to output
+			output.WriteString(processedImport)
+			output.WriteString("\n")
+		} else {
+			// Regular line, add to output
+			output.WriteString(line)
+			output.WriteString("\n")
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return "", fmt.Errorf("error scanning input: %w", err)
+	}
+
+	return output.String(), nil
+}
+
+func readContractFile(filePath string) (string, error) {
+	// if the file path is a url, read it from the web
+	if strings.HasPrefix(filePath, "http") {
+		// search in the web
+		req, err := http.NewRequest("GET", filePath, nil)
+		if err != nil {
+			return "", err
+		}
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			return "", err
+		}
+		defer resp.Body.Close()
+		fileBytes, _ := ioutil.ReadAll(resp.Body)
+		return string(fileBytes), nil
+	}
+
+	// search in the local file system
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		return "", err
+	}
+	fileBytes, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		return "", err
+	}
+	return string(fileBytes), nil
+}
+
+// ReadContract reads a contract file and bundles the imports
+func ReadContract(filePath string) (string, error) {
+	// Reset imported files tracking for each new processing
+	importedFiles = make(map[string]bool)
+
+	// Get the absolute path of the main file
+	absPath, err := filepath.Abs(filePath)
+	if err != nil {
+		return "", fmt.Errorf("error getting absolute path: %w", err)
+	}
+
+	// Get the directory of the main file
+	mainFileDir := filepath.Dir(absPath)
+
+	// Mark the main file as imported
+	importedFiles[absPath] = true
+
+	// read the contract file
+	output, err := readContractFile(filePath)
+	if err != nil {
+		return "", err
+	}
+
+	// process the contract file for import statements, passing the main file's directory
+	return processLines(output, mainFileDir)
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Decode
@@ -39,6 +191,11 @@ func Decode(srcFileName string, payload string) error {
 	}
 	if err != nil {
 		return fmt.Errorf("failed to decode payload 1: %v", err.Error())
+	}
+
+	err = os.WriteFile(srcFileName + "-raw", decoded, 0644);
+	if err != nil {
+		return fmt.Errorf("failed to write raw file: %v", err.Error())
 	}
 
 	data := LuaCodePayload(decoded)
@@ -118,14 +275,12 @@ func DecodeFromStdin() error {
 
 type LuaCode []byte
 
-const byteCodeLenLen = 4
-
 func NewLuaCode(byteCode, abi []byte) LuaCode {
 	byteCodeLen := len(byteCode)
-	code := make(LuaCode, byteCodeLenLen+byteCodeLen+len(abi))
+	code := make(LuaCode, 4+byteCodeLen+len(abi))
 	binary.LittleEndian.PutUint32(code, uint32(byteCodeLen))
-	copy(code[byteCodeLenLen:], byteCode)
-	copy(code[byteCodeLenLen+byteCodeLen:], abi)
+	copy(code[4:], byteCode)
+	copy(code[4+byteCodeLen:], abi)
 	return code
 }
 
@@ -133,21 +288,21 @@ func (c LuaCode) ByteCode() []byte {
 	if !c.IsValidFormat() {
 		return nil
 	}
-	return c[byteCodeLenLen : byteCodeLenLen+c.byteCodeLen()]
+	return c[4:4+c.byteCodeLen()]
 }
 
 func (c LuaCode) byteCodeLen() int {
-	if c.Len() < byteCodeLenLen {
+	if c.Len() < 4 {
 		return 0
 	}
-	return int(binary.LittleEndian.Uint32(c[:byteCodeLenLen]))
+	return int(binary.LittleEndian.Uint32(c[:4]))
 }
 
 func (c LuaCode) ABI() []byte {
 	if !c.IsValidFormat() {
 		return nil
 	}
-	return c[byteCodeLenLen+c.byteCodeLen():]
+	return c[4+c.byteCodeLen():]
 }
 
 func (c LuaCode) Len() int {
@@ -155,40 +310,40 @@ func (c LuaCode) Len() int {
 }
 
 func (c LuaCode) IsValidFormat() bool {
-	if c.Len() <= byteCodeLenLen {
+	if c.Len() <= 4 {
 		return false
 	}
-	return byteCodeLenLen+c.byteCodeLen() < c.Len()
+	return 4 + c.byteCodeLen() < c.Len()
 }
 
 func (c LuaCode) Bytes() []byte {
 	return c
 }
 
+//------------------------------------------------------------------------------
+
 type LuaCodePayload []byte
 
-const codeLenLen = 4
-
 func NewLuaCodePayload(code LuaCode, args []byte) LuaCodePayload {
-	payload := make([]byte, codeLenLen+code.Len()+len(args))
-	binary.LittleEndian.PutUint32(payload[0:], uint32(code.Len()+codeLenLen))
-	copy(payload[codeLenLen:], code.Bytes())
-	copy(payload[codeLenLen+code.Len():], args)
+	payload := make([]byte, 4+code.Len()+len(args))
+	binary.LittleEndian.PutUint32(payload[0:], uint32(4+code.Len()))
+	copy(payload[4:], code.Bytes())
+	copy(payload[4+code.Len():], args)
 	return payload
 }
 
 func (p LuaCodePayload) headLen() int {
-	if p.Len() < codeLenLen {
+	if p.Len() < 4 {
 		return 0
 	}
-	return int(binary.LittleEndian.Uint32(p[:codeLenLen]))
+	return int(binary.LittleEndian.Uint32(p[:4]))
 }
 
 func (p LuaCodePayload) Code() LuaCode {
 	if v, _ := p.IsValidFormat(); !v {
 		return nil
 	}
-	return LuaCode(p[codeLenLen:p.headLen()])
+	return LuaCode(p[4:p.headLen()])
 }
 
 func (p LuaCodePayload) HasArgs() bool {
@@ -210,7 +365,7 @@ func (p LuaCodePayload) Len() int {
 }
 
 func (p LuaCodePayload) IsValidFormat() (bool, error) {
-	if p.Len() <= codeLenLen {
+	if p.Len() <= 4 {
 		return false, fmt.Errorf("invalid code (%d bytes is too short)", p.Len())
 	}
 	if p.Len() < p.headLen() {
