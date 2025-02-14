@@ -3430,6 +3430,33 @@ func TestPcallStateRollback1(t *testing.T) {
 				map[string]int{"A": 0, "B": 0},
 				map[string]int64{"A": 3, "B": 0})
 
+			// tries with more calls than the max call depth on fork version < 3
+			// A -> B -> A -> B -> A -> B (zigzag)
+
+			if currentVersion < 3 {
+				script = `[[
+					['set','x',111],
+					['pcall','B',1]
+				],[
+					['set','x',222],
+					['pcall','A',1]
+				],[
+					['set','x',333],
+					['pcall','B',1]
+				],[
+					['set','x',444],
+					['pcall','A',1]
+				],[
+					['set','x',555],
+					['pcall','B',1]
+				],[
+					['set','x',666]
+				]]`
+				testStateRollback(t, bc, script,
+					map[string]int{"A": 0, "B": 0},
+					map[string]int64{"A": 3, "B": 0})
+			}
+
 			// A -> B -> A -> B -> A  (zigzag)
 
 			script = `[[
@@ -4523,7 +4550,13 @@ func TestPcallStateRollback3(t *testing.T) {
 func testStateRollback(t *testing.T, bc *DummyChain, script string, expected_state map[string]int, expected_amount map[string]int64) {
 	t.Helper()
 
+	// run the test 2 times: the first time uses normal transaction, the second time uses multi-call transaction
 	for n := 1; n <= 2; n++ {
+
+		// multi-call transaction is not supported before version 4
+		if n == 2 && currentVersion < 4 {
+			return
+		}
 
 		err := bc.ConnectBlock(
 			NewLuaTxCall("user", "A", 0, `{"Name":"set","Args":["x",0]}`),
@@ -4583,7 +4616,13 @@ func testStateRollback(t *testing.T, bc *DummyChain, script string, expected_sta
 func testDbStateRollback(t *testing.T, bc *DummyChain, script string, expected map[string]int) {
 	t.Helper()
 
+	// run the test 2 times: the first time uses normal transaction, the second time uses multi-call transaction
 	for n := 1; n <= 2; n++ {
+
+		// multi-call transaction is not supported before version 4
+		if n == 2 && currentVersion < 4 {
+			return
+		}
 
 		err := bc.ConnectBlock(
 			NewLuaTxCall("user", "A", 0, `{"Name":"db_reset"}`),
