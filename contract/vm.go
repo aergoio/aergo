@@ -323,7 +323,7 @@ func newExecutor(
 	ctx.callStack = append(ctx.callStack, ce)
 	ctx.callDepth++
 	if ctx.callDepth > MaxCallDepth(ctx.blockInfo.ForkVersion) {
-		ce.err = fmt.Errorf("exceeded the maximum call depth(%d)", MaxCallDepth(ctx.blockInfo.ForkVersion))
+		ce.err = fmt.Errorf("uncatchable: exceeded the maximum call depth(%d)", MaxCallDepth(ctx.blockInfo.ForkVersion))
 		return ce
 	}
 

@@ -483,7 +483,7 @@ func TestExecuteWithCallback(t *testing.T) {
 	}
 	result, err, usedGas = Execute("testAddress", string(bytecode), "deploy", `["`+contractCode+`"]`, 1000005, "testCaller", false, false, "")
 	assert.Error(t, err)
-	assert.Equal(t, err.Error(), "uncatchable: internal error: result from call is not a valid JSON array")
+	assert.Equal(t, "internal error: result from call is not a valid JSON array", err.Error())
 	assert.Empty(t, result)
 	assert.Greater(t, usedGas, uint64(0), "Expected some gas to be used")
 	fmt.Println("used gas: ", usedGas)
@@ -496,7 +496,7 @@ func TestExecuteWithCallback(t *testing.T) {
 	}
 	result, err, usedGas = Execute("testAddress", string(bytecode), "deploy", `["`+contractCode+`"]`, 1000005, "testCaller", false, false, "")
 	assert.Error(t, err)
-	assert.Equal(t, err.Error(), "uncatchable: internal error: result from call is not a valid JSON array")
+	assert.Equal(t, "internal error: result from call is not a valid JSON array", err.Error())
 	assert.Empty(t, result)
 	assert.Greater(t, usedGas, uint64(0), "Expected some gas to be used")
 	fmt.Println("used gas: ", usedGas)

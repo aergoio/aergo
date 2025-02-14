@@ -92,6 +92,14 @@ func iif[T any](condition bool, trueVal, falseVal T) T {
 	return falseVal
 }
 
+// buildError formats error messages from contract execution, handling special "uncatchable" errors
+func buildError(contextMsg string, err error) error {
+	if strings.HasPrefix(err.Error(), "uncatchable: ") {
+			return errors.New("uncatchable: " + contextMsg + err.Error()[13:])
+	}
+	return errors.New(contextMsg + err.Error())
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // VM API
 ////////////////////////////////////////////////////////////////////////////////
@@ -294,7 +302,7 @@ func (ctx *vmContext) handleCall(args []string) (result string, err error) {
 	if ce.err != nil {
 		errmsg[NEW_MSG] = "[Contract.Call] newExecutor error: "
 		errmsg[OLD_MSG] = "[Contract.LuaCallContract] newExecutor error: "
-		return "", errors.New(errmsg[errnum] + ce.err.Error())
+		return "", buildError(errmsg[errnum], ce.err)
 	}
 
 	// set the remaining gas or gas limit from the parent contract
@@ -328,7 +336,7 @@ func (ctx *vmContext) handleCall(args []string) (result string, err error) {
 	if err != nil {
 		errmsg[NEW_MSG] = "[Contract.Call] database error: "
 		errmsg[OLD_MSG] = "[System.LuaCallContract] database error: "
-		return "", errors.New(errmsg[errnum] + err.Error())
+		return "", errors.New("uncatchable: " + errmsg[errnum] + err.Error())
 	}
 
 	// set the current contract info
@@ -351,7 +359,7 @@ func (ctx *vmContext) handleCall(args []string) (result string, err error) {
 		if err != nil {
 			errmsg[NEW_MSG] = "[Contract.Call] recovery err: "
 			errmsg[OLD_MSG] = "[Contract.LuaCallContract] recovery err: "
-			return "", errors.New(errmsg[errnum] + err.Error())
+			return "", errors.New("uncatchable: " + errmsg[errnum] + err.Error())
 		}
 		// log some info
 		if ctx.traceFile != nil {
@@ -364,7 +372,7 @@ func (ctx *vmContext) handleCall(args []string) (result string, err error) {
 		default:
 			errmsg[NEW_MSG] = "[Contract.Call] call err: "
 			errmsg[OLD_MSG] = "[Contract.LuaCallContract] call err: "
-			return "", errors.New(errmsg[errnum] + ceErr.Error())
+			return "", buildError(errmsg[errnum], ceErr)
 		}
 	}
 
@@ -374,7 +382,7 @@ func (ctx *vmContext) handleCall(args []string) (result string, err error) {
 		if err != nil {
 			errmsg[NEW_MSG] = "[Contract.Call] recovery err: "
 			errmsg[OLD_MSG] = "[Contract.LuaCallContract] recovery err: "
-			return "", errors.New(errmsg[errnum] + err.Error())
+			return "", errors.New("uncatchable: " + errmsg[errnum] + err.Error())
 		}
 	}
 
@@ -462,17 +470,18 @@ func (ctx *vmContext) handleDelegateCall(args []string) (result string, err erro
 	if ce.err != nil {
 		errmsg[NEW_MSG] = "[Contract.DelegateCall] newExecutor error: "
 		errmsg[OLD_MSG] = "[Contract.LuaDelegateCallContract] newExecutor error: "
-		return "", errors.New(errmsg[errnum] + ce.err.Error())
+		return "", buildError(errmsg[errnum], ce.err)
 	}
 
 	// set the remaining gas or gas limit from the parent contract
 	ce.contractGasLimit = gasLimit
 
+	// create a recovery point
 	seq, err := setRecoveryPoint(aid, ctx, nil, ctx.curContract.callState, zeroBig, false, false)
 	if err != nil {
 		errmsg[NEW_MSG] = "[Contract.DelegateCall] database error: "
 		errmsg[OLD_MSG] = "[System.LuaDelegateCallContract] database error: "
-		return "", errors.New(errmsg[errnum] + err.Error())
+		return "", errors.New("uncatchable: " + errmsg[errnum] + err.Error())
 	}
 	if ctx.traceFile != nil {
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[DELEGATECALL Contract %v %v]\n", contractAddress, fname))
@@ -492,7 +501,7 @@ func (ctx *vmContext) handleDelegateCall(args []string) (result string, err erro
 		if err != nil {
 			errmsg[NEW_MSG] = "[Contract.DelegateCall] recovery error: "
 			errmsg[OLD_MSG] = "[Contract.LuaDelegateCallContract] recovery error: "
-			return "", errors.New(errmsg[errnum] + err.Error())
+			return "", errors.New("uncatchable: " + errmsg[errnum] + err.Error())
 		}
 		// log some info
 		if ctx.traceFile != nil {
@@ -505,7 +514,7 @@ func (ctx *vmContext) handleDelegateCall(args []string) (result string, err erro
 		default:
 			errmsg[NEW_MSG] = "[Contract.DelegateCall] call error: "
 			errmsg[OLD_MSG] = "[Contract.LuaDelegateCallContract] call error: "
-			return "", errors.New(errmsg[errnum] + ce.err.Error())
+			return "", buildError(errmsg[errnum], ce.err)
 		}
 	}
 
@@ -515,7 +524,7 @@ func (ctx *vmContext) handleDelegateCall(args []string) (result string, err erro
 		if err != nil {
 			errmsg[NEW_MSG] = "[Contract.DelegateCall] recovery error: "
 			errmsg[OLD_MSG] = "[Contract.LuaDelegateCallContract] recovery error: "
-			return "", errors.New(errmsg[errnum] + err.Error())
+			return "", errors.New("uncatchable: " + errmsg[errnum] + err.Error())
 		}
 	}
 
@@ -622,7 +631,7 @@ func (ctx *vmContext) handleSend(args []string) (result string, err error) {
 		if ce.err != nil {
 			errmsg[NEW_MSG] = "[Contract.Send] newExecutor error: "
 			errmsg[OLD_MSG] = "[Contract.LuaSendAmount] newExecutor error: "
-			return "", errors.New(errmsg[errnum] + ce.err.Error())
+			return "", buildError(errmsg[errnum], ce.err)
 		}
 
 		// set the remaining gas or gas limit from the parent contract
@@ -642,7 +651,7 @@ func (ctx *vmContext) handleSend(args []string) (result string, err error) {
 		if err != nil {
 			errmsg[NEW_MSG] = "[Contract.Send] database error: "
 			errmsg[OLD_MSG] = "[System.LuaSendAmount] database error: "
-			return "", errors.New(errmsg[errnum] + err.Error())
+			return "", errors.New("uncatchable: " + errmsg[errnum] + err.Error())
 		}
 
 		// log some info
@@ -674,7 +683,7 @@ func (ctx *vmContext) handleSend(args []string) (result string, err error) {
 			if err != nil {
 				errmsg[NEW_MSG] = "[Contract.Send] recovery err: "
 				errmsg[OLD_MSG] = "[Contract.LuaSendAmount] recovery err: "
-				return "", errors.New(errmsg[errnum] + err.Error())
+				return "", errors.New("uncatchable: " + errmsg[errnum] + err.Error())
 			}
 			// log some info
 			if ctx.traceFile != nil {
@@ -687,7 +696,7 @@ func (ctx *vmContext) handleSend(args []string) (result string, err error) {
 			default:
 				errmsg[NEW_MSG] = "[Contract.Send] call err: "
 				errmsg[OLD_MSG] = "[Contract.LuaSendAmount] call err: "
-				return "", errors.New(errmsg[errnum] + ce.err.Error())
+				return "", buildError(errmsg[errnum], ce.err)
 			}
 		}
 
@@ -697,7 +706,7 @@ func (ctx *vmContext) handleSend(args []string) (result string, err error) {
 			if err != nil {
 				errmsg[NEW_MSG] = "[Contract.Send] recovery err: "
 				errmsg[OLD_MSG] = "[Contract.LuaSendAmount] recovery err: "
-				return "", errors.New(errmsg[errnum] + err.Error())
+				return "", errors.New("uncatchable: " + errmsg[errnum] + err.Error())
 			}
 		}
 
@@ -719,9 +728,12 @@ func (ctx *vmContext) handleSend(args []string) (result string, err error) {
 		return "", errors.New(errmsg[errnum] + r.Error())
 	}
 
-	// update the recovery point
+	// update the last recovery point
 	if ctx.lastRecoveryEntry != nil {
-		_, _ = setRecoveryPoint(aid, ctx, senderState, cs, amountBig, true, false)
+		_, err := setRecoveryPoint(aid, ctx, senderState, cs, amountBig, true, false)
+		if err != nil {
+			return "", errors.New("uncatchable: [Contract.Send] error setting recovery point: " + err.Error())
+		}
 	}
 
 	// log some info
@@ -759,7 +771,7 @@ func (ctx *vmContext) handleSetRecoveryPoint() (result string, err error) {
 	if err != nil {
 		errmsg[NEW_MSG] = "[Contract.SetRecoveryPoint] database error: "
 		errmsg[OLD_MSG] = "[Contract.pcall] database error: "
-		return "", errors.New(errmsg[errnum] + err.Error())
+		return "", errors.New("uncatchable: " + errmsg[errnum] + err.Error())
 	}
 	if ctx.traceFile != nil {
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[pcall] snapshot set %d\n", seq))
@@ -789,20 +801,23 @@ func clearRecovery(ctx *vmContext, start int, revert bool) error {
 }
 
 func (ctx *vmContext) handleClearRecovery(args []string) (result string, err error) {
+	if ctx.isQuery || ctx.nestedView > 0 {
+		return "", nil
+	}
 	if len(args) != 2 {
-		return "", errors.New("[Contract.ClearRecovery] invalid number of arguments")
+		return "", errors.New("uncatchable: [Contract.ClearRecovery] invalid number of arguments")
 	}
 	start, err := strconv.Atoi(args[0])
 	if err != nil {
-		return "", errors.New("[Contract.ClearRecovery] invalid start")
+		return "", errors.New("uncatchable: [Contract.ClearRecovery] invalid start")
 	}
 	revert, err := strconv.ParseBool(args[1])
 	if err != nil {
-		return "", errors.New("[Contract.ClearRecovery] invalid revert")
+		return "", errors.New("uncatchable: [Contract.ClearRecovery] invalid revert")
 	}
 	err = clearRecovery(ctx, start, revert)
 	if err != nil {
-		return "", err
+		return "", errors.New("uncatchable: [Contract.ClearRecovery] error clearing recovery point: " + err.Error())
 	}
 	if ctx.traceFile != nil && revert == true {
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("pcall recovery snapshot: %d\n", start))
@@ -1438,7 +1453,7 @@ func (ctx *vmContext) handleDeploy(args []string) (result string, err error) {
 	if err != nil {
 		errmsg[NEW_MSG] = "[Contract.Deploy] DB err: "
 		errmsg[OLD_MSG] = "[System.LuaDeployContract] DB err:"
-		return "", errors.New(errmsg[errnum] + err.Error())
+		return "", errors.New("uncatchable: " + errmsg[errnum] + err.Error())
 	}
 
 	// log some info
@@ -1488,7 +1503,7 @@ func (ctx *vmContext) handleDeploy(args []string) (result string, err error) {
 	if ce.err != nil {
 		errmsg[NEW_MSG] = "[Contract.Deploy] newExecutor Error: "
 		errmsg[OLD_MSG] = "[Contract.LuaDeployContract]newExecutor Error :"
-		return "", errors.New(errmsg[errnum] + ce.err.Error())
+		return "", buildError(errmsg[errnum], ce.err)
 	}
 
 	// set the remaining gas or gas limit from the parent contract
@@ -1513,7 +1528,7 @@ func (ctx *vmContext) handleDeploy(args []string) (result string, err error) {
 			if err != nil {
 				errmsg[NEW_MSG] = "[Contract.Deploy] recovery error: "
 				errmsg[OLD_MSG] = "[Contract.LuaDeployContract] recovery error: "
-				return result, errors.New(errmsg[errnum] + err.Error())
+				return result, errors.New("uncatchable: " + errmsg[errnum] + err.Error())
 			}
 			// log some info
 			if ctx.traceFile != nil {
@@ -1526,7 +1541,7 @@ func (ctx *vmContext) handleDeploy(args []string) (result string, err error) {
 			default:
 				errmsg[NEW_MSG] = "[Contract.Deploy] call err: "
 				errmsg[OLD_MSG] = "[Contract.LuaDeployContract] call err:"
-				return result, errors.New(errmsg[errnum] + ce.err.Error())
+				return result, buildError(errmsg[errnum], ce.err)
 			}
 		}
 	}
@@ -1537,7 +1552,7 @@ func (ctx *vmContext) handleDeploy(args []string) (result string, err error) {
 		if err != nil {
 			errmsg[NEW_MSG] = "[Contract.Deploy] recovery error: "
 			errmsg[OLD_MSG] = "[Contract.LuaDeployContract] recovery error: "
-			return result, errors.New(errmsg[errnum] + err.Error())
+			return result, errors.New("uncatchable: " + errmsg[errnum] + err.Error())
 		}
 	}
 
@@ -1789,7 +1804,7 @@ func (ctx *vmContext) handleGovernance(args []string) (result string, err error)
 	if err != nil {
 		errmsg[NEW_MSG] = "[Contract.Governance] database error: "
 		errmsg[OLD_MSG] = "[Contract.LuaGovernance] database error: "
-		return "", errors.New(errmsg[errnum] + err.Error())
+		return "", errors.New("uncatchable: " + errmsg[errnum] + err.Error())
 	}
 
 	// execute the system transaction
@@ -1800,7 +1815,7 @@ func (ctx *vmContext) handleGovernance(args []string) (result string, err error)
 		if rErr != nil {
 			errmsg[NEW_MSG] = "[Contract.Governance] recovery error: "
 			errmsg[OLD_MSG] = "[Contract.LuaGovernance] recovery error: "
-			return "", errors.New(errmsg[errnum] + rErr.Error())
+			return "", errors.New("uncatchable: " + errmsg[errnum] + rErr.Error())
 		}
 		errmsg[NEW_MSG] = "[Contract.Governance] error: "
 		errmsg[OLD_MSG] = "[Contract.LuaGovernance] error: "
@@ -1813,7 +1828,7 @@ func (ctx *vmContext) handleGovernance(args []string) (result string, err error)
 		if err != nil {
 			errmsg[NEW_MSG] = "[Contract.Governance] recovery error: "
 			errmsg[OLD_MSG] = "[Contract.LuaGovernance] recovery error: "
-			return "", errors.New(errmsg[errnum] + err.Error())
+			return "", errors.New("uncatchable: " + errmsg[errnum] + err.Error())
 		}
 	}
 
@@ -1821,9 +1836,10 @@ func (ctx *vmContext) handleGovernance(args []string) (result string, err error)
 	ctx.eventCount += int32(len(events))
 	ctx.events = append(ctx.events, events...)
 
+	// update the last recovery point
 	if ctx.lastRecoveryEntry != nil {
 		if gType == "S" {
-			seq, _ = setRecoveryPoint(aid, ctx, senderState, scsState, amountBig, true, false)
+			seq, err = setRecoveryPoint(aid, ctx, senderState, scsState, amountBig, true, false)
 			if ctx.traceFile != nil {
 				_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[GOVERNANCE]aid(%s)\n", aid.String()))
 				_, _ = ctx.traceFile.WriteString(fmt.Sprintf("snapshot set %d\n", seq))
@@ -1831,8 +1847,9 @@ func (ctx *vmContext) handleGovernance(args []string) (result string, err error)
 				_, _ = ctx.traceFile.WriteString(fmt.Sprintf("After sender: %s receiver: %s\n",
 					senderState.Balance().String(), receiverState.Balance().String()))
 			}
+
 		} else if gType == "U" {
-			seq, _ = setRecoveryPoint(aid, ctx, receiverState, ctx.curContract.callState, amountBig, true, false)
+			seq, err = setRecoveryPoint(aid, ctx, receiverState, ctx.curContract.callState, amountBig, true, false)
 			if ctx.traceFile != nil {
 				_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[GOVERNANCE]aid(%s)\n", aid.String()))
 				_, _ = ctx.traceFile.WriteString(fmt.Sprintf("snapshot set %d\n", seq))
@@ -1840,6 +1857,9 @@ func (ctx *vmContext) handleGovernance(args []string) (result string, err error)
 				_, _ = ctx.traceFile.WriteString(fmt.Sprintf("After sender: %s receiver: %s\n",
 					senderState.Balance().String(), receiverState.Balance().String()))
 			}
+		}
+		if err != nil {
+			return "", errors.New("uncatchable: [Contract.Governance] error setting recovery point: " + err.Error())
 		}
 	}
 

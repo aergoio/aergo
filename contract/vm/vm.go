@@ -231,11 +231,8 @@ func (ce *executor) call(hasParent bool) {
 
 	defer func() {
 		if ce.err != nil && hasParent {
-			if bool(C.luaL_hasuncatchablerror(ce.L)) {
+			if bool(C.luaL_hasuncatchablerror(ce.L)) || bool(C.luaL_hassyserror(ce.L)) {
 				ce.err = errors.New("uncatchable: " + ce.err.Error())
-			}
-			if bool(C.luaL_hassyserror(ce.L)) {
-				ce.err = errors.New("syserror: " + ce.err.Error())
 			}
 		}
 	}()
@@ -297,12 +294,6 @@ func (ce *executor) call(hasParent bool) {
 		if (errMsg == C.ERR_BF_TIMEOUT || errMsg == vmTimeoutErrMsg) {
 			ce.err = errors.New(vmTimeoutErrMsg)  // &VmTimeoutError{}
 		} else {
-			if bool(C.luaL_hassyserror(ce.L)) {
-				errMsg = "syserror: " + errMsg
-			}
-			if bool(C.luaL_hasuncatchablerror(ce.L)) {
-				errMsg = "uncatchable: " + errMsg
-			}
 			ce.err = errors.New(errMsg)
 		}
 		logger.Debug().Err(ce.err).Str("contract", contractAddress).Msg("contract execution failed")
