@@ -72,12 +72,18 @@ func newContractInfo(cs *callState, sender, contractId []byte, rp uint64, amount
 	}
 }
 
+
+////////////////////////////////////////////////////////////////////////////////
+// State Recovery
+////////////////////////////////////////////////////////////////////////////////
+
 type recoveryEntry struct {
 	seq           int
 	amount        *big.Int
 	senderState   *state.AccountState
 	senderNonce   uint64
 	callState     *callState
+	eventCount    int
 	onlySend      bool
 	isDeploy      bool
 	sqlSaveName   *string
@@ -85,7 +91,7 @@ type recoveryEntry struct {
 	prev          *recoveryEntry
 }
 
-func (re *recoveryEntry) recovery(bs *state.BlockState) error {
+func (re *recoveryEntry) revertState(ctx *vmContext) error {
 	var zero big.Int
 	cs := re.callState
 
@@ -107,8 +113,15 @@ func (re *recoveryEntry) recovery(bs *state.BlockState) error {
 		re.senderState.SetNonce(re.senderNonce)
 	}
 
+	// if the contract state is not stored, do not restore it
 	if cs == nil {
 		return nil
+	}
+
+	// restore the event count
+	if ctx.blockInfo.ForkVersion >= 4 {
+		ctx.events = ctx.events[:re.eventCount]
+		ctx.eventCount = int32(re.eventCount)
 	}
 
 	// restore the contract state
@@ -122,7 +135,7 @@ func (re *recoveryEntry) recovery(bs *state.BlockState) error {
 			if err != nil {
 				return newDbSystemError(err)
 			}
-			bs.RemoveCache(cs.ctrState.GetAccountID())
+			ctx.bs.RemoveCache(cs.ctrState.GetAccountID())
 		}
 	}
 
@@ -145,45 +158,72 @@ func (re *recoveryEntry) recovery(bs *state.BlockState) error {
 	return nil
 }
 
-func setRecoveryPoint(aid types.AccountID, ctx *vmContext, senderState *state.AccountState,
-	cs *callState, amount *big.Int, isSend, isDeploy bool) (int, error) {
+func setRecoveryPoint(
+	aid types.AccountID,
+	ctx *vmContext,
+	senderState *state.AccountState,
+	cs *callState,
+	amount *big.Int,
+	onlySend, isDeploy bool,
+) (int, error) {
 	var seq int
+
+	// get the previous recovery entry
 	prev := ctx.lastRecoveryEntry
+
+	// get the next sequence number
 	if prev != nil {
 		seq = prev.seq + 1
 	} else {
 		seq = 1
 	}
+
+	// get the sender nonce
 	var nonce uint64
 	if senderState != nil {
 		nonce = senderState.Nonce()
 	}
+
+	// create the recovery entry
 	re := &recoveryEntry{
 		seq,
 		amount,
 		senderState,
 		nonce,
 		cs,
-		isSend,
+		0,
+		onlySend,
 		isDeploy,
 		nil,
 		-1,
 		prev,
 	}
 	ctx.lastRecoveryEntry = re
-	if isSend {
+
+	// if it's just aergo transfer, do not store the contract state
+	if onlySend {
 		return seq, nil
 	}
+
+	// get the current event count
+	re.eventCount = len(ctx.events)
+
+	// get the contract state snapshot
 	re.stateRevision = cs.ctrState.Snapshot()
+
+	// get the contract SQL db transaction
 	tx := cs.tx
 	if tx != nil {
 		saveName := fmt.Sprintf("%s_%p", aid.String(), &re)
 		err := tx.subSavepoint(saveName)
 		if err != nil {
-			return seq, err
+			ctx.lastRecoveryEntry = prev
+			return -1, err
 		}
 		re.sqlSaveName = &saveName
 	}
+
+	// return the sequence number
 	return seq, nil
 }
 

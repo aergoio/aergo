@@ -111,4 +111,3 @@ const char *vm_stringdump(lua_State *L) {
 	lua_remove(L, -2);  /* code dump abi */
 	return NULL;
 }
-

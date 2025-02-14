@@ -5,7 +5,7 @@
 #include "bignum_module.h"
 #include "_cgo_export.h"
 
-extern int getLuaExecContext(lua_State *L);
+extern void checkLuaExecContext(lua_State *L);
 
 static const char *contract_str = "contract";
 static const char *call_str = "call";
@@ -90,9 +90,10 @@ static int moduleCall(lua_State *L) {
 	char *fname;
 	char *json_args;
 	struct luaCallContract_return ret;
-	int service = getLuaExecContext(L);
 	lua_Integer gas;
 	char *amount;
+
+	checkLuaExecContext(L);
 
 	if (lua_gettop(L) == 2) {
 		lua_gasuse(L, 300);
@@ -115,9 +116,13 @@ static int moduleCall(lua_State *L) {
 	}
 
 	lua_pop(L, 2);
+
+	// get the contract address
 	contract = (char *)luaL_checkstring(L, 2);
+
+	// when called with contract.call.value(amount)(address) - this triggers a call to the default() function
 	if (lua_gettop(L) == 2) {
-		char *errStr = luaSendAmount(L, service, contract, amount);
+		char *errStr = luaSendAmount(L, contract, amount);
 		reset_amount_info(L);
 		if (errStr != NULL) {
 			strPushAndRelease(L, errStr);
@@ -125,23 +130,54 @@ static int moduleCall(lua_State *L) {
 		}
 		return 0;
 	}
+
+	// get the function name
 	fname = (char *)luaL_checkstring(L, 3);
+	// get the arguments
 	json_args = lua_util_get_json_from_stack (L, 4, lua_gettop(L), false);
 	if (json_args == NULL) {
 		reset_amount_info(L);
 		luaL_throwerror(L);
 	}
 
-	ret = luaCallContract(L, service, contract, fname, json_args, amount, gas);
+	// call the function on the contract
+	ret = luaCallContract(L, contract, fname, json_args, amount, gas);
+
+	// if it returned an error message, push it to the stack and throw an error
 	if (ret.r1 != NULL) {
 		free(json_args);
 		reset_amount_info(L);
 		strPushAndRelease(L, ret.r1);
 		luaL_throwerror(L);
 	}
+
+	// disable gas while importing the returned values
+	if (lua_usegas(L)) {
+		lua_disablegas(L);
+	} else {
+		luaL_disablemaxmem(L);
+	}
+	// push the returned values to the stack
+	int count = lua_util_json_array_to_lua(L, ret.r0, true);
+	free(ret.r0);
+	// enable gas again
+	if (lua_usegas(L)) {
+		lua_enablegas(L);
+	} else {
+		luaL_enablemaxmem(L);
+	}
+
 	free(json_args);
 	reset_amount_info(L);
-	return ret.r0;
+
+	// check for invalid result format
+	if (count == -1) {
+		luaL_setuncatchablerror(L);
+		lua_pushstring(L, "internal error: result from call is not a valid JSON array");
+		luaL_throwerror(L);
+	}
+	// return the number of items in the stack
+	return count;
 }
 
 static int delegate_call_gas(lua_State *L) {
@@ -153,8 +189,9 @@ static int moduleDelegateCall(lua_State *L) {
 	char *fname;
 	char *json_args;
 	struct luaDelegateCallContract_return ret;
-	int service = getLuaExecContext(L);
 	lua_Integer gas;
+
+	checkLuaExecContext(L);
 
 	lua_gasuse(L, 2000);
 
@@ -164,8 +201,8 @@ static int moduleDelegateCall(lua_State *L) {
 	} else {
 		gas = luaL_checkinteger(L, -1);
 	}
-
 	lua_pop(L, 1);
+
 	contract = (char *) luaL_checkstring(L, 2);
 	fname = (char *) luaL_checkstring(L, 3);
 	json_args = lua_util_get_json_from_stack(L, 4, lua_gettop(L), false);
@@ -173,25 +210,53 @@ static int moduleDelegateCall(lua_State *L) {
 		reset_amount_info(L);
 		luaL_throwerror(L);
 	}
-	ret = luaDelegateCallContract(L, service, contract, fname, json_args, gas);
+
+	ret = luaDelegateCallContract(L, contract, fname, json_args, gas);
+
+	// if it returned an error message, push it to the stack and throw an error
 	if (ret.r1 != NULL) {
 		free(json_args);
 		reset_amount_info(L);
 		strPushAndRelease(L, ret.r1);
 		luaL_throwerror(L);
 	}
+
+	// disable gas while importing the returned values
+	if (lua_usegas(L)) {
+		lua_disablegas(L);
+	} else {
+		luaL_disablemaxmem(L);
+	}
+	// push the returned values to the stack
+	int count = lua_util_json_array_to_lua(L, ret.r0, true);
+	free(ret.r0);
+	// enable gas again
+	if (lua_usegas(L)) {
+		lua_enablegas(L);
+	} else {
+		luaL_enablemaxmem(L);
+	}
+
 	free(json_args);
 	reset_amount_info(L);
 
-	return ret.r0;
+	// check for invalid result format
+	if (count == -1) {
+		luaL_setuncatchablerror(L);
+		lua_pushstring(L, "internal error: result from call is not a valid JSON array");
+		luaL_throwerror(L);
+	}
+	// return the number of items in the stack
+	return count;
 }
 
 static int moduleSend(lua_State *L) {
 	char *contract;
 	char *errStr;
-	int service = getLuaExecContext(L);
 	char *amount;
 	bool needfree = false;
+
+	checkLuaExecContext(L);
 
 	lua_gasuse(L, 300);
 
@@ -218,7 +283,7 @@ static int moduleSend(lua_State *L) {
 		luaL_error(L, "invalid input");
 	}
 
-	errStr = luaSendAmount(L, service, contract, amount);
+	errStr = luaSendAmount(L, contract, amount);
 
 	if (needfree) {
 		free(amount);
@@ -232,9 +297,10 @@ static int moduleSend(lua_State *L) {
 
 static int moduleBalance(lua_State *L) {
 	char *contract;
-	int service = getLuaExecContext(L);
 	struct luaGetBalance_return balance;
 	int nArg;
+
+	checkLuaExecContext(L);
 
 	lua_gasuse(L, 300);
 
@@ -255,7 +321,7 @@ static int moduleBalance(lua_State *L) {
 		if (mode != -1) {
 			struct luaGetStaking_return ret;
 			const char *errMsg;
-			ret = luaGetStaking(service, contract);
+			ret = luaGetStaking(L, contract);
 			if (ret.r2 != NULL) {
 				strPushAndRelease(L, ret.r2);
 				luaL_throwerror(L);
@@ -273,7 +339,7 @@ static int moduleBalance(lua_State *L) {
 		}
 	}
 
-	balance = luaGetBalance(L, service, contract);
+	balance = luaGetBalance(L, contract);
 	if (balance.r1 != NULL) {
 		strPushAndRelease(L, balance.r1);
 		luaL_throwerror(L);
@@ -284,21 +350,26 @@ static int moduleBalance(lua_State *L) {
 }
 
 static int modulePcall(lua_State *L) {
-	int argc = lua_gettop(L) - 1;
-	int service = getLuaExecContext(L);
-	int num_events = luaGetEventCount(L, service);
 	struct luaSetRecoveryPoint_return start_seq;
+	int argc;
 	int ret;
+
+	checkLuaExecContext(L);
+
+	argc = lua_gettop(L) - 1;
 
 	lua_gasuse(L, 300);
 
-	start_seq = luaSetRecoveryPoint(L, service);
+	// create a recovery point
+	start_seq = luaSetRecoveryPoint(L);
 	if (start_seq.r0 < 0) {
 		strPushAndRelease(L, start_seq.r1);
 		luaL_throwerror(L);
 	}
 
-	if ((ret = lua_pcall(L, argc, LUA_MULTRET, 0)) != 0) {
+	// call the function
+	ret = lua_pcall(L, argc, LUA_MULTRET, 0);
+	if (ret != 0) {
 		// if out of memory, throw error
 		if (ret == LUA_ERRMEM) {
 			luaL_throwerror(L);
@@ -306,18 +377,15 @@ static int modulePcall(lua_State *L) {
 		// add 'success = false' as the first returned value
 		lua_pushboolean(L, false);
 		lua_insert(L, 1);
-		// drop the events
-		if (vm_is_hardfork(L, 4)) {
-			luaDropEvent(L, service, num_events);
-		}
 		// revert the contract state
 		if (start_seq.r0 > 0) {
-			char *errStr = luaClearRecovery(L, service, start_seq.r0, true);
+			char *errStr = luaClearRecovery(L, start_seq.r0, true);
 			if (errStr != NULL) {
 				strPushAndRelease(L, errStr);
 				luaL_throwerror(L);
 			}
 		}
+		// return the 2 values
 		return 2;
 	}
 
@@ -327,11 +395,8 @@ static int modulePcall(lua_State *L) {
 
 	// release the recovery point
 	if (start_seq.r0 == 1) {
-		char *errStr = luaClearRecovery(L, service, start_seq.r0, false);
+		char *errStr = luaClearRecovery(L, start_seq.r0, false);
 		if (errStr != NULL) {
-			if (vm_is_hardfork(L, 4)) {
-				luaDropEvent(L, service, num_events);
-			}
 			strPushAndRelease(L, errStr);
 			luaL_throwerror(L);
 		}
@@ -350,8 +415,9 @@ static int moduleDeploy(lua_State *L) {
 	char *fname;
 	char *json_args;
 	struct luaDeployContract_return ret;
-	int service = getLuaExecContext(L);
 	char *amount;
+
+	checkLuaExecContext(L);
 
 	lua_gasuse(L, 5000);
 
@@ -372,28 +438,83 @@ static int moduleDeploy(lua_State *L) {
 		luaL_throwerror(L);
 	}
 
-	ret = luaDeployContract(L, service, contract, json_args, amount);
-	if (ret.r0 < 0) {
+	ret = luaDeployContract(L, contract, json_args, amount);
+
+	// if it returned an error message, push it to the stack and throw an error
+	if (ret.r1 != NULL) {
 		free(json_args);
 		reset_amount_info(L);
 		strPushAndRelease(L, ret.r1);
 		luaL_throwerror(L);
 	}
 
+	// the previous version had a bug:
+	// the values returned by the constructor were pushed to the stack without charging gas
+	// but then the gas was enabled and the contract address was pushed to the stack, using gas
+	// the code below tries to reproduce the old behavior
+
+	// the returned JSON array is like this:
+	// ["Amhs9v8EeAAWrrvEFrvMng4UksHRsR7wN1iLqKkXw5bqMV18JP3h"]
+	// ["Amhmj6kKZz7mPstBAPJWRe1e8RHP7bZ5pV35XatqTHMWeAVSyMkc","key",2]
+
+	char *json = ret.r0;
+	int jsonlen = strlen(json);
+	int count = 0;
+
+	if (jsonlen > 56) {
+		// the array contains the contract address and other returned values
+		// get a JSON array with the remaining values
+		json += 55;
+		json[0] = '[';
+		// disable gas while importing the returned values
+		if (lua_usegas(L)) {
+			lua_disablegas(L);
+		} else {
+			luaL_disablemaxmem(L);
+		}
+		// push the returned values to the stack
+		count = lua_util_json_array_to_lua(L, json, true);
+		// enable gas again
+		if (lua_usegas(L)) {
+			lua_enablegas(L);
+		} else {
+			luaL_enablemaxmem(L);
+		}
+	}
+
+	// before pushing the contract address to the stack, for backward compatibility
 	free(json_args);
 	reset_amount_info(L);
-	strPushAndRelease(L, ret.r1);
-	if (ret.r0 > 1) {
-		lua_insert(L, -ret.r0);
+
+	if (jsonlen >= 56) {
+		// push the contract address to the stack
+		lua_pushlstring(L, ret.r0 + 2, 52);
+		// move the address before the returned values
+		if (count > 0) {
+			lua_insert(L, -(count + 1));
+		}
 	}
-	return ret.r0;
+
+	// release the returned values
+	free(ret.r0);
+
+	// check for invalid result format
+	if (jsonlen < 56 || count == -1) {
+		luaL_setuncatchablerror(L);
+		lua_pushstring(L, "internal error: result from call is not a valid JSON array");
+		luaL_throwerror(L);
+	}
+
+	// return the number of items in the stack
+	return 1 + count;
 }
 
 static int moduleEvent(lua_State *L) {
 	char *event_name;
 	char *json_args;
-	int service = getLuaExecContext(L);
 	char *errStr;
+
+	checkLuaExecContext(L);
 
 	lua_gasuse(L, 500);
 
@@ -406,20 +527,22 @@ static int moduleEvent(lua_State *L) {
 	if (json_args == NULL) {
 		luaL_throwerror(L);
 	}
-	errStr = luaEvent(L, service, event_name, json_args);
+
+	errStr = luaEvent(L, event_name, json_args);
+	free(json_args);
 	if (errStr != NULL) {
 		strPushAndRelease(L, errStr);
 		luaL_throwerror(L);
 	}
-	free(json_args);
 	return 0;
 }
 
 static int governance(lua_State *L, char type) {
 	char *ret;
-	int service = getLuaExecContext(L);
 	char *arg;
 	bool needfree = false;
+
+	checkLuaExecContext(L);
 
 	lua_gasuse(L, 500);
 
@@ -455,7 +578,8 @@ static int governance(lua_State *L, char type) {
 		}
 		needfree = true;
 	}
-	ret = luaGovernance(L, service, type, arg);
+
+	ret = luaGovernance(L, type, arg);
 	if (needfree) {
 		free(arg);
 	}

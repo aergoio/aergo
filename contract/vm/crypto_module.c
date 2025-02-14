@@ -1,7 +1,7 @@
 #include "_cgo_export.h"
 #include "util.h"
 
-extern int getLuaExecContext(lua_State *L);
+extern void checkLuaExecContext(lua_State *L);
 
 static int crypto_sha256(lua_State *L) {
 	size_t len;
@@ -25,7 +25,8 @@ static int crypto_sha256(lua_State *L) {
 static int crypto_ecverify(lua_State *L) {
 	char *msg, *sig, *addr;
 	struct luaECVerify_return ret;
-	int service = getLuaExecContext(L);
+
+	checkLuaExecContext(L);
 
 	lua_gasuse(L, 5000);
 
@@ -36,14 +37,12 @@ static int crypto_ecverify(lua_State *L) {
 	sig  = (char *) lua_tostring(L, 2);
 	addr = (char *) lua_tostring(L, 3);
 
-	ret = luaECVerify(L, service, msg, sig, addr);
+	ret = luaECVerify(L, msg, sig, addr);
 	if (ret.r1 != NULL) {
 		strPushAndRelease(L, ret.r1);
 		lua_error(L);
 	}
-
 	lua_pushboolean(L, ret.r0);
-
 	return 1;
 }
 
@@ -96,12 +95,13 @@ static struct rlp_obj *makeValue(lua_State *L, int n) {
 }
 
 static int crypto_verifyProof(lua_State *L) {
+	struct luaCryptoVerifyProof_return ret;
 	int argc = lua_gettop(L);
 	char *k, *h;
 	struct rlp_obj *v;
 	struct proof *proof;
 	size_t kLen, hLen, nProof;
-	int i, b;
+	int i;
 	const int proofIndex = 4;
 
 	lua_gasuse(L, 5000);
@@ -121,11 +121,15 @@ static int crypto_verifyProof(lua_State *L) {
 		proof[i-proofIndex].data = (char *) lua_tolstring(L, i, &proof[i-proofIndex].len);
 	}
 
-	b = luaCryptoVerifyProof(k, kLen, v, h, hLen, proof, nProof);
+	ret = luaCryptoVerifyProof(L, k, kLen, v, h, hLen, proof, nProof);
+	if (ret.r1 != NULL) {
+		strPushAndRelease(L, ret.r1);
+		lua_error(L);
+	}
+
 	if (proof != NULL) {
 		free(proof);
 	}
-
 	if (v != NULL) {
 		if (v->rlp_obj_type == RLP_TLIST) {
 			free(v->data);
@@ -133,7 +137,7 @@ static int crypto_verifyProof(lua_State *L) {
 		free(v);
 	}
 
-	lua_pushboolean(L, b);
+	lua_pushboolean(L, ret.r0);
 	return 1;
 }
 
@@ -147,7 +151,11 @@ static int crypto_keccak256(lua_State *L) {
 	luaL_checktype(L, 1, LUA_TSTRING);
 	arg = (char *) lua_tolstring(L, 1, &len);
 
-	ret = luaCryptoKeccak256(arg, len);
+	ret = luaCryptoKeccak256(L, arg, len);
+	if (ret.r2 != NULL) {
+		strPushAndRelease(L, ret.r2);
+		lua_error(L);
+	}
 	lua_pushlstring(L, ret.r0, ret.r1);
 	free(ret.r0);
 	return 1;

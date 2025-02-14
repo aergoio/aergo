@@ -15,13 +15,19 @@ if(CMAKE_BUILD_TYPE MATCHES "Debug")
     set(GFLAG -tags Debug)
 endif()
 
-add_custom_target(build ALL DEPENDS aergocli aergosvr aergoluac brick)
+add_custom_target(build ALL DEPENDS aergocli aergosvr aergovm aergoluac brick)
 
 add_custom_target(aergocli GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X github.com/aergoio/aergo/v2/cmd/aergocli/cmd.githash=`git describe --tags`\" ./cmd/aergocli/...
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     DEPENDS libtool)
 
 add_custom_target(aergosvr GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X main.githash=`git describe --tags` -X main.gitRevision=`git rev-parse --short HEAD` -X main.gitBranch=`git rev-parse --symbolic-full-name --abbrev-ref HEAD`\" ./cmd/aergosvr/...
+    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+    DEPENDS libtool)
+
+add_custom_target(aergovm
+    COMMAND GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X main.githash=`git describe --tags` -X main.gitRevision=`git rev-parse --short HEAD` -X main.gitBranch=`git rev-parse --symbolic-full-name --abbrev-ref HEAD`\" ./contract/vm/...
+    COMMAND ${CMAKE_COMMAND} -E rename ${BIN_DIR}/vm ${BIN_DIR}/aergovm
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     DEPENDS libtool)
 
@@ -45,7 +51,8 @@ add_custom_target(mpdumpdiag GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAG
 
 add_custom_target(deps DEPENDS libtool)
 
-add_custom_target(check GO111MODULE=on go test -timeout 600s ./...
+add_custom_target(check
+    COMMAND ${CMAKE_COMMAND} -E env AERGOVM_PATH=${BIN_DIR}/aergovm GO111MODULE=on go test -timeout 600s ./...
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     DEPENDS build)
 add_custom_target(cover-check GO111MODULE=on go test -timeout 600s -coverprofile c.out ./...

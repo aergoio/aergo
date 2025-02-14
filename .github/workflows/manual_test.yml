@@ -30,4 +30,4 @@ jobs:
       run: make
 
     - name: Unit Tests
-      run: go test -timeout 999s ./...
+      run: make check

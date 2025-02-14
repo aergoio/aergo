@@ -16,7 +16,6 @@ import (
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/v2/cmd/aergoluac/util"
-	"github.com/aergoio/aergo/v2/config"
 	"github.com/aergoio/aergo/v2/contract"
 	"github.com/aergoio/aergo/v2/contract/system"
 	"github.com/aergoio/aergo/v2/fee"
@@ -30,11 +29,10 @@ import (
 
 var (
 	logger *log.Logger
+	prevPubNet bool
 )
 
 const (
-	lStateMaxSize = 10 * 7
-
 	dummyBlockIntervalSec = 1
 	dummyBlockExecTimeMs  = (dummyBlockIntervalSec * 1000) >> 2
 )
@@ -45,6 +43,7 @@ func init() {
 
 type DummyChain struct {
 	HardforkVersion int32
+	PubNet          bool
 	sdb             *state.ChainStateDB
 	bestBlock       *types.Block
 	cBlock          *types.Block
@@ -55,7 +54,6 @@ type DummyChain struct {
 	testReceiptDB   db.DB
 	tmpDir          string
 	timeout         int
-	clearLState     func()
 	gasPrice        *big.Int
 	timestamp       int64
 }
@@ -75,32 +73,58 @@ func SetTimeout(timeout int) DummyChainOptions {
 	}
 }
 
+// used on brick
+
 func SetPubNet() DummyChainOptions {
 	return func(dc *DummyChain) {
-
-		// public and private chains have different features.
-		// private chains have the db module and public ones don't.
-		// this is why we need to flush all Lua states and recreate
-		// them when moving to and from public chain.
-
 		contract.PubNet = true
-		fee.DisableZeroFee()
-		contract.FlushLStates()
+		dc.PubNet = true
+	}
+}
 
-		dc.clearLState = func() {
-			contract.PubNet = false
-			fee.EnableZeroFee()
-			contract.FlushLStates()
-		}
+func SetPrivNet() DummyChainOptions {
+	return func(dc *DummyChain) {
+		contract.PubNet = false
+		dc.PubNet = false
+	}
+}
+
+// used on tests
+
+func RunOnPubNet() DummyChainOptions {
+	return func(dc *DummyChain) {
+		dc.PubNet = true
+	}
+}
+
+func RunOnPrivNet() DummyChainOptions {
+	return func(dc *DummyChain) {
+		dc.PubNet = false
+	}
+}
+
+func RunOnAllNets() DummyChainOptions {
+	return func(dc *DummyChain) {
+		dc.PubNet = contract.PubNet
 	}
 }
 
 func LoadDummyChain(opts ...DummyChainOptions) (*DummyChain, error) {
+
+	// skip test if pubnet is different
+	bc := &DummyChain{}
+	for _, opt := range opts {
+		opt(bc)
+	}
+	if bc.PubNet != contract.PubNet {
+		return nil, nil
+	}
+
 	dataPath, err := os.MkdirTemp("", "data")
 	if err != nil {
 		return nil, err
 	}
-	bc := &DummyChain{
+	bc = &DummyChain{
 		sdb:      state.NewChainStateDB(),
 		tmpDir:   dataPath,
 		gasPrice: types.NewAmount(1, types.Aer),
@@ -129,10 +153,7 @@ func LoadDummyChain(opts ...DummyChainOptions) (*DummyChain, error) {
 	bc.testReceiptDB = db.NewDB(db.MemoryImpl, path.Join(dataPath, "receiptDB"))
 	contract.LoadTestDatabase(dataPath) // sql database
 	contract.SetStateSQLMaxDBSize(1024)
-	contract.StartLStateFactory(lStateMaxSize, config.GetDefaultNumLStateClosers(), 1)
 	contract.InitContext(3)
-
-	bc.HardforkVersion = 2
 
 	// To pass the governance tests.
 	types.InitGovernance("dpos", true)
@@ -141,19 +162,40 @@ func LoadDummyChain(opts ...DummyChainOptions) (*DummyChain, error) {
 	scs, err := statedb.GetSystemAccountState(bc.sdb.GetStateDB())
 	system.InitSystemParams(scs, 3)
 
-	fee.EnableZeroFee()
+	// set default values
+	bc.HardforkVersion = 2
+	bc.PubNet = false
 
+	// process options
 	for _, opt := range opts {
 		opt(bc)
 	}
+
+	if !contract.VmPoolStarted {
+		contract.CurrentForkVersion = bc.HardforkVersion
+		contract.StartVMPool(contract.MaxPossibleCallDepth())
+	} else if (contract.CurrentForkVersion != bc.HardforkVersion) || (contract.PubNet != prevPubNet) {
+		// public and private chains have different features.
+		// private chains have the db module and public ones don't.
+		// this is why we need to flush all Lua VM instances and
+		// recreate them when moving to and from public chain.
+		contract.CurrentForkVersion = bc.HardforkVersion
+		contract.FlushVmInstances()
+	}
+
+	prevPubNet = contract.PubNet
+
+	if contract.PubNet {
+		fee.DisableZeroFee()
+	} else {
+		fee.EnableZeroFee()
+	}
+
 	return bc, nil
 }
 
 func (bc *DummyChain) Release() {
 	bc.testReceiptDB.Close()
-	if bc.clearLState != nil {
-		bc.clearLState()
-	}
 	_ = os.RemoveAll(bc.tmpDir)
 }
 
@@ -593,7 +635,7 @@ func (l *luaTxDeploy) run(execCtx context.Context, bs *state.BlockState, bc *Dum
 		// compile the plain code to bytecode
 		payload := util.LuaCodePayload(l._payload)
 		code := string(payload.Code())
-		byteCode, err := contract.Compile(code, nil)
+		byteCode, err := contract.Compile(code, false)
 		if err != nil {
 			return err
 		}

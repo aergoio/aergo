@@ -32,7 +32,7 @@ func Open(private bool) {
 		err   error
 	)
 	if privateNet {
-		chain, err = vm_dummy.LoadDummyChain()
+		chain, err = vm_dummy.LoadDummyChain(vm_dummy.SetPrivNet())
 	} else {
 		chain, err = vm_dummy.LoadDummyChain(vm_dummy.SetPubNet())
 	}

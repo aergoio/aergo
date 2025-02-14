@@ -32,10 +32,6 @@ const (
 	ChainTypeUnitTest
 )
 
-const (
-	lStateMaxSize = 10 * 7
-)
-
 var (
 	logger *log.Logger
 )
@@ -134,7 +130,7 @@ func LoadDummyChainEx(chainType ChainType) (*DummyChain, error) {
 	contract.LoadTestDatabase(dataPath)
 	contract.SetStateSQLMaxDBSize(1024)
 
-	contract.StartLStateFactory(lStateMaxSize, config.GetDefaultNumLStateClosers(), 1)
+	contract.StartVMPool(contract.MaxPossibleCallDepth())
 	contract.InitContext(3)
 
 	// To pass the governance tests.

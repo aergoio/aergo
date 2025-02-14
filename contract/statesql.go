@@ -2,6 +2,7 @@ package contract
 
 /*
 #include "sqlite3-binding.h"
+#include "db_module.h"
 */
 import "C"
 import (
@@ -13,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"runtime"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
@@ -110,6 +112,7 @@ func LoadTestDatabase(dataDir string) error {
 
 func CloseDatabase() {
 	var err error
+	C.db_release_resource()
 	for name, db := range database.DBs {
 		if db.tx != nil {
 			err = db.tx.rollback()
@@ -122,8 +125,10 @@ func CloseDatabase() {
 		if err != nil {
 			sqlLgr.Warn().Err(err).Str("db_name", name).Msg("SQL DB close")
 		}
-		delete(database.DBs, name)
 	}
+	database.DBs = make(map[string]*litetree)
+	// now the routine can migrate to another thread
+	runtime.UnlockOSThread()
 }
 
 func SaveRecoveryPoint(bs *state.BlockState) error {
@@ -137,21 +142,21 @@ func SaveRecoveryPoint(bs *state.BlockState) error {
 				sqlLgr.Warn().Err(err).Str("db_name", id).Msg("SQL TX commit")
 				continue
 			}
-			rp := db.recoveryPoint()
-			if rp == 0 {
+			lastRP := db.getLastRecoveryPoint()
+			if lastRP == 0 {
 				return ErrFindRp
 			}
-			if rp > 0 {
+			if lastRP > 0 {
 				if sqlLgr.IsDebugEnabled() {
-					sqlLgr.Debug().Str("db_name", id).Uint64("commit_id", rp).Msg("save recovery point")
+					sqlLgr.Debug().Str("db_name", id).Uint64("commit_id", lastRP).Msg("save recovery point")
 				}
-				receiverState, err := bs.GetAccountState(db.accountID)
+				contractState, err := bs.GetAccountState(db.accountID)
 				if err != nil {
 					return err
 				}
-				receiverChange := receiverState.Clone()
-				receiverChange.SqlRecoveryPoint = uint64(rp)
-				err = bs.PutState(db.accountID, receiverChange)
+				updatedContractState := contractState.Clone()
+				updatedContractState.SqlRecoveryPoint = lastRP
+				err = bs.PutState(db.accountID, updatedContractState)
 				if err != nil {
 					return err
 				}
@@ -162,7 +167,7 @@ func SaveRecoveryPoint(bs *state.BlockState) error {
 }
 
 func beginTx(dbName string, rp uint64) (sqlTx, error) {
-	db, err := conn(dbName)
+	db, err := getDBConnection(dbName)
 	defer func() {
 		if err != nil {
 			delete(database.DBs, dbName)
@@ -202,7 +207,7 @@ func beginReadOnly(dbName string, rp uint64) (sqlTx, error) {
 	return newReadOnlySqlTx(db, rp)
 }
 
-func conn(dbName string) (*litetree, error) {
+func getDBConnection(dbName string) (*litetree, error) {
 	if db, ok := database.DBs[dbName]; ok {
 		return db, nil
 	}
@@ -304,7 +309,7 @@ type branchInfo struct {
 	TotalCommits uint64 `json:"total_commits"`
 }
 
-func (db *litetree) recoveryPoint() uint64 {
+func (db *litetree) getLastRecoveryPoint() uint64 {
 	row := db.QueryRowContext(context.Background(), "pragma branch_info(master)")
 	var rv string
 	err := row.Scan(&rv)
@@ -320,7 +325,7 @@ func (db *litetree) recoveryPoint() uint64 {
 }
 
 func (db *litetree) restoreRecoveryPoint(stateRp uint64) error {
-	lastRp := db.recoveryPoint()
+	lastRp := db.getLastRecoveryPoint()
 	if sqlLgr.IsDebugEnabled() {
 		sqlLgr.Debug().Str("db_name", db.name).
 			Uint64("state_rp", stateRp).

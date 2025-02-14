@@ -48,7 +48,7 @@ func NewZeroFee() *big.Int {
 //---------------------------------------------------------------//
 // calc fee
 
-// fee = gas price * gas
+// fee = used gas * gas price
 func CalcFee(gasPrice *big.Int, gas uint64) *big.Int {
 	return new(big.Int).Mul(gasPrice, new(big.Int).SetUint64(gas))
 }

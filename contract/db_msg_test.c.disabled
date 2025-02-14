@@ -1,0 +1,192 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <string.h>
+#include <math.h>
+#include "db_msg.c"
+
+#define TEST(name) void test_##name(void)
+#define RUN_TEST(name) do { \
+    printf("Running %s...", #name); \
+    test_##name(); \
+    printf(" PASSED\n"); \
+} while(0)
+
+#define ASSERT(condition) do { \
+    if (!(condition)) { \
+        printf(" FAILED\n"); \
+        printf("Assertion failed: %s\n", #condition); \
+        exit(1); \
+    } \
+} while(0)
+
+#define ASSERT_EQUAL(expected, actual) ASSERT((expected) == (actual))
+#define ASSERT_STRING_EQUAL(expected, actual) ASSERT(strcmp((expected), (actual)) == 0)
+#define ASSERT_DOUBLE_EQUAL(expected, actual, epsilon) ASSERT(fabs((expected) - (actual)) < (epsilon))
+
+TEST(set_error) {
+    request req = {0};
+    set_error(&req, "Error %d", 42);
+    ASSERT_STRING_EQUAL("Error 42", req.error);
+}
+
+TEST(write_and_read_int) {
+    char buffer[4];
+    int value = 12345;
+    write_int(buffer, value);
+    int result = read_int(buffer);
+    ASSERT_EQUAL(value, result);
+}
+
+TEST(read_int64) {
+    char buffer[8] = {0x78, 0x56, 0x34, 0x12, 0xF0, 0xDE, 0xBC, 0x9A};
+    int64_t result = read_int64(buffer);
+    ASSERT_EQUAL(0x9ABCDEF012345678, result);
+}
+
+TEST(read_double) {
+    char buffer[8] = {0x18, 0x2D, 0x44, 0x54, 0xFB, 0x21, 0x09, 0x40};
+    double result = read_double(buffer);
+    ASSERT_DOUBLE_EQUAL(3.141592653589793, result, 1e-15);
+}
+
+TEST(add_and_get_string) {
+    buffer buf = {0};
+    add_string(&buf, "Hello, World!");
+    
+    bytes data = {buf.ptr, buf.len};
+    char* result = get_string(&data, 1);
+    ASSERT_STRING_EQUAL("Hello, World!", result);
+    
+    free_buffer(&buf);
+}
+
+TEST(add_and_get_int) {
+    buffer buf = {0};
+    add_int(&buf, 42);
+    
+    bytes data = {buf.ptr, buf.len};
+    int result = get_int(&data, 1);
+    ASSERT_EQUAL(42, result);
+    
+    free_buffer(&buf);
+}
+
+TEST(add_and_get_int64) {
+    buffer buf = {0};
+    add_int64(&buf, 1234567890123456789LL);
+    
+    bytes data = {buf.ptr, buf.len};
+    int64_t result = get_int64(&data, 1);
+    ASSERT_EQUAL(1234567890123456789LL, result);
+    
+    free_buffer(&buf);
+}
+
+TEST(add_and_get_double) {
+    buffer buf = {0};
+    add_double(&buf, 3.14159);
+    
+    bytes data = {buf.ptr, buf.len};
+    double result = get_double(&data, 1);
+    ASSERT_DOUBLE_EQUAL(3.14159, result, 1e-5);
+    
+    free_buffer(&buf);
+}
+
+TEST(add_and_get_bool) {
+    buffer buf = {0};
+    add_bool(&buf, true);
+    add_bool(&buf, false);
+    
+    bytes data = {buf.ptr, buf.len};
+    bool result1 = get_bool(&data, 1);
+    bool result2 = get_bool(&data, 2);
+    ASSERT(result1);
+    ASSERT(!result2);
+    
+    free_buffer(&buf);
+}
+
+TEST(add_and_get_bytes) {
+    buffer buf = {0};
+    const char data[] = {0x01, 0x02, 0x03, 0x04};
+    add_bytes(&buf, data, sizeof(data));
+    
+    bytes data_bytes = {buf.ptr, buf.len};
+    bytes result;
+    bool success = get_bytes(&data_bytes, 1, &result);
+    ASSERT(success);
+    ASSERT(result.len == sizeof(data));
+    ASSERT(memcmp(result.ptr, data, sizeof(data)) == 0);
+    
+    free_buffer(&buf);
+}
+
+TEST(get_count) {
+    buffer buf = {0};
+    add_string(&buf, "One");
+    add_int(&buf, 2);
+    add_double(&buf, 3.0);
+    
+    bytes data = {buf.ptr, buf.len};
+    int count = get_count(&data);
+    ASSERT_EQUAL(3, count);
+    
+    free_buffer(&buf);
+}
+
+TEST(get_next_item) {
+    buffer buf = {0};
+    add_int(&buf, 123);
+    add_string(&buf, "Hello");
+    add_double(&buf, 3.14159);
+    add_bool(&buf, true);
+    
+    bytes data = {buf.ptr, buf.len};
+    int len;
+    char* item = get_next_item(&data, NULL, &len);
+    ASSERT_EQUAL('i', get_type(item,len));
+    item++; len--;
+    ASSERT_EQUAL(4, len);
+    ASSERT_EQUAL(123, read_int(item));
+    
+    item = get_next_item(&data, item, &len);
+    ASSERT_EQUAL('s', get_type(item,len));
+    item++; len--;
+    ASSERT_STRING_EQUAL("Hello", item);
+    
+    item = get_next_item(&data, item, &len);
+    ASSERT_EQUAL('d', get_type(item,len));
+    item++; len--;
+    ASSERT_DOUBLE_EQUAL(3.14159, read_double(item), 1e-5);
+    
+    item = get_next_item(&data, item, &len);
+    ASSERT_EQUAL('b', get_type(item,len));
+    item++; len--;
+    ASSERT(read_bool(item));
+
+    item = get_next_item(&data, item, &len);
+    ASSERT(item == NULL);
+    
+    free_buffer(&buf);
+}
+
+int main(void) {
+    RUN_TEST(set_error);
+    RUN_TEST(write_and_read_int);
+    RUN_TEST(read_int64);
+    RUN_TEST(read_double);
+    RUN_TEST(add_and_get_string);
+    RUN_TEST(add_and_get_int);
+    RUN_TEST(add_and_get_int64);
+    RUN_TEST(add_and_get_double);
+    RUN_TEST(add_and_get_bool);
+    RUN_TEST(add_and_get_bytes);
+    RUN_TEST(get_count);
+    RUN_TEST(get_next_item);
+    
+    printf("All tests passed!\n");
+    return 0;
+}
