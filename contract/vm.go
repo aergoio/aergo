@@ -957,7 +957,7 @@ func setContract(contractState *statedb.ContractState, contractAddress, payload 
 	if ctx.blockInfo.ForkVersion >= 4 {
 		// check for LuaJIT bytecode signature at position 4
 		if len(code) > 8 && bytes.HasPrefix(code[4:], []byte{0x1b, 0x4c, 0x4a}) {
-			ctrLgr.Warn().Str("contract", types.EncodeAddress(contractAddress)).Msg("unexpected bytecode on deploy")
+			ctrLgr.Info().Str("contract", types.EncodeAddress(contractAddress)).Msg("unexpected bytecode on deploy")
 			return nil, nil, errors.New("deploy bytecode is not supported. send the plain source code instead")
 		}
 		// the payload must be lua code. compile it to bytecode
