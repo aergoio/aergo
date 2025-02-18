@@ -35,7 +35,7 @@ func (e ErrTimeout) Error() string {
 	return e.Kind + " timeout"
 }
 
-// ErrBlockConnect indicates a error indicating a failed block connected
+// ErrBlockConnect represents an error indicating a failed block connected
 // request.
 type ErrBlockConnect struct {
 	id     string

@@ -6,7 +6,7 @@ import (
 	"github.com/aergoio/aergo/v2/types"
 )
 
-// PeerAccessor is an interface for a another actor module to get info of peers
+// PeerAccessor is an interface for another actor module to get info of peers
 type PeerAccessor interface {
 	// SelfMeta returns peerid, ipaddress and port of server itself
 	SelfMeta() PeerMeta
