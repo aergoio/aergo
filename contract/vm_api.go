@@ -109,8 +109,12 @@ func (ctx *vmContext) handleSetVariable(args []string) (result string, err error
 		return "", errors.New("[System.SetVariable] invalid number of arguments")
 	}
 	key, value := []byte(args[0]), []byte(args[1])
+	errmsg := [2]string{}
+	errnum := iif(CurrentForkVersion >= 5, NEW_MSG, OLD_MSG)
 	if ctx.isQuery || ctx.nestedView > 0 {
-		return "", errors.New("[System.SetVariable] set not permitted in query")
+		errmsg[NEW_MSG] = "[System.SetVariable] set not permitted in query"
+		errmsg[OLD_MSG] = "[System.LuaSetDB] set not permitted in query"
+		return "", errors.New(errmsg[errnum])
 	}
 	if err := ctx.curContract.callState.ctrState.SetData(key, value); err != nil {
 		return "", err
@@ -135,10 +139,14 @@ func (ctx *vmContext) handleGetVariable(args []string) (result string, err error
 	}
 	key := []byte(args[0])
 	blkno := args[1]
+	errmsg := [2]string{}
+	errnum := iif(CurrentForkVersion >= 5, NEW_MSG, OLD_MSG)
 	if len(blkno) > 0 {
 		bigNo, _ := new(big.Int).SetString(strings.TrimSpace(blkno), 10)
 		if bigNo == nil || bigNo.Sign() < 0 {
-			return "", errors.New("[System.GetVariable] invalid blockheight value :" + blkno)
+			errmsg[NEW_MSG] = "[System.GetVariable] invalid blockheight value :" + blkno
+			errmsg[OLD_MSG] = "[System.LuaGetDB] invalid blockheight value :" + blkno
+			return "", errors.New(errmsg[errnum])
 		}
 		blkNo := bigNo.Uint64()
 
@@ -146,7 +154,9 @@ func (ctx *vmContext) handleGetVariable(args []string) (result string, err error
 		if chainBlockHeight == 0 {
 			bestBlock, err := ctx.cdb.GetBestBlock()
 			if err != nil {
-				return "", errors.New("[System.GetVariable] get best block error")
+				errmsg[NEW_MSG] = "[System.GetVariable] get best block error"
+				errmsg[OLD_MSG] = "[System.LuaGetDB] get best block error"
+				return "", errors.New(errmsg[errnum])
 			}
 			chainBlockHeight = bestBlock.GetHeader().GetBlockNo()
 		}
@@ -158,12 +168,16 @@ func (ctx *vmContext) handleGetVariable(args []string) (result string, err error
 			accountId := types.ToAccountID(ctx.curContract.contractId)
 			contractProof, err := ctx.bs.GetAccountAndProof(accountId[:], blk.GetHeader().GetBlocksRootHash(), false)
 			if err != nil {
-				return "", errors.New("[System.GetVariable] failed to get snapshot state for account")
+				errmsg[NEW_MSG] = "[System.GetVariable] failed to get snapshot state for account"
+				errmsg[OLD_MSG] = "[System.LuaGetDB] failed to get snapshot state for account"
+				return "", errors.New(errmsg[errnum])
 			} else if contractProof.Inclusion {
 				trieKey := common.Hasher(key)
 				varProof, err := ctx.bs.GetVarAndProof(trieKey, contractProof.GetState().GetStorageRoot(), false)
 				if err != nil {
-					return "", errors.New("[System.GetVariable] failed to get snapshot state variable in contract")
+					errmsg[NEW_MSG] = "[System.GetVariable] failed to get snapshot state variable in contract"
+					errmsg[OLD_MSG] = "[System.LuaGetDB] failed to get snapshot state variable in contract"
+					return "", errors.New(errmsg[errnum])
 				}
 				if varProof.Inclusion {
 					if len(varProof.GetValue()) == 0 {
@@ -191,8 +205,12 @@ func (ctx *vmContext) handleDelVariable(args []string) (result string, err error
 		return "", errors.New("[System.DelVariable] invalid number of arguments")
 	}
 	key := []byte(args[0])
+	errmsg := [2]string{}
+	errnum := iif(CurrentForkVersion >= 5, NEW_MSG, OLD_MSG)
 	if ctx.isQuery || ctx.nestedView > 0 {
-		return "", errors.New("[System.DelVariable] delete not permitted in query")
+		errmsg[NEW_MSG] = "[System.DelVariable] delete not permitted in query"
+		errmsg[OLD_MSG] = "[System.LuaDelDB] delete not permitted in query"
+		return "", errors.New(errmsg[errnum])
 	}
 	if err := ctx.curContract.callState.ctrState.DeleteData(key); err != nil {
 		return "", err
@@ -319,7 +337,7 @@ func (ctx *vmContext) handleCall(args []string) (result string, err error) {
 		}
 		if r := sendBalance(senderState, receiverState, amountBig); r != nil {
 			errmsg[NEW_MSG] = "[Contract.Call] "
-			errmsg[OLD_MSG] = "[Contract.LuaCallContract] "
+			errmsg[OLD_MSG] = ""
 			return "", errors.New(errmsg[errnum] + r.Error())
 		}
 	}
@@ -641,7 +659,7 @@ func (ctx *vmContext) handleSend(args []string) (result string, err error) {
 		if amountBig.Cmp(zeroBig) > 0 {
 			if r := sendBalance(senderState, receiverState, amountBig); r != nil {
 				errmsg[NEW_MSG] = "[Contract.Send] "
-				errmsg[OLD_MSG] = "[Contract.LuaSendAmount] "
+				errmsg[OLD_MSG] = ""
 				return "", errors.New(errmsg[errnum] + r.Error())
 			}
 		}
@@ -724,7 +742,7 @@ func (ctx *vmContext) handleSend(args []string) (result string, err error) {
 	// send the amount to the receiver
 	if r := sendBalance(senderState, receiverState, amountBig); r != nil {
 		errmsg[NEW_MSG] = "[Contract.Send] "
-		errmsg[OLD_MSG] = "[Contract.LuaSendAmount] "
+		errmsg[OLD_MSG] = ""
 		return "", errors.New(errmsg[errnum] + r.Error())
 	}
 
@@ -1443,7 +1461,7 @@ func (ctx *vmContext) handleDeploy(args []string) (result string, err error) {
 	if amountBig.Cmp(zeroBig) > 0 {
 		if rv := sendBalance(senderState, receiverState, amountBig); rv != nil {
 			errmsg[NEW_MSG] = "[Contract.Deploy] "
-			errmsg[OLD_MSG] = "[Contract.LuaDeployContract]"
+			errmsg[OLD_MSG] = ""
 			return "", errors.New(errmsg[errnum] + rv.Error())
 		}
 	}

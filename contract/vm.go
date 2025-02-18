@@ -1181,7 +1181,7 @@ func Compile(code string, hasParent bool) (luacUtil.LuaCode, error) {
 	errMsg := results[1]
 
 	if len(errMsg) > 0 {
-		return nil, fmt.Errorf("compile: %s", errMsg)
+		return nil, errors.New(errMsg)
 	}
 	return luacUtil.LuaCode(bytecodeAbi), nil
 }
