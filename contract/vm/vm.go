@@ -284,6 +284,9 @@ func (ce *executor) call(hasParent bool) {
 		ce.numArgs = ce.numArgs + 1
 	}
 
+	// set the instruction limit and timeout hook
+	ce.setCountHook(C.int(5000000))
+
 	// call the function
 	nRet := C.int(0)
 	cErrMsg := C.vm_call(ce.L, ce.numArgs, &nRet)
