@@ -148,6 +148,7 @@ check ./test-contract-deploy.sh
 check ./test-pcall-events.sh
 check ./test-transaction-types.sh
 check ./test-name-service.sh
+check ./test-internal-operations.sh
 
 # change the hardfork version
 set_version 4
@@ -165,6 +166,7 @@ check ./test-transaction-types.sh
 check ./test-name-service.sh
 check ./test-multicall.sh
 check ./test-disabled-functions.sh
+check ./test-internal-operations.sh
 
 # terminate the server process
 echo ""
