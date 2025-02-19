@@ -399,7 +399,7 @@ int vm_instcount(lua_State *L) {
 		return 0;
 	}
 	if (vm_is_hardfork(L, 2)) {
-		return luaL_tminstlimit(L);
+		return luaL_tminstlimit(L) - luaL_tminstcount(L);
 	} else {
 		return luaL_instcount(L);
 	}
@@ -411,6 +411,7 @@ void vm_setinstcount(lua_State *L, int count) {
 	}
 	if (vm_is_hardfork(L, 2)) {
 		luaL_set_tminstlimit(L, count);
+		luaL_set_tminstcount(L, 0);
 	} else {
 		luaL_setinstcount(L, count);
 	}
