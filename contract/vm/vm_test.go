@@ -111,7 +111,9 @@ func TestExecuteBasic(t *testing.T) {
 	bytecode := util.LuaCode(byteCodeAbi).ByteCode()
 
 	// execute contract - add
-	result, err, usedGas := Execute("testAddress", string(bytecode), "add", `[1,2]`, 1000000, "testCaller", false, false, "")
+	contractUseGas = true
+	contractGasLimit = 1000000
+	result, err, usedGas := Execute("testAddress", string(bytecode), "add", `[1,2]`, "testCaller", false, false, "")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, result)
 	assert.Greater(t, usedGas, uint64(0), "Expected some gas to be used")
@@ -119,7 +121,9 @@ func TestExecuteBasic(t *testing.T) {
 	assert.Equal(t, `3`, result)
 
 	// execute contract - hello
-	result, err, usedGas = Execute("testAddress", string(bytecode), "hello", `["World"]`, 1000000, "testCaller", false, false, "")
+	contractUseGas = true
+	contractGasLimit = 1000000
+	result, err, usedGas = Execute("testAddress", string(bytecode), "hello", `["World"]`, "testCaller", false, false, "")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, result)
 	assert.Greater(t, usedGas, uint64(0), "Expected some gas to be used")
@@ -127,7 +131,9 @@ func TestExecuteBasic(t *testing.T) {
 	assert.Equal(t, `"Hello, World"`, result)
 
 	// execute contract - many
-	result, err, usedGas = Execute("testAddress", string(bytecode), "many", `[]`, 1000000, "testCaller", false, false, "")
+	contractUseGas = true
+	contractGasLimit = 1000000
+	result, err, usedGas = Execute("testAddress", string(bytecode), "many", `[]`, "testCaller", false, false, "")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, result)
 	assert.Greater(t, usedGas, uint64(0), "Expected some gas to be used")
@@ -135,7 +141,9 @@ func TestExecuteBasic(t *testing.T) {
 	assert.Equal(t, `[123,{"_bignum":"456"},"abc",true,null]`, result)
 
 	// execute contract - echo
-	result, err, usedGas = Execute("testAddress", string(bytecode), "echo", `[123,4.56,{"_bignum":"789"},"abc",true,null]`, 1000000, "testCaller", false, false, "")
+	contractUseGas = true
+	contractGasLimit = 1000000
+	result, err, usedGas = Execute("testAddress", string(bytecode), "echo", `[123,4.56,{"_bignum":"789"},"abc",true,null]`, "testCaller", false, false, "")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, result)
 	assert.Greater(t, usedGas, uint64(0), "Expected some gas to be used")
@@ -177,31 +185,43 @@ func TestExecuteQueryBasic(t *testing.T) {
 	bytecode := util.LuaCode(byteCodeAbi).ByteCode()
 
 	// execute contract - add
-	result, err, usedGas := Execute("testAddress", string(bytecode), "add", `[1,2]`, 0, "testCaller", false, false, "")
+	contractUseGas = false
+	contractGasLimit = 0
+	contractInstructionLimit = 5000000
+	result, err, usedInstructionCount := Execute("testAddress", string(bytecode), "add", `[1,2]`, "testCaller", false, false, "")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, result)
-	assert.Equal(t, usedGas, uint64(0), "Expected no gas to be used")
+	assert.Greater(t, usedInstructionCount, uint64(0))
 	assert.Equal(t, `3`, result)
 
 	// execute contract - hello
-	result, err, usedGas = Execute("testAddress", string(bytecode), "hello", `["World"]`, 0, "testCaller", false, false, "")
+	contractUseGas = false
+	contractGasLimit = 0
+	contractInstructionLimit = 5000000
+	result, err, usedInstructionCount = Execute("testAddress", string(bytecode), "hello", `["World"]`, "testCaller", false, false, "")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, result)
-	assert.Equal(t, usedGas, uint64(0), "Expected no gas to be used")
+	assert.Greater(t, usedInstructionCount, uint64(0))
 	assert.Equal(t, `"Hello, World"`, result)
 
 	// execute contract - many
-	result, err, usedGas = Execute("testAddress", string(bytecode), "many", `[]`, 0, "testCaller", false, false, "")
+	contractUseGas = false
+	contractGasLimit = 0
+	contractInstructionLimit = 5000000
+	result, err, usedInstructionCount = Execute("testAddress", string(bytecode), "many", `[]`, "testCaller", false, false, "")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, result)
-	assert.Equal(t, usedGas, uint64(0), "Expected no gas to be used")
+	assert.Greater(t, usedInstructionCount, uint64(0))
 	assert.Equal(t, `[123,{"_bignum":"456"},"abc",true,null]`, result)
 
 	// execute contract - echo
-	result, err, usedGas = Execute("testAddress", string(bytecode), "echo", `[123,4.56,{"_bignum":"789"},"abc",true,null]`, 0, "testCaller", false, false, "")
+	contractUseGas = false
+	contractGasLimit = 0
+	contractInstructionLimit = 5000000
+	result, err, usedInstructionCount = Execute("testAddress", string(bytecode), "echo", `[123,4.56,{"_bignum":"789"},"abc",true,null]`, "testCaller", false, false, "")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, result)
-	assert.Equal(t, usedGas, uint64(0), "Expected no gas to be used")
+	assert.Greater(t, usedInstructionCount, uint64(0))
 	assert.Equal(t, `[123,4.56,{"_bignum":"789"},"abc",true,null]`, result)
 
 }
@@ -321,7 +341,10 @@ func TestExecuteWithCallback(t *testing.T) {
 		{"set", []string{"_sv_meta-type_kv", "4"}, "", nil},
 		{"set", []string{"_sv_kv-key", "12345"}, "", nil},
 	}
-	result, err, usedGas := Execute("testAddress", string(bytecode), "set", `["key",12345]`, 1000000, "testCaller", false, false, "")
+	contractUseGas = true
+	contractGasLimit = 1000000
+	contractInstructionLimit = 0
+	result, err, usedGas := Execute("testAddress", string(bytecode), "set", `["key",12345]`, "testCaller", false, false, "")
 	assert.NoError(t, err)
 	assert.Empty(t, result)
 	assert.Greater(t, usedGas, uint64(0), "Expected some gas to be used")
@@ -335,7 +358,10 @@ func TestExecuteWithCallback(t *testing.T) {
 		{"get", []string{"_sv_meta-type_kv", ""}, "4", nil},
 		{"get", []string{"_sv_kv-key", ""}, `12345`, nil},
 	}
-	result, err, usedGas = Execute("testAddress", string(bytecode), "get", `["key"]`, 1000000, "testCaller", false, false, "")
+	contractUseGas = true
+	contractGasLimit = 1000000
+	contractInstructionLimit = 0
+	result, err, usedGas = Execute("testAddress", string(bytecode), "get", `["key"]`, "testCaller", false, false, "")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, result)
 	assert.Greater(t, usedGas, uint64(0), "Expected some gas to be used")
@@ -349,7 +375,10 @@ func TestExecuteWithCallback(t *testing.T) {
 		// the last argument is the gas in bytes, the first 8 bytes of the result is the used gas
 		{"send", []string{"0x12345", "1000000000000000000", "\xa8*\x0f\x00\x00\x00\x00\x00"}, "\x09\x00\x01\x00\x00\x00\x00\x00", nil},
 	}
-	result, err, usedGas = Execute("testAddress", string(bytecode), "send", `["0x12345","1000000000000000000"]`, 1000000, "testCaller", false, false, "")
+	contractUseGas = true
+	contractGasLimit = 1000000
+	contractInstructionLimit = 0
+	result, err, usedGas = Execute("testAddress", string(bytecode), "send", `["0x12345","1000000000000000000"]`, "testCaller", false, false, "")
 	assert.NoError(t, err)
 	assert.Empty(t, result)
 	assert.Greater(t, usedGas, uint64(0), "Expected some gas to be used")
@@ -363,7 +392,10 @@ func TestExecuteWithCallback(t *testing.T) {
 		// the last argument is the gas in bytes, the first 8 bytes of the result is the used gas
 		{"send", []string{"0x12345", "1000000000000000000", "\xa8*\x0f\x00\x00\x00\x00\x00"}, "\x09\x00\x01\x00\x00\x00\x00\x00[]", nil},
 	}
-	result, err, usedGas = Execute("testAddress", string(bytecode), "send", `["0x12345","1000000000000000000"]`, 1000000, "testCaller", false, false, "")
+	contractUseGas = true
+	contractGasLimit = 1000000
+	contractInstructionLimit = 0
+	result, err, usedGas = Execute("testAddress", string(bytecode), "send", `["0x12345","1000000000000000000"]`, "testCaller", false, false, "")
 	assert.NoError(t, err)
 	assert.Empty(t, result)
 	assert.Greater(t, usedGas, uint64(0), "Expected some gas to be used")
@@ -377,7 +409,10 @@ func TestExecuteWithCallback(t *testing.T) {
 		// the last argument is the gas in bytes, the first 8 bytes of the result is the used gas
 		{"send", []string{"0x12345", "1000000000000000000", "\xa8*\x0f\x00\x00\x00\x00\x00"}, "\x09\x00\x01\x00\x00\x00\x00\x00", errors.New("failed call")},
 	}
-	result, err, usedGas = Execute("testAddress", string(bytecode), "send", `["0x12345","1000000000000000000"]`, 1000000, "testCaller", false, false, "")
+	contractUseGas = true
+	contractGasLimit = 1000000
+	contractInstructionLimit = 0
+	result, err, usedGas = Execute("testAddress", string(bytecode), "send", `["0x12345","1000000000000000000"]`, "testCaller", false, false, "")
 	assert.Error(t, err)
 	assert.Empty(t, result)
 	assert.Greater(t, usedGas, uint64(0), "Expected some gas to be used")
@@ -390,7 +425,10 @@ func TestExecuteWithCallback(t *testing.T) {
 		// the last argument is the gas in bytes, the first 8 bytes of the result is the used gas
 		{"send", []string{"chucku-chucku", "1000000000000000000", "\xa8*\x0f\x00\x00\x00\x00\x00"}, "", errors.New("invalid address")},
 	}
-	result, err, usedGas = Execute("testAddress", string(bytecode), "send", `["chucku-chucku","1000000000000000000"]`, 1000000, "testCaller", false, false, "")
+	contractUseGas = true
+	contractGasLimit = 1000000
+	contractInstructionLimit = 0
+	result, err, usedGas = Execute("testAddress", string(bytecode), "send", `["chucku-chucku","1000000000000000000"]`, "testCaller", false, false, "")
 	assert.Error(t, err)
 	assert.Empty(t, result)
 	assert.Greater(t, usedGas, uint64(0), "Expected some gas to be used")
@@ -403,7 +441,10 @@ func TestExecuteWithCallback(t *testing.T) {
 		// the last argument is the gas in bytes, the first 8 bytes of the result is the used gas
 		{"send", []string{"0x12345", "abc", "\xa8*\x0f\x00\x00\x00\x00\x00"}, "", errors.New("invalid amount")},
 	}
-	result, err, usedGas = Execute("testAddress", string(bytecode), "send", `["0x12345","abc"]`, 1000000, "testCaller", false, false, "")
+	contractUseGas = true
+	contractGasLimit = 1000000
+	contractInstructionLimit = 0
+	result, err, usedGas = Execute("testAddress", string(bytecode), "send", `["0x12345","abc"]`, "testCaller", false, false, "")
 	assert.Error(t, err)
 	assert.Empty(t, result)
 	assert.Greater(t, usedGas, uint64(0), "Expected some gas to be used")
@@ -416,7 +457,10 @@ func TestExecuteWithCallback(t *testing.T) {
 		// the last argument is the gas in bytes, the first 8 bytes of the result is the used gas
 		{"call", []string{"0x12345", "add", "[1,2]", "", ".#\x0f\x00\x00\x00\x00\x00"}, "\x09\x00\x01\x00\x00\x00\x00\x00[3]", nil},
 	}
-	result, err, usedGas = Execute("testAddress", string(bytecode), "call", `["0x12345","add",1,2]`, 1000000, "testCaller", false, false, "")
+	contractUseGas = true
+	contractGasLimit = 1000000
+	contractInstructionLimit = 0
+	result, err, usedGas = Execute("testAddress", string(bytecode), "call", `["0x12345","add",1,2]`, "testCaller", false, false, "")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, result)
 	assert.Greater(t, usedGas, uint64(0), "Expected some gas to be used")
@@ -430,7 +474,10 @@ func TestExecuteWithCallback(t *testing.T) {
 		// the last argument is the gas in bytes, the first 8 bytes of the result is the used gas
 		{"call", []string{"0x12345", "buy", `[1,"NFT"]`, "9876543210", "\xf8\x1d\x0f\x00\x00\x00\x00\x00"}, "\x09\x00\x01\x00\x00\x00\x00\x00[\"purchased\",1,\"NFT\"]", nil},
 	}
-	result, err, usedGas = Execute("testAddress", string(bytecode), "call_with_send", `["9876543210","0x12345","buy",1,"NFT"]`, 1000000, "testCaller", false, false, "")
+	contractUseGas = true
+	contractGasLimit = 1000000
+	contractInstructionLimit = 0
+	result, err, usedGas = Execute("testAddress", string(bytecode), "call_with_send", `["9876543210","0x12345","buy",1,"NFT"]`, "testCaller", false, false, "")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, result)
 	assert.Greater(t, usedGas, uint64(0), "Expected some gas to be used")
@@ -444,7 +491,10 @@ func TestExecuteWithCallback(t *testing.T) {
 		// the last argument is the gas in bytes, the first 8 bytes of the result is the used gas
 		{"send", []string{"0x12345", "9876543210", "\xca)\x0f\x00\x00\x00\x00\x00"}, "\x09\x00\x01\x00\x00\x00\x00\x00[]", nil},
 	}
-	result, err, usedGas = Execute("testAddress", string(bytecode), "call_with_send", `["9876543210","0x12345"]`, 1000000, "testCaller", false, false, "")
+	contractUseGas = true
+	contractGasLimit = 1000000
+	contractInstructionLimit = 0
+	result, err, usedGas = Execute("testAddress", string(bytecode), "call_with_send", `["9876543210","0x12345"]`, "testCaller", false, false, "")
 	assert.NoError(t, err)
 	assert.Empty(t, result)
 	assert.Greater(t, usedGas, uint64(0), "Expected some gas to be used")
@@ -456,7 +506,10 @@ func TestExecuteWithCallback(t *testing.T) {
 	callbacks = []vmCallback{
 		{"delegate-call", []string{"0x12345", "add", "[1,2]", "\x9d#\x0f\x00\x00\x00\x00\x00"}, "\x09\x00\x01\x00\x00\x00\x00\x00[3]", nil},
 	}
-	result, err, usedGas = Execute("testAddress", string(bytecode), "delegatecall", `["0x12345","add",1,2]`, 1000000, "testCaller", false, false, "")
+	contractUseGas = true
+	contractGasLimit = 1000000
+	contractInstructionLimit = 0
+	result, err, usedGas = Execute("testAddress", string(bytecode), "delegatecall", `["0x12345","add",1,2]`, "testCaller", false, false, "")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, result)
 	assert.Greater(t, usedGas, uint64(0), "Expected some gas to be used")
@@ -467,9 +520,12 @@ func TestExecuteWithCallback(t *testing.T) {
 
 	// execute contract - deploy
 	callbacks = []vmCallback{
-		{"deploy", []string{contractCode, "[]", "", "\xd5\x17\x0f\x00\x00\x00\x00\x00"}, "\x09\x00\x01\x00\x00\x00\x00\x00[\"Amhs9v8EeAAWrrvEFrvMng4UksHRsR7wN1iLqKkXw5bqMV18JP3h\"]", nil},
+		{"deploy", []string{contractCode, "[]", "", "\xd0\x17\x0f\x00\x00\x00\x00\x00"}, "\x09\x00\x01\x00\x00\x00\x00\x00[\"Amhs9v8EeAAWrrvEFrvMng4UksHRsR7wN1iLqKkXw5bqMV18JP3h\"]", nil},
 	}
-	result, err, usedGas = Execute("testAddress", string(bytecode), "deploy", `["`+contractCode+`"]`, 1000005, "testCaller", false, false, "")
+	contractUseGas = true
+	contractGasLimit = 1000000
+	contractInstructionLimit = 0
+	result, err, usedGas = Execute("testAddress", string(bytecode), "deploy", `["`+contractCode+`"]`, "testCaller", false, false, "")
 	assert.NoError(t, err)
 	assert.Equal(t, `"Amhs9v8EeAAWrrvEFrvMng4UksHRsR7wN1iLqKkXw5bqMV18JP3h"`, result)
 	assert.Greater(t, usedGas, uint64(0), "Expected some gas to be used")
@@ -479,9 +535,12 @@ func TestExecuteWithCallback(t *testing.T) {
 
 	// execute contract - deploy with invalid return
 	callbacks = []vmCallback{
-		{"deploy", []string{contractCode, "[]", "", "\xd5\x17\x0f\x00\x00\x00\x00\x00"}, "\x09\x00\x01\x00\x00\x00\x00\x00...", nil},
+		{"deploy", []string{contractCode, "[]", "", "\xd0\x17\x0f\x00\x00\x00\x00\x00"}, "\x09\x00\x01\x00\x00\x00\x00\x00...", nil},
 	}
-	result, err, usedGas = Execute("testAddress", string(bytecode), "deploy", `["`+contractCode+`"]`, 1000005, "testCaller", false, false, "")
+	contractUseGas = true
+	contractGasLimit = 1000000
+	contractInstructionLimit = 0
+	result, err, usedGas = Execute("testAddress", string(bytecode), "deploy", `["`+contractCode+`"]`, "testCaller", false, false, "")
 	assert.Error(t, err)
 	assert.Equal(t, "internal error: result from call is not a valid JSON array", err.Error())
 	assert.Empty(t, result)
@@ -492,9 +551,12 @@ func TestExecuteWithCallback(t *testing.T) {
 
 	// execute contract - deploy with incomplete return
 	callbacks = []vmCallback{
-		{"deploy", []string{contractCode, "[]", "", "\xd5\x17\x0f\x00\x00\x00\x00\x00"}, "\x09\x00\x01\x00\x00\x00\x00\x00[]", nil},
+		{"deploy", []string{contractCode, "[]", "", "\xd0\x17\x0f\x00\x00\x00\x00\x00"}, "\x09\x00\x01\x00\x00\x00\x00\x00[]", nil},
 	}
-	result, err, usedGas = Execute("testAddress", string(bytecode), "deploy", `["`+contractCode+`"]`, 1000005, "testCaller", false, false, "")
+	contractUseGas = true
+	contractGasLimit = 1000000
+	contractInstructionLimit = 0
+	result, err, usedGas = Execute("testAddress", string(bytecode), "deploy", `["`+contractCode+`"]`, "testCaller", false, false, "")
 	assert.Error(t, err)
 	assert.Equal(t, "internal error: result from call is not a valid JSON array", err.Error())
 	assert.Empty(t, result)
@@ -505,9 +567,12 @@ func TestExecuteWithCallback(t *testing.T) {
 
 	// execute contract - deploy with send
 	callbacks = []vmCallback{
-		{"deploy", []string{contract2, "[250]", "9876543210", "|\x11\x0f\x00\x00\x00\x00\x00"}, "\x09\x00\x01\x00\x00\x00\x00\x00[\"Amhs9v8EeAAWrrvEFrvMng4UksHRsR7wN1iLqKkXw5bqMV18JP3h\"]", nil},
+		{"deploy", []string{contract2, "[250]", "9876543210", "w\x11\x0f\x00\x00\x00\x00\x00"}, "\x09\x00\x01\x00\x00\x00\x00\x00[\"Amhs9v8EeAAWrrvEFrvMng4UksHRsR7wN1iLqKkXw5bqMV18JP3h\"]", nil},
 	}
-	result, err, usedGas = Execute("testAddress", string(bytecode), "deploy_with_send", `["9876543210","`+contract2+`",250]`, 1000005, "testCaller", false, false, "")
+	contractUseGas = true
+	contractGasLimit = 1000000
+	contractInstructionLimit = 0
+	result, err, usedGas = Execute("testAddress", string(bytecode), "deploy_with_send", `["9876543210","`+contract2+`",250]`, "testCaller", false, false, "")
 	assert.NoError(t, err)
 	assert.Equal(t, `"Amhs9v8EeAAWrrvEFrvMng4UksHRsR7wN1iLqKkXw5bqMV18JP3h"`, result)
 	assert.Greater(t, usedGas, uint64(0), "Expected some gas to be used")
@@ -522,7 +587,10 @@ func TestExecuteWithCallback(t *testing.T) {
 		{"getOrigin", []string{}, "anotherAddress", nil},
 		{"isFeeDelegation", []string{}, "false", nil},
 	}
-	result, err, usedGas = Execute("testAddress", string(bytecode), "get_info", `[]`, 1000000, "testCaller", false, false, "")
+	contractUseGas = true
+	contractGasLimit = 1000000
+	contractInstructionLimit = 0
+	result, err, usedGas = Execute("testAddress", string(bytecode), "get_info", `[]`, "testCaller", false, false, "")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, result)
 	assert.Greater(t, usedGas, uint64(0), "Expected some gas to be used")
@@ -536,7 +604,10 @@ func TestExecuteWithCallback(t *testing.T) {
 		{"event", []string{"first", `[123,"abc"]`}, "", nil},
 		{"event", []string{"second", `["456",7.89]`}, "", nil},
 	}
-	result, err, usedGas = Execute("testAddress", string(bytecode), "events", `[]`, 1000000, "testCaller", false, false, "")
+	contractUseGas = true
+	contractGasLimit = 1000000
+	contractInstructionLimit = 0
+	result, err, usedGas = Execute("testAddress", string(bytecode), "events", `[]`, "testCaller", false, false, "")
 	assert.NoError(t, err)
 	assert.Empty(t, result)
 	assert.Greater(t, usedGas, uint64(0), "Expected some gas to be used")
@@ -564,7 +635,10 @@ func TestExecuteWithCallback(t *testing.T) {
 		{"rsGet", []string{"\x05\x00\x00\x00i\x01\x00\x00\x00"}, "\x05\x00\x00\x00i\x03\x00\x00\x00\x05\x00\x00\x00i\x01\x00\x00\x00\x05\x00\x00\x00i\x06\x00\x00\x00", nil},
 		//{"rsNext", []string{"\x05\x00\x00\x00i\x01\x00\x00\x00"}, "\x02\x00\x00\x00b\x00", nil},
 	}
-	result, err, usedGas = Execute("testAddress", string(bytecode), "sql_func", `[]`, 1000000, "testCaller", false, false, "")
+	contractUseGas = false
+	contractGasLimit = 0
+	contractInstructionLimit = 5000000
+	result, err, usedGas = Execute("testAddress", string(bytecode), "sql_func", `[]`, "testCaller", false, false, "")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, result)
 	assert.Greater(t, usedGas, uint64(0), "Expected some gas to be used")

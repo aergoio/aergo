@@ -99,6 +99,7 @@ type executor struct {
 	fname      string
 	ctx        *vmContext
 	contractGasLimit uint64
+	instructionLimit uint64
 	usedGas    uint64
 	jsonRet    string
 	isView     bool
@@ -220,12 +221,25 @@ func (ctx *vmContext) IsMultiCall() bool {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// GAS
+// VM RESOURCES (GAS AND INSTRUCTION COUNT)
 ////////////////////////////////////////////////////////////////////////////////
 
 func (ctx *vmContext) IsGasSystem() bool {
 	return fee.GasEnabled(ctx.blockInfo.ForkVersion) && !ctx.isQuery
 }
+
+func (ctx *vmContext) parseResourceLimit(limit string) (gasLimit uint64, instructionLimit uint64, err error) {
+	if ctx.IsGasSystem() {
+		gasLimit, err = ctx.parseGasLimit(limit)
+	} else {
+		instructionLimit, err = ctx.parseInstructionLimit(limit)
+	}
+	return gasLimit, instructionLimit, err
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// GAS
+////////////////////////////////////////////////////////////////////////////////
 
 // check if the gas limit set by the parent VM instance is valid
 func (ctx *vmContext) parseGasLimit(gas string) (uint64, error) {
@@ -252,6 +266,23 @@ func (ctx *vmContext) usedGas() uint64 {
 // get the contracts execution fee
 func (ctx *vmContext) usedFee() *big.Int {
 	return fee.TxExecuteFee(ctx.blockInfo.ForkVersion, ctx.bs.GasPrice, ctx.usedGas(), ctx.dbUpdateTotalSize)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// VM INSTRUCTION COUNT
+////////////////////////////////////////////////////////////////////////////////
+
+func (ctx *vmContext) parseInstructionLimit(limit string) (uint64, error) {
+	if len(limit) != 8 {
+		return 0, errors.New("uncatchable: invalid instruction limit")
+	}
+	instructionLimit := binary.LittleEndian.Uint64([]byte(limit))
+	// deduct the amount charged for the contract call
+	if instructionLimit < apiCallCountDeduc {
+		return 0, errors.New("uncatchable: instruction limit exceeded")
+	}
+	instructionLimit -= apiCallCountDeduc
+	return instructionLimit, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -601,6 +632,7 @@ func Call(
 
 	// set the gas limit from the transaction
 	ce.contractGasLimit = ctx.gasLimit
+	ce.instructionLimit = callMaxInstLimit
 
 	if ce.err == nil {
 		// execute the contract call
@@ -718,6 +750,7 @@ func Create(
 
 	// set the gas limit from the transaction
 	ce.contractGasLimit = ctx.gasLimit
+	ce.instructionLimit = callMaxInstLimit
 
 	if ce.err == nil {
 		// call the constructor
@@ -856,6 +889,7 @@ func Query(contractAddress []byte, bs *state.BlockState, cdb ChainAccessor, cont
 
 	// set the gas limit from the transaction
 	ce.contractGasLimit = ctx.gasLimit
+	ce.instructionLimit = queryMaxInstLimit
 
 	if ce.err == nil {
 		// execute the contract call
@@ -946,6 +980,7 @@ func CheckFeeDelegation(contractAddress []byte, bs *state.BlockState, bi *types.
 
 	// set the gas limit from the transaction
 	ce.contractGasLimit = ctx.gasLimit
+	ce.instructionLimit = queryMaxInstLimit
 
 	if ce.err == nil {
 		// execute the contract call
@@ -967,6 +1002,9 @@ func CheckFeeDelegation(contractAddress []byte, bs *state.BlockState, bi *types.
 }
 
 func (ctx *vmContext) updateUsedGas(usedGas uint64) error {
+	if !ctx.IsGasSystem() {
+		return nil
+	}
 	if usedGas > ctx.remainingGas {
 		ctx.remainingGas = 0
 		return errors.New("run out of gas")

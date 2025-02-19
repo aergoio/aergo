@@ -157,7 +157,7 @@ func processCommand(command string, args []string) (string, error) {
 
 	switch command {
 	case "execute":
-		if len(args) != 9 {
+		if len(args) != 10 {
 			fmt.Println("execute: invalid number of arguments")
 			sendMessage([]string{"", "execute: invalid number of arguments"})
 			closeApp(1)
@@ -166,37 +166,51 @@ func processCommand(command string, args []string) (string, error) {
 		code := args[1]
 		fname := args[2]
 		fargs := args[3]
-		gasStr := args[4]
-		caller := args[5]
-		hasParent, err := strconv.ParseBool(args[6])
+		useGas, err := strconv.ParseBool(args[4])
+		if err != nil {
+			fmt.Println("execute: invalid useGas argument")
+			sendMessage([]string{"", "execute: invalid useGas argument"})
+			closeApp(1)
+		}
+		limitStr := args[5]
+		caller := args[6]
+		hasParent, err := strconv.ParseBool(args[7])
 		if err != nil {
 			fmt.Println("execute: invalid hasParent argument")
 			sendMessage([]string{"", "execute: invalid hasParent argument"})
 			closeApp(1)
 		}
-		isFeeDelegation, err := strconv.ParseBool(args[7])
+		isFeeDelegation, err := strconv.ParseBool(args[8])
 		if err != nil {
 			fmt.Println("execute: invalid isFeeDelegation argument")
 			sendMessage([]string{"", "execute: invalid isFeeDelegation argument"})
 			closeApp(1)
 		}
-		abiError := args[8]
+		abiError := args[9]
 
-		var gas uint64
-		gasBytes := []byte(gasStr)
-		if len(gasBytes) != 8 {
-			fmt.Println("execute: invalid gas string length")
-			sendMessage([]string{"", "execute: invalid gas string length"})
+		var limit uint64
+		limitBytes := []byte(limitStr)
+		if len(limitBytes) != 8 {
+			fmt.Println("execute: invalid limit string length")
+			sendMessage([]string{"", "execute: invalid limit string length"})
 			closeApp(1)
 		}
-		gas = binary.LittleEndian.Uint64(gasBytes)
+		limit = binary.LittleEndian.Uint64(limitBytes)
 
-		res, err, usedGas := Execute(address, code, fname, fargs, gas, caller, hasParent, isFeeDelegation, abiError)
+		if useGas {
+			contractUseGas = true
+			contractGasLimit = limit
+		} else {
+			contractUseGas = false
+			contractInstructionLimit = limit
+		}
 
-		// encode the gas together with the result
-		gasBytes = make([]byte, 8)
-		binary.LittleEndian.PutUint64(gasBytes, usedGas)
-		res = string(gasBytes) + res
+		res, err, usedResources := Execute(address, code, fname, fargs, caller, hasParent, isFeeDelegation, abiError)
+
+		// encode the used resources together with the result
+		resourcesBytes := make([]byte, 8)
+		binary.LittleEndian.PutUint64(resourcesBytes, usedResources)
+		res = string(resourcesBytes) + res
 
 		var errStr string
 		if err != nil {

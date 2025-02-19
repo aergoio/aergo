@@ -157,7 +157,7 @@ func TestVMExecutionBasicPlainCode(t *testing.T) {
 
 	// Test the execute command
 	t.Log("Sending execute command")
-	executeCmd := []string{"execute", "contract_address", contractCode, "add", `[123,456]`, "\x00\x00\x00\x01\x00\x00\x00\x00", "test_caller", "false", "false", ""}
+	executeCmd := []string{"execute", "contract_address", contractCode, "add", `[123,456]`, "1", "\x00\x00\x00\x01\x00\x00\x00\x00", "test_caller", "false", "false", ""}
 	serializedCmd := msg.SerializeMessage(executeCmd...)
 	err := msg.SendMessage(conn, serializedCmd)
 	require.NoError(t, err, "Failed to send execute command")
@@ -229,7 +229,7 @@ func TestVMCompileAndExecutionBasic(t *testing.T) {
 
 	// Test the execute command
 	t.Log("Sending execute command")
-	executeCmd := []string{"execute", "contract_address", string(bytecode), "add", `[123,456]`, "\x00\x00\x00\x01\x00\x00\x00\x00", "test_caller", "false", "false", ""}
+	executeCmd := []string{"execute", "contract_address", string(bytecode), "add", `[123,456]`, "1", "\x00\x00\x00\x01\x00\x00\x00\x00", "test_caller", "false", "false", ""}
 	serializedCmd = msg.SerializeMessage(executeCmd...)
 	err = msg.SendMessage(conn, serializedCmd)
 	require.NoError(t, err, "Failed to send execute command")
@@ -271,7 +271,7 @@ func TestVMExecutionWithCallback(t *testing.T) {
 
 	// Test the execute command
 	t.Log("Sending execute command")
-	executeCmd := []string{"execute", "contract_address", contractCode, "send", `["test_to","9876543210"]`, "\x00\x00\x00\x01\x00\x00\x00\x00", "test_caller", "false", "false", ""}
+	executeCmd := []string{"execute", "contract_address", contractCode, "send", `["test_to","9876543210"]`, "1", "\x00\x00\x00\x01\x00\x00\x00\x00", "test_caller", "false", "false", ""}
 	serializedCmd := msg.SerializeMessage(executeCmd...)
 	err := msg.SendMessage(conn, serializedCmd)
 	require.NoError(t, err, "Failed to send execute command")

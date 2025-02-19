@@ -40,7 +40,9 @@ var lstate *LState          // *C.lua_State
 
 var contractAddress string
 var contractCaller string
+var contractUseGas bool
 var contractGasLimit uint64
+var contractInstructionLimit uint64
 var contractIsFeeDelegation bool
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -82,8 +84,13 @@ func newExecutor(bytecode []byte, fname string, args string, abiError string) *e
 		ce.abiErr = errors.New(abiError)
 	}
 
-	// set the gas limit on the Lua state
-	setGas()
+	if contractUseGas {
+		// set the gas limit on the Lua state
+		setRemainingGas(contractGasLimit)
+	} else {
+		// set the instruction limit on the Lua state
+		//setRemainingInstructions(contractInstructionLimit)
+	}
 
 	// load the contract code into the Lua state
 	ce.vmLoadCode()
@@ -285,7 +292,7 @@ func (ce *executor) call(hasParent bool) {
 	}
 
 	// set the instruction limit and timeout hook
-	ce.setCountHook(C.int(5000000))
+	ce.setCountHook(C.int(contractInstructionLimit))
 
 	// call the function
 	nRet := C.int(0)
@@ -394,18 +401,57 @@ func (ce *executor) vmPreRun() {
 
 
 ////////////////////////////////////////////////////////////////////////////////
+// RESOURCES (GAS AND INSTRUCTION COUNT)
+////////////////////////////////////////////////////////////////////////////////
+
+func IsGasSystem() bool {
+	return contractUseGas
+}
+
+// extract the used gas or number of instructions from the result
+func extractUsedResources(result string) (uint64, string) {
+	if len(result) < 8 {
+		return 0, result
+	}
+	usedResources := binary.LittleEndian.Uint64([]byte(result[:8]))
+	result = result[8:]
+	return usedResources, result
+}
+
+// deduct the used gas or number of instructions from the remaining gas or instructions
+func updateRemainingResources(usedResources uint64, err error) error {
+	if IsGasSystem() {
+		usedGas := usedResources
+		remainingGas := getRemainingGas()
+		if usedGas > remainingGas {
+			if err == nil {
+				err = errors.New("uncatchable: gas limit exceeded")
+			}
+			return err
+		}
+		remainingGas -= usedGas
+		setRemainingGas(remainingGas)
+	} else {
+		usedInstructions := usedResources
+		remainingInstructions := getRemainingInstructions()
+		if usedInstructions > remainingInstructions {
+			if err == nil {
+				err = errors.New("uncatchable: instruction limit exceeded")
+			}
+			return err
+		}
+		remainingInstructions -= usedInstructions
+		setRemainingInstructions(remainingInstructions)
+	}
+	return err
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // GAS
 ////////////////////////////////////////////////////////////////////////////////
 
-
-func IsGasSystem() bool {
-	return contractGasLimit > 0
-}
-
-func setGas() {
-	if IsGasSystem() {
-		C.lua_gasset(lstate, C.ulonglong(contractGasLimit))
-	}
+func setRemainingGas(remaining uint64) {
+	C.lua_gasset(lstate, C.ulonglong(remaining))
 }
 
 func getRemainingGas() uint64 {
@@ -416,59 +462,21 @@ func getUsedGas() uint64 {
 	return contractGasLimit - getRemainingGas()
 }
 
-func addConsumedGas(gas uint64, err error) error {
-	if !IsGasSystem() {
-		return err
-	}
-	remainingGas := getRemainingGas()
-	if gas > remainingGas {
-		if err == nil {
-			err = errors.New("uncatchable: gas limit exceeded")
-		}
-		return err
-	}
-	remainingGas -= gas
-	C.lua_gasset(lstate, C.ulonglong(remainingGas))
-	return err
-}
-
-// extract the used gas from the result
-func extractUsedGas(result string) (uint64, string) {
-	if len(result) < 8 {
-		return 0, result
-	}
-	usedGas := binary.LittleEndian.Uint64([]byte(result[:8]))
-	result = result[8:]
-	return usedGas, result
-}
-
-
+////////////////////////////////////////////////////////////////////////////////
+// VM INSTRUCTION COUNT
 ////////////////////////////////////////////////////////////////////////////////
 
-/*
-func setInstCount(ctx *vmContext, parent *LState, child *LState) {
-	if !IsGasSystem() {
-		C.vm_setinstcount(parent, C.vm_instcount(child))
-	}
+func setRemainingInstructions(remaining uint64) {
+	C.vm_setinstcount(lstate, C.int(remaining))
 }
 
-func setInstMinusCount(ctx *vmContext, L *LState, deduc C.int) {
-	if !IsGasSystem() {
-		C.vm_setinstcount(L, minusCallCount(ctx, C.vm_instcount(L), deduc))
-	}
+func getRemainingInstructions() uint64 {
+	return uint64(C.vm_instcount(lstate))
 }
 
-func minusCallCount(ctx *vmContext, curCount, deduc C.int) C.int {
-	if !IsGasSystem() {
-		return 0
-	}
-	remain := curCount - deduc
-	if remain <= 0 {
-		remain = 1
-	}
-	return remain
+func getUsedInstructions() uint64 {
+	return contractInstructionLimit - getRemainingInstructions()
 }
-*/
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -477,7 +485,6 @@ func Execute(
 	code string,
 	fname string,
 	args string,
-	gas uint64,
 	caller string,
 	hasParent bool,
 	isFeeDelegation bool,
@@ -486,16 +493,20 @@ func Execute(
 
 	contractAddress = address
 	contractCaller = caller
-	contractGasLimit = gas
 	contractIsFeeDelegation = isFeeDelegation
 
 	ex := newExecutor([]byte(code), fname, args, abiError)
 
 	ex.call(hasParent)
 
-	totalUsedGas := getUsedGas()
+	var totalUsedResources uint64
+	if contractUseGas {
+	  totalUsedResources = getUsedGas()
+	} else {
+	  totalUsedResources = getUsedInstructions()
+	}
 
-	return ex.jsonRet, ex.err, totalUsedGas
+	return ex.jsonRet, ex.err, totalUsedResources
 }
 
 ////////////////////////////////////////////////////////////////////////////////

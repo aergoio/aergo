@@ -94,16 +94,16 @@ func luaCallContract(L *LState,
 	fnameStr := C.GoString(fname)
 	argsStr := C.GoString(arguments)
 	amountStr := C.GoString(amount)
-	gasLimit := getGasLimit(gas)
-	gasStr := string((*[8]byte)(unsafe.Pointer(&gasLimit))[:])
+	resourceLimit := getResourceLimit(gas)
+	limitStr := string((*[8]byte)(unsafe.Pointer(&resourceLimit))[:])
 
-	args := []string{contractAddress, fnameStr, argsStr, amountStr, gasStr}
+	args := []string{contractAddress, fnameStr, argsStr, amountStr, limitStr}
 	result, err := sendRequest("call", args)
 
-	// extract the used gas from the result
-	usedGas, result := extractUsedGas(result)
-	// update the remaining gas
-	err = addConsumedGas(usedGas, err)
+	// extract the used gas or used instructions from the result
+	usedResources, result := extractUsedResources(result)
+	// deduct the used resources from the remaining
+	err = updateRemainingResources(usedResources, err)
 
 	if err != nil {
 		return nil, handleError(L, err)
@@ -119,16 +119,16 @@ func luaDelegateCallContract(L *LState,
 	contractAddress := C.GoString(address)
 	fnameStr := C.GoString(fname)
 	argsStr := C.GoString(arguments)
-	gasLimit := getGasLimit(gas)
-	gasStr := string((*[8]byte)(unsafe.Pointer(&gasLimit))[:])
+	resourceLimit := getResourceLimit(gas)
+	limitStr := string((*[8]byte)(unsafe.Pointer(&resourceLimit))[:])
 
-	args := []string{contractAddress, fnameStr, argsStr, gasStr}
+	args := []string{contractAddress, fnameStr, argsStr, limitStr}
 	result, err := sendRequest("delegate-call", args)
 
-	// extract the used gas from the result
-	usedGas, result := extractUsedGas(result)
-	// update the remaining gas
-	err = addConsumedGas(usedGas, err)
+	// extract the used gas or used instructions from the result
+	usedResources, result := extractUsedResources(result)
+	// deduct the used resources from the remaining
+	err = updateRemainingResources(usedResources, err)
 
 	if err != nil {
 		return nil, handleError(L, err)
@@ -138,15 +138,15 @@ func luaDelegateCallContract(L *LState,
 
 //export luaSendAmount
 func luaSendAmount(L *LState, address *C.char, amount *C.char) *C.char {
-	gasLimit := getGasLimit(0)
-	gasStr := string((*[8]byte)(unsafe.Pointer(&gasLimit))[:])
-	args := []string{C.GoString(address), C.GoString(amount), gasStr}
+	resourceLimit := getResourceLimit(0)
+	limitStr := string((*[8]byte)(unsafe.Pointer(&resourceLimit))[:])
+	args := []string{C.GoString(address), C.GoString(amount), limitStr}
 	result, err := sendRequest("send", args)
 
-	// extract the used gas from the result
-	usedGas, result := extractUsedGas(result)
-	// update the remaining gas
-	err = addConsumedGas(usedGas, err)
+	// extract the used gas or used instructions from the result
+	usedResources, result := extractUsedResources(result)
+	// deduct the used resources from the remaining
+	err = updateRemainingResources(usedResources, err)
 
 	if err != nil {
 		return handleError(L, err)
@@ -412,16 +412,16 @@ func luaDeployContract(
 	contractStr := C.GoString(contract)
 	argsStr := C.GoString(arguments)
 	amountStr := C.GoString(amount)
-	gasLimit := getGasLimit(0)
-	gasStr := string((*[8]byte)(unsafe.Pointer(&gasLimit))[:])
+	resourceLimit := getResourceLimit(0)
+	limitStr := string((*[8]byte)(unsafe.Pointer(&resourceLimit))[:])
 
-	args := []string{contractStr, argsStr, amountStr, gasStr}
+	args := []string{contractStr, argsStr, amountStr, limitStr}
 	result, err := sendRequest("deploy", args)
 
-	// extract the used gas from the result
-	usedGas, result := extractUsedGas(result)
-	// update the remaining gas
-	err = addConsumedGas(usedGas, err)
+	// extract the used gas or used instructions from the result
+	usedResources, result := extractUsedResources(result)
+	// deduct the used resources from the remaining
+	err = updateRemainingResources(usedResources, err)
 
 	if err != nil {
 		return nil, handleError(L, err)
@@ -550,6 +550,13 @@ func luaGetStaking(L *LState, addr *C.char) (*C.char, C.lua_Integer, *C.char) {
 	return C.CString(amount), C.lua_Integer(when), nil
 }
 
+func getResourceLimit(gas uint64) uint64 {
+	if IsGasSystem() {
+		return getGasLimit(gas)
+	} else {
+		return getRemainingInstructions()
+	}
+}
 
 func getGasLimit(definedGasLimit uint64) uint64 {
 

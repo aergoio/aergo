@@ -63,7 +63,7 @@ const (
 	maxEventCntV4     = 128
 	maxEventNameSize  = 64
 	maxEventArgSize   = 4096
-	luaCallCountDeduc = 1000
+	apiCallCountDeduc = 1000
 )
 
 const (
@@ -229,27 +229,16 @@ func (ctx *vmContext) handleDelVariable(args []string) (result string, err error
 
 
 /*
-func (ctx *vmContext) setInstCount(parent *LState, child *LState) {
+// old name: setInstMinusCount
+func (ctx *vmContext) deductInstructionCount(L *LState, toDeduct C.int) {
 	if !ctx.IsGasSystem() {
-		C.vm_setinstcount(parent, C.vm_instcount(child))
+		remaining := C.vm_instcount(L)
+		remaining -= toDeduct
+		if remaining <= 0 {
+			remaining = 1
+		}
+		C.vm_setinstcount(L, remaining)
 	}
-}
-
-func (ctx *vmContext) setInstMinusCount(L *LState, deduc C.int) {
-	if !ctx.IsGasSystem() {
-		C.vm_setinstcount(L, ctx.minusCallCount(C.vm_instcount(L), deduc))
-	}
-}
-
-func (ctx *vmContext) minusCallCount(curCount, deduc C.int) C.int {
-	if ctx.IsGasSystem() {
-		return 0
-	}
-	remain := curCount - deduc
-	if remain <= 0 {
-		remain = 1
-	}
-	return remain
 }
 */
 
@@ -258,9 +247,7 @@ func (ctx *vmContext) handleCall(args []string) (result string, err error) {
 	if len(args) != 5 {
 		return "", errors.New("[Contract.Call] invalid number of arguments")
 	}
-	contractAddress, fname, fargs, amount, gas := args[0], args[1], args[2], args[3], args[4]
-	// gas => remaining gas
-	// but it can also be the gas limit set by the caller contract
+	contractAddress, fname, fargs, amount, limit := args[0], args[1], args[2], args[3], args[4]
 
 	errmsg := [2]string{}
 	errnum := iif(CurrentForkVersion >= 5, NEW_MSG, OLD_MSG)
@@ -309,7 +296,8 @@ func (ctx *vmContext) handleCall(args []string) (result string, err error) {
 	}
 
 	// get the remaining gas or gas limit from the parent contract
-	gasLimit, err := ctx.parseGasLimit(gas)
+	// use the instruction count limit on private chains and queries
+	gasLimit, instructionLimit, err := ctx.parseResourceLimit(limit)
 	if err != nil {
 		return "", err
 	}
@@ -325,6 +313,7 @@ func (ctx *vmContext) handleCall(args []string) (result string, err error) {
 
 	// set the remaining gas or gas limit from the parent contract
 	ce.contractGasLimit = gasLimit
+	ce.instructionLimit = instructionLimit
 
 	// send the amount to the contract
 	senderState := ctx.curContract.callState.accState
@@ -412,7 +401,7 @@ func (ctx *vmContext) handleDelegateCall(args []string) (result string, err erro
 	if len(args) != 4 {
 		return "", errors.New("[Contract.DelegateCall] invalid number of arguments")
 	}
-	contractAddress, fname, fargs, gas := args[0], args[1], args[2], args[3]
+	contractAddress, fname, fargs, limit := args[0], args[1], args[2], args[3]
 
 	errmsg := [2]string{}
 	errnum := iif(CurrentForkVersion >= 5, NEW_MSG, OLD_MSG)
@@ -477,7 +466,8 @@ func (ctx *vmContext) handleDelegateCall(args []string) (result string, err erro
 	}
 
 	// get the remaining gas or gas limit from the parent contract
-	gasLimit, err := ctx.parseGasLimit(gas)
+	// use the instruction count limit on private chains and queries
+	gasLimit, instructionLimit, err := ctx.parseResourceLimit(limit)
 	if err != nil {
 		return "", err
 	}
@@ -493,6 +483,7 @@ func (ctx *vmContext) handleDelegateCall(args []string) (result string, err erro
 
 	// set the remaining gas or gas limit from the parent contract
 	ce.contractGasLimit = gasLimit
+	ce.instructionLimit = instructionLimit
 
 	// create a recovery point
 	seq, err := setRecoveryPoint(aid, ctx, nil, ctx.curContract.callState, zeroBig, false, false)
@@ -571,7 +562,7 @@ func (ctx *vmContext) handleSend(args []string) (result string, err error) {
 	if len(args) != 3 {
 		return "", errors.New("[Contract.Send] invalid number of arguments")
 	}
-	contractAddress, amount, gas := args[0], args[1], args[2]
+	contractAddress, amount, limit := args[0], args[1], args[2]
 
 	errmsg := [2]string{}
 	errnum := iif(CurrentForkVersion >= 5, NEW_MSG, OLD_MSG)
@@ -638,7 +629,8 @@ func (ctx *vmContext) handleSend(args []string) (result string, err error) {
 		}
 
 		// get the remaining gas or gas limit from the parent contract
-		gasLimit, err := ctx.parseGasLimit(gas)
+		// use the instruction count limit on private chains and queries
+		gasLimit, instructionLimit, err := ctx.parseResourceLimit(limit)
 		if err != nil {
 			return "", err
 		}
@@ -654,6 +646,7 @@ func (ctx *vmContext) handleSend(args []string) (result string, err error) {
 
 		// set the remaining gas or gas limit from the parent contract
 		ce.contractGasLimit = gasLimit
+		ce.instructionLimit = instructionLimit
 
 		// send the amount to the contract
 		if amountBig.Cmp(zeroBig) > 0 {
@@ -914,12 +907,12 @@ func (ctx *vmContext) getTimestamp() uint64 {
 
 
 func (ctx *vmContext) handleGetContractId() (result string, err error) {
-	//setInstMinusCount(ctx, L, 1000)
+	//deductInstructionCount(ctx, L, 1000)
 	return types.EncodeAddress(ctx.curContract.contractId), nil
 }
 
 func (ctx *vmContext) handleGetSender() (result string, err error) {
-	//setInstMinusCount(ctx, L, 1000)
+	//deductInstructionCount(ctx, L, 1000)
 	return types.EncodeAddress(ctx.curContract.sender), nil
 }
 
@@ -932,7 +925,7 @@ func (ctx *vmContext) handleGetTxHash() (result string, err error) {
 }
 
 func (ctx *vmContext) handleGetOrigin() (result string, err error) {
-	//setInstMinusCount(ctx, L, 1000)
+	//deductInstructionCount(ctx, L, 1000)
 	return types.EncodeAddress(ctx.origin), nil
 }
 
@@ -1347,7 +1340,7 @@ func (ctx *vmContext) handleDeploy(args []string) (result string, err error) {
 	if len(args) != 4 {
 		return "", errors.New("[Contract.Deploy] invalid number of arguments")
 	}
-	codeOrAddress, fargs, amount, gas := args[0], args[1], args[2], args[3]
+	codeOrAddress, fargs, amount, limit := args[0], args[1], args[2], args[3]
 
 	errmsg := [2]string{}
 	errnum := iif(CurrentForkVersion >= 5, NEW_MSG, OLD_MSG)
@@ -1510,7 +1503,8 @@ func (ctx *vmContext) handleDeploy(args []string) (result string, err error) {
 	}
 
 	// get the remaining gas or gas limit from the parent contract
-	gasLimit, err := ctx.parseGasLimit(gas)
+	// use the instruction count limit on private chains and queries
+	gasLimit, instructionLimit, err := ctx.parseResourceLimit(limit)
 	if err != nil {
 		return "", err
 	}
@@ -1526,6 +1520,7 @@ func (ctx *vmContext) handleDeploy(args []string) (result string, err error) {
 
 	// set the remaining gas or gas limit from the parent contract
 	ce.contractGasLimit = gasLimit
+	ce.instructionLimit = instructionLimit
 
 	// increment the nonce of the creator
 	senderState.SetNonce(senderState.Nonce() + 1)

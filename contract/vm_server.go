@@ -26,7 +26,7 @@ func (ce *executor) convertArgsToJSON() (string, error) {
 	return string(args), nil
 }
 
-func (ce *executor) call(extractUsedGas bool) {
+func (ce *executor) call(extractUsedResources bool) {
 
 	if ce.err != nil {
 		return
@@ -72,8 +72,17 @@ func (ce *executor) call(extractUsedGas bool) {
 		ce.err = err
 		return
 	}
-	//gas := strconv.FormatUint(ce.contractGasLimit, 10)
-	gas := string((*[8]byte)(unsafe.Pointer(&ce.contractGasLimit))[:])
+	var useGas string
+	var execLimit uint64
+	if ce.ctx.IsGasSystem() {
+		useGas = "1"
+		execLimit = ce.contractGasLimit
+	} else {
+		useGas = "0"
+		execLimit = ce.instructionLimit  // used on private networks and on queries
+	}
+	//limit := strconv.FormatUint(execLimit, 10)
+	limit := string((*[8]byte)(unsafe.Pointer(&execLimit))[:])
 	sender := types.EncodeAddress(ce.ctx.curContract.sender)
 	hasParent := strconv.FormatBool(ce.ctx.callDepth > 1)
 	isFeeDelegation := strconv.FormatBool(ce.ctx.isFeeDelegation)
@@ -83,7 +92,7 @@ func (ce *executor) call(extractUsedGas bool) {
 	}
 
 	// build the message
-	message := msg.SerializeMessage("execute", address, bytecode, fname, args, gas, sender, hasParent, isFeeDelegation, abiError)
+	message := msg.SerializeMessage("execute", address, bytecode, fname, args, useGas, limit, sender, hasParent, isFeeDelegation, abiError)
 
 	// send the execution request to the VM instance
 	err = ce.SendMessage(message)
@@ -100,10 +109,14 @@ func (ce *executor) call(extractUsedGas bool) {
 	// wait for and process messages in a loop
 	result, err := ce.MessageLoop()
 
-	if extractUsedGas && len(result) >= 8 {
-		// extract the used gas from the result
-		ce.usedGas = binary.LittleEndian.Uint64([]byte(result[:8]))
+	if extractUsedResources && len(result) >= 8 {
+		// extract the used resources from the result
+		usedResources := binary.LittleEndian.Uint64([]byte(result[:8]))
 		result = result[8:]
+		// update the used gas
+		if ce.ctx.IsGasSystem() {
+			ce.usedGas = usedResources
+		}
 	}
 
 	// return the result from the VM instance
