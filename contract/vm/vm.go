@@ -80,16 +80,16 @@ func newExecutor(bytecode []byte, fname string, args string, abiError string) *e
 		code: bytecode,
 	}
 
-	if abiError != "" {
-		ce.abiErr = errors.New(abiError)
-	}
-
 	if contractUseGas {
 		// set the gas limit on the Lua state
 		setRemainingGas(contractGasLimit)
 	} else {
 		// set the instruction limit on the Lua state
-		//setRemainingInstructions(contractInstructionLimit)
+		setRemainingInstructions(contractInstructionLimit)
+	}
+
+	if abiError != "" {
+		ce.abiErr = errors.New(abiError)
 	}
 
 	// load the contract code into the Lua state
@@ -248,6 +248,10 @@ func (ce *executor) call(hasParent bool) {
 		return
 	}
 
+	// TODO: move it to here on hardfork 5
+	// set the instruction limit and timeout hook
+	//ce.setCountHook(C.int(contractInstructionLimit))
+
 	// execute code from the global scope, like declaring state variables and functions
 	// as well as abi.register, abi.register_view, abi.payable, etc.
 	ce.vmPreRun()
@@ -387,7 +391,7 @@ func (ce *executor) vmLoadCode() {
 // execute code from the global scope, like declaring state variables and functions
 // as well as abi.register, abi.register_view, abi.payable, etc.
 func (ce *executor) vmPreRun() {
-	cErrMsg := C.vm_pre_run(ce.L)
+	cErrMsg := C.vm_pre_run(ce.L, C.int(contractInstructionLimit))
 	if cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
 		isUncatchable := bool(C.luaL_hasuncatchablerror(ce.L))

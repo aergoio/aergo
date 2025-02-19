@@ -261,17 +261,18 @@ bool vm_is_hardfork(lua_State *L, int version) {
 
 // execute code from the global scope, like declaring state variables and functions
 // as well as abi.register, abi.register_view, abi.payable, etc.
-const char *vm_pre_run(lua_State *L) {
+const char *vm_pre_run(lua_State *L, int instruction_limit) {
 	int err;
 
 	if (lua_usegas(L)) {
 		lua_enablegas(L);
 		vm_set_timeout_hook(L);
 	} else {
+		// TODO: remove hooks from here on hardfork 5
 		if (vm_is_hardfork(L, 2)) {
-			vm_set_timeout_count_hook(L, 5000000);
+			vm_set_timeout_count_hook(L, instruction_limit);
 		} else {
-			vm_set_count_hook(L, 5000000);
+			vm_set_count_hook(L, instruction_limit);
 		}
 		luaL_enablemaxmem(L);
 	}
