@@ -1,4 +1,4 @@
-FROM golang:1.23-bullseye as builder
+FROM golang:1.23-bullseye AS builder
 RUN apt-get -y update && apt-get -y install build-essential git cmake binutils m4 file
 COPY . aergo
 RUN cd aergo && make aergosvr polaris colaris aergocli aergoluac brick
