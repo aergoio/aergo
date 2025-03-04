@@ -1,5 +1,5 @@
 FROM ubuntu:22.04
-RUN apt-get update && apt-get -y upgrade 
+RUN apt-get update && apt-get -y upgrade && apt-get -y upgrade libtasn1-6
 COPY bin/aergosvr /usr/local/bin/
 COPY lib/* /usr/local/lib/
 COPY conf/* /aergo/
