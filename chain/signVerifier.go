@@ -94,7 +94,7 @@ func (sv *SignVerifier) verifyTxLoop(workerNo int) {
 	logger.Debug().Int("worker", workerNo).Msg("verify worker stop")
 }
 
-func (sv *SignVerifier) isExistInMempool(comm component.IComponentRequester, tx *types.Tx) (bool, error) {
+func (sv *SignVerifier) isInMempool(comm component.IComponentRequester, tx *types.Tx) (bool, error) {
 	if !sv.useMempool {
 		return false, nil
 	}
@@ -124,11 +124,11 @@ func (sv *SignVerifier) verifyTx(comm component.IComponentRequester, tx *types.T
 	}
 
 	if useMempool {
-		if hit, err = sv.isExistInMempool(comm, tx); err != nil {
+		if hit, err = sv.isInMempool(comm, tx); err != nil {
 			return false, err
 		}
 		if hit {
-			return hit, nil
+			return true, nil
 		}
 	}
 
@@ -149,6 +149,7 @@ func (sv *SignVerifier) verifyTx(comm component.IComponentRequester, tx *types.T
 			return false, err
 		}
 	}
+
 	return false, nil
 }
 
@@ -163,8 +164,8 @@ func (sv *SignVerifier) RequestVerifyTxs(txlist *types.TxList) {
 
 	errs := make([]error, txLen, txLen)
 
-	//logger.Debug().Int("txlen", txLen).Msg("verify tx start")
 	useMempool := sv.useMempool && !sv.skipMempool
+	logger.Debug().Int("txlen", txLen).Bool("useMempool", useMempool).Msg("verify tx start")
 
 	go func() {
 		for i, tx := range txs {
@@ -216,7 +217,6 @@ func (sv *SignVerifier) RequestVerifyTxs(txlist *types.TxList) {
 
 		logger.Debug().Int("hit", sv.totalHit).Int64("curavg", avg.Nanoseconds()).Int64("newavg", newAvg.Nanoseconds()).Msg("verify tx done")
 	}()
-	return
 }
 
 func (sv *SignVerifier) WaitDone() (bool, []error) {
