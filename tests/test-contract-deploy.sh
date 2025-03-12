@@ -2,7 +2,6 @@ set -e
 source common.sh
 
 fork_version=$1
-consensus_type=$(../bin/aergocli chaininfo | jq -r '.id.consensus')
 
 
 echo "-- deploy ARC1 factory --"
@@ -115,7 +114,7 @@ assert_equals "$status"   "SUCCESS"
 
 # this fails on RAFT with public=false
 
-if [ "$consensus_type" != "raft" ]; then
+if [ "$consensus" != "raft" ]; then
 
 echo "-- deploy 3 ARC1 and 3 ARC2 contracts --"
 
@@ -139,7 +138,7 @@ fi
 
 # test contract redeploy, but only on RAFT with public=false
 
-if [ "$consensus_type" = "raft" ]; then
+if [ "$consensus" = "raft" ]; then
 
   echo "-- test contract redeploy --"
 
