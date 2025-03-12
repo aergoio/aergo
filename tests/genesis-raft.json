@@ -1,7 +1,7 @@
 {
     "chain_id":{
         "magic":"test.chain",
-        "public":true,
+        "public":false,
         "mainnet":false,
         "consensus":"raft"
     },
