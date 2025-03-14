@@ -436,7 +436,7 @@ func (block *Block) BPID() (id PeerID, err error) {
 	return block.Header.BPID()
 }
 
-// BpID2Str returns its Block Producer's ID in base64 format.
+// BPID2Str returns its Block Producer's ID in base64 format.
 func (block *Block) BPID2Str() string {
 	id, err := block.BPID()
 	if err != nil {
