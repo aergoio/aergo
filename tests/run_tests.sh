@@ -4,10 +4,17 @@ source common.sh
 
 arg=$1
 if [ "$arg" != "sbp" ] && [ "$arg" != "dpos" ] && [ "$arg" != "raft" ] && [ "$arg" != "brick" ]; then
-  echo "Usage: $0 [brick|sbp|dpos|raft]"
+  echo "Usage: $0 [brick|sbp|dpos|raft] [short]"
   exit 1
 fi
 echo "Running integration tests for $arg"
+
+# Check for optional "short" argument
+short_tests=false
+if [ "$2" = "short" ]; then
+  short_tests=true
+  echo "Running short test suite"
+fi
 
 if [ "$arg" == "brick" ]; then
   # run the brick test
@@ -129,47 +136,59 @@ echo "creating user account..."
 ../bin/aergocli account import --keystore . --if 47zh1byk8MqWkQo5y8dvbrex99ZMdgZqfydar7w2QQgQqc7YrmFsBuMeF1uHWa5TwA1ZwQ7V6 --password bmttest
 
 # run the integration tests - version 2
-check ./test-gas-deploy.sh
-check ./test-gas-op.sh
-check ./test-gas-bf.sh
-check ./test-gas-verify-proof.sh
-check ./test-gas-per-function-v2.sh
-check ./test-contract-deploy.sh
-check ./test-pcall-events.sh
-check ./test-transaction-types.sh
-check ./test-name-service.sh
+if [ "$short_tests" = true ]; then
+  check ./test-contract-deploy.sh
+else
+  check ./test-gas-deploy.sh
+  check ./test-gas-op.sh
+  check ./test-gas-bf.sh
+  check ./test-gas-verify-proof.sh
+  check ./test-gas-per-function-v2.sh
+  check ./test-contract-deploy.sh
+  check ./test-pcall-events.sh
+  check ./test-transaction-types.sh
+  check ./test-name-service.sh
+fi
 
 # change the hardfork version
 set_version 3
 
 # run the integration tests - version 3
-check ./test-max-call-depth.sh
-check ./test-gas-deploy.sh
-check ./test-gas-op.sh
-check ./test-gas-bf.sh
-check ./test-gas-verify-proof.sh
-check ./test-gas-per-function-v3.sh
-check ./test-contract-deploy.sh
-check ./test-pcall-events.sh
-check ./test-transaction-types.sh
-check ./test-name-service.sh
+if [ "$short_tests" = true ]; then
+  check ./test-contract-deploy.sh
+else
+  check ./test-max-call-depth.sh
+  check ./test-gas-deploy.sh
+  check ./test-gas-op.sh
+  check ./test-gas-bf.sh
+  check ./test-gas-verify-proof.sh
+  check ./test-gas-per-function-v3.sh
+  check ./test-contract-deploy.sh
+  check ./test-pcall-events.sh
+  check ./test-transaction-types.sh
+  check ./test-name-service.sh
+fi
 
 # change the hardfork version
 set_version 4
 
 # run the integration tests - version 4
-check ./test-max-call-depth.sh
-check ./test-gas-deploy.sh
-check ./test-gas-op.sh
-check ./test-gas-bf.sh
-check ./test-gas-verify-proof.sh
-check ./test-gas-per-function-v4.sh
-check ./test-contract-deploy.sh
-check ./test-pcall-events.sh
-check ./test-transaction-types.sh
-check ./test-name-service.sh
-check ./test-multicall.sh
-check ./test-disabled-functions.sh
+if [ "$short_tests" = true ]; then
+  check ./test-contract-deploy.sh
+else
+  check ./test-max-call-depth.sh
+  check ./test-gas-deploy.sh
+  check ./test-gas-op.sh
+  check ./test-gas-bf.sh
+  check ./test-gas-verify-proof.sh
+  check ./test-gas-per-function-v4.sh
+  check ./test-contract-deploy.sh
+  check ./test-pcall-events.sh
+  check ./test-transaction-types.sh
+  check ./test-name-service.sh
+  check ./test-multicall.sh
+  check ./test-disabled-functions.sh
+fi
 
 # terminate the server process
 echo ""
