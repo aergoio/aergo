@@ -1,4 +1,3 @@
-
 start_nodes() {
 
   if [ "$consensus" == "sbp" ]; then
@@ -37,15 +36,18 @@ stop_nodes() {
 
 }
 
-wait_version() {
-  expect_version=$1
-  counter=0
+wait_version_from() {
+  local expect_version=$1
+  local port=$2
+  local counter=0
+  local output
+  local cur_version
   # do not stop on errors
   set +e
 
   while true; do
     # get the current hardfork version
-    output=$(../bin/aergocli blockchain 2>/dev/null)
+    output=$(../bin/aergocli blockchain --port $port 2>/dev/null)
     # check if 'output' is non-empty and starts with '{'
     if [[ -n "$output" ]] && [[ "${output:0:1}" == "{" ]]; then
       cur_version=$(echo "$output" | jq .chainInfo.id.version | sed 's/"//g')
@@ -65,7 +67,7 @@ wait_version() {
       sleep 0.5
       counter=$((counter+1))
       if [ $counter -gt 20 ]; then
-        echo "Failed to change the blockchain version on the nodes"
+        echo "Failed to change the blockchain version on the node at port $port"
         echo "Desired: $expect_version, Actual: $cur_version"
         exit 1
       fi
@@ -76,8 +78,22 @@ wait_version() {
   set -e
 }
 
+wait_version() {
+  local expect_version=$1
+
+  if [ "$consensus" == "sbp" ]; then
+    wait_version_from $expect_version 7845
+  else
+    wait_version_from $expect_version 7845
+    wait_version_from $expect_version 8845
+    wait_version_from $expect_version 9845
+    wait_version_from $expect_version 10845
+    wait_version_from $expect_version 11845
+  fi
+}
+
 get_deploy_args() {
-  contract_file=$1
+  local contract_file=$1
 
   if [ "$fork_version" -ge "4" ]; then
     deploy_args="$contract_file"
@@ -89,41 +105,84 @@ get_deploy_args() {
 }
 
 deploy() {
-
   get_deploy_args $1
 
-  txhash=$(../bin/aergocli --keystore . --password bmttest \
+  # do not stop on errors
+  set +e
+
+  ../bin/aergocli --keystore . --password bmttest \
     contract deploy AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \
-    $deploy_args | jq .hash | sed 's/"//g')
+    $deploy_args > tx_output.json
+
+  if [ $? -ne 0 ]; then
+    echo "Error: aergocli command failed"
+    echo "Command output:"
+    cat tx_output.json
+    exit 1
+  fi
+
+  # check if the JSON response contains an error field
+  error_value=$(cat tx_output.json | jq '.error')
+  if [ "$error_value" != "null" ]; then
+    echo "Error: Transaction failed"
+    echo "Command output:"
+    cat tx_output.json
+    exit 1
+  fi
+
+  txhash=$(cat tx_output.json | jq .hash | sed 's/"//g')
+
+  # stop on errors
+  set -e
 
 }
 
 get_receipt_from() {
-  txhash=$1
-  port=$2
-  receipt_file=$3
-  counter=0
+  local txhash=$1
+  local port=$2
+  local receipt_file=$3
+  local counter=0
+
+  # check txhash length (must be 43 or 44 characters)
+  local txlen=${#txhash}
+  if [[ $txlen != 43 && $txlen != 44 ]]; then
+    echo "Error: Invalid transaction hash: $txhash"
+    exit 1
+  fi
+
   # do not stop on errors
   set +e
 
   # wait for a total of (0.4 * 100) = 40 seconds
 
   while true; do
-    output=$(../bin/aergocli receipt get --port $port $txhash 2>&1 > $receipt_file)
+    ../bin/aergocli receipt get --port $port $txhash > "$receipt_file" 2> error.txt
+    exit_code=$?
+    output=$(cat error.txt 2>/dev/null)
 
     #echo "output: $output"
 
-    if [[ $output == *"tx not found"* ]]; then
+    if [[ $exit_code -ne 0 ]] && [[ $output == *"tx not found"* ]]; then
       sleep 0.4
       counter=$((counter+1))
       if [ $counter -gt 100 ]; then
         echo "Error: tx not found: $txhash"
         exit 1
       fi
-    elif [[ -n $output ]]; then
+    elif [[ $exit_code -ne 0 ]]; then
       echo "Error: $output"
       exit 1
+    elif ! jq . "$receipt_file" >/dev/null 2>&1; then
+      # if output is not valid JSON, wait and retry
+      sleep 0.4
+      counter=$((counter+1))
+      if [ $counter -gt 100 ]; then
+        echo "Error: Invalid JSON response for receipt: $txhash"
+        cat "$receipt_file"
+        exit 1
+      fi
     else
+      # valid JSON response received
       break
     fi
   done
@@ -133,30 +192,50 @@ get_receipt_from() {
 }
 
 get_receipt() {
-  txhash=$1
+  local txhash=$1
+  local i   # this is VERY IMPORTANT! to avoid overwriting the global variable i
+  local retry
+  local max_retries=10
+  local all_match
 
   if [ "$consensus" == "sbp" ]; then
     get_receipt_from $txhash 7845 receipt.json
     return
   fi
 
-  # Get receipts from all 5 nodes
-  get_receipt_from $txhash 7845 receipt1.json
-  get_receipt_from $txhash 8845 receipt2.json
-  get_receipt_from $txhash 9845 receipt3.json
-  get_receipt_from $txhash 10845 receipt4.json
-  get_receipt_from $txhash 11845 receipt5.json
+  for retry in $(seq 1 $max_retries); do
+    # get receipts from all 5 nodes
+    get_receipt_from $txhash 7845 receipt1.json
+    get_receipt_from $txhash 8845 receipt2.json
+    get_receipt_from $txhash 9845 receipt3.json
+    get_receipt_from $txhash 10845 receipt4.json
+    get_receipt_from $txhash 11845 receipt5.json
 
-  # Compare receipts - they must be exactly the same
-  for i in {2..5}; do
-    diff_output=$(diff receipt1.json receipt${i}.json)
-    if [ -n "$diff_output" ]; then
-      echo "Error: Receipt from node 1 differs from receipt from node $i"
-      exit 1
+    # compare receipts - they must be exactly the same
+    all_match=true
+    for i in {2..5}; do
+      local diff_output=$(diff receipt1.json receipt${i}.json)
+      if [ -n "$diff_output" ]; then
+        all_match=false
+        echo "Warning: receipt from node $i differs from receipt from node 1"
+        break
+      fi
+    done
+
+    if [ "$all_match" == "true" ]; then
+      break
+    elif [ $retry -lt $max_retries ]; then
+      sleep 3
+      echo "Checking consensus again..."
     fi
   done
 
-  # Rename receipt1.json to receipt.json and delete the others
+  if [ "$all_match" != "true" ]; then
+    echo "Error: receipts still differ after $max_retries attempts"
+    exit 1
+  fi
+
+  # rename receipt1.json to receipt.json and delete the others
   mv receipt1.json receipt.json
   rm receipt{2..5}.json
 }
