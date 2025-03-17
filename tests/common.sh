@@ -6,13 +6,16 @@ start_nodes() {
     ../bin/aergosvr --testmode --home ./aergo-files > logs 2> logs &
     pid=$!
   else
-    # open the 3 nodes
+    # open the 5 nodes
     ../bin/aergosvr --home ./node1 >> logs1 2>> logs1 &
     pid1=$!
     ../bin/aergosvr --home ./node2 >> logs2 2>> logs2 &
     pid2=$!
     ../bin/aergosvr --home ./node3 >> logs3 2>> logs3 &
     pid3=$!
+    # nodes 4 and 5 use a previous version of aergosvr for backwards compatibility check
+    docker run --name aergo-test-node4 --rm --net=host -v $(pwd)/node4:/aergo aergo/node:2.6.0 aergosvr --home /aergo >> logs4 2>> logs4 &
+    docker run --name aergo-test-node5 --rm --net=host -v $(pwd)/node5:/aergo aergo/node:2.6.0 aergosvr --home /aergo >> logs5 2>> logs5 &
   fi
 
 }
@@ -24,9 +27,12 @@ stop_nodes() {
     # wait until the node is stopped
     wait $pid
   else
+    # stop directly executed nodes
     kill $pid1 $pid2 $pid3
-    # wait until all nodes are stopped
+    # wait until nodes are stopped
     wait $pid1 $pid2 $pid3
+    # stop Docker containers (it will wait until they are stopped)
+    docker stop aergo-test-node4 aergo-test-node5 2>/dev/null || true
   fi
 
 }

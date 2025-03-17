@@ -30,29 +30,42 @@ else
   rm -rf node1
   rm -rf node2
   rm -rf node3
+  rm -rf node4
+  rm -rf node5
   mkdir node1
   mkdir node2
   mkdir node3
+  mkdir node4
+  mkdir node5
   # copy the config files
   cp config-node1.toml node1/config.toml
   cp config-node2.toml node2/config.toml
   cp config-node3.toml node3/config.toml
+  cp config-node4.toml node4/config.toml
+  cp config-node5.toml node5/config.toml
+  # copy the files needed by nodes 4 and 5 (docker containers)
+  cp bp04.key node4/
+  cp bp05.key node5/
+  cp arglog.toml node4/
+  cp arglog.toml node5/
   # delete the old logs
-  rm -f logs1 logs2 logs3
+  rm -f logs1 logs2 logs3 logs4 logs5
   # create the genesis block
   echo "creating genesis block..."
   ../bin/aergosvr init --genesis ./genesis-$consensus.json --home ./node1
   ../bin/aergosvr init --genesis ./genesis-$consensus.json --home ./node2
   ../bin/aergosvr init --genesis ./genesis-$consensus.json --home ./node3
+  ../bin/aergosvr init --genesis ./genesis-$consensus.json --home ./node4
+  ../bin/aergosvr init --genesis ./genesis-$consensus.json --home ./node5
 fi
 
 # define the config files according to the consensus
 if [ "$consensus" == "sbp" ]; then
   config_files=("./aergo-files/config.toml")
 elif [ "$consensus" == "dpos" ]; then
-  config_files=("./node1/config.toml" "./node2/config.toml" "./node3/config.toml")
+  config_files=("./node1/config.toml" "./node2/config.toml" "./node3/config.toml" "./node4/config.toml" "./node5/config.toml")
 elif [ "$consensus" == "raft" ]; then
-  config_files=("./node1/config.toml" "./node2/config.toml" "./node3/config.toml")
+  config_files=("./node1/config.toml" "./node2/config.toml" "./node3/config.toml" "./node4/config.toml" "./node5/config.toml")
 fi
 
 # define which port used for queries
