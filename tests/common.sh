@@ -32,7 +32,7 @@ stop_nodes() {
     # wait until nodes are stopped
     wait $pid1 $pid2 $pid3
     # stop Docker containers (it will wait until they are stopped)
-    docker stop aergo-test-node4 aergo-test-node5 2>/dev/null || true
+    docker stop aergo-test-node4 aergo-test-node5 >/dev/null 2>/dev/null || true
   fi
 
 }
@@ -98,8 +98,10 @@ deploy() {
 
 }
 
-get_receipt() {
+get_receipt_from() {
   txhash=$1
+  port=$2
+  receipt_file=$3
   counter=0
   # do not stop on errors
   set +e
@@ -107,7 +109,7 @@ get_receipt() {
   # wait for a total of (0.4 * 100) = 40 seconds
 
   while true; do
-    output=$(../bin/aergocli receipt get $txhash 2>&1 > receipt.json)
+    output=$(../bin/aergocli receipt get --port $port $txhash 2>&1 > $receipt_file)
 
     #echo "output: $output"
 
@@ -128,6 +130,35 @@ get_receipt() {
 
   # stop on errors
   set -e
+}
+
+get_receipt() {
+  txhash=$1
+
+  if [ "$consensus" == "sbp" ]; then
+    get_receipt_from $txhash 7845 receipt.json
+    return
+  fi
+
+  # Get receipts from all 5 nodes
+  get_receipt_from $txhash 7845 receipt1.json
+  get_receipt_from $txhash 8845 receipt2.json
+  get_receipt_from $txhash 9845 receipt3.json
+  get_receipt_from $txhash 10845 receipt4.json
+  get_receipt_from $txhash 11845 receipt5.json
+
+  # Compare receipts - they must be exactly the same
+  for i in {2..5}; do
+    diff_output=$(diff receipt1.json receipt${i}.json)
+    if [ -n "$diff_output" ]; then
+      echo "Error: Receipt from node 1 differs from receipt from node $i"
+      exit 1
+    fi
+  done
+
+  # Rename receipt1.json to receipt.json and delete the others
+  mv receipt1.json receipt.json
+  rm receipt{2..5}.json
 }
 
 assert_equals() {
