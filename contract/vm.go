@@ -282,6 +282,10 @@ func resolveFunction(contractState *statedb.ContractState, bs *state.BlockState,
 	if len(name) == 0 && defaultFunc != nil {
 		return defaultFunc, nil
 	}
+	// the function was not found
+	if currentForkVersion >= 5 && len(name) == 0 {
+		return nil, errors.New("the contract does not have a payable default function")
+	}
 	return nil, errors.New("not found function: " + name)
 }
 
@@ -522,11 +526,11 @@ func toLuaTable(L *LState, tab map[string]interface{}) error {
 	return nil
 }
 
-func checkPayable(callee *types.Function, amount *big.Int) error {
-	if amount.Cmp(big.NewInt(0)) <= 0 || callee.Payable {
-		return nil
+func checkPayable(function *types.Function, amount *big.Int) error {
+	if amount.Sign() > 0 && !function.Payable {
+		return fmt.Errorf("'%s' is not payable", function.Name)
 	}
-	return fmt.Errorf("'%s' is not payable", callee.Name)
+	return nil
 }
 
 func (ce *executor) call(instLimit C.int, target *LState) (ret C.int) {
