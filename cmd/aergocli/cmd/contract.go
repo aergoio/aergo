@@ -9,6 +9,11 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"bufio"
+	"strings"
+	"path/filepath"
+	"io/ioutil"
+	"net/http"
 
 	luacEncoding "github.com/aergoio/aergo/v2/cmd/aergoluac/encoding"
 	luac "github.com/aergoio/aergo/v2/cmd/aergoluac/util"
@@ -180,7 +185,7 @@ func runDeployCmd(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = false
 			return errors.New("not enough arguments")
 		}
-		code, err = os.ReadFile(args[1])
+		code, err = readContract(args[1])
 		if err != nil {
 			return fmt.Errorf("failed to read code file: %v", err.Error())
 		}
@@ -496,4 +501,130 @@ func fillChainId(tx *types.Tx) string {
 	}
 	tx.Body.ChainIdHash = msg.GetBestChainIdHash()
 	return ""
+}
+
+// Set to track imported files
+var importedFiles = make(map[string]bool)
+
+// ProcessLines processes a string containing contract code, handling imports
+func processLines(input string) (string, error) {
+
+	// Create a string builder for the output
+	var output strings.Builder
+
+	// Process each line
+	scanner := bufio.NewScanner(strings.NewReader(input))
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		// Check if line starts with "import "
+		if strings.HasPrefix(line, "import ") {
+			// Extract the file name from import statement
+			importLine := strings.TrimSpace(line[6:]) // Remove "import " prefix
+
+			// Check if it has minimum length for a valid import
+			if len(importLine) < 3 {
+				return "", fmt.Errorf("invalid import format: %s", line)
+			}
+
+			// Check if it starts with a valid quote character
+			quoteChar := importLine[0]
+			if quoteChar != '"' && quoteChar != '\'' {
+				return "", fmt.Errorf("import statement must use quotes: %s", line)
+			}
+
+			// Check if it ends with the same quote character
+			if importLine[len(importLine)-1] != quoteChar {
+				return "", fmt.Errorf("mismatched quotes in import: %s", line)
+			}
+
+			// Extract the file path between quotes
+			importFile := importLine[1 : len(importLine)-1]
+
+			// Get absolute path to check for circular imports
+			absImportPath, err := filepath.Abs(importFile)
+			if err != nil {
+				return "", fmt.Errorf("error getting absolute path: %w", err)
+			}
+
+			// Skip if already imported
+			if importedFiles[absImportPath] {
+				continue
+			}
+
+			// Mark as imported
+			importedFiles[absImportPath] = true
+
+			// Read the imported file
+			importContent, err := readContractFile(importFile)
+			if err != nil {
+				return "", fmt.Errorf("error importing file '%s': %w", importFile, err)
+			}
+
+			// Process the imported content recursively
+			processedImport, err := processLines(importContent)
+			if err != nil {
+				return "", err
+			}
+
+			// Add the processed import to output
+			output.WriteString(processedImport)
+			output.WriteString("\n")
+		} else {
+			// Regular line, add to output
+			output.WriteString(line)
+			output.WriteString("\n")
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return "", fmt.Errorf("error scanning input: %w", err)
+	}
+
+	return output.String(), nil
+}
+
+func readContractFile(filePath string) (string, error) {
+	// if the file path is a url, read it from the web
+	if strings.HasPrefix(filePath, "http") {
+		// search in the web
+		req, err := http.NewRequest("GET", filePath, nil)
+		if err != nil {
+			return "", err
+		}
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			return "", err
+		}
+		defer resp.Body.Close()
+		fileBytes, _ := ioutil.ReadAll(resp.Body)
+		return string(fileBytes), nil
+	}
+
+	// search in the local file system
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		return "", err
+	}
+	fileBytes, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		return "", err
+	}
+	return string(fileBytes), nil
+}
+
+func readContract(filePath string) ([]byte, error) {
+	// Reset imported files tracking for each new processing
+	importedFiles = make(map[string]bool)
+	// read the contract file
+	output, err := readContractFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+	// process the contract file for import statements
+	output, err = processLines(output)
+	if err != nil {
+		return nil, err
+	}
+	return []byte(output), nil
 }
