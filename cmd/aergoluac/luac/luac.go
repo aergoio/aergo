@@ -20,6 +20,7 @@ import (
 	"unsafe"
 
 	"github.com/aergoio/aergo/v2/cmd/aergoluac/encoding"
+	"github.com/aergoio/aergo/v2/cmd/aergoluac/util"
 )
 
 func NewLState() *C.lua_State {
@@ -37,7 +38,7 @@ func CloseLState(L *C.lua_State) {
 	}
 }
 
-func Compile(L *C.lua_State, code string) (LuaCode, error) {
+func Compile(L *C.lua_State, code string) (util.LuaCode, error) {
 	cStr := C.CString(code)
 	defer C.free(unsafe.Pointer(cStr))
 	if errMsg := C.vm_loadstring(L, cStr); errMsg != nil {
@@ -119,12 +120,12 @@ func DumpFromStdin() error {
 	return nil
 }
 
-func dumpToBytes(L *C.lua_State) LuaCode {
+func dumpToBytes(L *C.lua_State) util.LuaCode {
 	var (
 		c, a   *C.char
 		lc, la C.size_t
 	)
 	c = C.lua_tolstring(L, -2, &lc)
 	a = C.lua_tolstring(L, -1, &la)
-	return NewLuaCode(C.GoBytes(unsafe.Pointer(c), C.int(lc)), C.GoBytes(unsafe.Pointer(a), C.int(la)))
+	return util.NewLuaCode(C.GoBytes(unsafe.Pointer(c), C.int(lc)), C.GoBytes(unsafe.Pointer(a), C.int(la)))
 }
