@@ -22,7 +22,7 @@ var start uint64
 var end uint64
 var desc bool
 var recentBlockCnt int32
-var maxEvents int32
+var maxEvents int
 var eventTimeout int
 
 func init() {
@@ -55,7 +55,7 @@ func init() {
 	streamCmd.Flags().StringVarP(&contractAddress, "address", "", "", "Contract Address")
 	streamCmd.Flags().StringVarP(&eventName, "event", "", "", "Event Name")
 	streamCmd.Flags().StringVarP(&argFilter, "argfilter", "", "", "argument filter")
-	streamCmd.Flags().Int32Var(&maxEvents, "limit", 0, "maximum number of events to receive (0 for unlimited)")
+	streamCmd.Flags().IntVar(&maxEvents, "limit", 0, "maximum number of events to receive (0 for unlimited)")
 	streamCmd.Flags().IntVar(&eventTimeout, "timeout", 0, "maximum time to wait in seconds (0 for unlimited)")
 	streamCmd.MarkFlagRequired("address")
 
@@ -115,7 +115,7 @@ func execStreamEvent(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	var count int32
+	var count int
 	for {
 		event, err := stream.Recv()
 		if err != nil {
