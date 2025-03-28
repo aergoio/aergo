@@ -12,6 +12,9 @@ echo "Running integration tests for $arg"
 if [ "$arg" == "brick" ]; then
   # run the brick test
   ../bin/brick -V test.brick
+  ../bin/brick pack test-import-1.lua
+  # compare the output with the expected output. it will fail if the output is different.
+  diff test-import-1-bundle.lua test-import-expected-bundle.lua
   exit 0
 fi
 
