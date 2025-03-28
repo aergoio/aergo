@@ -8,6 +8,7 @@ package cmd
 import (
 	"context"
 	"log"
+	"time"
 
 	aergorpc "github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/jsonrpc"
@@ -22,6 +23,7 @@ var end uint64
 var desc bool
 var recentBlockCnt int32
 var maxEvents int32
+var eventTimeout int
 
 func init() {
 	eventCmd := &cobra.Command{
@@ -54,6 +56,7 @@ func init() {
 	streamCmd.Flags().StringVarP(&eventName, "event", "", "", "Event Name")
 	streamCmd.Flags().StringVarP(&argFilter, "argfilter", "", "", "argument filter")
 	streamCmd.Flags().Int32Var(&maxEvents, "limit", 0, "maximum number of events to receive (0 for unlimited)")
+	streamCmd.Flags().IntVar(&eventTimeout, "timeout", 0, "maximum time to wait in seconds (0 for unlimited)")
 	streamCmd.MarkFlagRequired("address")
 
 	eventCmd.AddCommand(
@@ -99,7 +102,14 @@ func execStreamEvent(cmd *cobra.Command, args []string) {
 		ArgFilter:       []byte(argFilter),
 	}
 
-	stream, err := client.ListEventStream(context.Background(), filter)
+	ctx := context.Background()
+	if eventTimeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, time.Duration(eventTimeout)*time.Second)
+		defer cancel()
+	}
+
+	stream, err := client.ListEventStream(ctx, filter)
 	if err != nil {
 		cmd.Printf("Failed: %s", err.Error())
 		return
@@ -109,7 +119,11 @@ func execStreamEvent(cmd *cobra.Command, args []string) {
 	for {
 		event, err := stream.Recv()
 		if err != nil {
-			cmd.Printf("Failed: %s\n", err.Error())
+			if err == context.DeadlineExceeded {
+				cmd.Printf("Timeout reached after %d seconds\n", eventTimeout)
+			} else {
+				cmd.Printf("Failed: %s\n", err.Error())
+			}
 			return
 		}
 		cmd.Println(jsonrpc.MarshalJSON(event))
