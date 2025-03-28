@@ -14,7 +14,7 @@ import (
 var importedFiles = make(map[string]bool)
 
 // ProcessLines processes a string containing contract code, handling imports
-func processLines(input string) (string, error) {
+func processLines(input string, currentDir string) (string, error) {
 
 	// Create a string builder for the output
 	var output strings.Builder
@@ -48,6 +48,11 @@ func processLines(input string) (string, error) {
 			// Extract the file path between quotes
 			importFile := importLine[1 : len(importLine)-1]
 
+			// If it's not a URL and not an absolute path, make it relative to the current file's directory
+			if !strings.HasPrefix(importFile, "http") && !filepath.IsAbs(importFile) {
+				importFile = filepath.Join(currentDir, importFile)
+			}
+
 			// Get absolute path to check for circular imports
 			absImportPath, err := filepath.Abs(importFile)
 			if err != nil {
@@ -68,8 +73,11 @@ func processLines(input string) (string, error) {
 				return "", fmt.Errorf("error importing file '%s': %w", importFile, err)
 			}
 
+			// Get the directory of the imported file for nested imports
+			importedFileDir := filepath.Dir(importFile)
+
 			// Process the imported content recursively
-			processedImport, err := processLines(importContent)
+			processedImport, err := processLines(importContent, importedFileDir)
 			if err != nil {
 				return "", err
 			}
@@ -123,13 +131,27 @@ func readContractFile(filePath string) (string, error) {
 func readContract(filePath string) (string, error) {
 	// Reset imported files tracking for each new processing
 	importedFiles = make(map[string]bool)
+
+	// Get the absolute path of the main file
+	absPath, err := filepath.Abs(filePath)
+	if err != nil {
+		return "", fmt.Errorf("error getting absolute path: %w", err)
+	}
+
+	// Get the directory of the main file
+	mainFileDir := filepath.Dir(absPath)
+
+	// Mark the main file as imported
+	importedFiles[absPath] = true
+
 	// read the contract file
 	output, err := readContractFile(filePath)
 	if err != nil {
 		return "", err
 	}
-	// process the contract file for import statements
-	return processLines(output)
+
+	// process the contract file for import statements, passing the main file's directory
+	return processLines(output, mainFileDir)
 }
 
 // ExecutePack reads a contract from inputFile and packs it, optionally writing to outputFile
