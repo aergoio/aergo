@@ -8,6 +8,7 @@ package cmd
 import (
 	"context"
 	"log"
+	"os"
 	"time"
 
 	aergorpc "github.com/aergoio/aergo/v2/types"
@@ -112,7 +113,7 @@ func execStreamEvent(cmd *cobra.Command, args []string) {
 	stream, err := client.ListEventStream(ctx, filter)
 	if err != nil {
 		cmd.Printf("Failed: %s", err.Error())
-		return
+		os.Exit(1)
 	}
 
 	var count int
@@ -124,7 +125,7 @@ func execStreamEvent(cmd *cobra.Command, args []string) {
 			} else {
 				cmd.Printf("Failed: %s\n", err.Error())
 			}
-			return
+			os.Exit(1)
 		}
 		cmd.Println(jsonrpc.MarshalJSON(event))
 
