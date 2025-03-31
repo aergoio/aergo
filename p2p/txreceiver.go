@@ -156,7 +156,9 @@ func (br *GetTxsReceiver) cancelReceiving(err error, hasNext bool) {
 			case <-br.senderFinished:
 				break
 			}
-			br.peer.ConsumeRequest(br.requestID)
+			if br.peer != nil {
+				br.peer.ConsumeRequest(br.requestID)
+			}
 		}()
 	}
 }
