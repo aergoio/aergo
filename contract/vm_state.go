@@ -72,7 +72,12 @@ func newContractInfo(cs *callState, sender, contractId []byte, rp uint64, amount
 	}
 }
 
-type recoveryEntry struct {
+////////////////////////////////////////////////////////////////////////////////
+// State Recovery
+////////////////////////////////////////////////////////////////////////////////
+
+// recoveryPoint is a struct that contains the state of the contract at a given point in time
+type recoveryPoint struct {
 	seq           int
 	amount        *big.Int
 	senderState   *state.AccountState
@@ -82,42 +87,44 @@ type recoveryEntry struct {
 	isDeploy      bool
 	sqlSaveName   *string
 	stateRevision statedb.Snapshot
-	prev          *recoveryEntry
+	prev          *recoveryPoint
 }
 
-func (re *recoveryEntry) recovery(bs *state.BlockState) error {
+// reverts the state of the contract to a previous state, stored on a recovery point
+func (rp *recoveryPoint) revertState(bs *state.BlockState) error {
 	var zero big.Int
-	cs := re.callState
+	cs := rp.callState
 
 	// restore the contract balance
-	if re.amount.Cmp(&zero) > 0 {
-		if re.senderState != nil {
-			re.senderState.AddBalance(re.amount)
+	if rp.amount.Cmp(&zero) > 0 {
+		if rp.senderState != nil {
+			rp.senderState.AddBalance(rp.amount)
 		}
 		if cs != nil {
-			cs.accState.SubBalance(re.amount)
+			cs.accState.SubBalance(rp.amount)
 		}
 	}
-	if re.onlySend {
+	if rp.onlySend {
 		return nil
 	}
 
 	// restore the contract nonce
-	if re.senderState != nil {
-		re.senderState.SetNonce(re.senderNonce)
+	if rp.senderState != nil {
+		rp.senderState.SetNonce(rp.senderNonce)
 	}
 
+	// if the contract state is not stored, do not restore it
 	if cs == nil {
 		return nil
 	}
 
 	// restore the contract state
-	if re.stateRevision != -1 {
-		err := cs.ctrState.Rollback(re.stateRevision)
+	if rp.stateRevision != -1 {
+		err := cs.ctrState.Rollback(rp.stateRevision)
 		if err != nil {
 			return newDbSystemError(err)
 		}
-		if re.isDeploy {
+		if rp.isDeploy {
 			err := cs.ctrState.SetCode(nil, nil)
 			if err != nil {
 				return newDbSystemError(err)
@@ -128,14 +135,14 @@ func (re *recoveryEntry) recovery(bs *state.BlockState) error {
 
 	// restore the contract SQL db state
 	if cs.tx != nil {
-		if re.sqlSaveName == nil {
+		if rp.sqlSaveName == nil {
 			err := cs.tx.rollbackToSavepoint()
 			if err != nil {
 				return newDbSystemError(err)
 			}
 			cs.tx = nil
 		} else {
-			err := cs.tx.rollbackToSubSavepoint(*re.sqlSaveName)
+			err := cs.tx.rollbackToSubSavepoint(*rp.sqlSaveName)
 			if err != nil {
 				return newDbSystemError(err)
 			}
@@ -145,45 +152,70 @@ func (re *recoveryEntry) recovery(bs *state.BlockState) error {
 	return nil
 }
 
-func setRecoveryPoint(aid types.AccountID, ctx *vmContext, senderState *state.AccountState,
-	cs *callState, amount *big.Int, isSend, isDeploy bool) (int, error) {
+// creates a recovery point on the current state of the VM
+func createRecoveryPoint(
+	aid types.AccountID,
+	ctx *vmContext,
+	senderState *state.AccountState,
+	cs *callState,
+	amount *big.Int,
+	onlySend, isDeploy bool,
+) (int, error) {
 	var seq int
-	prev := ctx.lastRecoveryEntry
+
+	// get the previous recovery point
+	prev := ctx.lastRecoveryPoint
+
+	// get the next sequence number
 	if prev != nil {
 		seq = prev.seq + 1
 	} else {
 		seq = 1
 	}
+
+	// get the sender nonce
 	var nonce uint64
 	if senderState != nil {
 		nonce = senderState.Nonce()
 	}
-	re := &recoveryEntry{
+
+	// create the recovery point
+	rp := &recoveryPoint{
 		seq,
 		amount,
 		senderState,
 		nonce,
 		cs,
-		isSend,
+		onlySend,
 		isDeploy,
 		nil,
 		-1,
 		prev,
 	}
-	ctx.lastRecoveryEntry = re
-	if isSend {
+
+	// set this as the last recovery point
+	ctx.lastRecoveryPoint = rp
+
+	// if it's just aergo transfer, do not store the contract state
+	if onlySend {
 		return seq, nil
 	}
-	re.stateRevision = cs.ctrState.Snapshot()
+
+	// get the contract state snapshot
+	rp.stateRevision = cs.ctrState.Snapshot()
+
+	// get the contract SQL db transaction
 	tx := cs.tx
 	if tx != nil {
-		saveName := fmt.Sprintf("%s_%p", aid.String(), &re)
+		saveName := fmt.Sprintf("%s_%p", aid.String(), &rp)
 		err := tx.subSavepoint(saveName)
 		if err != nil {
 			return seq, err
 		}
-		re.sqlSaveName = &saveName
+		rp.sqlSaveName = &saveName
 	}
+
+	// return the sequence number
 	return seq, nil
 }
 

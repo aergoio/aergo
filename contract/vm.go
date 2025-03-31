@@ -93,7 +93,7 @@ type vmContext struct {
 	isMultiCall       bool
 	service           C.int
 	callState         map[types.AccountID]*callState
-	lastRecoveryEntry *recoveryEntry
+	lastRecoveryPoint *recoveryPoint
 	dbUpdateTotalSize int64
 	seed              *rand.Rand
 	events            []*types.Event
