@@ -14,6 +14,7 @@ type InternalOperation struct {
 	Args      []string `json:"args"`
 	Result    string   `json:"result,omitempty"`
 	Call      *InternalCall `json:"call,omitempty"`
+	Reverted  bool     `json:"reverted,omitempty"`
 }
 
 type InternalCall struct {
@@ -120,6 +121,12 @@ func logOperationResult(ctx *vmContext, operationId int64, result string) {
 	}
 
 	ctrLgr.Printf("no operation found with ID %d to store result", operationId)
+}
+
+func markOperationsAsReverted(opCall *InternalCall, startOp int) {
+	for i := startOp; i < len(opCall.Operations); i++ {
+		opCall.Operations[i].Reverted = true
+	}
 }
 
 func logInternalCall(ctx *vmContext, contract string, function string, args []interface{}, amount string) error {

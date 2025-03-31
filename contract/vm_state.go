@@ -83,6 +83,8 @@ type recoveryPoint struct {
 	senderState   *state.AccountState
 	senderNonce   uint64
 	callState     *callState
+	currentCall   *InternalCall
+	startOp       int
 	onlySend      bool
 	isDeploy      bool
 	sqlSaveName   *string
@@ -94,6 +96,11 @@ type recoveryPoint struct {
 func (rp *recoveryPoint) revertState(bs *state.BlockState) error {
 	var zero big.Int
 	cs := rp.callState
+
+	// mark the internal operations as reverted
+	if rp.currentCall != nil {
+		markOperationsAsReverted(rp.currentCall, rp.startOp)
+	}
 
 	// restore the contract balance
 	if rp.amount.Cmp(&zero) > 0 {
@@ -179,6 +186,12 @@ func createRecoveryPoint(
 		nonce = senderState.Nonce()
 	}
 
+	currentCall := getCurrentCall(ctx, ctx.callDepth)
+	var startOp int
+	if currentCall != nil {
+		startOp = len(currentCall.Operations)
+	}
+
 	// create the recovery point
 	rp := &recoveryPoint{
 		seq,
@@ -186,6 +199,8 @@ func createRecoveryPoint(
 		senderState,
 		nonce,
 		cs,
+		currentCall,
+		startOp,
 		onlySend,
 		isDeploy,
 		nil,
