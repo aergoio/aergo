@@ -6,13 +6,11 @@ fork_version=$1
 
 cat > test-args.lua << EOF
 function do_call(...)
-  local args = {...}
-  return contract.call(unpack(args))
+  return contract.call(...)
 end
 
 function do_delegate_call(...)
-  local args = {...}
-  return contract.delegatecall(unpack(args))
+  return contract.delegatecall(...)
 end
 
 function do_multicall(script)
@@ -20,23 +18,33 @@ function do_multicall(script)
 end
 
 function do_event(...)
-  local args = {...}
-  return contract.event(unpack(args))
+  return contract.event(...)
 end
 
 function do_deploy(...)
-  local args = {...}
-  return contract.deploy(unpack(args))
+  return contract.deploy(...)
 end
 
 function do_send(...)
-  local args = {...}
-  return contract.send(unpack(args))
+  return contract.send(...)
+end
+
+function do_gov(commands)
+  for i, command in ipairs(commands) do
+    local cmd = command[1]
+    local arg = command[2]
+    if cmd == "stake" then
+      contract.stake(arg)
+    elseif cmd == "vote" then
+      contract.vote(arg)
+    elseif cmd == "unstake" then
+      contract.unstake(arg)
+    end
+  end
 end
 
 function constructor(...)
-  local args = {...}
-  contract.event("constructor", unpack(args))
+  contract.event("constructor", ...)
 end
 
 function default()
@@ -44,12 +52,38 @@ function default()
   return system.getAmount()
 end
 
-abi.register(do_call, do_delegate_call, do_multicall, do_event, do_deploy, do_send, constructor)
+abi.register(do_call, do_delegate_call, do_multicall, do_event, do_deploy, do_send, do_gov, constructor)
 abi.payable(default)
 EOF
 
 
-echo "-- deploy test contract --"
+cat > test-reverted-operations.lua << EOF
+function error_case(to_call, to_send)
+  --contract.stake("10000 aergo")
+  --contract.vote("16Uiu2HAm2gtByd6DQu95jXURJXnS59Dyb9zTe16rDrcwKQaxma4p")
+  contract.call(to_call, "do_event", "ping", "called - within")
+  contract.send(to_send, "15 aergo")
+  contract.event("ping", "within")
+  assert(false) -- revert all operations above
+end
+
+function test_pcall(to_call, to_send)
+  contract.call(to_call, "do_event", "ping", "called - before")
+  contract.send(to_send, "15 aergo")
+  contract.event("ping", "before")
+
+  pcall(error_case, to_call, to_send)
+
+  contract.send(to_send, "15 aergo")
+  contract.event("ping", "after")
+  contract.call(to_call, "do_event", "ping", "called - after")
+end
+
+abi.payable(test_pcall, error_case)
+EOF
+
+
+echo "-- deploy test contract 1 --"
 
 deploy test-args.lua
 rm test-args.lua
@@ -81,7 +115,7 @@ assert_equals "$internal_operations" '{
 }'
 
 
-echo "-- call test contract --"
+echo "-- call test contract 1 --"
 
 #txhash=$(../bin/aergocli --keystore . --password bmttest \
 #  contract call AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \
@@ -153,7 +187,6 @@ assert_equals "$internal_operations" '{
     ]
   }
 }'
-
 
 
 echo "-- deploy ARC1 factory --"
@@ -250,8 +283,12 @@ assert_equals "$internal_operations" '{
 
 
 if [ "$fork_version" -lt "4" ]; then
-  exit 0  # composable transactions are only available from hard fork 4
+  # composable transactions are only available from hard fork 4
+  # the tracking of reverted operations is also only available from hard fork 4
+  rm test-reverted-operations.lua
+  exit 0
 fi
+
 
 echo "-- multicall --"
 
@@ -365,6 +402,304 @@ assert_equals "$internal_operations" '{
           ]
         },
         "op": "call"
+      }
+    ]
+  }
+}'
+
+
+echo "-- deploy test contract 2 --"
+
+deploy test-reverted-operations.lua
+rm test-reverted-operations.lua
+
+get_receipt $txhash
+
+status=$(cat receipt.json | jq .status | sed 's/"//g')
+test_reverted_address=$(cat receipt.json | jq .contractAddress | sed 's/"//g')
+
+assert_equals "$status" "CREATED"
+
+#get_internal_operations $txhash
+#internal_operations=$(cat internal_operations.json)
+
+#assert_equals "$internal_operations" ''
+
+
+echo "-- call test contract 2 - reverted operations --"
+
+txhash=$(../bin/aergocli --keystore . --password bmttest \
+  contract call AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \
+  --amount 50000000000000000000 \
+  $test_reverted_address test_pcall '["'$test_args_address'","'$test_args_address'"]' | jq .hash | sed 's/"//g')
+
+get_receipt $txhash
+
+status=$(cat receipt.json | jq .status | sed 's/"//g')
+ret=$(cat receipt.json | jq .ret | sed 's/"//g')
+
+assert_equals "$status" "SUCCESS"
+
+get_internal_operations $txhash
+internal_operations=$(cat internal_operations.json)
+
+assert_equals "$internal_operations" '{
+  "call": {
+    "amount": "50000000000000000000",
+    "args": [
+      "'$test_args_address'",
+      "'$test_args_address'"
+    ],
+    "contract": "'$test_reverted_address'",
+    "function": "test_pcall",
+    "operations": [
+      {
+        "args": [
+          "'$test_args_address'",
+          "do_event",
+          "[\"ping\",\"called - before\"]"
+        ],
+        "call": {
+          "args": [
+            "ping",
+            "called - before"
+          ],
+          "contract": "'$test_args_address'",
+          "function": "do_event",
+          "operations": [
+            {
+              "args": [
+                "ping",
+                "[\"called - before\"]"
+              ],
+              "op": "event"
+            }
+          ]
+        },
+        "op": "call"
+      },
+      {
+        "amount": "15 aergo",
+        "args": [
+          "'$test_args_address'"
+        ],
+        "call": {
+          "amount": "15000000000000000000",
+          "contract": "'$test_args_address'",
+          "function": "default",
+          "operations": [
+            {
+              "args": [
+                "aergo received",
+                "[\"15000000000000000000\"]"
+              ],
+              "op": "event"
+            }
+          ]
+        },
+        "op": "send"
+      },
+      {
+        "args": [
+          "ping",
+          "[\"before\"]"
+        ],
+        "op": "event"
+      },
+      {
+        "args": [
+          "'$test_args_address'",
+          "do_event",
+          "[\"ping\",\"called - within\"]"
+        ],
+        "call": {
+          "args": [
+            "ping",
+            "called - within"
+          ],
+          "contract": "'$test_args_address'",
+          "function": "do_event",
+          "operations": [
+            {
+              "args": [
+                "ping",
+                "[\"called - within\"]"
+              ],
+              "op": "event"
+            }
+          ]
+        },
+        "op": "call",
+        "reverted": true
+      },
+      {
+        "amount": "15 aergo",
+        "args": [
+          "'$test_args_address'"
+        ],
+        "call": {
+          "amount": "15000000000000000000",
+          "contract": "'$test_args_address'",
+          "function": "default",
+          "operations": [
+            {
+              "args": [
+                "aergo received",
+                "[\"15000000000000000000\"]"
+              ],
+              "op": "event"
+            }
+          ]
+        },
+        "op": "send",
+        "reverted": true
+      },
+      {
+        "args": [
+          "ping",
+          "[\"within\"]"
+        ],
+        "op": "event",
+        "reverted": true
+      },
+      {
+        "amount": "15 aergo",
+        "args": [
+          "'$test_args_address'"
+        ],
+        "call": {
+          "amount": "15000000000000000000",
+          "contract": "'$test_args_address'",
+          "function": "default",
+          "operations": [
+            {
+              "args": [
+                "aergo received",
+                "[\"15000000000000000000\"]"
+              ],
+              "op": "event"
+            }
+          ]
+        },
+        "op": "send"
+      },
+      {
+        "args": [
+          "ping",
+          "[\"after\"]"
+        ],
+        "op": "event"
+      },
+      {
+        "args": [
+          "'$test_args_address'",
+          "do_event",
+          "[\"ping\",\"called - after\"]"
+        ],
+        "call": {
+          "args": [
+            "ping",
+            "called - after"
+          ],
+          "contract": "'$test_args_address'",
+          "function": "do_event",
+          "operations": [
+            {
+              "args": [
+                "ping",
+                "[\"called - after\"]"
+              ],
+              "op": "event"
+            }
+          ]
+        },
+        "op": "call"
+      }
+    ]
+  }
+}'
+
+
+echo "-- call test contract 2 - error case --"
+
+txhash=$(../bin/aergocli --keystore . --password bmttest \
+  contract call AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \
+  --amount 50000000000000000000 \
+  $test_reverted_address error_case '["'$test_args_address'","'$test_args_address'"]' | jq .hash | sed 's/"//g')
+
+get_receipt $txhash
+
+status=$(cat receipt.json | jq .status | sed 's/"//g')
+ret=$(cat receipt.json | jq .ret | sed 's/"//g')
+
+assert_equals "$status" "ERROR"
+assert_contains "$ret" "assertion failed!"
+
+get_internal_operations $txhash
+internal_operations=$(cat internal_operations.json)
+
+assert_equals "$internal_operations" '{
+  "call": {
+    "amount": "50000000000000000000",
+    "args": [
+      "'$test_args_address'",
+      "'$test_args_address'"
+    ],
+    "contract": "'$test_reverted_address'",
+    "function": "error_case",
+    "operations": [
+      {
+        "args": [
+          "'$test_args_address'",
+          "do_event",
+          "[\"ping\",\"called - within\"]"
+        ],
+        "call": {
+          "args": [
+            "ping",
+            "called - within"
+          ],
+          "contract": "'$test_args_address'",
+          "function": "do_event",
+          "operations": [
+            {
+              "args": [
+                "ping",
+                "[\"called - within\"]"
+              ],
+              "op": "event"
+            }
+          ]
+        },
+        "op": "call"
+      },
+      {
+        "amount": "15 aergo",
+        "args": [
+          "'$test_args_address'"
+        ],
+        "call": {
+          "amount": "15000000000000000000",
+          "contract": "'$test_args_address'",
+          "function": "default",
+          "operations": [
+            {
+              "args": [
+                "aergo received",
+                "[\"15000000000000000000\"]"
+              ],
+              "op": "event"
+            }
+          ]
+        },
+        "op": "send"
+      },
+      {
+        "args": [
+          "ping",
+          "[\"within\"]"
+        ],
+        "op": "event"
       }
     ]
   }

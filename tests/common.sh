@@ -2,7 +2,7 @@ start_nodes() {
 
   if [ "$consensus" == "sbp" ]; then
     # open the aergo node in testmode
-    ../bin/aergosvr --testmode --home ./aergo-files > logs 2> logs &
+    ../bin/aergosvr --testmode --home ./aergo-files >> logs 2>> logs &
     pid=$!
   else
     # open the 5 nodes
@@ -251,7 +251,7 @@ get_internal_operations() {
   if [[ $output == *"No internal operations found for this transaction"* ]]; then
     echo -n "" > internal_operations.json
   elif [[ -n $output ]]; then
-    echo "Error: $output"
+    echo "Error getting internal operations: $output"
     exit 1
   fi
 
