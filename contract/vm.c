@@ -57,6 +57,7 @@ static void preloadModules(lua_State *L) {
 		luaopen_db(L);
 	}
 
+#ifndef DEBUG
 	if (vm_is_hardfork(L, 4)) {
 		lua_getglobal(L, "_G");
 		// disable getmetatable
@@ -81,6 +82,7 @@ static void preloadModules(lua_State *L) {
 		lua_setfield(L, -2, "dump");
 		lua_pop(L, 1);
 	}
+#endif
 
 #ifdef MEASURE
 	lua_register(L, "nsec", nsec);
