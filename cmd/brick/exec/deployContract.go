@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/aergoio/aergo/v2/cmd/brick/context"
+	"github.com/aergoio/aergo/v2/cmd/brick/pack"
 	"github.com/aergoio/aergo/v2/contract/vm_dummy"
 	"github.com/aergoio/aergo/v2/types"
 )
@@ -59,7 +60,7 @@ func (c *deployContract) parse(args string) (string, *big.Int, string, string, s
 	}
 
 	defPath := splitArgs[3].Text
-	if _, err := readContract(defPath); err != nil {
+	if _, err := pack.ReadContract(defPath); err != nil {
 		return "", nil, "", "", "", fmt.Errorf("fail to read a contract def file %s: %s", splitArgs[3].Text, err.Error())
 	}
 
@@ -81,7 +82,7 @@ func (c *deployContract) parse(args string) (string, *big.Int, string, string, s
 func (c *deployContract) Run(args string) (string, uint64, []*types.Event, error) {
 	accountName, amount, contractName, defPath, constuctorArg, _ := c.parse(args)
 
-	defByte, err := readContract(defPath)
+	defByte, err := pack.ReadContract(defPath)
 	if err != nil {
 		return "", 0, nil, err
 	}
