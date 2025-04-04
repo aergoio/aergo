@@ -5,7 +5,6 @@
 package config
 
 import (
-	"os"
 	"path"
 	"testing"
 
@@ -14,10 +13,7 @@ import (
 
 func TestSetParamConfPath(t *testing.T) {
 	// create a temporary directory
-	tmpDir, err := os.MkdirTemp("", "test")
-	if err != nil {
-		assert.Fail(t, err.Error())
-	}
+	tmpDir := t.TempDir()
 	// generate a random conf file path and set to the conf
 	generatedConfFilePath := path.Join(tmpDir, "aergo.toml")
 
@@ -27,7 +23,7 @@ func TestSetParamConfPath(t *testing.T) {
 	var loadedConf Config
 
 	// create a config
-	err = serverCxt.LoadOrCreateConfig(defaultConf)
+	err := serverCxt.LoadOrCreateConfig(defaultConf)
 	if err != nil {
 		assert.Fail(t, err.Error())
 	}
