@@ -360,6 +360,7 @@ func (mp *MemPool) put(tx types.Transaction) error {
 			return err
 		}
 	*/
+	// validate the transaction, including nonce
 	err := mp.validateTx(tx, acc)
 	if err != nil && err != types.ErrTxNonceToohigh {
 		return err
@@ -367,18 +368,22 @@ func (mp *MemPool) put(tx types.Transaction) error {
 	mp.Lock()
 	defer mp.Unlock()
 
+	// get the list of txs for the given account
 	list, err := mp.acquireMemPoolList(acc)
 	if err != nil {
 		return err
 	}
 	defer mp.releaseMemPoolList(list)
+	// attempt to put the tx into the list
 	diff, err := list.Put(tx)
 	if err != nil {
 		mp.Error().Err(err).Msg("fail to put at a mempool list")
 		return err
 	}
-
+	// update the total number of orphan txns (nonce too high)
 	mp.orphan -= diff
+
+	// add the tx to the cache
 	mp.cache.Store(id, tx)
 	mp.length++
 	mp.Trace().Object("tx", types.LogTx{Tx: tx.GetTx()}).Msg("tx added")
@@ -433,7 +438,9 @@ func (mp *MemPool) setStateDB(block *types.Block) (bool, bool) {
 	reorged := true
 	forked := false
 
+	// if the new block is different from the best block
 	if types.HashID(newBlockID).Compare(types.HashID(mp.bestBlockID)) != 0 {
+		// if parent block is different from the best block, it's not a reorg
 		if types.HashID(parentBlockID).Compare(types.HashID(mp.bestBlockID)) != 0 {
 			reorged = false //reorg case
 		}
@@ -526,12 +533,14 @@ func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 		if !reorg && dirty[acc] == false {
 			continue
 		}
+		// get the new account state from after this block
 		ns, err := mp.getAccountState(list.GetAccount())
 		if err != nil {
 			mp.Error().Err(err).Msg("getting Account status failed during removal")
 			// TODO : ????
 			continue
 		}
+		// filter transactions based on new state
 		diff, delTxs := list.FilterByState(ns)
 		mp.orphan -= diff
 		for _, tx := range delTxs {
@@ -554,7 +563,7 @@ func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 	return nil
 }
 
-// signiture verification
+// signature verification
 func (mp *MemPool) verifyTx(tx types.Transaction) error {
 	err := tx.Validate(mp.acceptChainIdHash, mp.isPublic)
 	if err != nil {
