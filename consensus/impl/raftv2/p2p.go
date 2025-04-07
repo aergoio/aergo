@@ -19,7 +19,7 @@ var (
 	ErrGetClusterFail    = errors.New("failed to get cluster info")
 )
 
-// GetBestBlock returns the current best block from chainservice
+// GetClusterInfo sends collects cluster info from remote peers via p2p module
 func GetClusterInfo(hs *component.ComponentHub, bestHash []byte) (*Cluster, *types.HardStateInfo, error) {
 	logger.Info().Msg("try getclusterinfo to p2p")
 

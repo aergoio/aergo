@@ -19,7 +19,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// ClusterInfoReceiver is send p2p getClusterInfo to connected peers and Receive p2p responses one of peers return successful response
+// ConcurrentClusterInfoReceiver is a class which send p2p getClusterInfo to connected peers and receive responses one of peers return successful response.
 // The first version will be simplified version. it send and Receive one by one.
 type ConcurrentClusterInfoReceiver struct {
 	logger *log.Logger
@@ -43,6 +43,8 @@ type ConcurrentClusterInfoReceiver struct {
 }
 
 func NewConcClusterInfoReceiver(actor p2pcommon.ActorService, mf p2pcommon.MoFactory, peers []p2pcommon.RemotePeer, ttl time.Duration, req *message.GetCluster, logger *log.Logger) *ConcurrentClusterInfoReceiver {
+	// TODO the value requiredResp of can cause trouble.
+	// Only the members of cluster can give the cluster information. There is a possibility of calculating the quorum because it sends requests to all connected peers regardless of membership. There is another problem. There is no cluster information in node when it send a request, so it is difficult to get the exact quorum because it also has no number of members.
 	r := &ConcurrentClusterInfoReceiver{logger: logger, mf: mf, peers: peers, ttl: ttl, req: req,
 		requiredResp: len(peers)/2 + 1,
 		succResps:    make(map[types.PeerID]*types.GetClusterInfoResponse),
@@ -194,19 +196,19 @@ func (r *ConcurrentClusterInfoReceiver) calculate(err error) *message.GetCluster
 	if err != nil {
 		rsp.Err = err
 	} else if len(r.succResps) < r.requiredResp {
-		rsp.Err = errors.New("too low responses: " + strconv.Itoa(len(r.succResps)))
+		rsp.Err = errors.New("too low responses: " + strconv.Itoa(len(r.succResps)) + " , required " + strconv.Itoa(r.requiredResp))
 	} else {
 		r.logger.Debug().Int("respCnt", len(r.succResps)).Msg("calculating collected responses")
 		var bestRsp *types.GetClusterInfoResponse = nil
 		var bestPid types.PeerID
-		for pid, rsp := range r.succResps {
+		for peerId, rsp := range r.succResps {
 			if bestRsp == nil || rsp.BestBlockNo > bestRsp.BestBlockNo {
 				bestRsp = rsp
-				bestPid = pid
+				bestPid = peerId
 			}
 		}
 		if bestRsp != nil {
-			r.logger.Debug().Stringer(p2putil.LogPeerID, types.LogPeerShort(bestPid)).Object("resp", bestRsp).Msg("chosed best response")
+			r.logger.Debug().Stringer(p2putil.LogPeerID, types.LogPeerShort(bestPid)).Object("resp", bestRsp).Msg("chose best response")
 			rsp.ClusterID = bestRsp.GetClusterID()
 			rsp.ChainID = bestRsp.GetChainID()
 			rsp.Members = bestRsp.GetMbrAttrs()

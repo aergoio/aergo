@@ -437,7 +437,7 @@ func (bf *BlockFetcher) searchCandidateTask() (*FetchTask, error) {
 
 			task := &FetchTask{count: end - start, hashes: hashSet.Hashes[start:end], startNo: hashSet.StartNo + uint64(start), retry: 0}
 
-			logger.Debug().Uint64("StartNo", task.startNo).Int("count", task.count).Msg("add fetchtask")
+			logger.Trace().Uint64("StartNo", task.startNo).Int("count", task.count).Msg("add fetchtask")
 
 			bf.pendingQueue.PushBack(task)
 

@@ -74,7 +74,7 @@ func (cdb *ChainDB) ResetWAL(hardStateInfo *types.HardStateInfo) error {
 	return nil
 }
 
-// ClearWal() removes all data used by raft
+// ClearWAL removes all data used by raft
 func (cdb *ChainDB) ClearWAL() {
 	logger.Info().Msg("clear all data used by raft")
 
@@ -286,7 +286,7 @@ var (
 // HasWal checks chaindb has valid status of Raft WAL.
 // 1. compare identity with config
 // 2. check if hardstate exists
-// 3. check if last raft entiry index exists
+// 3. check if last raft entry index exists
 // last entry index can be 0 if first sync has failed
 func (cdb *ChainDB) HasWal(identity consensus.RaftIdentity) (bool, error) {
 	var (

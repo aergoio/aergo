@@ -443,7 +443,7 @@ func (bf *BlockFactory) worker() {
 			}
 
 		case cEntry, ok := <-bf.commitC():
-			logger.Debug().Msg("received block to connect from raft")
+			logger.Trace().Msg("received block to connect from raft")
 
 			if !ok {
 				logger.Fatal().Msg("commit channel for raft is closed")
@@ -770,7 +770,7 @@ func (bf *BlockFactory) getHardStateOfBlock(bestBlockHash []byte) (*types.HardSt
 
 	entry, err := bf.ChainWAL.GetRaftEntryOfBlock(bestBlockHash)
 	if err == nil {
-		logger.Debug().Uint64("term", entry.Term).Uint64("comit", entry.Index).Msg("get hardstate of block")
+		logger.Debug().Uint64("term", entry.Term).Uint64("commit", entry.Index).Msg("get hardstate of block")
 
 		return &types.HardStateInfo{Term: entry.Term, Commit: entry.Index}, nil
 	}
