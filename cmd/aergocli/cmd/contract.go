@@ -7,11 +7,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"strconv"
 
 	luacEncoding "github.com/aergoio/aergo/v2/cmd/aergoluac/encoding"
 	luac "github.com/aergoio/aergo/v2/cmd/aergoluac/util"
+	"github.com/aergoio/aergo/v2/cmd/brick/pack"
 	"github.com/aergoio/aergo/v2/internal/common"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/internal/enc/hex"
@@ -180,10 +180,11 @@ func runDeployCmd(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = false
 			return errors.New("not enough arguments")
 		}
-		code, err = os.ReadFile(args[1])
+		codeString, err := pack.ReadContract(args[1])
 		if err != nil {
 			return fmt.Errorf("failed to read code file: %v", err.Error())
 		}
+		code = []byte(codeString)
 		if len(args) == 3 {
 			var ci types.CallInfo
 			err = json.Unmarshal([]byte(args[2]), &ci.Args)
