@@ -5,13 +5,13 @@
         "mainnet":false,
         "consensus":"dpos"
     },
-		"timestamp": 1559883600000000000,
+	"timestamp": 1559883600000000000,
     "balance": {
         "AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R": "1000000000000000000000"
     },
     "bps": [
         "16Uiu2HAmG4PSXYUxkPbNb7qTcEExFpgAwBrm3hB32aJXuvX2f1sd",
         "16Uiu2HAmMzncFmnpjigZJRoraToKkABvZimMUAyXf6bdrZeN7mbJ",
-        "16Uiu2HAmKB7RYXe1uHNYMtkuuM2fEHxsv6P9PZ45ogJw6aZD3y7x"
+        "16Uiu2HAmBVsH9vGdWKUQV52bwSgMGZEoJTRkDB1R5fitTydRBYor"
     ]
 }

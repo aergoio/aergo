@@ -112,6 +112,10 @@ assert_equals "$status"   "SUCCESS"
 #assert_equals "$gasUsed"  "117861"
 
 
+# this fails on RAFT with public=false
+
+if [ "$consensus" != "raft" ]; then
+
 echo "-- deploy 3 ARC1 and 3 ARC2 contracts --"
 
 txhash=$(../bin/aergocli --keystore . --password bmttest \
@@ -127,3 +131,30 @@ gasUsed=$(cat receipt.json | jq .gasUsed | sed 's/"//g')
 assert_equals "$status"   "SUCCESS"
 #assert_equals "$ret"      ""
 #assert_equals "$gasUsed"  "117861"
+
+fi
+
+
+
+# test contract redeploy, but only on RAFT with public=false
+
+if [ "$consensus" = "raft" ]; then
+
+  echo "-- test contract redeploy --"
+
+  get_deploy_args ../contract/vm_dummy/test_files/token-deployer.lua
+
+  txhash=$(../bin/aergocli --keystore . --password bmttest \
+    contract deploy --redeploy $deployer_address AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \
+    $deploy_args "[]" | jq .hash | sed 's/"//g')
+
+  get_receipt $txhash
+
+  status=$(cat receipt.json | jq .status | sed 's/"//g')
+  ret=$(cat receipt.json | jq .ret | sed 's/"//g')
+  contract_address=$(cat receipt.json | jq .contractAddress | sed 's/"//g')
+
+  assert_equals "$contract_address" "$deployer_address"
+  assert_equals "$status" "RECREATED"
+  assert_equals "$ret" ""
+fi

@@ -1,7 +1,7 @@
 {
     "chain_id":{
         "magic":"test.chain",
-        "public":true,
+        "public":false,
         "mainnet":false,
         "consensus":"raft"
     },
@@ -23,9 +23,9 @@
         "peerid": "16Uiu2HAmMzncFmnpjigZJRoraToKkABvZimMUAyXf6bdrZeN7mbJ"
       },
       {
-        "name": "bp03",
-        "address": "/ip4/127.0.0.1/tcp/2003",
-        "peerid": "16Uiu2HAmKB7RYXe1uHNYMtkuuM2fEHxsv6P9PZ45ogJw6aZD3y7x"
+        "name": "bp04",
+        "address": "/ip4/127.0.0.1/tcp/2004",
+        "peerid": "16Uiu2HAmBVsH9vGdWKUQV52bwSgMGZEoJTRkDB1R5fitTydRBYor"
       }
     ]
 }

@@ -3,6 +3,12 @@ source common.sh
 
 fork_version=$1
 
+# skip the test if the consensus type is raft
+if [ "$consensus" = "raft" ]; then
+  echo "  skipping on private chain..."
+  exit 0
+fi
+
 
 echo "-- deploy --"
 
