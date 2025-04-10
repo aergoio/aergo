@@ -417,9 +417,29 @@ void vm_set_timeout_count_hook(lua_State *L, int limit) {
 	lua_sethook(L, timeout_count_hook, LUA_MASKCOUNT, VM_TIMEOUT_INST_COUNT);
 }
 
+static int stacktrace(lua_State *L) {
+	if (!lua_isstring(L, 1))  /* 'message' not a string? */
+		return 1;               /* keep it intact */
+	lua_getfield(L, LUA_GLOBALSINDEX, "debug");
+	if (!lua_istable(L, -1)) {
+		lua_pop(L, 1);
+		return 1;
+	}
+	lua_getfield(L, -1, "traceback");
+	if (!lua_isfunction(L, -1)) {
+		lua_pop(L, 2);
+		return 1;
+	}
+	lua_pushvalue(L, 1);    /* pass error message */
+	lua_pushinteger(L, 2);  /* skip this function and traceback */
+	lua_call(L, 2, 1);      /* call debug.traceback */
+	return 1;
+}
+
 const char *vm_pcall(lua_State *L, int argc, int *nresult) {
 	int err;
-	int nr = lua_gettop(L) - argc - 1;
+	int base = lua_gettop(L) - argc;  // position of function in the stack
+	int error_handler = 0;
 
 	if (lua_usegas(L)) {
 		lua_enablegas(L);
@@ -427,7 +447,21 @@ const char *vm_pcall(lua_State *L, int argc, int *nresult) {
 		luaL_enablemaxmem(L);
 	}
 
-	err = lua_pcall(L, argc, LUA_MULTRET, 0);
+#ifdef DEBUG
+	// push the error handler before the function and arguments
+	lua_pushcfunction(L, stacktrace);
+	// insert the error handler at the position of the function
+	lua_insert(L, base);
+	// now the stack is: [other stuff] [stacktrace] [function] [args...]
+	error_handler = base;
+#endif
+
+	err = lua_pcall(L, argc, LUA_MULTRET, error_handler);
+
+#ifdef DEBUG
+	// remove the stacktrace function
+	lua_remove(L, error_handler);
+#endif
 
 	if (lua_usegas(L)) {
 		lua_disablegas(L);
@@ -443,7 +477,8 @@ const char *vm_pcall(lua_State *L, int argc, int *nresult) {
 	if (err != 0) {
 		return lua_tostring(L, -1);
 	}
-	*nresult = lua_gettop(L) - nr;
+
+	*nresult = lua_gettop(L) - base + 1;
 	return NULL;
 }
 
