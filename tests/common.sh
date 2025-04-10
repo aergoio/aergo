@@ -112,7 +112,7 @@ deploy() {
   # deploy the contract
   ../bin/aergocli --keystore . --password bmttest \
     contract deploy AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \
-    $deploy_args > tx_output.json
+    $deploy_args > output.json
   exit_code=$?
   # stop on errors
   set -e
@@ -120,20 +120,20 @@ deploy() {
   if [ $exit_code -ne 0 ]; then
     echo "Error: aergocli command failed"
     echo "Command output:"
-    cat tx_output.json
+    cat output.json
     exit 1
   fi
 
   # check if the JSON response contains an error field
-  error_value=$(cat tx_output.json | jq '.error')
+  error_value=$(cat output.json | jq '.error')
   if [ "$error_value" != "null" ]; then
     echo "Error: Transaction failed"
     echo "Command output:"
-    cat tx_output.json
+    cat output.json
     exit 1
   fi
 
-  txhash=$(cat tx_output.json | jq .hash | sed 's/"//g')
+  txhash=$(cat output.json | jq .hash | sed 's/"//g')
 }
 
 get_receipt_from() {

@@ -64,10 +64,30 @@ jobs:
       run: cd tests && ./run_tests.sh brick
 
     - name: Integration Tests - sbp
+      id: sbp_test
+      continue-on-error: true
       run: cd tests && ./run_tests.sh sbp
 
     - name: Integration Tests - dpos
+      id: dpos_test
+      if: steps.sbp_test.outcome == 'success'
+      continue-on-error: true
       run: cd tests && ./run_tests.sh dpos
 
     - name: Integration Tests - raft
+      id: raft_test
+      if: steps.dpos_test.outcome == 'success'
+      continue-on-error: true
       run: cd tests && ./run_tests.sh raft
+
+    - name: Upload Logs on Failure
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: integration-test-logs
+        retention-days: 5
+        path: |
+          tests/logs*
+          tests/error.txt
+          tests/output.json
+          tests/receipt*.json

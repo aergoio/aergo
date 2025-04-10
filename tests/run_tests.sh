@@ -126,6 +126,8 @@ function check() {
     if [ $status -ne 0 ]; then
         num_failed_tests=$((num_failed_tests+1))
         echo "FAIL: $name"
+        stop_nodes
+        exit 1
     else
         echo "OK: $name"
     fi
