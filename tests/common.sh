@@ -42,12 +42,14 @@ wait_version_from() {
   local counter=0
   local output
   local cur_version
-  # do not stop on errors
-  set +e
 
   while true; do
+    # do not stop on errors
+    set +e
     # get the current hardfork version
     output=$(../bin/aergocli blockchain --port $port 2>/dev/null)
+    # stop on errors
+    set -e
     # check if 'output' is non-empty and starts with '{'
     if [[ -n "$output" ]] && [[ "${output:0:1}" == "{" ]]; then
       cur_version=$(echo "$output" | jq .chainInfo.id.version | sed 's/"//g')
@@ -74,8 +76,6 @@ wait_version_from() {
     fi
   done
 
-  # stop on errors
-  set -e
 }
 
 wait_version() {
@@ -109,12 +109,15 @@ deploy() {
 
   # do not stop on errors
   set +e
-
+  # deploy the contract
   ../bin/aergocli --keystore . --password bmttest \
     contract deploy AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \
     $deploy_args > tx_output.json
+  exit_code=$?
+  # stop on errors
+  set -e
 
-  if [ $? -ne 0 ]; then
+  if [ $exit_code -ne 0 ]; then
     echo "Error: aergocli command failed"
     echo "Command output:"
     cat tx_output.json
@@ -131,10 +134,6 @@ deploy() {
   fi
 
   txhash=$(cat tx_output.json | jq .hash | sed 's/"//g')
-
-  # stop on errors
-  set -e
-
 }
 
 get_receipt_from() {
@@ -143,22 +142,17 @@ get_receipt_from() {
   local receipt_file=$3
   local counter=0
 
-  # check txhash length (must be 43 or 44 characters)
-  local txlen=${#txhash}
-  if [[ $txlen != 43 && $txlen != 44 ]]; then
-    echo "Error: Invalid transaction hash: $txhash"
-    exit 1
-  fi
-
-  # do not stop on errors
-  set +e
-
   # wait for a total of (0.4 * 100) = 40 seconds
 
   while true; do
+    # do not stop on errors
+    set +e
+    # request the receipt for the transaction
     ../bin/aergocli receipt get --port $port $txhash > "$receipt_file" 2> error.txt
     exit_code=$?
     output=$(cat error.txt 2>/dev/null)
+    # stop on errors
+    set -e
 
     #echo "output: $output"
 
@@ -166,18 +160,18 @@ get_receipt_from() {
       sleep 0.4
       counter=$((counter+1))
       if [ $counter -gt 100 ]; then
-        echo "Error: tx not found: $txhash"
+        echo "Error getting receipt on port $port: tx not found: $txhash"
         exit 1
       fi
     elif [[ $exit_code -ne 0 ]]; then
-      echo "Error: $output"
+      echo "Error getting receipt on port $port: $output"
       exit 1
     elif ! jq . "$receipt_file" >/dev/null 2>&1; then
       # if output is not valid JSON, wait and retry
       sleep 0.4
       counter=$((counter+1))
       if [ $counter -gt 100 ]; then
-        echo "Error: Invalid JSON response for receipt: $txhash"
+        echo "Error getting receipt on port $port: Invalid JSON response: $txhash"
         cat "$receipt_file"
         exit 1
       fi
@@ -187,8 +181,6 @@ get_receipt_from() {
     fi
   done
 
-  # stop on errors
-  set -e
 }
 
 get_receipt() {
@@ -197,6 +189,13 @@ get_receipt() {
   local retry
   local max_retries=10
   local all_match
+
+  # check txhash length (must be 43 or 44 characters)
+  local txlen=${#txhash}
+  if [[ $txlen != 43 && $txlen != 44 ]]; then
+    echo "Error: Invalid transaction hash: $txhash"
+    exit 1
+  fi
 
   if [ "$consensus" == "sbp" ]; then
     get_receipt_from $txhash 7845 receipt.json
