@@ -520,7 +520,7 @@ func (cdb *ChainDB) dropBlock(dropNo types.BlockNo) error {
 	}
 
 	// remove receipt
-	cdb.deleteReceipts(&dbTx, dropBlock.BlockHash(), dropBlock.BlockNo())
+	cdb.deleteReceiptsAndOperations(&dbTx, dropBlock.BlockHash(), dropBlock.BlockNo())
 
 	// remove (hash/block)
 	dbTx.Delete(dropBlock.BlockHash())
@@ -665,6 +665,11 @@ func (cdb *ChainDB) checkExistReceipts(blockHash []byte, blockNo types.BlockNo) 
 	return true
 }
 
+func (cdb *ChainDB) getInternalOperations(blockNo types.BlockNo) string {
+	data := cdb.store.Get(dbkey.InternalOps(blockNo))
+	return string(data)
+}
+
 type ChainTree struct {
 	Tree []ChainInfo
 }
@@ -691,18 +696,35 @@ func (cdb *ChainDB) GetChainTree() ([]byte, error) {
 	return jsonBytes, nil
 }
 
-func (cdb *ChainDB) writeReceipts(blockHash []byte, blockNo types.BlockNo, receipts *types.Receipts) {
+func (cdb *ChainDB) writeReceiptsAndOperations(block *types.Block, receipts *types.Receipts, internalOps string) {
+	hasReceipts := len(receipts.Get()) != 0
+	hasInternalOps := len(internalOps) != 0
+
+	if !hasReceipts && !hasInternalOps {
+		return
+	}
+
 	dbTx := cdb.store.NewTx()
 	defer dbTx.Discard()
 
-	val, _ := gob.Encode(receipts)
-	dbTx.Set(dbkey.Receipts(blockHash, blockNo), val)
+	blockHash := block.BlockHash()
+	blockNo := block.BlockNo()
+
+	if hasReceipts {
+		val, _ := gob.Encode(receipts)
+		dbTx.Set(dbkey.Receipts(blockHash, blockNo), val)
+	}
+
+	if hasInternalOps {
+		dbTx.Set(dbkey.InternalOps(blockNo), []byte(internalOps))
+	}
 
 	dbTx.Commit()
 }
 
-func (cdb *ChainDB) deleteReceipts(dbTx *db.Transaction, blockHash []byte, blockNo types.BlockNo) {
+func (cdb *ChainDB) deleteReceiptsAndOperations(dbTx *db.Transaction, blockHash []byte, blockNo types.BlockNo) {
 	(*dbTx).Delete(dbkey.Receipts(blockHash, blockNo))
+	(*dbTx).Delete(dbkey.InternalOps(blockNo))
 }
 
 func (cdb *ChainDB) writeReorgMarker(marker *ReorgMarker) error {

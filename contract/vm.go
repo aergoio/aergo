@@ -67,6 +67,7 @@ var (
 	lastQueryIndex     int
 	querySync          sync.Mutex
 	currentForkVersion int32
+	logInternalOperations bool
 )
 
 type ChainAccessor interface {
@@ -92,7 +93,7 @@ type vmContext struct {
 	isMultiCall       bool
 	service           C.int
 	callState         map[types.AccountID]*callState
-	lastRecoveryEntry *recoveryEntry
+	lastRecoveryPoint *recoveryPoint
 	dbUpdateTotalSize int64
 	seed              *rand.Rand
 	events            []*types.Event
@@ -102,6 +103,7 @@ type vmContext struct {
 	gasLimit          uint64
 	remainedGas       uint64
 	execCtx           context.Context
+	internalOpsCall   InternalCall
 }
 
 type executor struct {
@@ -111,6 +113,7 @@ type executor struct {
 	numArgs    C.int
 	ci         *types.CallInfo
 	fname      string
+	amount     *big.Int
 	ctx        *vmContext
 	jsonRet    string
 	isView     bool
@@ -130,9 +133,10 @@ func init() {
 	lastQueryIndex = ChainService
 }
 
-func InitContext(numCtx int) {
+func InitContext(numCtx int, logInternalOps bool) {
 	maxContext = numCtx
 	contexts = make([]*vmContext, maxContext)
+	logInternalOperations = logInternalOps
 }
 
 func NewVmContext(
@@ -404,6 +408,7 @@ func newExecutor(
 		ce.numArgs = C.int(len(ci.Args) + 1)
 	}
 	ce.ci = ci
+	ce.amount = amount
 
 	return ce
 }
@@ -558,11 +563,11 @@ func (ce *executor) call(instLimit C.int, target *LState) (ret C.int) {
 		ce.err = ce.preErr
 		return 0
 	}
+	contract := types.EncodeAddress(ce.ctx.curContract.contractId)
 	if ce.isAutoload {
 		if loaded := vmAutoload(ce.L, ce.fname); !loaded {
 			if ce.fname != constructor {
-				ce.err = errors.New(fmt.Sprintf("contract autoload failed %s : %s",
-					types.EncodeAddress(ce.ctx.curContract.contractId), ce.fname))
+				ce.err = errors.New(fmt.Sprintf("contract autoload failed %s : %s", contract, ce.fname))
 			}
 			return 0
 		}
@@ -574,10 +579,10 @@ func (ce *executor) call(instLimit C.int, target *LState) (ret C.int) {
 	}
 	ce.processArgs()
 	if ce.err != nil {
-		ctrLgr.Debug().Err(ce.err).Stringer("contract",
-			types.LogAddr(ce.ctx.curContract.contractId)).Msg("invalid argument")
+		ctrLgr.Debug().Err(ce.err).Str("contract", contract).Msg("invalid argument")
 		return 0
 	}
+	logCall(ce.ctx, contract, ce.fname, ce.ci.Args, ce.amount.String())
 	ce.setCountHook(instLimit)
 	nRet := C.int(0)
 	cErrMsg := C.vm_pcall(ce.L, ce.numArgs, &nRet)
@@ -593,10 +598,7 @@ func (ce *executor) call(instLimit C.int, target *LState) (ret C.int) {
 				ce.err = errors.New(errMsg)
 			}
 		}
-		ctrLgr.Debug().Err(ce.err).Stringer(
-			"contract",
-			types.LogAddr(ce.ctx.curContract.contractId),
-		).Msg("contract is failed")
+		ctrLgr.Debug().Err(ce.err).Str("contract", contract).Msg("contract is failed")
 		return 0
 	}
 	if target == nil {
@@ -611,15 +613,11 @@ func (ce *executor) call(instLimit C.int, target *LState) (ret C.int) {
 		if c2ErrMsg := C.vm_copy_result(ce.L, target, nRet); c2ErrMsg != nil {
 			errMsg := C.GoString(c2ErrMsg)
 			ce.err = errors.New(errMsg)
-			ctrLgr.Debug().Err(ce.err).Stringer(
-				"contract",
-				types.LogAddr(ce.ctx.curContract.contractId),
-			).Msg("failed to move results")
+			ctrLgr.Debug().Err(ce.err).Str("contract", contract).Msg("failed to move results")
 		}
 	}
 	if ce.ctx.traceFile != nil {
-		address := types.EncodeAddress(ce.ctx.curContract.contractId)
-		codeFile := fmt.Sprintf("%s%s%s.code", os.TempDir(), string(os.PathSeparator), address)
+		codeFile := fmt.Sprintf("%s%s%s.code", os.TempDir(), string(os.PathSeparator), contract)
 		if _, err := os.Stat(codeFile); os.IsNotExist(err) {
 			f, err := os.OpenFile(codeFile, os.O_WRONLY|os.O_CREATE, 0644)
 			if err == nil {
@@ -628,7 +626,7 @@ func (ce *executor) call(instLimit C.int, target *LState) (ret C.int) {
 			}
 		}
 		_, _ = ce.ctx.traceFile.WriteString(fmt.Sprintf("contract %s used fee: %s\n",
-			address, ce.ctx.usedFee().String()))
+			contract, ce.ctx.usedFee().String()))
 	}
 	return nRet
 }
@@ -825,7 +823,7 @@ func Call(
 	contractState *statedb.ContractState,
 	payload, contractAddress []byte,
 	ctx *vmContext,
-) (string, []*types.Event, *big.Int, error) {
+) (string, []*types.Event, string, *big.Int, error) {
 
 	var err error
 	var ci types.CallInfo
@@ -850,7 +848,7 @@ func Call(
 		err = fmt.Errorf("not found contract %s", addr)
 	}
 	if err != nil {
-		return "", nil, ctx.usedFee(), err
+		return "", nil, "", ctx.usedFee(), err
 	}
 
 	if ctrLgr.IsDebugEnabled() {
@@ -869,6 +867,8 @@ func Call(
 		vmExecTime := time.Now().Sub(startTime).Microseconds()
 		vmLogger.Trace().Int64("execµs", vmExecTime).Stringer("txHash", types.LogBase58(ce.ctx.txHash)).Msg("tx execute time in vm")
 	}
+
+	internalOps := getInternalOperations(ctx)
 
 	// check if there is an error
 	err = ce.err
@@ -894,14 +894,14 @@ func Call(
 				types.EncodeAddress(contractAddress), types.ToAccountID(contractAddress)))
 		}
 		// return the error
-		return "", ce.getEvents(), ctx.usedFee(), err
+		return "", ce.getEvents(), internalOps, ctx.usedFee(), err
 	}
 
 	// save the state of the contract
 	err = ce.commitCalledContract()
 	if err != nil {
 		ctrLgr.Error().Err(err).Str("contract", types.EncodeAddress(contractAddress)).Msg("commit state")
-		return "", ce.getEvents(), ctx.usedFee(), err
+		return "", ce.getEvents(), internalOps, ctx.usedFee(), err
 	}
 
 	// log the result
@@ -922,7 +922,7 @@ func Call(
 	}
 
 	// return the result
-	return ce.jsonRet, ce.getEvents(), ctx.usedFee(), nil
+	return ce.jsonRet, ce.getEvents(), internalOps, ctx.usedFee(), nil
 }
 
 func setRandomSeed(ctx *vmContext) {
@@ -999,10 +999,10 @@ func Create(
 	contractState *statedb.ContractState,
 	payload, contractAddress []byte,
 	ctx *vmContext,
-) (string, []*types.Event, *big.Int, error) {
+) (string, []*types.Event, string, *big.Int, error) {
 
 	if len(payload) == 0 {
-		return "", nil, ctx.usedFee(), errors.New("contract code is required")
+		return "", nil, "", ctx.usedFee(), errors.New("contract code is required")
 	}
 
 	if ctrLgr.IsDebugEnabled() {
@@ -1012,13 +1012,13 @@ func Create(
 	// save the contract code
 	bytecode, args, err := setContract(contractState, contractAddress, payload, ctx)
 	if err != nil {
-		return "", nil, ctx.usedFee(), err
+		return "", nil, "", ctx.usedFee(), err
 	}
 
 	// set the creator
 	err = contractState.SetData(dbkey.CreatorMeta(), []byte(types.EncodeAddress(ctx.curContract.sender)))
 	if err != nil {
-		return "", nil, ctx.usedFee(), err
+		return "", nil, "", ctx.usedFee(), err
 	}
 
 	// get the arguments for the constructor
@@ -1027,7 +1027,7 @@ func Create(
 		err = getCallInfo(&ci.Args, args, contractAddress)
 		if err != nil {
 			errMsg, _ := json.Marshal("constructor call error:" + err.Error())
-			return string(errMsg), nil, ctx.usedFee(), nil
+			return string(errMsg), nil, "", ctx.usedFee(), nil
 		}
 	}
 
@@ -1036,7 +1036,7 @@ func Create(
 	if ctx.blockInfo.ForkVersion < 2 {
 		// create a sql database for the contract
 		if db := luaGetDbHandle(ctx.service); db == nil {
-			return "", nil, ctx.usedFee(), newVmError(errors.New("can't open a database connection"))
+			return "", nil, "", ctx.usedFee(), newVmError(errors.New("can't open a database connection"))
 		}
 	}
 
@@ -1044,10 +1044,12 @@ func Create(
 	ce := newExecutor(bytecode, contractAddress, ctx, &ci, ctx.curContract.amount, true, false, contractState)
 	defer ce.close()
 
-	if err == nil {
+	if ce.err == nil {
 		// call the constructor
 		ce.call(callMaxInstLimit, nil)
 	}
+
+	internalOps := getInternalOperations(ctx)
 
 	// check if the call failed
 	err = ce.err
@@ -1074,7 +1076,7 @@ func Create(
 				types.EncodeAddress(contractAddress), types.ToAccountID(contractAddress)))
 		}
 		// return the error
-		return "", ce.getEvents(), ctx.usedFee(), err
+		return "", ce.getEvents(), internalOps, ctx.usedFee(), err
 	}
 
 	// commit the state
@@ -1082,7 +1084,7 @@ func Create(
 	if err != nil {
 		ctrLgr.Debug().Msg("constructor is failed")
 		ctrLgr.Error().Err(err).Msg("commit state")
-		return "", ce.getEvents(), ctx.usedFee(), err
+		return "", ce.getEvents(), internalOps, ctx.usedFee(), err
 	}
 
 	// write the trace
@@ -1103,7 +1105,7 @@ func Create(
 	}
 
 	// return the result
-	return ce.jsonRet, ce.getEvents(), ctx.usedFee(), nil
+	return ce.jsonRet, ce.getEvents(), internalOps, ctx.usedFee(), nil
 }
 
 func allocContextSlot(ctx *vmContext) {

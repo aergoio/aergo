@@ -210,25 +210,34 @@ func minusCallCount(ctx *vmContext, curCount, deduc C.int) C.int {
 
 //export luaCallContract
 func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char, args *C.char,
-	amount *C.char, gas uint64) (C.int, *C.char) {
+	amount *C.char, gas uint64) (ret C.int, errormsg *C.char) {
+	contractAddress := C.GoString(contractId)
 	fnameStr := C.GoString(fname)
 	argsStr := C.GoString(args)
+	amountStr := C.GoString(amount)
 
 	ctx := contexts[service]
 	if ctx == nil {
 		return -1, C.CString("[Contract.LuaCallContract] contract state not found")
 	}
 
+	opId := logOperation(ctx, amountStr, "call", contractAddress, fnameStr, argsStr)
+	defer func() {
+		if errormsg != nil {
+			logOperationResult(ctx, opId, C.GoString(errormsg))
+		}
+	}()
+
 	// get the contract address
-	contractAddress := C.GoString(contractId)
 	cid, err := getAddressNameResolved(contractAddress, ctx.bs)
 	if err != nil {
 		return -1, C.CString("[Contract.LuaCallContract] invalid contractId: " + err.Error())
 	}
 	aid := types.ToAccountID(cid)
+	contractAddress = types.EncodeAddress(cid)
 
 	// read the amount for the contract call
-	amountBig, err := transformAmount(C.GoString(amount), ctx.blockInfo.ForkVersion)
+	amountBig, err := transformAmount(amountStr, ctx.blockInfo.ForkVersion)
 	if err != nil {
 		return -1, C.CString("[Contract.LuaCallContract] invalid amount: " + err.Error())
 	}
@@ -242,7 +251,7 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 	// check if the contract exists
 	bytecode := getContractCode(cs.ctrState, ctx.bs)
 	if bytecode == nil {
-		return -1, C.CString("[Contract.LuaCallContract] cannot find contract " + C.GoString(contractId))
+		return -1, C.CString("[Contract.LuaCallContract] cannot find contract " + contractAddress)
 	}
 
 	prevContractInfo := ctx.curContract
@@ -260,6 +269,10 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 	// create a new executor with the remaining gas on the child LState
 	ce := newExecutor(bytecode, cid, ctx, &ci, amountBig, false, false, cs.ctrState)
 	defer func() {
+		// save the result if the call was successful
+		if ce.preErr == nil && ce.err == nil {
+			logOperationResult(ctx, opId, ce.jsonRet)
+		}
 		// close the executor, closes also the child LState
 		ce.close()
 		// set the remaining gas on the parent LState
@@ -282,7 +295,7 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 		}
 	}
 
-	seq, err := setRecoveryPoint(aid, ctx, senderState, cs, amountBig, false, false)
+	seq, err := createRecoveryPoint(aid, ctx, senderState, cs, amountBig, false, false)
 	if ctx.traceFile != nil {
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[CALL Contract %v(%v) %v]\n",
 			contractAddress, aid.String(), fnameStr))
@@ -304,11 +317,11 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 
 	// execute the contract call
 	defer setInstCount(ctx, L, ce.L)
-	ret := ce.call(minusCallCount(ctx, C.vm_instcount(L), luaCallCountDeduc), L)
+	ret = ce.call(minusCallCount(ctx, C.vm_instcount(L), luaCallCountDeduc), L)
 
 	// check if the contract call failed
 	if ce.err != nil {
-		err := clearRecovery(L, ctx, seq, true)
+		err := clearRecoveryPoint(L, ctx, seq, true)
 		if err != nil {
 			return -1, C.CString("[Contract.LuaCallContract] recovery err: " + err.Error())
 		}
@@ -325,7 +338,7 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 	}
 
 	if seq == 1 {
-		err := clearRecovery(L, ctx, seq, false)
+		err := clearRecoveryPoint(L, ctx, seq, false)
 		if err != nil {
 			return -1, C.CString("[Contract.LuaCallContract] recovery err: " + err.Error())
 		}
@@ -336,7 +349,7 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 
 //export luaDelegateCallContract
 func luaDelegateCallContract(L *LState, service C.int, contractId *C.char,
-	fname *C.char, args *C.char, gas uint64) (C.int, *C.char) {
+	fname *C.char, args *C.char, gas uint64) (ret C.int, errormsg *C.char) {
 	contractIdStr := C.GoString(contractId)
 	fnameStr := C.GoString(fname)
 	argsStr := C.GoString(args)
@@ -350,6 +363,13 @@ func luaDelegateCallContract(L *LState, service C.int, contractId *C.char,
 	var cid []byte
 	var err error
 
+	opId := logOperation(ctx, "", "delegate-call", contractIdStr, fnameStr, argsStr)
+	defer func() {
+		if errormsg != nil {
+			logOperationResult(ctx, opId, C.GoString(errormsg))
+		}
+	}()
+
 	// get the contract address
 	if contractIdStr == "multicall" {
 		isMultiCall = true
@@ -361,6 +381,7 @@ func luaDelegateCallContract(L *LState, service C.int, contractId *C.char,
 		if err != nil {
 			return -1, C.CString("[Contract.LuaDelegateCallContract] invalid contractId: " + err.Error())
 		}
+		contractIdStr = types.EncodeAddress(cid)
 	}
 	aid := types.ToAccountID(cid)
 
@@ -403,6 +424,10 @@ func luaDelegateCallContract(L *LState, service C.int, contractId *C.char,
 	// create a new executor with the remaining gas on the child LState
 	ce := newExecutor(bytecode, cid, ctx, &ci, zeroBig, false, false, contractState)
 	defer func() {
+		// save the result if the call was successful
+		if ce.preErr == nil && ce.err == nil {
+			logOperationResult(ctx, opId, ce.jsonRet)
+		}
 		// close the executor, closes also the child LState
 		ce.close()
 		// set the remaining gas on the parent LState
@@ -413,7 +438,7 @@ func luaDelegateCallContract(L *LState, service C.int, contractId *C.char,
 		return -1, C.CString("[Contract.LuaDelegateCallContract] newExecutor error: " + ce.err.Error())
 	}
 
-	seq, err := setRecoveryPoint(aid, ctx, nil, ctx.curContract.callState, zeroBig, false, false)
+	seq, err := createRecoveryPoint(aid, ctx, nil, ctx.curContract.callState, zeroBig, false, false)
 	if err != nil {
 		return -1, C.CString("[System.LuaDelegateCallContract] database error: " + err.Error())
 	}
@@ -424,11 +449,11 @@ func luaDelegateCallContract(L *LState, service C.int, contractId *C.char,
 
 	// execute the contract call
 	defer setInstCount(ctx, L, ce.L)
-	ret := ce.call(minusCallCount(ctx, C.vm_instcount(L), luaCallCountDeduc), L)
+	ret = ce.call(minusCallCount(ctx, C.vm_instcount(L), luaCallCountDeduc), L)
 
 	// check if the contract call failed
 	if ce.err != nil {
-		err := clearRecovery(L, ctx, seq, true)
+		err := clearRecoveryPoint(L, ctx, seq, true)
 		if err != nil {
 			return -1, C.CString("[Contract.LuaDelegateCallContract] recovery error: " + err.Error())
 		}
@@ -444,7 +469,7 @@ func luaDelegateCallContract(L *LState, service C.int, contractId *C.char,
 	}
 
 	if seq == 1 {
-		err := clearRecovery(L, ctx, seq, false)
+		err := clearRecoveryPoint(L, ctx, seq, false)
 		if err != nil {
 			return -1, C.CString("[Contract.LuaDelegateCallContract] recovery error: " + err.Error())
 		}
@@ -471,15 +496,24 @@ func getAddressNameResolved(account string, bs *state.BlockState) ([]byte, error
 }
 
 //export luaSendAmount
-func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char) *C.char {
+func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char) (errormsg *C.char) {
+	contractAddress := C.GoString(contractId)
+	amountStr := C.GoString(amount)
 
 	ctx := contexts[service]
 	if ctx == nil {
 		return C.CString("[Contract.LuaSendAmount] contract state not found")
 	}
 
+	opId := logOperation(ctx, amountStr, "send", contractAddress)
+	defer func() {
+		if errormsg != nil {
+			logOperationResult(ctx, opId, C.GoString(errormsg))
+		}
+	}()
+
 	// read the amount to be sent
-	amountBig, err := transformAmount(C.GoString(amount), ctx.blockInfo.ForkVersion)
+	amountBig, err := transformAmount(amountStr, ctx.blockInfo.ForkVersion)
 	if err != nil {
 		return C.CString("[Contract.LuaSendAmount] invalid amount: " + err.Error())
 	}
@@ -490,10 +524,11 @@ func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char)
 	}
 
 	// get the receiver account
-	cid, err := getAddressNameResolved(C.GoString(contractId), ctx.bs)
+	cid, err := getAddressNameResolved(contractAddress, ctx.bs)
 	if err != nil {
 		return C.CString("[Contract.LuaSendAmount] invalid contractId: " + err.Error())
 	}
+	contractAddress = types.EncodeAddress(cid)
 
 	// get the receiver state
 	aid := types.ToAccountID(cid)
@@ -524,7 +559,7 @@ func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char)
 		// get the contract code
 		bytecode := getContractCode(cs.ctrState, ctx.bs)
 		if bytecode == nil {
-			return C.CString("[Contract.LuaSendAmount] cannot find contract:" + C.GoString(contractId))
+			return C.CString("[Contract.LuaSendAmount] cannot find contract:" + contractAddress)
 		}
 
 		// get the remaining gas from the parent LState
@@ -532,6 +567,10 @@ func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char)
 		// create a new executor with the remaining gas on the child LState
 		ce := newExecutor(bytecode, cid, ctx, &ci, amountBig, false, false, cs.ctrState)
 		defer func() {
+			// save the result if the call was successful
+			if ce.preErr == nil && ce.err == nil {
+				logOperationResult(ctx, opId, ce.jsonRet)
+			}
 			// close the executor, closes also the child LState
 			ce.close()
 			// set the remaining gas on the parent LState
@@ -550,7 +589,7 @@ func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char)
 		}
 
 		// create a recovery point
-		seq, err := setRecoveryPoint(aid, ctx, senderState, cs, amountBig, false, false)
+		seq, err := createRecoveryPoint(aid, ctx, senderState, cs, amountBig, false, false)
 		if err != nil {
 			return C.CString("[System.LuaSendAmount] database error: " + err.Error())
 		}
@@ -579,7 +618,7 @@ func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char)
 		// check if the contract call failed
 		if ce.err != nil {
 			// recover to the previous state
-			err := clearRecovery(L, ctx, seq, true)
+			err := clearRecoveryPoint(L, ctx, seq, true)
 			if err != nil {
 				return C.CString("[Contract.LuaSendAmount] recovery err: " + err.Error())
 			}
@@ -592,7 +631,7 @@ func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char)
 		}
 
 		if seq == 1 {
-			err := clearRecovery(L, ctx, seq, false)
+			err := clearRecoveryPoint(L, ctx, seq, false)
 			if err != nil {
 				return C.CString("[Contract.LuaSendAmount] recovery err: " + err.Error())
 			}
@@ -615,8 +654,8 @@ func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char)
 	}
 
 	// update the recovery point
-	if ctx.lastRecoveryEntry != nil {
-		_, _ = setRecoveryPoint(aid, ctx, senderState, cs, amountBig, true, false)
+	if ctx.lastRecoveryPoint != nil {
+		_, _ = createRecoveryPoint(aid, ctx, senderState, cs, amountBig, true, false)
 	}
 
 	// log some info
@@ -651,7 +690,7 @@ func luaSetRecoveryPoint(L *LState, service C.int) (C.int, *C.char) {
 	if curContract.callState.ctrState.IsMultiCall() {
 		return 0, nil
 	}
-	seq, err := setRecoveryPoint(types.ToAccountID(curContract.contractId), ctx, nil,
+	seq, err := createRecoveryPoint(types.ToAccountID(curContract.contractId), ctx, nil,
 		curContract.callState, zeroBig, false, false)
 	if err != nil {
 		return -1, C.CString("[Contract.pcall] database error: " + err.Error())
@@ -662,17 +701,17 @@ func luaSetRecoveryPoint(L *LState, service C.int) (C.int, *C.char) {
 	return C.int(seq), nil
 }
 
-func clearRecovery(L *LState, ctx *vmContext, start int, isError bool) error {
-	item := ctx.lastRecoveryEntry
+func clearRecoveryPoint(L *LState, ctx *vmContext, start int, isError bool) error {
+	item := ctx.lastRecoveryPoint
 	for {
 		if isError {
-			if item.recovery(ctx.bs) != nil {
+			if item.revertState(ctx.bs) != nil {
 				return errors.New("database error")
 			}
 		}
 		if item.seq == start {
 			if isError || item.prev == nil {
-				ctx.lastRecoveryEntry = item.prev
+				ctx.lastRecoveryPoint = item.prev
 			}
 			return nil
 		}
@@ -689,7 +728,7 @@ func luaClearRecovery(L *LState, service C.int, start int, isError bool) *C.char
 	if ctx == nil {
 		return C.CString("[Contract.pcall] contract state not found")
 	}
-	err := clearRecovery(L, ctx, start, isError)
+	err := clearRecoveryPoint(L, ctx, start, isError)
 	if err != nil {
 		return C.CString(err.Error())
 	}
@@ -1117,10 +1156,11 @@ func luaDeployContract(
 	contract *C.char,
 	args *C.char,
 	amount *C.char,
-) (C.int, *C.char) {
+) (ret C.int, errormsg *C.char) {
 
-	argsStr := C.GoString(args)
 	contractStr := C.GoString(contract)
+	argsStr := C.GoString(args)
+	amountStr := C.GoString(amount)
 
 	ctx := contexts[service]
 	if ctx == nil {
@@ -1130,6 +1170,13 @@ func luaDeployContract(
 		return -1, C.CString("[Contract.LuaDeployContract]send not permitted in query")
 	}
 	bs := ctx.bs
+
+	opId := logOperation(ctx, amountStr, "deploy", contractStr, argsStr)
+	defer func() {
+		if errormsg != nil {
+			logOperationResult(ctx, opId, C.GoString(errormsg))
+		}
+	}()
 
 	// contract code
 	var codeABI []byte
@@ -1202,7 +1249,7 @@ func luaDeployContract(
 	ctx.callState[newContract.AccountID()] = cs
 
 	// read the amount transferred to the contract
-	amountBig, err := transformAmount(C.GoString(amount), ctx.blockInfo.ForkVersion)
+	amountBig, err := transformAmount(amountStr, ctx.blockInfo.ForkVersion)
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDeployContract]value not proper format:" + err.Error())
 	}
@@ -1224,7 +1271,7 @@ func luaDeployContract(
 	}
 
 	// create a recovery point
-	seq, err := setRecoveryPoint(newContract.AccountID(), ctx, senderState, cs, amountBig, false, true)
+	seq, err := createRecoveryPoint(newContract.AccountID(), ctx, senderState, cs, amountBig, false, true)
 	if err != nil {
 		return -1, C.CString("[System.LuaDeployContract] DB err:" + err.Error())
 	}
@@ -1265,6 +1312,10 @@ func luaDeployContract(
 	// create a new executor with the remaining gas on the child LState
 	ce := newExecutor(bytecode, newContract.ID(), ctx, &ci, amountBig, true, false, contractState)
 	defer func() {
+		// save the result if the call was successful
+		if ce.preErr == nil && ce.err == nil {
+			logOperationResult(ctx, opId, ce.jsonRet)
+		}
 		// close the executor, which will close the child LState
 		ce.close()
 		// set the remaining gas on the parent LState
@@ -1286,7 +1337,7 @@ func luaDeployContract(
 	senderState.SetNonce(senderState.Nonce() + 1)
 
 	addr := C.CString(types.EncodeAddress(newContract.ID()))
-	ret := C.int(1)
+	ret = C.int(1)
 
 	if ce != nil {
 		// run the constructor
@@ -1296,7 +1347,7 @@ func luaDeployContract(
 		// check if the execution was successful
 		if ce.err != nil {
 			// rollback the recovery point
-			err := clearRecovery(L, ctx, seq, true)
+			err := clearRecoveryPoint(L, ctx, seq, true)
 			if err != nil {
 				return -1, C.CString("[Contract.LuaDeployContract] recovery error: " + err.Error())
 			}
@@ -1310,7 +1361,7 @@ func luaDeployContract(
 	}
 
 	if seq == 1 {
-		err := clearRecovery(L, ctx, seq, false)
+		err := clearRecoveryPoint(L, ctx, seq, false)
 		if err != nil {
 			return -1, C.CString("[Contract.LuaDeployContract] recovery error: " + err.Error())
 		}
@@ -1338,7 +1389,9 @@ func luaRandomInt(min, max, service C.int) C.int {
 }
 
 //export luaEvent
-func luaEvent(L *LState, service C.int, eventName *C.char, args *C.char) *C.char {
+func luaEvent(L *LState, service C.int, name *C.char, args *C.char) *C.char {
+	eventName := C.GoString(name)
+	eventArgs := C.GoString(args)
 	ctx := contexts[service]
 	if ctx.isQuery == true || ctx.nestedView > 0 {
 		return C.CString("[Contract.Event] event not permitted in query")
@@ -1346,10 +1399,10 @@ func luaEvent(L *LState, service C.int, eventName *C.char, args *C.char) *C.char
 	if ctx.eventCount >= maxEventCnt(ctx) {
 		return C.CString(fmt.Sprintf("[Contract.Event] exceeded the maximum number of events(%d)", maxEventCnt(ctx)))
 	}
-	if len(C.GoString(eventName)) > maxEventNameSize {
+	if len(eventName) > maxEventNameSize {
 		return C.CString(fmt.Sprintf("[Contract.Event] exceeded the maximum length of event name(%d)", maxEventNameSize))
 	}
-	if len(C.GoString(args)) > maxEventArgSize {
+	if len(eventArgs) > maxEventArgSize {
 		return C.CString(fmt.Sprintf("[Contract.Event] exceeded the maximum length of event args(%d)", maxEventArgSize))
 	}
 	ctx.events = append(
@@ -1357,11 +1410,12 @@ func luaEvent(L *LState, service C.int, eventName *C.char, args *C.char) *C.char
 		&types.Event{
 			ContractAddress: ctx.curContract.contractId,
 			EventIdx:        ctx.eventCount,
-			EventName:       C.GoString(eventName),
-			JsonArgs:        C.GoString(args),
+			EventName:       eventName,
+			JsonArgs:        eventArgs,
 		},
 	)
 	ctx.eventCount++
+	logOperation(ctx, "", "event", eventName, eventArgs)
 	return nil
 }
 
@@ -1463,7 +1517,7 @@ func luaNameResolve(L *LState, service C.int, name_or_address *C.char) *C.char {
 }
 
 //export luaGovernance
-func luaGovernance(L *LState, service C.int, gType C.char, arg *C.char) *C.char {
+func luaGovernance(L *LState, service C.int, gType C.char, arg *C.char) (errormsg *C.char) {
 
 	ctx := contexts[service]
 	if ctx == nil {
@@ -1476,6 +1530,7 @@ func luaGovernance(L *LState, service C.int, gType C.char, arg *C.char) *C.char 
 
 	var amountBig *big.Int
 	var payload []byte
+	var opId int64
 
 	switch gType {
 	case 'S', 'U':
@@ -1486,16 +1541,26 @@ func luaGovernance(L *LState, service C.int, gType C.char, arg *C.char) *C.char 
 		}
 		if gType == 'S' {
 			payload = []byte(fmt.Sprintf(`{"Name":"%s"}`, types.Opstake.Cmd()))
+			opId = logOperation(ctx, "", "stake", amountBig.String())
 		} else {
 			payload = []byte(fmt.Sprintf(`{"Name":"%s"}`, types.Opunstake.Cmd()))
+			opId = logOperation(ctx, "", "unstake", amountBig.String())
 		}
 	case 'V':
 		amountBig = zeroBig
 		payload = []byte(fmt.Sprintf(`{"Name":"%s","Args":%s}`, types.OpvoteBP.Cmd(), C.GoString(arg)))
+		opId = logOperation(ctx, "", "vote", C.GoString(arg))
 	case 'D':
 		amountBig = zeroBig
 		payload = []byte(fmt.Sprintf(`{"Name":"%s","Args":%s}`, types.OpvoteDAO.Cmd(), C.GoString(arg)))
+		opId = logOperation(ctx, "", "voteDAO", C.GoString(arg))
 	}
+
+	defer func() {
+		if errormsg != nil {
+			logOperationResult(ctx, opId, C.GoString(errormsg))
+		}
+	}()
 
 	cid := []byte(types.AergoSystem)
 	aid := types.ToAccountID(cid)
@@ -1522,14 +1587,14 @@ func luaGovernance(L *LState, service C.int, gType C.char, arg *C.char) *C.char 
 		return C.CString("[Contract.LuaGovernance] error: " + err.Error())
 	}
 
-	seq, err := setRecoveryPoint(aid, ctx, senderState, scsState, zeroBig, false, false)
+	seq, err := createRecoveryPoint(aid, ctx, senderState, scsState, zeroBig, false, false)
 	if err != nil {
 		return C.CString("[Contract.LuaGovernance] database error: " + err.Error())
 	}
 
 	events, err := system.ExecuteSystemTx(scsState.ctrState, &txBody, senderState, receiverState, ctx.blockInfo)
 	if err != nil {
-		rErr := clearRecovery(L, ctx, seq, true)
+		rErr := clearRecoveryPoint(L, ctx, seq, true)
 		if rErr != nil {
 			return C.CString("[Contract.LuaGovernance] recovery error: " + rErr.Error())
 		}
@@ -1537,7 +1602,7 @@ func luaGovernance(L *LState, service C.int, gType C.char, arg *C.char) *C.char 
 	}
 
 	if seq == 1 {
-		err := clearRecovery(L, ctx, seq, false)
+		err := clearRecoveryPoint(L, ctx, seq, false)
 		if err != nil {
 			return C.CString("[Contract.LuaGovernance] recovery error: " + err.Error())
 		}
@@ -1546,9 +1611,9 @@ func luaGovernance(L *LState, service C.int, gType C.char, arg *C.char) *C.char 
 	ctx.eventCount += int32(len(events))
 	ctx.events = append(ctx.events, events...)
 
-	if ctx.lastRecoveryEntry != nil {
+	if ctx.lastRecoveryPoint != nil {
 		if gType == 'S' {
-			seq, _ = setRecoveryPoint(aid, ctx, senderState, scsState, amountBig, true, false)
+			seq, _ = createRecoveryPoint(aid, ctx, senderState, scsState, amountBig, true, false)
 			if ctx.traceFile != nil {
 				_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[GOVERNANCE]aid(%s)\n", aid.String()))
 				_, _ = ctx.traceFile.WriteString(fmt.Sprintf("snapshot set %d\n", seq))
@@ -1557,7 +1622,7 @@ func luaGovernance(L *LState, service C.int, gType C.char, arg *C.char) *C.char 
 					senderState.Balance().String(), receiverState.Balance().String()))
 			}
 		} else if gType == 'U' {
-			seq, _ = setRecoveryPoint(aid, ctx, receiverState, ctx.curContract.callState, amountBig, true, false)
+			seq, _ = createRecoveryPoint(aid, ctx, receiverState, ctx.curContract.callState, amountBig, true, false)
 			if ctx.traceFile != nil {
 				_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[GOVERNANCE]aid(%s)\n", aid.String()))
 				_, _ = ctx.traceFile.WriteString(fmt.Sprintf("snapshot set %d\n", seq))

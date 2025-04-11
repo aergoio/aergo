@@ -25,6 +25,10 @@ func Receipts(blockHash []byte, blockNo types.BlockNo) []byte {
 	return key
 }
 
+func InternalOps(blockNo types.BlockNo) []byte {
+	return append([]byte(internalOpsPrefix), types.BlockNoToBytes(blockNo)...)
+}
+
 //---------------------------------------------------------------------------------//
 // metadata
 
