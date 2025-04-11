@@ -20,6 +20,7 @@ func TestConvChainInfo(t *testing.T) {
 		namePrice        = types.NewAmount(1, types.Aergo)
 		totalVotingPower = types.NewAmount(10000000, types.Aergo)
 		votingReward     = types.NewAmount(1, types.Aergo)
+		hardfork         = map[string]uint64{"V1": 100000, "V2": 200000, "V3": 3000000}
 	)
 
 	for _, test := range []struct {
@@ -36,6 +37,7 @@ func TestConvChainInfo(t *testing.T) {
 			Nameprice:        namePrice.Bytes(),
 			Totalvotingpower: totalVotingPower.Bytes(),
 			Votingreward:     votingReward.Bytes(),
+			Hardfork:         hardfork,
 		}, &InOutChainInfo{
 			BpNumber:         13,
 			MaxBlockSize:     uint64(chain.MaxBlockSize()),
@@ -44,6 +46,7 @@ func TestConvChainInfo(t *testing.T) {
 			NamePrice:        namePrice.String(),
 			TotalVotingPower: totalVotingPower.String(),
 			VotingReward:     votingReward.String(),
+			Hardfork:         hardfork,
 		}},
 
 		{&types.ChainInfo{ // dpos
@@ -57,6 +60,7 @@ func TestConvChainInfo(t *testing.T) {
 			Nameprice:        namePrice.Bytes(),
 			Totalvotingpower: totalVotingPower.Bytes(),
 			Votingreward:     votingReward.Bytes(),
+			Hardfork:         hardfork,
 		}, &InOutChainInfo{
 			Id:               &InOutChainId{Consensus: "dpos"},
 			BpNumber:         13,
@@ -68,6 +72,7 @@ func TestConvChainInfo(t *testing.T) {
 			NamePrice:        namePrice.String(),
 			TotalVotingPower: totalVotingPower.String(),
 			VotingReward:     votingReward.String(),
+			Hardfork:         hardfork,
 		}},
 	} {
 		require.Equal(t, test.inout, ConvChainInfo(test.types))

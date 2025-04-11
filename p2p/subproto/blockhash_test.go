@@ -8,6 +8,7 @@ package subproto
 import (
 	"bytes"
 	"crypto/sha256"
+	"fmt"
 	"sync"
 	"testing"
 
@@ -259,6 +260,10 @@ func (a *testDoubleChainAccessor) getChain() [][]byte {
 	} else {
 		return a.lastChain
 	}
+}
+
+func (a *testDoubleChainAccessor) GetBlockByNo(blockNo types.BlockNo) (*types.Block, error) {
+	return nil, fmt.Errorf("not implemented")
 }
 
 type testDoubleHashesRespFactory struct {

@@ -28,20 +28,22 @@ func ConvChainInfo(msg *types.ChainInfo) *InOutChainInfo {
 	ci.NamePrice = new(big.Int).SetBytes(msg.Nameprice).String()
 	ci.TotalVotingPower = new(big.Int).SetBytes(msg.Totalvotingpower).String()
 	ci.VotingReward = new(big.Int).SetBytes(msg.Votingreward).String()
+	ci.Hardfork = msg.Hardfork
 	return ci
 }
 
 type InOutChainInfo struct {
-	Id               *InOutChainId `json:"id,omitempty"`
-	BpNumber         uint32        `json:"bpNumber,omitempty"`
-	MaxBlockSize     uint64        `json:"maxblocksize,omitempty"`
-	MaxTokens        string        `json:"maxtokens,omitempty"`
-	StakingMinimum   string        `json:"stakingminimum,omitempty"`
-	Totalstaking     string        `json:"totalstaking,omitempty"`
-	GasPrice         string        `json:"gasprice,omitempty"`
-	NamePrice        string        `json:"nameprice,omitempty"`
-	TotalVotingPower string        `json:"totalvotingpower,omitempty"`
-	VotingReward     string        `json:"votingreward,omitempty"`
+	Id               *InOutChainId     `json:"id,omitempty"`
+	BpNumber         uint32            `json:"bpNumber,omitempty"`
+	MaxBlockSize     uint64            `json:"maxblocksize,omitempty"`
+	MaxTokens        string            `json:"maxtokens,omitempty"`
+	StakingMinimum   string            `json:"stakingminimum,omitempty"`
+	Totalstaking     string            `json:"totalstaking,omitempty"`
+	GasPrice         string            `json:"gasprice,omitempty"`
+	NamePrice        string            `json:"nameprice,omitempty"`
+	TotalVotingPower string            `json:"totalvotingpower,omitempty"`
+	VotingReward     string            `json:"votingreward,omitempty"`
+	Hardfork         map[string]uint64 `json:"hardfork,omitempty"`
 }
 
 func ConvChainId(msg *types.ChainId) *InOutChainId {
