@@ -56,7 +56,7 @@ const char *vm_compile(lua_State *L, const char *code, const char *byte, const c
 	if (f == NULL) {
 		return "cannot open a bytecode file";
 	}
-	if (lua_dump(L, kpt_lua_Writer, f) != 0) {
+	if (lua_dump(L, kpt_lua_Writer, f, 1) != 0) {
 		fclose(f);
 		return lua_tostring(L, -1);
 	}
@@ -97,9 +97,14 @@ const char *vm_loadstring(lua_State *L, const char *code) {
 
 const char *vm_stringdump(lua_State *L) {
 	luaL_Buffer b;
+	int strip = 1; // default: strip debug info
+
+#ifdef DEBUG
+	strip = 0;     // if DEBUG is defined, do not strip debug info
+#endif
 
 	luaL_buffinit(L, &b);
-	if (lua_dump(L, writer_buf, &b) != 0) {
+	if (lua_dump(L, writer_buf, &b, strip) != 0) {
 		return lua_tostring(L, -1);
 	}
 	luaL_pushresult(&b);    /* code dump */
@@ -107,8 +112,7 @@ const char *vm_stringdump(lua_State *L) {
 		return "empty bytecode";
 	}
 	lua_pushvalue(L, -2);   /* code dump code */
-	GEN_ABI();          /* code dump code abi */
-	lua_remove(L, -2);  /* code dump abi */
+	GEN_ABI();              /* code dump code abi */
+	lua_remove(L, -2);      /* code dump abi */
 	return NULL;
 }
-

@@ -45,7 +45,7 @@ release: $(BUILD_DIR)
 
 debug: $(BUILD_DIR)
 	@cd $(BUILD_DIR) && $(CMAKE_CMD) -G "Unix Makefiles" -D CMAKE_BUILD_TYPE="Debug" $(MAKE_FLAG) ..
-	@$(MAKE) --no-print-directory -C $(BUILD_DIR)
+	@$(MAKE) --no-print-directory -C $(BUILD_DIR) CGO_CFLAGS="-DDEBUG"
 
 clean:
 	@$(MAKE) --no-print-directory -C $(BUILD_DIR) distclean
