@@ -30,6 +30,7 @@ var (
 	feeDelegation bool
 	contractID    string
 	gas           uint64
+	fullProof     bool
 )
 
 func intListToString(ns []int, word string) string {
@@ -122,6 +123,7 @@ func init() {
 	}
 	stateQueryCmd.Flags().StringVar(&stateroot, "root", "", "Query the state at a specified state root")
 	stateQueryCmd.Flags().BoolVar(&compressed, "compressed", false, "Get a compressed proof for the state")
+	stateQueryCmd.Flags().BoolVar(&fullProof, "fullproof", false, "Print the full proof instead of just the value")
 
 	contractCmd.AddCommand(
 		deployCmd,
@@ -485,7 +487,35 @@ func runQueryStateCmd(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to query contract state: %v", err.Error())
 	}
-	cmd.Println(ret)
+	if ret == nil {
+		return fmt.Errorf("no proof generated")
+	}
+
+	// Format the response as JSON
+	if len(ret.GetVarProofs()) > 0 && !fullProof {
+		for _, proof := range ret.GetVarProofs() {
+			// Try to parse the value as JSON first
+			var parsedValue interface{}
+			if err := json.Unmarshal([]byte(proof.Value), &parsedValue); err == nil {
+				// If it's valid JSON, print it nicely formatted
+				jsonBytes, err := json.MarshalIndent(parsedValue, "", "  ")
+				if err == nil {
+					cmd.Println(string(jsonBytes))
+					return nil
+				}
+			}
+			// If not valid JSON or couldn't format, just print the value
+			cmd.Println(proof.Value)
+		}
+	} else {
+		// If fullProof is true or we can't extract a specific value, format the entire response as JSON
+		jsonBytes, err := json.MarshalIndent(ret, "", "  ")
+		if err != nil {
+			return fmt.Errorf("failed to marshal response to JSON: %v", err)
+		}
+		cmd.Println(string(jsonBytes))
+	}
+
 	return nil
 }
 
