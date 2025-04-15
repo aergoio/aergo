@@ -31,7 +31,9 @@ gasUsed=$(cat receipt.json | jq .gasUsed | sed 's/"//g')
 assert_equals "$status"   "SUCCESS"
 #assert_equals "$ret"      ""
 
-if [ "$fork_version" -eq "4" ]; then
+if [ "$consensus" = "raft" ]; then
+  assert_equals "$gasUsed"  "0"
+elif [ "$fork_version" -eq "4" ]; then
   assert_equals "$gasUsed"  "160281"
 else
   assert_equals "$gasUsed"  "154137"
@@ -53,7 +55,9 @@ gasUsed=$(cat receipt.json | jq .gasUsed | sed 's/"//g')
 assert_equals "$status"   "SUCCESS"
 #assert_equals "$ret"      ""
 
-if [ "$fork_version" -eq "4" ]; then
+if [ "$consensus" = "raft" ]; then
+  assert_equals "$gasUsed"  "0"
+elif [ "$fork_version" -eq "4" ]; then
   assert_equals "$gasUsed"  "108404"
 else
   assert_equals "$gasUsed"  "108404"

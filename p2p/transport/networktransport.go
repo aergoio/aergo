@@ -7,7 +7,7 @@ package transport
 
 import (
 	"context"
-	secio "github.com/libp2p/go-libp2p-secio"
+	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoremem"
 	"sync"
 	"time"
 
@@ -19,10 +19,9 @@ import (
 	"github.com/aergoio/aergo/v2/p2p/p2putil"
 	"github.com/aergoio/aergo/v2/types"
 	libp2p "github.com/libp2p/go-libp2p"
-	core "github.com/libp2p/go-libp2p-core"
-	"github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/libp2p/go-libp2p-core/network"
-	"github.com/libp2p/go-libp2p-peerstore/pstoremem"
+	"github.com/libp2p/go-libp2p/core"
+	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/libp2p/go-libp2p/core/network"
 	ma "github.com/multiformats/go-multiaddr"
 )
 
@@ -180,24 +179,19 @@ func (sl *networkTransport) startListener() {
 	listens = append(listens, listen)
 
 	// Just create peerstore with default options
-	peerStore := pstoremem.NewPeerstore()
+	peerStore, err := pstoremem.NewPeerstore()
 	if err != nil {
 		sl.logger.Fatal().Err(err).Msg("Failed to create peerstore")
 		panic(err.Error())
 	}
 
-	securityOptions := libp2p.DefaultSecurity
-	if sl.conf.AllowLegacy {
-		securityOptions = libp2p.ChainOptions(libp2p.DefaultSecurity, libp2p.Security(secio.ID, secio.New))
-	}
-
-	newHost, err := libp2p.New(context.Background(), libp2p.Identity(sl.privateKey), libp2p.Peerstore(peerStore), libp2p.ListenAddrs(listens...), securityOptions)
+	newHost, err := libp2p.New(libp2p.Identity(sl.privateKey), libp2p.Peerstore(peerStore), libp2p.ListenAddrs(listens...))
 	if err != nil {
 		sl.logger.Fatal().Err(err).Str("addr", listen.String()).Msg("Couldn't listen from")
 		panic(err.Error())
 	}
 	sl.Host = newHost
-	sl.logger.Info().Str(p2putil.LogFullID, sl.ID().Pretty()).Stringer(p2putil.LogPeerID, types.LogPeerShort(sl.ID())).Str("addr[0]", listens[0].String()).Msg("Set self node's pid, and listening for connections")
+	sl.logger.Info().Str(p2putil.LogFullID, sl.ID().String()).Stringer(p2putil.LogPeerID, types.LogPeerShort(sl.ID())).Str("addr[0]", listens[0].String()).Msg("Set self node's pid, and listening for connections")
 }
 
 func (sl *networkTransport) Stop() error {

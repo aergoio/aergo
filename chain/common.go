@@ -24,6 +24,7 @@ var (
 	maxBlockBodySize uint32
 	maxBlockSize     uint32
 	pubNet           bool
+	mainNet          bool
 	consensusName    string
 
 	Genesis *types.Genesis
@@ -67,8 +68,14 @@ func IsPublic() bool {
 	return pubNet
 }
 
+// IsMainNet reports whether the blockchain is mainnet or not.
+func IsMainNet() bool {
+	return mainNet
+}
+
 func initChainParams(genesis *types.Genesis) {
 	pubNet = genesis.ID.PublicNet
+	mainNet = genesis.ID.MainNet
 	if pubNet {
 		setBlockSizeLimit(pubNetMaxBlockBodySize)
 	}

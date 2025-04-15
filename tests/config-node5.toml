@@ -1,0 +1,50 @@
+# aergo TOML Configuration File (https://github.com/toml-lang/toml)
+# base configurations
+enableprofile = false
+
+[rpc]
+netserviceaddr = "0.0.0.0"
+netserviceport = 11845
+netservicetrace = false
+nstls = false
+nscert = ""
+nskey = ""
+nsallowcors = false
+
+[p2p]
+netprotocoladdr = "127.0.0.1"
+netprotocolport = 2005
+npbindaddr = "0.0.0.0"
+npbindport = 2005
+nptls = false
+npcert = ""
+npkey = "bp05.key"
+npaddpeers = [
+"/ip4/127.0.0.1/tcp/2001/p2p/16Uiu2HAmG4PSXYUxkPbNb7qTcEExFpgAwBrm3hB32aJXuvX2f1sd",
+"/ip4/127.0.0.1/tcp/2002/p2p/16Uiu2HAmMzncFmnpjigZJRoraToKkABvZimMUAyXf6bdrZeN7mbJ",
+"/ip4/127.0.0.1/tcp/2003/p2p/16Uiu2HAmKB7RYXe1uHNYMtkuuM2fEHxsv6P9PZ45ogJw6aZD3y7x",
+"/ip4/127.0.0.1/tcp/2004/p2p/16Uiu2HAmBVsH9vGdWKUQV52bwSgMGZEoJTRkDB1R5fitTydRBYor",
+#"/ip4/127.0.0.1/tcp/2005/p2p/16Uiu2HAm26AnWKTN9VhoRQpccaej96bjBA5nd6J2iyf78JKU8pw4"
+]
+npexposeself = false
+npdiscoverpeers = false
+npusepolaris = false
+peerrole = "watcher"
+
+[blockchain]
+maxblocksize = 1000000
+
+[mempool]
+showmetrics = false
+
+[consensus]
+enablebp = false
+
+[consensus.raft]
+newcluster=true
+name="bp05"
+
+[hardfork]
+v2 = "0"
+v3 = "10000"
+v4 = "10000"

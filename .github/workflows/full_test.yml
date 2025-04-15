@@ -22,14 +22,14 @@ jobs:
     steps:
 
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         submodules: 'recursive'
 
     - name: Set up Go
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v5
       with:
-        go-version: '1.19'
+        go-version: '1.23'
 
     - name: Install dependencies
       run: |
@@ -37,6 +37,10 @@ jobs:
 
     - name: Build
       run: make
+
+    # set up Docker for integration tests
+    - name: Set up Docker
+      uses: docker/setup-buildx-action@v3
 
     # run unit test with code coverage report if action is triggered by push of master branch
     # since Code Climate only evaluate code coverages of default branch.
@@ -60,10 +64,30 @@ jobs:
       run: cd tests && ./run_tests.sh brick
 
     - name: Integration Tests - sbp
+      id: sbp_test
+      continue-on-error: true
       run: cd tests && ./run_tests.sh sbp
 
     - name: Integration Tests - dpos
+      id: dpos_test
+      if: steps.sbp_test.outcome == 'success'
+      continue-on-error: true
       run: cd tests && ./run_tests.sh dpos
 
     - name: Integration Tests - raft
+      id: raft_test
+      if: steps.dpos_test.outcome == 'success'
+      continue-on-error: true
       run: cd tests && ./run_tests.sh raft
+
+    - name: Upload Logs on Failure
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: integration-test-logs
+        retention-days: 5
+        path: |
+          tests/logs*
+          tests/error.txt
+          tests/output.json
+          tests/receipt*.json

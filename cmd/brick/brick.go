@@ -85,6 +85,7 @@ func main() {
 		fmt.Fprintln(flag.CommandLine.Output(), "Usage:")
 		fmt.Fprintf(flag.CommandLine.Output(), "  %s [-p]\n", os.Args[0])
 		fmt.Fprintf(flag.CommandLine.Output(), "  %s [-p] [-V] [-w] <filename>\n", os.Args[0])
+		fmt.Fprintf(flag.CommandLine.Output(), "  %s [-p] pack <input_file> [<output_file>]\n", os.Args[0])
 		flag.PrintDefaults()
 	}
 	verbose := flag.Bool("V", false, "verbose output (only batch)")
@@ -111,6 +112,25 @@ func main() {
 			prompt.OptionTitle("Aergo Brick: Dummy Virtual Machine"),
 		)
 		p.Run()
+	} else if flag.Arg(0) == "pack" {
+		// pack command
+		if flag.NArg() < 2 {
+			fmt.Fprintln(os.Stderr, "Error: pack command requires an input file")
+			exitCode = 1
+			return
+		}
+
+		inputFile := flag.Arg(1)
+		outputFile := ""
+		if flag.NArg() > 2 {
+			outputFile = flag.Arg(2)
+		} else {
+			// replace the last .lua with -bundle.lua
+			outputFile = strings.TrimSuffix(inputFile, ".lua") + "-bundle.lua"
+		}
+
+		// Call the pack function with the input and output files
+		exitCode = exec.ExecutePack(inputFile, outputFile)
 	} else {
 		// call batch executor
 		cmd := "batch"

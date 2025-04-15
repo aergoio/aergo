@@ -181,7 +181,7 @@ func TestDPOSRoleManager_updateBP(t *testing.T) {
 			for _, id := range tt.wantExist {
 				found := false
 				for _, sent := range sentIds {
-					if id.Pretty() == sent.Pretty() {
+					if id.String() == sent.String() {
 						found = true
 						break
 					}
@@ -297,7 +297,7 @@ func TestDPOSRoleManager_reloadVotes(t *testing.T) {
 	for i := 0; i < 9; i++ {
 		pids = append(pids, types.RandomPeerID())
 		if i < initialBPCount {
-			initialBPs[i] = pids[i].Pretty()
+			initialBPs[i] = pids[i].String()
 			initialUnion[pids[i]] = BP
 		} else if i < initialBPCount*2 {
 			initialUnion[pids[i]] = Candidate
@@ -370,7 +370,7 @@ func TestDPOSRoleManager_collectAddDel(t *testing.T) {
 	for i := 0; i < 9; i++ {
 		pids = append(pids, types.RandomPeerID())
 		if i < initialBPCount {
-			initialBPs[i] = pids[i].Pretty()
+			initialBPs[i] = pids[i].String()
 			initialUnion[pids[i]] = BP
 		} else if i < initialUnionCnt {
 			initialUnion[pids[i]] = Candidate

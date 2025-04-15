@@ -17,7 +17,7 @@ import (
 
 	"github.com/aergoio/aergo/v2/internal/enc/hex"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/btcec/v2"
 	"golang.org/x/crypto/scrypt"
 )
 
@@ -179,7 +179,7 @@ func (ks *v1Strategy) Decrypt(encrypted []byte, passphrase string) (*PrivateKey,
 		return nil, err
 	}
 
-	privateKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), plaintext)
+	privateKey, _ := btcec.PrivKeyFromBytes(plaintext)
 
 	rawAddress := GenerateAddress(&(privateKey.ToECDSA().PublicKey))
 	encodedAddress := types.EncodeAddress(rawAddress)
@@ -255,5 +255,5 @@ func aesCTRXOR(key, inText, iv []byte) ([]byte, error) {
 	stream := cipher.NewCTR(aesBlock, iv)
 	outText := make([]byte, len(inText))
 	stream.XORKeyStream(outText, inText)
-	return outText, err
+	return outText, nil
 }

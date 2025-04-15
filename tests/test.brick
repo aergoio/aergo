@@ -1,4 +1,5 @@
 inject me 10000000000
+deploy me 0 ct0 ./test-import-1.lua
 deploy me 0 ct1 ./basic.lua
 
 call me 0 ct1 set_value `[1,"first"]` ``

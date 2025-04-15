@@ -18,11 +18,13 @@ npbindaddr = "0.0.0.0"
 npbindport = 2001
 nptls = false
 npcert = ""
-npkey = "bp01.key"
+npkey = "bp01.key"  # created with 'aergocli keygen bp01'
 npaddpeers = [
 #"/ip4/127.0.0.1/tcp/2001/p2p/16Uiu2HAmG4PSXYUxkPbNb7qTcEExFpgAwBrm3hB32aJXuvX2f1sd",
 "/ip4/127.0.0.1/tcp/2002/p2p/16Uiu2HAmMzncFmnpjigZJRoraToKkABvZimMUAyXf6bdrZeN7mbJ",
-"/ip4/127.0.0.1/tcp/2003/p2p/16Uiu2HAmKB7RYXe1uHNYMtkuuM2fEHxsv6P9PZ45ogJw6aZD3y7x"
+"/ip4/127.0.0.1/tcp/2003/p2p/16Uiu2HAmKB7RYXe1uHNYMtkuuM2fEHxsv6P9PZ45ogJw6aZD3y7x",
+"/ip4/127.0.0.1/tcp/2004/p2p/16Uiu2HAmBVsH9vGdWKUQV52bwSgMGZEoJTRkDB1R5fitTydRBYor",
+"/ip4/127.0.0.1/tcp/2005/p2p/16Uiu2HAm26AnWKTN9VhoRQpccaej96bjBA5nd6J2iyf78JKU8pw4"
 ]
 npexposeself = false
 npdiscoverpeers = false

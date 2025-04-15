@@ -18,7 +18,7 @@ import (
 	"github.com/aergoio/aergo/v2/p2p/p2pmock"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/golang/mock/gomock"
-	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p/core/crypto"
 )
 
 // this file collect sample global constants used in unit test. I'm tired of creating less meaningful variables in each tests.
@@ -75,7 +75,7 @@ func init() {
 		panic("problem in pk generation ")
 	}
 	sampleKey1ID, _ = types.IDFromPublicKey(sampleKey1Pub)
-	if sampleKey1ID.Pretty() != sampleKey1IDbase58 {
+	if sampleKey1ID.String() != sampleKey1IDbase58 {
 		panic("problem in id generation")
 	}
 
