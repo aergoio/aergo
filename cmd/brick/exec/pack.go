@@ -5,14 +5,14 @@ import (
 	"io/ioutil"
 	"os"
 
-	pack "github.com/aergoio/aergo/v2/cmd/brick/pack"
+	"github.com/aergoio/aergo/v2/cmd/aergoluac/util"
 )
 
 // ExecutePack reads a contract from inputFile and packs it, optionally writing to outputFile
 func ExecutePack(inputFile, outputFile string) int {
 
 	// Read the contract from the input file
-	packedCode, err := pack.ReadContract(inputFile)
+	packedCode, err := util.ReadContract(inputFile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error reading contract: %s\n", err)
 		return 1

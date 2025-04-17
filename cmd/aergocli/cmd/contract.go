@@ -10,8 +10,7 @@ import (
 	"strconv"
 
 	luacEncoding "github.com/aergoio/aergo/v2/cmd/aergoluac/encoding"
-	luac "github.com/aergoio/aergo/v2/cmd/aergoluac/util"
-	"github.com/aergoio/aergo/v2/cmd/brick/pack"
+	luaUtil "github.com/aergoio/aergo/v2/cmd/aergoluac/util"
 	"github.com/aergoio/aergo/v2/internal/common"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/internal/enc/hex"
@@ -180,7 +179,7 @@ func runDeployCmd(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = false
 			return errors.New("not enough arguments")
 		}
-		codeString, err := pack.ReadContract(args[1])
+		codeString, err := luaUtil.ReadContract(args[1])
 		if err != nil {
 			return fmt.Errorf("failed to read code file: %v", err.Error())
 		}
@@ -193,7 +192,7 @@ func runDeployCmd(cmd *cobra.Command, args []string) error {
 			}
 			deployArgs = []byte(args[2])
 		}
-		payload = luac.NewLuaCodePayload(luac.LuaCode(code), deployArgs)
+		payload = luaUtil.NewLuaCodePayload(luaUtil.LuaCode(code), deployArgs)
 	} else {
 		if chainInfo.Id.Version >= 4 {
 			cmd.SilenceUsage = false
@@ -222,7 +221,7 @@ func runDeployCmd(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				return fmt.Errorf("failed to decode code: %v", err.Error())
 			}
-			payload = luac.NewLuaCodePayload(luac.LuaCode(code), deployArgs)
+			payload = luaUtil.NewLuaCodePayload(luaUtil.LuaCode(code), deployArgs)
 		}
 	}
 

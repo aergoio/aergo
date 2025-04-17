@@ -36,7 +36,8 @@ import (
 	"unsafe"
 
 	"github.com/aergoio/aergo-lib/log"
-	luacUtil "github.com/aergoio/aergo/v2/cmd/aergoluac/util"
+	"github.com/aergoio/aergo/v2/cmd/aergoluac/luac"
+	"github.com/aergoio/aergo/v2/cmd/aergoluac/util"
 	"github.com/aergoio/aergo/v2/fee"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/internal/enc/hex"
@@ -942,7 +943,7 @@ func setContract(contractState *statedb.ContractState, contractAddress, payload 
 	// the payload contains:
 	// on V3: bytecode + ABI + constructor arguments
 	// on V4: lua code + constructor arguments
-	codePayload := luacUtil.LuaCodePayload(payload)
+	codePayload := util.LuaCodePayload(payload)
 	if _, err := codePayload.IsValidFormat(); err != nil {
 		ctrLgr.Warn().Err(err).Str("contract", types.EncodeAddress(contractAddress)).Msg("deploy")
 		return nil, nil, err
@@ -979,7 +980,7 @@ func setContract(contractState *statedb.ContractState, contractAddress, payload 
 	}
 
 	// extract the bytecode
-	bytecode := luacUtil.LuaCode(bytecodeABI).ByteCode()
+	bytecode := util.LuaCode(bytecodeABI).ByteCode()
 
 	// check if it was properly stored
 	savedBytecode := getContractCode(contractState, nil)
@@ -1298,7 +1299,7 @@ func getContractCode(contractState *statedb.ContractState, bs *state.BlockState)
 	if err != nil {
 		return nil
 	}
-	return luacUtil.LuaCode(code).ByteCode()
+	return util.LuaCode(code).ByteCode()
 }
 
 func getMultiCallContractCode(contractState *statedb.ContractState) []byte {
@@ -1306,7 +1307,7 @@ func getMultiCallContractCode(contractState *statedb.ContractState) []byte {
 	if code == nil {
 		return nil
 	}
-	return luacUtil.LuaCode(code).ByteCode()
+	return util.LuaCode(code).ByteCode()
 }
 
 func getMultiCallCode(contractState *statedb.ContractState) []byte {
@@ -1340,7 +1341,7 @@ func GetABI(contractState *statedb.ContractState, bs *state.BlockState) (*types.
 	if err != nil {
 		return nil, err
 	}
-	luaCode := luacUtil.LuaCode(code)
+	luaCode := util.LuaCode(code)
 	if luaCode.Len() == 0 {
 		return nil, errors.New("cannot find contract")
 	}
@@ -1362,12 +1363,12 @@ func GetABI(contractState *statedb.ContractState, bs *state.BlockState) (*types.
 	return abi, nil
 }
 
-func Compile(code string, parent *LState) (luacUtil.LuaCode, error) {
-	L := luacUtil.NewLState()
+func Compile(code string, parent *LState) (util.LuaCode, error) {
+	L := luac.NewLState()
 	if L == nil {
 		return nil, ErrVmStart
 	}
-	defer luacUtil.CloseLState(L)
+	defer luac.CloseLState(L)
 	if parent != nil {
 		var lState = (*LState)(L)
 		if cErrMsg := C.vm_copy_service(lState, parent); cErrMsg != nil {
@@ -1380,7 +1381,7 @@ func Compile(code string, parent *LState) (luacUtil.LuaCode, error) {
 		C.luaL_set_hardforkversion(lState, C.luaL_hardforkversion(parent))
 		C.vm_set_timeout_hook(lState)
 	}
-	byteCodeAbi, err := luacUtil.Compile(L, code)
+	byteCodeAbi, err := luac.Compile(L, code)
 	if err != nil {
 		if parent != nil && C.luaL_hasuncatchablerror((*LState)(L)) != C.int(0) {
 			C.luaL_setuncatchablerror(parent)
