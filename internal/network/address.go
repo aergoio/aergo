@@ -38,7 +38,7 @@ func init() {
 	}
 }
 
-// IGetSingleIPAddress find and get ip address of given address string.
+// GetSingleIPAddress find and get ip address of given address string.
 // It return first ip if DNS or /etc/hosts has multiple IPs, or return err if no ip is found or addrStr is malformed.
 func GetSingleIPAddress(addrStr string) (net.IP, error) {
 	switch CheckAddressType(addrStr) {

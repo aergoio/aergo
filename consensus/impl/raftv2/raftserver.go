@@ -1347,7 +1347,7 @@ func (rs *raftServer) GetLeaderStatus() LeaderStatus {
 	return tmpStatus
 }
 
-// IsTermLeader returns true if this node is leader of given term
+// IsLeaderOfTerm returns true if this node is leader of given term
 func (rs *raftServer) IsLeaderOfTerm(term uint64) bool {
 	status := rs.GetLeaderStatus()
 	return status.IsLeader && status.Term == term
