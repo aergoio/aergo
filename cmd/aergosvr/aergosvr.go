@@ -6,6 +6,8 @@ package main
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/v2/account"
 	"github.com/aergoio/aergo/v2/chain"
@@ -22,7 +24,6 @@ import (
 	"github.com/aergoio/aergo/v2/rpc/web3"
 	"github.com/aergoio/aergo/v2/syncer"
 	"github.com/spf13/cobra"
-	"os"
 )
 
 var (
