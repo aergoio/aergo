@@ -76,6 +76,10 @@ type RaftIdentity struct {
 	PeerID    string // base58 encoded format
 }
 
+func (rid *RaftIdentity) String() string {
+	return rid.ToString()
+}
+
 func (rid *RaftIdentity) ToString() string {
 	if rid == nil {
 		return "raft identity is nil"
@@ -86,6 +90,7 @@ func (rid *RaftIdentity) ToString() string {
 type ChainWAL interface {
 	ChainDB
 
+	// ClearWAL removes all data used by raft
 	ClearWAL()
 	ResetWAL(hardStateInfo *types.HardStateInfo) error
 	WriteRaftEntry([]*WalEntry, []*types.Block, []*raftpb.ConfChange) error
