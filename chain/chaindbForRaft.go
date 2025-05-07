@@ -224,7 +224,8 @@ func (cdb *ChainDB) WriteRaftEntry(ents []*consensus.WalEntry, blocks []*types.B
 func (cdb *ChainDB) writeRaftEntryLastIndex(dbTx db.Transaction, lastIdx uint64) {
 	logger.Debug().Uint64("index", lastIdx).Msg("set last wal entry")
 
-	dbTx.Set(dbkey.RaftEntryLastIdx(), types.BlockNoToBytes(lastIdx))
+	// lastIdx is not block number but raft entry index.
+	dbTx.Set(dbkey.RaftEntryLastIdx(), types.Uint64ToBytes(lastIdx))
 }
 
 func (cdb *ChainDB) GetRaftEntry(idx uint64) (*consensus.WalEntry, error) {

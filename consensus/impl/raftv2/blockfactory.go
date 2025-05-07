@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"runtime"
 	"strings"
 	"sync"
@@ -756,34 +757,41 @@ func (bf *BlockFactory) MakeConfChangeProposal(req *types.MembershipChange) (*co
 	return proposal, nil
 }
 
-// getHardStateOfBlock returns (term/commit) corresponding to best block hash.
+var overflowBarrier = types.BlockNo(math.MaxUint64 >> 1)
+
+// getHardStateOfBlock returns (term/commit) corresponding to block hash.
 // To get hardstateinfo, it needs to search all raft indexes.
-func (bf *BlockFactory) getHardStateOfBlock(bestBlockHash []byte) (*types.HardStateInfo, error) {
+func (bf *BlockFactory) getHardStateOfBlock(blockHash []byte) (*types.HardStateInfo, error) {
 	var (
-		bestBlock *types.Block
-		err       error
-		hash      []byte
+		targetBlock *types.Block
+		err         error
+		hash        []byte
 	)
-	if bestBlock, err = bf.GetBlock(bestBlockHash); err != nil {
+	if targetBlock, err = bf.GetBlock(blockHash); err != nil {
 		return nil, fmt.Errorf("block does not exist in chain")
 	}
 
-	entry, err := bf.ChainWAL.GetRaftEntryOfBlock(bestBlockHash)
+	entry, err := bf.ChainWAL.GetRaftEntryOfBlock(blockHash)
 	if err == nil {
 		logger.Debug().Uint64("term", entry.Term).Uint64("commit", entry.Index).Msg("get hardstate of block")
 
 		return &types.HardStateInfo{Term: entry.Term, Commit: entry.Index}, nil
 	}
 
-	logger.Warn().Uint64("request no", bestBlock.BlockNo()).Msg("can't find raft entry for requested hash. so try to find closest raft entry.")
+	logger.Warn().Uint64("request no", targetBlock.BlockNo()).Msg("can't find raft entry for requested hash. so try to find closest raft entry.")
 
-	// find best hash mapping (no < bestBlock no)
-	for i := bestBlock.BlockNo() - 1; i >= 1; i-- {
+	// find roughly near hash mapping (no < targetBlock no)
+	steps := types.BlockNo(1)
+	for i := targetBlock.BlockNo() - 1; true; i -= steps {
 		if hash, err = bf.GetHashByNo(i); err == nil {
 			if entry, err = bf.ChainWAL.GetRaftEntryOfBlock(hash); err == nil {
 				logger.Debug().Str("entry", entry.ToString()).Msg("find best closest entry")
 				return &types.HardStateInfo{Term: entry.Term, Commit: entry.Index}, nil
 			}
+		}
+		steps <<= 1
+		if i < steps || steps >= overflowBarrier {
+			break
 		}
 	}
 
@@ -791,7 +799,7 @@ func (bf *BlockFactory) getHardStateOfBlock(bestBlockHash []byte) (*types.HardSt
 }
 
 // ClusterInfo returns members of cluster and hardstate info corresponding to best block hash
-func (bf *BlockFactory) ClusterInfo(bestBlockHash []byte) *types.GetClusterInfoResponse {
+func (bf *BlockFactory) ClusterInfo(blockHash []byte) *types.GetClusterInfoResponse {
 	var (
 		hardStateInfo *types.HardStateInfo
 		mbrAttrs      []*types.MemberAttr
@@ -803,17 +811,17 @@ func (bf *BlockFactory) ClusterInfo(bestBlockHash []byte) *types.GetClusterInfoR
 		return &types.GetClusterInfoResponse{Error: ErrClusterNotReady.Error()}
 	}
 
-	if bestBlockHash != nil {
-		if hardStateInfo, err = bf.getHardStateOfBlock(bestBlockHash); err != nil {
+	if bestBlock, err = bf.GetBestBlock(); err != nil {
+		return &types.GetClusterInfoResponse{Error: err.Error()}
+	}
+
+	if blockHash != nil {
+		if hardStateInfo, err = bf.getHardStateOfBlock(blockHash); err != nil {
 			return &types.GetClusterInfoResponse{Error: err.Error()}
 		}
 	}
 
 	if mbrAttrs, err = bf.bpc.getMemberAttrs(); err != nil {
-		return &types.GetClusterInfoResponse{Error: err.Error()}
-	}
-
-	if bestBlock, err = bf.GetBestBlock(); err != nil {
 		return &types.GetClusterInfoResponse{Error: err.Error()}
 	}
 

@@ -70,8 +70,8 @@ func RaftEntryLastIdx() []byte {
 	return []byte(raftEntryLastIdx)
 }
 
-func RaftEntry(blockNo types.BlockNo) []byte {
-	return append([]byte(raftEntry), types.BlockNoToBytes(blockNo)...)
+func RaftEntry(raftIndex uint64) []byte {
+	return append([]byte(raftEntry), types.Uint64ToBytes(raftIndex)...)
 }
 
 func RaftEntryInvert(blockHash []byte) []byte {
