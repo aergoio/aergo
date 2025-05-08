@@ -193,7 +193,7 @@ func (wal *WalDB) ReadAll(snapshot *raftpb.Snapshot) (id *consensus.RaftIdentity
 		snapTerm = snapshot.Metadata.Term
 	}
 
-	logger.Info().Uint64("snapidx", snapIdx).Uint64("snapterm", snapTerm).Uint64("commit", commitIdx).Uint64("last", lastIdx).Msg("read all entries of wal")
+	logger.Info().Uint64("snapIdx", snapIdx).Uint64("snapTerm", snapTerm).Uint64("commit", commitIdx).Uint64("last", lastIdx).Msg("read all entries of wal")
 
 	start := snapIdx + 1
 
@@ -206,7 +206,7 @@ func (wal *WalDB) ReadAll(snapshot *raftpb.Snapshot) (id *consensus.RaftIdentity
 		}
 
 		if walEntry.Term < snapTerm {
-			logger.Error().Str("wal", walEntry.ToString()).Err(ErrWalEntryTooLowTerm).Msg("invalid wal entry")
+			logger.Error().Stringer("wal", walEntry).Err(ErrWalEntryTooLowTerm).Msg("invalid wal entry")
 			return id, state, nil, ErrWalEntryTooLowTerm
 		}
 
@@ -215,9 +215,10 @@ func (wal *WalDB) ReadAll(snapshot *raftpb.Snapshot) (id *consensus.RaftIdentity
 			return id, state, nil, err
 		}
 
-		logger.Debug().Str("walentry", walEntry.ToString()).Msg("read wal entry")
+		logger.Trace().Stringer("walEntry", walEntry).Msg("read wal entry")
 		ents = append(ents, *raftEntry)
 	}
+	logger.Debug().Uint64("wals", lastIdx-start+1).Msg("finished read wal entries")
 
 	return id, state, ents, nil
 }

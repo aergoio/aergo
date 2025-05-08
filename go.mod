@@ -191,3 +191,5 @@ replace github.com/Sirupsen/logrus => github.com/sirupsen/logrus v1.8.1
 replace sourcegraph.com/sourcegraph/go-diff => github.com/sourcegraph/go-diff v0.6.0
 
 replace sourcegraph.com/sourcegraph/appdash => github.com/sourcegraph/appdash v0.0.0-20211028080628-e2786a622600
+
+replace nhooyr.io/websocket => github.com/coder/websocket v1.8.7

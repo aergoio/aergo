@@ -276,7 +276,7 @@ func (cdb *ChainDB) GetRaftEntryLastIdx() (uint64, error) {
 		return 0, nil
 	}
 
-	return types.BlockNoFromBytes(lastBytes), nil
+	return types.BytesToUint64(lastBytes), nil
 }
 
 var (

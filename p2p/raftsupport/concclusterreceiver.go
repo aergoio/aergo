@@ -67,7 +67,7 @@ func (r *ConcurrentClusterInfoReceiver) StartGet() {
 	go func() {
 		r.mutex.Lock()
 		if !r.trySendAllPeers() {
-			r.cancelReceiving(errors.New("no live peers"), false)
+			r.cancelReceiving(errors.New("not enough live peers"), false)
 			r.mutex.Unlock()
 			return
 		}
@@ -91,6 +91,7 @@ func (r *ConcurrentClusterInfoReceiver) runExpireTimer() {
 	r.logger.Debug().Msg("expire timer finished")
 }
 
+// trySendAllPeers function send GetClusterInfoRequest to all active peers. It should be called inside mutex
 func (r *ConcurrentClusterInfoReceiver) trySendAllPeers() bool {
 	r.logger.Debug().Array("peers", p2putil.NewLogPeersMarshaller(r.peers, 10)).Msg("sending get cluster request to connected peers")
 	req := &types.GetClusterInfoRequest{BestBlockHash: r.req.BestBlockHash}
@@ -174,13 +175,15 @@ func (r *ConcurrentClusterInfoReceiver) handleInWaiting(peer p2pcommon.RemotePee
 }
 
 // cancelReceiving is cancel wait for receiving and return the failure result.
-// it wait remaining (and useless) response. It is assumed cancellations are not frequently occur
+// it wait remaining (and useless) response. It is assumed cancellations do not frequently occur.
+// It should be called inside mutex
 func (r *ConcurrentClusterInfoReceiver) cancelReceiving(err error, hasNext bool) {
 	r.status = receiverStatusCanceled
 	r.finishReceiver(err)
 }
 
-// finishReceiver is to cancel works, assuming cancellations are not frequently occur
+// finishReceiver is to cancel works, assuming cancellations do not frequently occur.
+// It should be called inside mutex
 func (r *ConcurrentClusterInfoReceiver) finishReceiver(err error) {
 	if r.status == receiverStatusFinished {
 		r.logger.Warn().Msg("redundant finish call")

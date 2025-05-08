@@ -669,8 +669,8 @@ func (bf *BlockFactory) IsForkEnable() bool {
 	return false
 }
 
-// check already connect block
-// In raft, block hash may already have been writtern when writing log entry.
+// IsConnectedBlock check already connect block
+// In raft, block hash may already have been written when writing log entry.
 func (bf *BlockFactory) IsConnectedBlock(block *types.Block) bool {
 	savedBlk, err := bf.GetBlockByNo(block.GetHeader().GetBlockNo())
 	if err == nil {
@@ -760,7 +760,7 @@ func (bf *BlockFactory) MakeConfChangeProposal(req *types.MembershipChange) (*co
 var overflowBarrier = types.BlockNo(math.MaxUint64 >> 1)
 
 // getHardStateOfBlock returns (term/commit) corresponding to block hash.
-// To get hardstateinfo, it needs to search all raft indexes.
+// To get hardstate info, it needs to search all raft indexes.
 func (bf *BlockFactory) getHardStateOfBlock(blockHash []byte) (*types.HardStateInfo, error) {
 	var (
 		targetBlock *types.Block

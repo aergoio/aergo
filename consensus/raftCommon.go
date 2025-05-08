@@ -62,11 +62,15 @@ func (we *WalEntry) ToBytes() ([]byte, error) {
 	return gob.Encode(we)
 }
 
-func (we *WalEntry) ToString() string {
+func (we *WalEntry) String() string {
 	if we == nil {
 		return "wal entry is nil"
 	}
 	return fmt.Sprintf("wal entry[type:%s, index:%d, term:%d", WalEntryType_name[we.Type], we.Index, we.Term)
+}
+
+func (we *WalEntry) ToString() string {
+	return we.String()
 }
 
 type RaftIdentity struct {
@@ -95,6 +99,7 @@ type ChainWAL interface {
 	ResetWAL(hardStateInfo *types.HardStateInfo) error
 	WriteRaftEntry([]*WalEntry, []*types.Block, []*raftpb.ConfChange) error
 	GetRaftEntry(idx uint64) (*WalEntry, error)
+	// HasWal checks if chaindb has valid status of Raft WAL.
 	HasWal(identity RaftIdentity) (bool, error)
 	GetRaftEntryOfBlock(hash []byte) (*WalEntry, error)
 	GetRaftEntryLastIdx() (uint64, error)

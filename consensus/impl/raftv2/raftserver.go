@@ -336,7 +336,7 @@ func (rs *raftServer) startRaft() {
 			return true
 		}
 
-		// If joined node is crashed before writing snapshot, it may occur that last index is 0 and there is not snapshot.
+		// If the joined node is crashed before writing the snapshot, it may occur that the last index is 0 and there is no snapshot.
 		if last == 0 {
 			if tmpsnap, err := rs.walDB.GetSnapshot(); tmpsnap == nil || err != nil {
 				return true
@@ -372,7 +372,7 @@ func (rs *raftServer) startRaft() {
 
 		rs.cluster.ResetMembers()
 
-		// get cluster info from existing cluster member and hardstate of bestblock
+		// get cluster info from existing cluster member and hardstate of best block
 		if hardstateinfo, err = rs.ImportExistingCluster(); err != nil {
 			logger.Fatal().Err(err).Str("mine", rs.cluster.toString()).Msg("failed to import existing cluster info")
 		}
@@ -444,6 +444,7 @@ func (rs *raftServer) ID() uint64 {
 	return rs.cluster.NodeID()
 }
 
+// startNode start raft node from scratch. There must be no raft data in chaindb.
 func (rs *raftServer) startNode(startPeers []raftlib.Peer) raftlib.Node {
 	var (
 		blk *types.Block
@@ -491,6 +492,8 @@ func (rs *raftServer) startNode(startPeers []raftlib.Peer) raftlib.Node {
 	return raftlib.StartNode(c, startPeers)
 }
 
+// restartNode make raft module run with existing raft data in chain db.
+// this function finally invokes RestartNode of etcd raft lib.
 func (rs *raftServer) restartNode(join bool) raftlib.Node {
 	snapshot, err := rs.loadSnapshot()
 	if err != nil {
@@ -498,15 +501,15 @@ func (rs *raftServer) restartNode(join bool) raftlib.Node {
 	}
 
 	if err := rs.replayWAL(snapshot); err != nil {
-		logger.Fatal().Err(err).Msg("replay wal failed for raft")
+		logger.Fatal().Err(err).Msg("replaying wal failed for raft")
 	}
 
-	// members of cluster will be loaded from snapshot or wal
+	// Members of cluster will be loaded from snapshot or wal
 	// When restart from join, cluster must not recover from temporary snapshot since members are empty.
-	// Instead, node must use a cluster info received from remote server
+	// Instead, node must use a cluster info received from remote servers
 	if join == false && snapshot != nil {
 		if _, err := rs.cluster.Recover(snapshot); err != nil {
-			logger.Fatal().Err(err).Msg("failt to recover cluster from snapshot")
+			logger.Fatal().Err(err).Msg("failed to recover cluster from snapshot")
 		}
 	}
 
@@ -857,7 +860,7 @@ func (rs *raftServer) loadSnapshot() (*raftpb.Snapshot, error) {
 func (rs *raftServer) replayWAL(snapshot *raftpb.Snapshot) error {
 	logger.Info().Msg("replaying WAL")
 
-	identity, st, ents, err := rs.walDB.ReadAll(snapshot)
+	identity, st, walEntries, err := rs.walDB.ReadAll(snapshot)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("failed to read WAL")
 		return err
@@ -870,25 +873,25 @@ func (rs *raftServer) replayWAL(snapshot *raftpb.Snapshot) error {
 	rs.raftStorage = raftlib.NewMemoryStorage()
 	if snapshot != nil {
 		if err := rs.raftStorage.ApplySnapshot(*snapshot); err != nil {
-			logger.Fatal().Err(err).Msg("failed to apply snapshot to reaply wal")
+			logger.Fatal().Err(err).Msg("failed to apply snapshot to replay wal")
 		}
 	}
 	if err := rs.raftStorage.SetHardState(*st); err != nil {
-		logger.Fatal().Err(err).Msg("failed to set hard state to reaply wal")
+		logger.Fatal().Err(err).Msg("failed to set hard state to replay wal")
 	}
 
 	// append to storage so raft starts at the right place in log
-	if err := rs.raftStorage.Append(ents); err != nil {
-		logger.Fatal().Err(err).Msg("failed to append entries to reaply wal")
+	if err := rs.raftStorage.Append(walEntries); err != nil {
+		logger.Fatal().Err(err).Msg("failed to append entries to replay wal")
 	}
 	// send nil once lastIndex is published so client knows commit channel is current
-	if len(ents) > 0 {
-		rs.lastIndex = ents[len(ents)-1].Index
+	if len(walEntries) > 0 {
+		rs.lastIndex = walEntries[len(walEntries)-1].Index
 	}
 
 	rs.updateTerm(st.Term)
 
-	logger.Info().Uint64("lastindex", rs.lastIndex).Msg("replaying WAL done")
+	logger.Info().Uint64("lastIndex", rs.lastIndex).Msg("replaying WAL was done")
 
 	return nil
 }
