@@ -1078,6 +1078,12 @@ func transformAmount(amountStr string, forkVersion int32) (*big.Int, error) {
 			if !valid {
 				return nil, errors.New("converting error for BigNum: " + amountStr)
 			}
+			if forkVersion >= 5 {
+				// Check for negative amounts
+				if amount.Cmp(zeroBig) < 0 {
+					return nil, errors.New("negative amount not allowed")
+				}
+			}
 			return amount, nil
 		}
 	}
@@ -1804,6 +1810,11 @@ func luaGetStaking(service C.int, addr *C.char) (*C.char, C.lua_Integer, *C.char
 }
 
 func sendBalance(sender *state.AccountState, receiver *state.AccountState, amount *big.Int) *C.char {
+	if forkVersion >= 5 {
+		if amount.Cmp(zeroBig) < 0 {
+			return C.CString("[Contract.sendBalance] negative amount not allowed")
+		}
+	}
 	if err := state.SendBalance(sender, receiver, amount); err != nil {
 		return C.CString("[Contract.sendBalance] insufficient balance: " +
 			sender.Balance().String() + " : " + amount.String())
