@@ -1705,7 +1705,7 @@ func luaGetStaking(service C.int, addr *C.char) (*C.char, C.lua_Integer, *C.char
 }
 
 func sendBalance(sender *state.AccountState, receiver *state.AccountState, amount *big.Int) *C.char {
-	if forkVersion >= 5 {
+	if currentForkVersion >= 5 {
 		if amount.Cmp(zeroBig) < 0 {
 			return C.CString("[Contract.sendBalance] negative amount not allowed")
 		}
