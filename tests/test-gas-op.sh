@@ -33,7 +33,7 @@ assert_equals "$status"   "SUCCESS"
 
 if [ "$consensus" = "raft" ]; then
   assert_equals "$gasUsed"  "0"
-elif [ "$fork_version" -eq "4" ]; then
+elif [ "$fork_version" -ge "4" ]; then
   assert_equals "$gasUsed"  "120832"
 else
   assert_equals "$gasUsed"  "117610"
