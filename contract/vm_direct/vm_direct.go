@@ -514,7 +514,7 @@ func executeTx(
 			}
 			return types.ErrNotAllowedFeeDelegation
 		}
-		rv, events, _, txFee, err = contract.Execute(execCtx, bs, cdb, tx.GetTx(), sender, receiver, bi, executionMode, true)
+		rv, events, internalOps, txFee, err = contract.Execute(execCtx, bs, cdb, tx.GetTx(), sender, receiver, bi, executionMode, true)
 		receiver.SubBalance(txFee)
 	}
 
