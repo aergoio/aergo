@@ -74,7 +74,7 @@ nevents=$(cat receipt.json | jq '.events | length')
 assert_equals "$status"   "SUCCESS"
 #assert_equals "$ret"      "{}"
 
-if [ "$fork_version" -eq "4" ]; then
+if [ "$fork_version" -ge "4" ]; then
 	assert_equals "$nevents" "2"
 else
 	assert_equals "$nevents" "6"
@@ -97,7 +97,7 @@ nevents=$(cat receipt.json | jq '.events | length')
 assert_equals "$status"   "SUCCESS"
 #assert_equals "$ret"      "{}"
 
-if [ "$fork_version" -eq "4" ]; then
+if [ "$fork_version" -ge "4" ]; then
 	assert_equals "$nevents" "2"
 else
 	assert_equals "$nevents" "6"
@@ -120,7 +120,7 @@ nevents=$(cat receipt.json | jq '.events | length')
 assert_equals "$status"   "SUCCESS"
 #assert_equals "$ret"      "{}"
 
-if [ "$fork_version" -eq "4" ]; then
+if [ "$fork_version" -ge "4" ]; then
 	assert_equals "$nevents" "2"
 else
 	assert_equals "$nevents" "6"
