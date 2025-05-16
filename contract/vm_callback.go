@@ -92,28 +92,10 @@ func luaSetDB(L *LState, service C.int, key unsafe.Pointer, keyLen C.int, value 
 	valueStr := C.GoString(value)
 	valueBytes := []byte(valueStr)
 
-	// if the key starts with "_sv_meta-len_", remove it and add the ".length" suffix to the key
-	if strings.HasPrefix(keyStr, "_sv_meta-len_") {
-		keyStr = keyStr[len("_sv_meta-len_"):]
-		keyStr = keyStr + ".length"
-	// if the key starts with "_sv_meta-type_", remove it and add the ".type" suffix to the key
-	} else if strings.HasPrefix(keyStr, "_sv_meta-type_") {
-		keyStr = keyStr[len("_sv_meta-type_"):]
-		keyStr = keyStr + ".type"
-	// if the key starts with "_sv_", remove it
-	} else if strings.HasPrefix(keyStr, "_sv_") {
-		keyStr = keyStr[len("_sv_"):]
-		// if there is a "-" in the key, get its position, replace it with a `[` and add a `]` to the end
-		if idx := strings.Index(keyStr, "-"); idx != -1 {
-			keyStr = keyStr[:idx] + "[" + keyStr[idx+1:] + "]"
-		}
-	// if the key starts with "_", remove it
-	} else if strings.HasPrefix(keyStr, "_") {
-		keyStr = keyStr[len("_"):]
-	}
 	// log the operation with the modified key
-	logOperation(ctx, "", "set_variable", keyStr, valueStr)
+	logOperation(ctx, "", "set_variable", convertKey(keyStr), valueStr)
 
+	// set the state variable
 	if err := ctx.curContract.callState.ctrState.SetData(keyBytes, valueBytes); err != nil {
 		return C.CString(err.Error())
 	}
@@ -197,7 +179,15 @@ func luaDelDB(L *LState, service C.int, key unsafe.Pointer, keyLen C.int) *C.cha
 	if ctx.isQuery == true || ctx.nestedView > 0 {
 		return C.CString("[System.LuaDelDB] delete not permitted in query")
 	}
-	if err := ctx.curContract.callState.ctrState.DeleteData(C.GoBytes(key, keyLen)); err != nil {
+
+	keyBytes := C.GoBytes(key, keyLen)
+	keyStr := string(keyBytes)
+
+	// log the operation with the modified key
+	logOperation(ctx, "", "del_variable", convertKey(keyStr))
+
+	// delete the state variable
+	if err := ctx.curContract.callState.ctrState.DeleteData(keyBytes); err != nil {
 		return C.CString(err.Error())
 	}
 	if err := ctx.addUpdateSize(int64(32)); err != nil {
@@ -207,9 +197,32 @@ func luaDelDB(L *LState, service C.int, key unsafe.Pointer, keyLen C.int) *C.cha
 	if ctx.traceFile != nil {
 		_, _ = ctx.traceFile.WriteString("[Del]\n")
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("Key=%s Len=%v byte=%v\n",
-			string(C.GoBytes(key, keyLen)), keyLen, C.GoBytes(key, keyLen)))
+			string(keyBytes), keyLen, keyBytes))
 	}
 	return nil
+}
+
+func convertKey(keyStr string) string {
+	// if the key starts with "_sv_meta-len_", remove it and add the ".length" suffix to the key
+	if strings.HasPrefix(keyStr, "_sv_meta-len_") {
+		keyStr = keyStr[len("_sv_meta-len_"):]
+		keyStr = keyStr + ".length"
+	// if the key starts with "_sv_meta-type_", remove it and add the ".type" suffix to the key
+	} else if strings.HasPrefix(keyStr, "_sv_meta-type_") {
+		keyStr = keyStr[len("_sv_meta-type_"):]
+		keyStr = keyStr + ".type"
+	// if the key starts with "_sv_", remove it
+	} else if strings.HasPrefix(keyStr, "_sv_") {
+		keyStr = keyStr[len("_sv_"):]
+		// if there is a "-" in the key, get its position, replace it with a `[` and add a `]` to the end
+		if idx := strings.Index(keyStr, "-"); idx != -1 {
+			keyStr = keyStr[:idx] + "[" + keyStr[idx+1:] + "]"
+		}
+	// if the key starts with "_", remove it
+	} else if strings.HasPrefix(keyStr, "_") {
+		keyStr = keyStr[len("_"):]
+	}
+	return keyStr
 }
 
 func setInstCount(ctx *vmContext, parent *LState, child *LState) {
