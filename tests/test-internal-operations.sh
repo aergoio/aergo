@@ -239,7 +239,23 @@ assert_equals "$internal_operations" '{
       "'$arc2_address'"
     ],
     "contract": "'$deployer_address'",
-    "function": "constructor"
+    "function": "constructor",
+    "operations": [
+      {
+        "args": [
+          "arc1_factory",
+          "\"'$arc1_address'\""
+        ],
+        "op": "set_variable"
+      },
+      {
+        "args": [
+          "arc2_factory",
+          "\"'$arc2_address'\""
+        ],
+        "op": "set_variable"
+      }
+    ]
   }
 }'
 
