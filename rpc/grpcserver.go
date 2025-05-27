@@ -11,6 +11,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"github.com/aergoio/aergo/v2/types/utils"
 	"reflect"
 	"strings"
 	"sync"
@@ -37,7 +38,7 @@ var (
 )
 
 var (
-	ErrUninitAccessor = errors.New("accessor is not initilized")
+	ErrUninitAccessor = errors.New("accessor is not initialized")
 
 	//	ErrNotSupportedConsensus = errors.New("not supported by this consensus")
 )
@@ -76,8 +77,8 @@ const defaultActorTimeout = time.Second * 3
 
 var _ types.AergoRPCServiceServer = (*AergoRPCService)(nil)
 
-func (ns *AergoRPCService) GetActorHelper() p2pcommon.ActorService {
-	return ns.actorHelper
+func (rpc *AergoRPCService) GetActorHelper() p2pcommon.ActorService {
+	return rpc.actorHelper
 }
 
 func (rpc *AergoRPCService) SetConsensusAccessor(ca consensus.ConsensusAccessor) {
@@ -583,6 +584,9 @@ func (rpc *AergoRPCService) GetBlockTX(ctx context.Context, in *types.SingleByte
 	if err := rpc.checkAuth(ctx, ReadBlockChain); err != nil {
 		return nil, err
 	}
+	if in.Value == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "input hash is empty")
+	}
 	result, err := rpc.hub.RequestFuture(message.ChainSvc,
 		&message.GetTx{TxHash: in.Value}, defaultActorTimeout, "rpc.(*AergoRPCService).GetBlockTX").Result()
 	if err != nil {
@@ -601,6 +605,9 @@ var emptyBytes = make([]byte, 0)
 func (rpc *AergoRPCService) SendTX(ctx context.Context, tx *types.Tx) (*types.CommitResult, error) {
 	if err := rpc.checkAuth(ctx, WriteBlockChain); err != nil {
 		return nil, err
+	}
+	if tx.Body == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "input tx is empty")
 	}
 	if tx.Body.Nonce == 0 {
 		getStateResult, err := rpc.hub.RequestFuture(message.ChainSvc,
@@ -667,8 +674,13 @@ func (rpc *AergoRPCService) CommitTX(ctx context.Context, in *types.TxList) (*ty
 	if err := rpc.checkAuth(ctx, WriteBlockChain); err != nil {
 		return nil, err
 	}
-	if in.Txs == nil {
-		return nil, status.Errorf(codes.InvalidArgument, "input tx is empty")
+	if in.Txs == nil || len(in.Txs) == 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "empty transaction")
+	}
+	for _, tx := range in.Txs {
+		if tx.Body == nil || len(tx.Hash) == 0 {
+			return nil, status.Errorf(codes.InvalidArgument, "input tx is empty")
+		}
 	}
 
 	rpc.hub.Get(message.MemPoolSvc)
@@ -687,6 +699,10 @@ func (rpc *AergoRPCService) GetState(ctx context.Context, in *types.SingleBytes)
 	if err := rpc.checkAuth(ctx, ReadBlockChain); err != nil {
 		return nil, err
 	}
+	if len(in.Value) == 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "input account is empty")
+	}
+
 	result, err := rpc.hub.RequestFuture(message.ChainSvc,
 		&message.GetState{Account: in.Value}, defaultActorTimeout, "rpc.(*AergoRPCService).GetState").Result()
 	if err != nil {
@@ -704,6 +720,10 @@ func (rpc *AergoRPCService) GetStateAndProof(ctx context.Context, in *types.Acco
 	if err := rpc.checkAuth(ctx, ReadBlockChain); err != nil {
 		return nil, err
 	}
+	if len(in.Account) == 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "input account is empty")
+	}
+
 	result, err := rpc.hub.RequestFuture(message.ChainSvc,
 		&message.GetStateAndProof{Account: in.Account, Root: in.Root, Compressed: in.Compressed}, defaultActorTimeout, "rpc.(*AergoRPCService).GetStateAndProof").Result()
 	if err != nil {
@@ -717,6 +737,7 @@ func (rpc *AergoRPCService) GetStateAndProof(ctx context.Context, in *types.Acco
 }
 
 // CreateAccount handle rpc request newaccount
+// This function is deprecated since aergo v2
 func (rpc *AergoRPCService) CreateAccount(ctx context.Context, in *types.Personal) (*types.Account, error) {
 	if err := rpc.checkAuth(ctx, WriteBlockChain); err != nil {
 		return nil, err
@@ -782,6 +803,10 @@ func (rpc *AergoRPCService) LockAccount(ctx context.Context, in *types.Personal)
 	if err := rpc.checkAuth(ctx, WriteBlockChain); err != nil {
 		return nil, err
 	}
+	if in.Account == nil || len(in.Account.Address) == 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "input account is empty")
+	}
+
 	result, err := rpc.hub.RequestFutureResult(message.AccountsSvc,
 		&message.LockAccount{Account: in.Account, Passphrase: in.Passphrase},
 		defaultActorTimeout, "rpc.(*AergoRPCService).LockAccount")
@@ -804,6 +829,10 @@ func (rpc *AergoRPCService) UnlockAccount(ctx context.Context, in *types.Persona
 	if err := rpc.checkAuth(ctx, WriteBlockChain); err != nil {
 		return nil, err
 	}
+	if in.Account == nil || len(in.Account.Address) == 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "input account is empty")
+	}
+
 	result, err := rpc.hub.RequestFutureResult(message.AccountsSvc,
 		&message.UnlockAccount{Account: in.Account, Passphrase: in.Passphrase},
 		defaultActorTimeout, "rpc.(*AergoRPCService).UnlockAccount")
@@ -854,6 +883,10 @@ func (rpc *AergoRPCService) exportAccountWithFormat(ctx context.Context, in *typ
 	if err := rpc.checkAuth(ctx, WriteBlockChain); err != nil {
 		return nil, err
 	}
+	if in.Account == nil || len(in.Account.Address) == 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "input account is empty")
+	}
+
 	result, err := rpc.hub.RequestFutureResult(message.AccountsSvc,
 		&message.ExportAccount{Account: in.Account, Pass: in.Passphrase, AsKeystore: asKeystore},
 		defaultActorTimeout, "rpc.(*AergoRPCService).ExportAccount")
@@ -884,6 +917,10 @@ func (rpc *AergoRPCService) SignTX(ctx context.Context, in *types.Tx) (*types.Tx
 	if err := rpc.checkAuth(ctx, WriteBlockChain); err != nil {
 		return nil, err
 	}
+	if in.Body == nil || len(in.Hash) == 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "input tx is empty")
+	}
+
 	result, err := rpc.hub.RequestFutureResult(message.AccountsSvc,
 		&message.SignTx{Tx: in}, defaultActorTimeout, "rpc.(*AergoRPCService).SignTX")
 	if err != nil {
@@ -906,6 +943,10 @@ func (rpc *AergoRPCService) VerifyTX(ctx context.Context, in *types.Tx) (*types.
 		return nil, err
 	}
 	//TODO : verify without account service
+	if in.Body == nil || len(in.Hash) == 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "input tx is empty")
+	}
+
 	result, err := rpc.hub.RequestFutureResult(message.AccountsSvc,
 		&message.VerifyTx{Tx: in}, defaultActorTimeout, "rpc.(*AergoRPCService).VerifyTX")
 	if err != nil {
@@ -958,7 +999,15 @@ func (rpc *AergoRPCService) NodeState(ctx context.Context, in *types.NodeReq) (*
 	if err := rpc.checkAuth(ctx, ShowNode); err != nil {
 		return nil, err
 	}
-	timeout := int64(binary.LittleEndian.Uint64(in.Timeout))
+	uTimeout, err := utils.ToUint64(in.Timeout)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid timeout value")
+	}
+	timeout := int64(uTimeout)
+	if timeout < 0 || timeout > 1800 {
+		// even 30 minutes is very big for timeout
+		timeout = 1800
+	}
 	component := string(in.Component)
 
 	logger.Debug().Str("comp", component).Int64("timeout", timeout).Msg("nodestate")
@@ -1000,6 +1049,9 @@ func (rpc *AergoRPCService) GetAccountVotes(ctx context.Context, in *types.Accou
 	}
 	result, err := rpc.hub.RequestFuture(message.ChainSvc,
 		&message.GetVote{Addr: in.Value}, defaultActorTimeout, "rpc.(*AergoRPCService).GetAccountVote").Result()
+	if len(in.Value) == 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "input address is empty")
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -1038,6 +1090,9 @@ func (rpc *AergoRPCService) GetNameInfo(ctx context.Context, in *types.Name) (*t
 	if err := rpc.checkAuth(ctx, ReadBlockChain); err != nil {
 		return nil, err
 	}
+	if len(in.Name) == 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "input name is empty")
+	}
 	result, err := rpc.hub.RequestFuture(message.ChainSvc,
 		&message.GetNameInfo{Name: in.Name, BlockNo: in.BlockNo}, defaultActorTimeout, "rpc.(*AergoRPCService).GetName").Result()
 	if err != nil {
@@ -1056,6 +1111,9 @@ func (rpc *AergoRPCService) GetNameInfo(ctx context.Context, in *types.Name) (*t
 func (rpc *AergoRPCService) GetReceipt(ctx context.Context, in *types.SingleBytes) (*types.Receipt, error) {
 	if err := rpc.checkAuth(ctx, ReadBlockChain); err != nil {
 		return nil, err
+	}
+	if len(in.Value) == 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "input hash is empty")
 	}
 	result, err := rpc.hub.RequestFuture(message.ChainSvc,
 		&message.GetReceipt{TxHash: in.Value}, defaultActorTimeout, "rpc.(*AergoRPCService).GetReceipt").Result()
@@ -1089,6 +1147,9 @@ func (rpc *AergoRPCService) GetABI(ctx context.Context, in *types.SingleBytes) (
 	if err := rpc.checkAuth(ctx, ReadBlockChain); err != nil {
 		return nil, err
 	}
+	if len(in.Value) == 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "input address is empty")
+	}
 	result, err := rpc.hub.RequestFuture(message.ChainSvc,
 		&message.GetABI{Contract: in.Value}, defaultActorTimeout, "rpc.(*AergoRPCService).GetABI").Result()
 	if err != nil {
@@ -1104,6 +1165,9 @@ func (rpc *AergoRPCService) GetABI(ctx context.Context, in *types.SingleBytes) (
 func (rpc *AergoRPCService) QueryContract(ctx context.Context, in *types.Query) (*types.SingleBytes, error) {
 	if err := rpc.checkAuth(ctx, ReadBlockChain); err != nil {
 		return nil, err
+	}
+	if len(in.ContractAddress) == 0 || len(in.Queryinfo) == 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "input contract info is empty")
 	}
 	result, err := rpc.hub.RequestFuture(message.ChainSvc,
 		&message.GetQuery{Contract: in.ContractAddress, Queryinfo: in.Queryinfo}, defaultActorTimeout, "rpc.(*AergoRPCService).QueryContract").Result()
@@ -1121,6 +1185,9 @@ func (rpc *AergoRPCService) QueryContract(ctx context.Context, in *types.Query) 
 func (rpc *AergoRPCService) QueryContractState(ctx context.Context, in *types.StateQuery) (*types.StateQueryProof, error) {
 	if err := rpc.checkAuth(ctx, ReadBlockChain); err != nil {
 		return nil, err
+	}
+	if len(in.ContractAddress) == 0 || len(in.Root) == 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "input contract info is empty")
 	}
 	result, err := rpc.hub.RequestFuture(message.ChainSvc,
 		&message.GetStateQuery{ContractAddress: in.ContractAddress, StorageKeys: in.StorageKeys, Root: in.Root, Compressed: in.Compressed}, defaultActorTimeout, "rpc.(*AergoRPCService).GetStateQuery").Result()
@@ -1198,6 +1265,9 @@ func (rpc *AergoRPCService) ListEvents(ctx context.Context, in *types.FilterInfo
 	if err := rpc.checkAuth(ctx, ReadBlockChain); err != nil {
 		return nil, err
 	}
+	if len(in.ContractAddress) == 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "input contract info is empty")
+	}
 	result, err := rpc.hub.RequestFuture(message.ChainSvc,
 		&message.ListEvents{Filter: in}, defaultActorTimeout, "rpc.(*AergoRPCService).ListEvents").Result()
 	if err != nil {
@@ -1255,6 +1325,10 @@ func (rpc *AergoRPCService) GetEnterpriseConfig(ctx context.Context, in *types.E
 	genesis := rpc.actorHelper.GetChainAccessor().GetGenesisInfo()
 	if genesis.PublicNet() {
 		return nil, status.Error(codes.Unavailable, "not supported in public")
+	}
+
+	if len(in.Key) == 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "input key is empty")
 	}
 
 	if err := rpc.checkAuth(ctx, ReadBlockChain); err != nil {
