@@ -31,3 +31,5 @@ __pycache__
 
 .DS_Store
 /libtool/src
+.tool-versions
+/arglog.toml

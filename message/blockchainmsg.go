@@ -92,6 +92,14 @@ type GetQuery struct {
 	Contract  []byte
 	Queryinfo []byte
 }
+
+// GetQueryNonBlock is request for non-blocking manner
+type GetQueryNonBlock struct {
+	Contract      []byte
+	QueryInfo     []byte
+	ReturnChannel chan GetQueryRsp
+}
+
 type GetQueryRsp struct {
 	Result []byte
 	Err    error
