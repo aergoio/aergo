@@ -1055,16 +1055,20 @@ func (rpc *AergoRPCService) QueryContract(ctx context.Context, in *types.Query) 
 	if err := rpc.checkAuth(ctx, ReadBlockChain); err != nil {
 		return nil, err
 	}
-	result, err := rpc.hub.RequestFuture(message.ChainSvc,
-		&message.GetQuery{Contract: in.ContractAddress, Queryinfo: in.Queryinfo}, defaultActorTimeout, "rpc.(*AergoRPCService).QueryContract").Result()
-	if err != nil {
-		return nil, err
+	requestMsg := &message.GetQueryNonBlock{Contract: in.ContractAddress, QueryInfo: in.Queryinfo,
+		ReturnChannel: make(chan message.GetQueryRsp)}
+	rpc.hub.Tell(message.ChainSvc, requestMsg)
+	timer := time.NewTimer(defaultActorTimeout)
+	select {
+		case result := <-requestMsg.ReturnChannel:
+			if result.Err != nil {
+				return nil, result.Err
+			}
+			return &types.SingleBytes{Value: result.Result}, result.Err
+		case <-timer.C:
+			logger.Error().Msg("query timeout in chainservice")
+			return nil, status.Errorf(codes.Internal, "request timeout")
 	}
-	rsp, ok := result.(message.GetQueryRsp)
-	if !ok {
-		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
-	}
-	return &types.SingleBytes{Value: rsp.Result}, rsp.Err
 }
 
 // QueryContractState queries the state of a contract state variable without executing a contract function.

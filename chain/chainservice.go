@@ -439,6 +439,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 		*message.GetReceipt,
 		*message.GetABI,
 		*message.GetQuery,
+		*message.GetQueryNonBlock,
 		*message.GetStateQuery,
 		*message.GetElected,
 		*message.GetVote,
@@ -801,23 +802,16 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			})
 		}
 	case *message.GetQuery:
-		runtime.LockOSThread()
-		defer runtime.UnlockOSThread()
-		sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetRoot())
-		address, err := getAddressNameResolved(sdb, msg.Contract)
-		if err != nil {
-			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
-			break
+		var returnChannel = make(chan message.GetQueryRsp)
+		cw.queryContract(msg.Contract, msg.Queryinfo, returnChannel)
+		select {
+		case rsp := <-returnChannel:
+			context.Respond(rsp)
+		default:
+			context.Respond(message.GetQueryRsp{Result: nil, Err: fmt.Errorf("timeout")})
 		}
-		ctrState, err := sdb.OpenContractStateAccount(types.ToAccountID(address))
-		if err != nil {
-			logger.Error().Str("hash", enc.ToString(address)).Err(err).Msg("failed to get state for contract")
-			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
-		} else {
-			bs := state.NewBlockState(sdb)
-			ret, err := contract.Query(address, bs, cw.cdb, ctrState, msg.Queryinfo)
-			context.Respond(message.GetQueryRsp{Result: ret, Err: err})
-		}
+	case *message.GetQueryNonBlock:
+		go cw.queryContract(msg.Contract, msg.QueryInfo, msg.ReturnChannel)
 	case *message.GetStateQuery:
 		sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetRoot())
 		contractProof, err := getAccProof(sdb, msg.ContractAddress, msg.Root, msg.Compressed)
@@ -907,10 +901,41 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			context.Respond(message.CheckFeeDelegationRsp{Err: err})
 		}
 
-	case *actor.Started, *actor.Stopping, *actor.Stopped, *component.CompStatReq: // donothing
+	case *actor.Started, *actor.Stopping, *actor.Stopped, *component.CompStatReq: // do nothing
 	default:
 		debug := fmt.Sprintf("[%s] Missed message. (%v) %s", cw.name, reflect.TypeOf(msg), msg)
 		logger.Debug().Msg(debug)
+	}
+}
+
+
+func (cw *ChainWorker) queryContract(qContract []byte, qInfo []byte, returnChannel chan message.GetQueryRsp) {
+	var result message.GetQueryRsp
+	defer func() {
+		select {
+		case returnChannel <- result:
+		default:
+			logger.Warn().Msg("result channel is closed or deleted")
+		}
+	}()
+	{
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+		var sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetRoot())
+		address, err := getAddressNameResolved(sdb, qContract)
+		if err != nil {
+			result = message.GetQueryRsp{Result: nil, Err: err}
+			return
+		}
+		ctrState, err := sdb.OpenContractStateAccount(types.ToAccountID(address))
+		if err != nil {
+			logger.Error().Str("hash", enc.ToString(address)).Err(err).Msg("failed to get state for contract")
+			result = message.GetQueryRsp{Result: nil, Err: err}
+		} else {
+			bs := state.NewBlockState(sdb)
+			ret, err := contract.Query(address, bs, cw.cdb, ctrState, qInfo)
+			result = message.GetQueryRsp{Result: ret, Err: err}
+		}
 	}
 }
 
