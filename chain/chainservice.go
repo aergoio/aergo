@@ -803,6 +803,8 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		}
 	case *message.GetQuery:
 		var returnChannel = make(chan message.GetQueryRsp)
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
 		cw.queryContract(msg.Contract, msg.Queryinfo, returnChannel)
 		select {
 		case rsp := <-returnChannel:
@@ -919,8 +921,6 @@ func (cw *ChainWorker) queryContract(qContract []byte, qInfo []byte, returnChann
 		}
 	}()
 	{
-		runtime.LockOSThread()
-		defer runtime.UnlockOSThread()
 		var sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetRoot())
 		address, err := getAddressNameResolved(sdb, qContract)
 		if err != nil {
