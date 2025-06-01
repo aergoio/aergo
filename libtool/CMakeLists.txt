@@ -27,20 +27,11 @@ if (NOT "$ENV{GMP_VERSION}" STREQUAL "")
 endif()
 message(STATUS "Using libgmp version ${GMP_VERSION}")
 
-# set default version of libgmp to v6.3.0
-if( GMP_VERSION EQUAL "6.1.2" )
-    # hash of libgmp-6.1.2
-    set(GMP_HASH 5275bb04f4863a13516b2f39392ac5e272f5e1bb8057b18aec1c9b79d73d8fb2)
-elseif( GMP_VERSION EQUAL "6.2.1" )
-    # hash of libgmp-6.2.1
-    set(GMP_HASH eae9326beb4158c386e39a356818031bd28f3124cf915f8c5b1dc4c7a36b4d7c)
-else()
-    # hash of libgmp-6.3.0
-    set(GMP_HASH 29df1150be857d94323e8c57f509b0314e56a4953712639f2c9e3b9aefc553ac)
-endif()
+# for libgmp-6.3.0-aergo
+set(GMP_HASH f02ece9197c05b07eaca77bcb18448bcc4e38b0b3ce77202accfc1cc9f338012)
 
 set(GMP_NAME gmp-${GMP_VERSION})
-set(GMP_ARCHIVE ${GMP_NAME}.tar.bz2)
+set(GMP_ARCHIVE gmp-6.3.0-aergo.tar.bz2)
 set(GMP_PATCH_FILE ${GMP_NAME}.patch)
 set(GMP_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/${GMP_NAME})
 set(GMP_BUILD_DIR ${CMAKE_CURRENT_BINARY_DIR}/build/${GMP_NAME})
@@ -54,7 +45,6 @@ ExternalProject_Add(libgmp
    DOWNLOAD_DIR ${CMAKE_CURRENT_SOURCE_DIR}/download
    URL          ${CMAKE_CURRENT_SOURCE_DIR}/download/${GMP_ARCHIVE}
    URL_HASH     SHA256=${GMP_HASH}
-   PATCH_COMMAND patch -p0 -d ${CMAKE_CURRENT_SOURCE_DIR} < ${CMAKE_CURRENT_SOURCE_DIR}/${GMP_PATCH_FILE}
    TMP_DIR      ${GMP_BUILD_DIR}
    STAMP_DIR    ${GMP_BUILD_DIR}
    CONFIGURE_COMMAND ${GMP_SRC_DIR}/configure --prefix=${LIB_DIR} --disable-static --enable-shared > /dev/null
