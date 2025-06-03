@@ -110,7 +110,7 @@ func newRemotePeer(remote p2pcommon.RemoteInfo, manageNum uint32, pm p2pcommon.P
 		maxTxNoticeHashSize: DefaultPeerTxQueueSize,
 		taskChannel: make(chan p2pcommon.PeerTask, 1),
 	}
-	rPeer.writeBuf = make(chan p2pcommon.MsgOrder, writeMsgBufferSize)
+	rPeer.writeBuf = make(chan p2pcommon.MsgOrder, pm.MsgBufSize())
 	rPeer.writeDirect = make(chan p2pcommon.MsgOrder)
 
 	var err error

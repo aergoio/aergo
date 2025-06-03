@@ -82,6 +82,7 @@ type P2PConfig struct {
 	Producers     []string `mapstructure:"producers" description:"List of peer ids of block producers, only meaningful when peer is agent"`
 	InternalZones []string `mapstructure:"internalzones" description:"List of address ranges that are recognised as inner zone of agent. defined by CIDR notation."`
 	Agent         string   `mapstructure:"agent" description:"Peer id of agent that delegates this producer, only available when local peer is producer"`
+	MsgBufSize    int      `mapstructure:"msgbufsize" description:"Size of message buffer for each peer"`
 }
 
 // AuthConfig defines configuration for auditing
@@ -114,11 +115,11 @@ type BlockchainConfig struct {
 
 // MempoolConfig defines configurations for mempool service
 type MempoolConfig struct {
-	ShowMetrics    bool   `mapstructure:"showmetrics" description:"show mempool metric periodically"`
-	EnableFadeout  bool   `mapstructure:"enablefadeout" description:"Enable transaction fadeout over timeout period"`
-	FadeoutPeriod  int    `mapstructure:"fadeoutperiod" description:"time period for evict transactions(in hour)"`
-	VerifierNumber int    `mapstructure:"verifiers" description:"number of concurrent verifier"`
-	DumpFilePath   string `mapstructure:"dumpfilepath" description:"file path for recording mempool at process termintation"`
+	ShowMetrics    bool     `mapstructure:"showmetrics" description:"show mempool metric periodically"`
+	EnableFadeout  bool     `mapstructure:"enablefadeout" description:"Enable transaction fadeout over timeout period"`
+	FadeoutPeriod  int      `mapstructure:"fadeoutperiod" description:"time period for evict transactions(in hour)"`
+	VerifierNumber int      `mapstructure:"verifiers" description:"number of concurrent verifier"`
+	DumpFilePath   string   `mapstructure:"dumpfilepath" description:"file path for recording mempool at process termintation"`
 }
 
 // ConsensusConfig defines configurations for consensus service
