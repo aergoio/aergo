@@ -6,6 +6,7 @@
 package chain
 
 import (
+	ctx "context"
 	"errors"
 	"fmt"
 	"math/big"
@@ -805,7 +806,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		var returnChannel = make(chan message.GetQueryRsp)
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
-		cw.queryContract(msg.Contract, msg.Queryinfo, returnChannel)
+		cw.queryContract(ctx.Background(), msg.Contract, msg.Queryinfo, returnChannel)
 		select {
 		case rsp := <-returnChannel:
 			context.Respond(rsp)
@@ -813,7 +814,12 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			context.Respond(message.GetQueryRsp{Result: nil, Err: fmt.Errorf("timeout")})
 		}
 	case *message.GetQueryNonBlock:
-		go cw.queryContract(msg.Contract, msg.QueryInfo, msg.ReturnChannel)
+		select {
+		case <-msg.Ctx.Done():
+			logger.Warn().Str("contract", types.ToAccountID(msg.Contract).String()).Msg("timeout before querying contract")
+		default:
+			go cw.queryContract(msg.Ctx, msg.Contract, msg.QueryInfo, msg.ReturnChannel)
+		}
 	case *message.GetStateQuery:
 		sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetRoot())
 		contractProof, err := getAccProof(sdb, msg.ContractAddress, msg.Root, msg.Compressed)
@@ -910,14 +916,15 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 	}
 }
 
-
-func (cw *ChainWorker) queryContract(qContract []byte, qInfo []byte, returnChannel chan message.GetQueryRsp) {
+func (cw *ChainWorker) queryContract(ctx ctx.Context, qContract []byte, qInfo []byte, returnChannel chan message.GetQueryRsp) {
 	var result message.GetQueryRsp
 	defer func() {
 		select {
+		case <-ctx.Done():
+			return
 		case returnChannel <- result:
 		default:
-			logger.Warn().Msg("result channel is closed or deleted")
+			logger.Debug().Msg("result channel is already closed or deleted")
 		}
 	}()
 	{
