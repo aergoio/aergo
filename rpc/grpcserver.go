@@ -39,7 +39,7 @@ var (
 var (
 	ErrUninitAccessor = errors.New("accessor is not initilized")
 
-//	ErrNotSupportedConsensus = errors.New("not supported by this consensus")
+	//	ErrNotSupportedConsensus = errors.New("not supported by this consensus")
 )
 
 type EventStream struct {
@@ -1055,19 +1055,22 @@ func (rpc *AergoRPCService) QueryContract(ctx context.Context, in *types.Query) 
 	if err := rpc.checkAuth(ctx, ReadBlockChain); err != nil {
 		return nil, err
 	}
-	requestMsg := &message.GetQueryNonBlock{Contract: in.ContractAddress, QueryInfo: in.Queryinfo,
+
+	rpcCtx, cancel := context.WithTimeout(ctx, defaultActorTimeout)
+	defer cancel()
+
+	requestMsg := &message.GetQueryNonBlock{Ctx: rpcCtx, Contract: in.ContractAddress, QueryInfo: in.Queryinfo,
 		ReturnChannel: make(chan message.GetQueryRsp)}
 	rpc.hub.Tell(message.ChainSvc, requestMsg)
-	timer := time.NewTimer(defaultActorTimeout)
 	select {
-		case result := <-requestMsg.ReturnChannel:
-			if result.Err != nil {
-				return nil, result.Err
-			}
-			return &types.SingleBytes{Value: result.Result}, result.Err
-		case <-timer.C:
-			logger.Error().Msg("query timeout in chainservice")
-			return nil, status.Errorf(codes.Internal, "request timeout")
+	case result := <-requestMsg.ReturnChannel:
+		if result.Err != nil {
+			return nil, result.Err
+		}
+		return &types.SingleBytes{Value: result.Result}, result.Err
+	case <-rpcCtx.Done():
+		logger.Error().Msg("query timeout in chainservice")
+		return nil, status.Errorf(codes.Internal, "request timeout")
 	}
 }
 
