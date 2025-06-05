@@ -6,7 +6,6 @@
 package chain
 
 import (
-	ctx "context"
 	"errors"
 	"fmt"
 	"math/big"
@@ -607,6 +606,8 @@ type ChainWorker struct {
 	*SubComponent
 	IChainHandler //to use chain APIs
 	*Core
+
+	qw *QueryWorker
 }
 
 var (
@@ -623,9 +624,13 @@ func newChainManager(cs *ChainService, core *Core) *ChainManager {
 }
 
 func newChainWorker(cs *ChainService, cntWorker int, core *Core) *ChainWorker {
+	queryWorkers := cntWorker / 2
+	if queryWorkers == 0 {
+		queryWorkers = 1
+	}
 	chainWorker := &ChainWorker{IChainHandler: cs, Core: core}
 	chainWorker.SubComponent = NewSubComponent(chainWorker, cs.BaseComponent, chainWorkerName, cntWorker)
-
+	chainWorker.qw = newQueryWorker(cs, queryWorkers, core)
 	return chainWorker
 }
 
@@ -803,23 +808,25 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			})
 		}
 	case *message.GetQuery:
-		var returnChannel = make(chan message.GetQueryRsp)
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
-		cw.queryContract(ctx.Background(), msg.Contract, msg.Queryinfo, returnChannel)
-		select {
-		case rsp := <-returnChannel:
-			context.Respond(rsp)
-		default:
-			context.Respond(message.GetQueryRsp{Result: nil, Err: fmt.Errorf("timeout")})
+		sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetRoot())
+		address, err := getAddressNameResolved(sdb, msg.Contract)
+		if err != nil {
+			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
+			break
+		}
+		ctrState, err := sdb.OpenContractStateAccount(types.ToAccountID(address))
+		if err != nil {
+			logger.Error().Str("hash", enc.ToString(address)).Err(err).Msg("failed to get state for contract")
+			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
+		} else {
+			bs := state.NewBlockState(sdb)
+			ret, err := contract.Query(address, bs, cw.cdb, ctrState, msg.Queryinfo)
+			context.Respond(message.GetQueryRsp{Result: ret, Err: err})
 		}
 	case *message.GetQueryNonBlock:
-		select {
-		case <-msg.Ctx.Done():
-			logger.Warn().Str("contract", types.ToAccountID(msg.Contract).String()).Msg("timeout before querying contract")
-		default:
-			go cw.queryContract(msg.Ctx, msg.Contract, msg.QueryInfo, msg.ReturnChannel)
-		}
+		cw.qw.Request(msg, context.Sender())
 	case *message.GetStateQuery:
 		sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetRoot())
 		contractProof, err := getAccProof(sdb, msg.ContractAddress, msg.Root, msg.Compressed)
@@ -913,36 +920,6 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 	default:
 		debug := fmt.Sprintf("[%s] Missed message. (%v) %s", cw.name, reflect.TypeOf(msg), msg)
 		logger.Debug().Msg(debug)
-	}
-}
-
-func (cw *ChainWorker) queryContract(ctx ctx.Context, qContract []byte, qInfo []byte, returnChannel chan message.GetQueryRsp) {
-	var result message.GetQueryRsp
-	defer func() {
-		select {
-		case <-ctx.Done():
-			return
-		case returnChannel <- result:
-		default:
-			logger.Debug().Msg("result channel is already closed or deleted")
-		}
-	}()
-	{
-		var sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetRoot())
-		address, err := getAddressNameResolved(sdb, qContract)
-		if err != nil {
-			result = message.GetQueryRsp{Result: nil, Err: err}
-			return
-		}
-		ctrState, err := sdb.OpenContractStateAccount(types.ToAccountID(address))
-		if err != nil {
-			logger.Error().Str("hash", enc.ToString(address)).Err(err).Msg("failed to get state for contract")
-			result = message.GetQueryRsp{Result: nil, Err: err}
-		} else {
-			bs := state.NewBlockState(sdb)
-			ret, err := contract.Query(address, bs, cw.cdb, ctrState, qInfo)
-			result = message.GetQueryRsp{Result: ret, Err: err}
-		}
 	}
 }
 
