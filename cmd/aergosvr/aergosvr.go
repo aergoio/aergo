@@ -8,12 +8,10 @@ import (
 	"fmt"
 	"net/http"
 	_ "net/http/pprof"
-	"os"
 	"strconv"
 	"strings"
 
 	"github.com/aergoio/aergo/p2p/p2pkey"
-
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/account"
 	"github.com/aergoio/aergo/chain"
@@ -30,6 +28,7 @@ import (
 	"github.com/opentracing/opentracing-go"
 	zipkin "github.com/openzipkin-contrib/zipkin-go-opentracing"
 	"github.com/spf13/cobra"
+	"os"
 )
 
 var (
@@ -131,6 +130,8 @@ func configureZipkin() {
 }
 
 func rootRun(cmd *cobra.Command, args []string) {
+	// Set caller info to relative file path
+	log.SetRelativeLogPathForProject()
 
 	svrlog = log.NewLogger("asvr")
 	svrlog.Info().Str("revision", gitRevision).Str("branch", gitBranch).Msg("AERGO SVR STARTED")

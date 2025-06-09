@@ -603,7 +603,7 @@ func (rs *raftServer) stopHTTP() {
 }
 
 func (rs *raftServer) writeError(err error) {
-	logger.Error().Err(err).Msg("write err has occurend raft server. ")
+	logger.Error().Err(err).Msg("write err has occurred raft server. ")
 }
 
 // TODO timeout handling with context
@@ -611,7 +611,7 @@ func (rs *raftServer) Propose(block *types.Block) error {
 	if block == nil {
 		return ErrProposeNilBlock
 	}
-	logger.Debug().Msg("propose block")
+	logger.Trace().Msg("propose block")
 
 	if data, err := marshalEntryData(block); err == nil {
 		// blocks until accepted by raft state machine
@@ -620,8 +620,9 @@ func (rs *raftServer) Propose(block *types.Block) error {
 		}
 
 		logger.Debug().Int("len", len(data)).Msg("proposed data to raft node")
+		logger.Trace().Bytes("data", data).Msg("proposed data")
 	} else {
-		logger.Fatal().Err(err).Msg("poposed data is invalid")
+		logger.Fatal().Err(err).Msg("proposed data is invalid")
 	}
 
 	return nil
@@ -1478,7 +1479,7 @@ func (rs *raftServer) GetClusterProgress() (*ClusterProgress, error) {
 }
 
 // GetExistingCluster returns information of existing cluster.
-// It request member info to all of peers.
+// It requests member info to all peers.
 func (rs *raftServer) GetExistingCluster() (*Cluster, *types.HardStateInfo, error) {
 	var (
 		cl        *Cluster
