@@ -6,7 +6,7 @@ require (
 	github.com/Shopify/sarama v1.22.1 // indirect
 	github.com/Workiva/go-datastructures v1.0.50 // indirect
 	github.com/aergoio/aergo-actor v0.0.0-20190219030625-562037d5fec7
-	github.com/aergoio/aergo-lib v1.1.0
+	github.com/aergoio/aergo-lib v1.1.1-rc1
 	github.com/aergoio/etcd v0.0.0-20190429013412-e8b3f96f6399
 	github.com/anaskhan96/base58check v0.0.0-20181220122047-b05365d494c4
 	github.com/apache/thrift v0.12.0 // indirect
@@ -50,7 +50,7 @@ require (
 	github.com/pkg/term v0.0.0-20190109203006-aa71e9d9e942 // indirect
 	github.com/prometheus/client_golang v1.0.0 // indirect
 	github.com/rs/cors v1.6.0 // indirect
-	github.com/rs/zerolog v1.16.1-0.20191111091419-e709c5d91e35
+	github.com/rs/zerolog v1.22.0
 	github.com/sanity-io/litter v1.2.0
 	github.com/serialx/hashring v0.0.0-20190515033939-7706f26af194 // indirect
 	github.com/soheilhy/cmux v0.1.4
