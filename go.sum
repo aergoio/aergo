@@ -19,6 +19,8 @@ github.com/aergoio/aergo-actor v0.0.0-20190219030625-562037d5fec7 h1:dYRi21hTS3f
 github.com/aergoio/aergo-actor v0.0.0-20190219030625-562037d5fec7/go.mod h1:/nqZcvcM0UipJRnUm61LrQ8rC7IyBr8mfx5F00sCbvs=
 github.com/aergoio/aergo-lib v1.1.1-rc2 h1:+KXvrghujRZk0khvtlvFR1TLc35WO4OoEizYq43iKTw=
 github.com/aergoio/aergo-lib v1.1.1-rc2/go.mod h1:OgoaObnWQxJIpnbEOvgQt8Lxcf4sUw+njo+FDglY9og=
+github.com/aergoio/aergo-lib v1.1.1-rc3 h1:tBdYa0y2TUdzS1xbFcMYF7tJqmXrnLBZTpELHUwm3lE=
+github.com/aergoio/aergo-lib v1.1.1-rc3/go.mod h1:OgoaObnWQxJIpnbEOvgQt8Lxcf4sUw+njo+FDglY9og=
 github.com/aergoio/etcd v0.0.0-20190429013412-e8b3f96f6399 h1:dJSTOiNe0xJFreGUBSh4bY3KGDxjilUVxAKqjij1pcw=
 github.com/aergoio/etcd v0.0.0-20190429013412-e8b3f96f6399/go.mod h1:Blp9ztau8P3FoDynvGUeKUD6qqW/2xQ80kNwU+ywPUM=
 github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
