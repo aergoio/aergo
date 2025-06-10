@@ -115,7 +115,7 @@ func newRemotePeer(remote p2pcommon.RemoteInfo, manageNum uint32, pm p2pcommon.P
 		taskChannel:         make(chan p2pcommon.PeerTask, 1),
 	}
 	rPeer.writeBuf = make(chan p2pcommon.MsgOrder, pm.MsgBufSize())
-	rPeer.writeDirect = make(chan p2pcommon.MsgOrder)
+	rPeer.writeDirect = make(chan p2pcommon.MsgOrder, 1)
 
 	var err error
 	rPeer.blkHashCache, err = lru.New(DefaultPeerBlockCacheSize)
@@ -233,9 +233,9 @@ func (p *remotePeerImpl) runWrite() {
 WRITELOOP:
 	for {
 		select {
-		case m := <-p.writeBuf:
-			p.writeToPeer(m)
 		case m := <-p.writeDirect:
+			p.writeToPeer(m)
+		case m := <-p.writeBuf:
 			p.writeToPeer(m)
 		case <-cleanupTicker.C:
 			p.pruneRequests()
@@ -268,7 +268,18 @@ func (p *remotePeerImpl) cleanupWrite() {
 }
 
 func (p *remotePeerImpl) runRead() {
+	var p2pChan = make(chan p2pcommon.Message, writeMsgBufferSize>>1)
+	var raftChan = make(chan p2pcommon.Message, writeMsgBufferSize>>1)
+	go p.runRaftMessage(p.ctx, p2pChan)
+	go p.runRaftMessage(p.ctx, raftChan)
+
 	for {
+		select {
+		case <-p.ctx.Done():
+			p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Msg("peer was already stopped")
+			return
+		default:
+		}
 		msg, err := p.rw.ReadMsg()
 		if err != nil {
 			// TODO set different log level by case (i.e. it can be expected if peer is disconnecting )
@@ -276,10 +287,40 @@ func (p *remotePeerImpl) runRead() {
 			p.Stop()
 			return
 		}
-		if err = p.handleMsg(msg); err != nil {
-			// TODO set different log level by case (i.e. it can be expected if peer is disconnecting )
-			p.logger.Warn().Str(p2putil.LogPeerName, p.Name()).Err(err).Msg("Failed to handle message")
-			p.Stop()
+		if msg.Subprotocol() == p2pcommon.RaftWrapperMessage {
+			select {
+			case raftChan <- msg:
+			// do nothing
+			default:
+				p.logger.Warn().Str(p2putil.LogPeerName, p.Name()).Msg("too many raft message, response goaway and stop peer")
+				p.Stop()
+			}
+		} else {
+			select {
+			case p2pChan <- msg:
+				p.logger.Trace().Stringer(p2putil.LogMsgID, msg.ID()).Stringer(p2putil.LogProtoID, msg.Subprotocol()).
+					Str(p2putil.LogPeerName, p.Name()).Msg("sent to p2p message queue")
+			// do nothing
+			default:
+				p.logger.Warn().Str(p2putil.LogPeerName, p.Name()).Msg("too many p2p message, response goaway and stop peer")
+				p.Stop()
+			}
+		}
+	}
+}
+
+func (p *remotePeerImpl) runRaftMessage(ctx context.Context, raftChan chan p2pcommon.Message) {
+	for {
+		select {
+		case msg := <-raftChan:
+			if err := p.handleMsg(msg); err != nil {
+				// TODO set different log level by case (i.e. it can be expected if peer is disconnecting )
+				p.logger.Warn().Str(p2putil.LogPeerName, p.Name()).Err(err).Msg("Failed to handle message")
+				p.Stop()
+				return
+			}
+		case <-ctx.Done():
+			p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Msg("Quitting runRaftMessage")
 			return
 		}
 	}
