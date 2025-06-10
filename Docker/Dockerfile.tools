@@ -1,4 +1,4 @@
-FROM alpine:3.9
+FROM alpine:3.21
 RUN apk add libgcc
 WORKDIR /tools/
 COPY bin/aergocli bin/aergoluac bin/brick /usr/local/bin/

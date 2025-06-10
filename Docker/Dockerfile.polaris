@@ -1,4 +1,4 @@
-FROM alpine:3.9
+FROM alpine:3.21
 RUN apk add libgcc
 COPY bin/?olaris /usr/local/bin/
 CMD ["polaris"]
