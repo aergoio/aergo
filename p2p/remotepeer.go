@@ -6,6 +6,7 @@
 package p2p
 
 import (
+	"context"
 	"fmt"
 	"github.com/pkg/errors"
 	"runtime/debug"
@@ -53,12 +54,13 @@ type remotePeerImpl struct {
 	metric     *metric.PeerMetric
 
 	certChan chan *p2pcommon.AgentCertificateV1
-	stopChan chan struct{}
+	ctx      context.Context
+	cancel   context.CancelFunc
 
 	// direct write channel
-	writeBuf   chan p2pcommon.MsgOrder
+	writeBuf    chan p2pcommon.MsgOrder
 	writeDirect chan p2pcommon.MsgOrder
-	closeWrite chan struct{}
+	closeWrite  chan struct{}
 
 	// used to access request data from response handlers
 	requests map[p2pcommon.MsgID]*requestInfo
@@ -79,7 +81,7 @@ type remotePeerImpl struct {
 
 	rw p2pcommon.MsgReadWriter
 
-	taskChannel       chan p2pcommon.PeerTask
+	taskChannel chan p2pcommon.PeerTask
 
 	// lastTxQuery indicate last message for querying tx
 	blkQuerySlot int64
@@ -89,6 +91,7 @@ var _ p2pcommon.RemotePeer = (*remotePeerImpl)(nil)
 
 // newRemotePeer create an object which represent a remote peer.
 func newRemotePeer(remote p2pcommon.RemoteInfo, manageNum uint32, pm p2pcommon.PeerManager, actor p2pcommon.ActorService, log *log.Logger, mf p2pcommon.MoFactory, signer p2pcommon.MsgSigner, rw p2pcommon.MsgReadWriter) *remotePeerImpl {
+	ctx, cancel := context.WithCancel(context.Background())
 	rPeer := &remotePeerImpl{
 		remoteInfo: remote, manageNum: manageNum, pm: pm,
 		name:  fmt.Sprintf("%s#%d", p2putil.ShortForm(remote.Meta.ID), manageNum),
@@ -97,7 +100,8 @@ func newRemotePeer(remote p2pcommon.RemoteInfo, manageNum uint32, pm p2pcommon.P
 		state:        types.STARTING,
 
 		lastStatus: &types.LastBlockStatus{},
-		stopChan:   make(chan struct{}, 1),
+		ctx:        ctx,
+		cancel:     cancel,
 		closeWrite: make(chan struct{}),
 		certChan:   make(chan *p2pcommon.AgentCertificateV1),
 		requests:   make(map[p2pcommon.MsgID]*requestInfo),
@@ -108,10 +112,10 @@ func newRemotePeer(remote p2pcommon.RemoteInfo, manageNum uint32, pm p2pcommon.P
 		txQueueLock:         &sync.Mutex{},
 		txNoticeQueue:       p2putil.NewPressableQueue(DefaultPeerTxQueueSize),
 		maxTxNoticeHashSize: DefaultPeerTxQueueSize,
-		taskChannel: make(chan p2pcommon.PeerTask, 1),
+		taskChannel:         make(chan p2pcommon.PeerTask, 1),
 	}
 	rPeer.writeBuf = make(chan p2pcommon.MsgOrder, pm.MsgBufSize())
-	rPeer.writeDirect = make(chan p2pcommon.MsgOrder)
+	rPeer.writeDirect = make(chan p2pcommon.MsgOrder, 1)
 
 	var err error
 	rPeer.blkHashCache, err = lru.New(DefaultPeerBlockCacheSize)
@@ -200,10 +204,10 @@ READNOPLOOP:
 			p.cleanupCerts()
 		case c := <-p.certChan:
 			p.addCert(c)
-		case task := <- p.taskChannel:
+		case task := <-p.taskChannel:
 			p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Msg("Executing task for peer")
 			task(p)
-		case <-p.stopChan:
+		case <-p.ctx.Done():
 			break READNOPLOOP
 		}
 	}
@@ -213,7 +217,6 @@ READNOPLOOP:
 	pingTicker.Stop()
 	// finish goroutine write. read goroutine will be closed automatically when disconnect
 	close(p.closeWrite)
-	close(p.stopChan)
 	p.state.SetAndGet(types.STOPPED)
 
 	p.pm.RemovePeer(p)
@@ -230,9 +233,9 @@ func (p *remotePeerImpl) runWrite() {
 WRITELOOP:
 	for {
 		select {
-		case m := <-p.writeBuf:
-			p.writeToPeer(m)
 		case m := <-p.writeDirect:
+			p.writeToPeer(m)
+		case m := <-p.writeBuf:
 			p.writeToPeer(m)
 		case <-cleanupTicker.C:
 			p.pruneRequests()
@@ -265,7 +268,18 @@ func (p *remotePeerImpl) cleanupWrite() {
 }
 
 func (p *remotePeerImpl) runRead() {
+	var p2pChan = make(chan p2pcommon.Message, writeMsgBufferSize>>1)
+	var raftChan = make(chan p2pcommon.Message, writeMsgBufferSize>>1)
+	go p.runRaftMessage(p.ctx, p2pChan)
+	go p.runRaftMessage(p.ctx, raftChan)
+
 	for {
+		select {
+		case <-p.ctx.Done():
+			p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Msg("peer was already stopped")
+			return
+		default:
+		}
 		msg, err := p.rw.ReadMsg()
 		if err != nil {
 			// TODO set different log level by case (i.e. it can be expected if peer is disconnecting )
@@ -273,10 +287,40 @@ func (p *remotePeerImpl) runRead() {
 			p.Stop()
 			return
 		}
-		if err = p.handleMsg(msg); err != nil {
-			// TODO set different log level by case (i.e. it can be expected if peer is disconnecting )
-			p.logger.Warn().Str(p2putil.LogPeerName, p.Name()).Err(err).Msg("Failed to handle message")
-			p.Stop()
+		if msg.Subprotocol() == p2pcommon.RaftWrapperMessage {
+			select {
+			case raftChan <- msg:
+			// do nothing
+			default:
+				p.logger.Warn().Str(p2putil.LogPeerName, p.Name()).Msg("too many raft message, response goaway and stop peer")
+				p.Stop()
+			}
+		} else {
+			select {
+			case p2pChan <- msg:
+				p.logger.Trace().Stringer(p2putil.LogMsgID, msg.ID()).Stringer(p2putil.LogProtoID, msg.Subprotocol()).
+					Str(p2putil.LogPeerName, p.Name()).Msg("sent to p2p message queue")
+			// do nothing
+			default:
+				p.logger.Warn().Str(p2putil.LogPeerName, p.Name()).Msg("too many p2p message, response goaway and stop peer")
+				p.Stop()
+			}
+		}
+	}
+}
+
+func (p *remotePeerImpl) runRaftMessage(ctx context.Context, raftChan chan p2pcommon.Message) {
+	for {
+		select {
+		case msg := <-raftChan:
+			if err := p.handleMsg(msg); err != nil {
+				// TODO set different log level by case (i.e. it can be expected if peer is disconnecting )
+				p.logger.Warn().Str(p2putil.LogPeerName, p.Name()).Err(err).Msg("Failed to handle message")
+				p.Stop()
+				return
+			}
+		case <-ctx.Done():
+			p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Msg("Quitting runRaftMessage")
 			return
 		}
 	}
@@ -330,7 +374,8 @@ func (p *remotePeerImpl) handleMsg(msg p2pcommon.Message) (err error) {
 func (p *remotePeerImpl) Stop() {
 	prevState := p.state.SetAndGet(types.STOPPING)
 	if prevState <= types.RUNNING {
-		p.stopChan <- struct{}{}
+		p.logger.Trace().Str(p2putil.LogPeerName, p.Name()).Msg("Stopping remote peer")
+		p.cancel()
 	}
 
 }
@@ -351,7 +396,6 @@ func (p *remotePeerImpl) SendMessage(msg p2pcommon.MsgOrder) {
 		p.Stop()
 	}
 }
-
 
 func (p *remotePeerImpl) TrySendMessage(msg p2pcommon.MsgOrder) bool {
 	if p.State() > types.RUNNING {
@@ -439,7 +483,6 @@ func (p *remotePeerImpl) writeToPeer(m p2pcommon.MsgOrder) {
 	}
 }
 
-//
 func (p *remotePeerImpl) trySendTxNotices() {
 	p.txQueueLock.Lock()
 	defer p.txQueueLock.Unlock()
@@ -559,7 +602,7 @@ func (p *remotePeerImpl) addCert(cert *p2pcommon.AgentCertificateV1) {
 	p.remoteInfo.Certificates = newCerts
 	if len(newCerts) > 0 && p.AcceptedRole() == types.PeerRole_Watcher {
 		p.logger.Info().Str(p2putil.LogPeerName, p.Name()).Msg("peer has certificates now. peer is promoted to Agent")
-		p.pm.UpdatePeerRole([]p2pcommon.RoleModifier{{ID: p.ID(), Role:types.PeerRole_Agent}})
+		p.pm.UpdatePeerRole([]p2pcommon.RoleModifier{{ID: p.ID(), Role: types.PeerRole_Agent}})
 	}
 }
 
@@ -576,7 +619,7 @@ func (p *remotePeerImpl) cleanupCerts() {
 	p.remoteInfo.Certificates = certs2
 	if len(certs2) == 0 && p.AcceptedRole() == types.PeerRole_Agent {
 		p.logger.Info().Str(p2putil.LogPeerName, p.Name()).Msg("All Certificates are expired. peer is demoted to Watcher")
-		p.pm.UpdatePeerRole([]p2pcommon.RoleModifier{{ID: p.ID(), Role:types.PeerRole_Watcher}})
+		p.pm.UpdatePeerRole([]p2pcommon.RoleModifier{{ID: p.ID(), Role: types.PeerRole_Watcher}})
 	}
 }
 
@@ -586,7 +629,7 @@ func (p *remotePeerImpl) AddCertificate(cert *p2pcommon.AgentCertificateV1) {
 
 func (p *remotePeerImpl) DoTask(task p2pcommon.PeerTask) bool {
 	select {
-	case p.taskChannel <- task :
+	case p.taskChannel <- task:
 		return true
 	default:
 		// peer is busy
