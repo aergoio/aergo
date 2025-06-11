@@ -45,7 +45,10 @@ func (sdb *ChainStateDB) Init(dbType string, dataDir string, bestBlock *types.Bl
 	// init db
 	if sdb.store == nil {
 		dbPath := common.PathMkdirAll(dataDir, stateName)
-		sdb.store = db.NewDB(db.ImplType(dbType), dbPath)
+		sdb.store = db.NewDB(db.ImplType(dbType), dbPath, db.Opt{
+			Name:  "compactionController",
+			Value: true,
+		})
 	}
 
 	// init trie
