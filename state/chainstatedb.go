@@ -60,9 +60,11 @@ func (sdb *ChainStateDB) Init(dbType string, dataDir string, bestBlock *types.Bl
 				logger.Info().Str("reason", event.Reason).Int("level", event.Level).
 					Int("next level", event.Level).Float64("score", event.Score).Msg("compaction complete")
 			}
-			// FIXME: add condition for maintenance event from compaction/workload
 			if sdb.MaintenanceEvent != nil {
-				sdb.MaintenanceEvent(event)
+				// fire maintenance event only for manual maintenance event
+				if event.Reason == "maintenance" {
+					sdb.MaintenanceEvent(event)
+				}
 			}
 		})
 	}

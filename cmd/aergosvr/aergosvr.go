@@ -10,6 +10,7 @@ import (
 	_ "net/http/pprof"
 	"strconv"
 	"strings"
+	"time"
 
 	"os"
 
@@ -166,12 +167,11 @@ func rootRun(cmd *cobra.Command, args []string) {
 	pmapSvc := polarisclient.NewPolarisConnectSvc(cfg.P2P, p2pSvc)
 
 	chainSvc.SDB().MaintenanceEvent = func(event db.CompactionEvent) {
-		svrlog.Info().Msg("Maintenance Event Started")
-		// fmt.Println("Closing listener")
-		// rpcSvc.Listener.Close()
-		// // FIXME:stop server after 10 minutes
-		// time.Sleep(10 * time.Second)
-		// os.Exit(0)
+		svrlog.Info().Msg("Maintenance event Started")
+		svrlog.Info().Msg("Closing listener")
+		rpcSvc.Listener.Close()
+		time.Sleep(10 * time.Second)
+		svrlog.Info().Msg("Connection drained for 10 seconds")
 	}
 
 	var accountSvc component.IComponent
