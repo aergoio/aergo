@@ -11,7 +11,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/aergoio/aergo/p2p/p2pkey"
+	"os"
+
+	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/account"
 	"github.com/aergoio/aergo/chain"
@@ -21,6 +23,7 @@ import (
 	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/mempool"
 	"github.com/aergoio/aergo/p2p"
+	"github.com/aergoio/aergo/p2p/p2pkey"
 	"github.com/aergoio/aergo/pkg/component"
 	polarisclient "github.com/aergoio/aergo/polaris/client"
 	"github.com/aergoio/aergo/rpc"
@@ -28,7 +31,6 @@ import (
 	"github.com/opentracing/opentracing-go"
 	zipkin "github.com/openzipkin-contrib/zipkin-go-opentracing"
 	"github.com/spf13/cobra"
-	"os"
 )
 
 var (
@@ -162,6 +164,15 @@ func rootRun(cmd *cobra.Command, args []string) {
 	syncSvc := syncer.NewSyncer(cfg, chainSvc, nil)
 	p2pSvc := p2p.NewP2P(cfg, chainSvc)
 	pmapSvc := polarisclient.NewPolarisConnectSvc(cfg.P2P, p2pSvc)
+
+	chainSvc.SDB().MaintenanceEvent = func(event db.CompactionEvent) {
+		svrlog.Info().Msg("Maintenance Event Started")
+		// fmt.Println("Closing listener")
+		// rpcSvc.Listener.Close()
+		// // FIXME:stop server after 10 minutes
+		// time.Sleep(10 * time.Second)
+		// os.Exit(0)
+	}
 
 	var accountSvc component.IComponent
 	if cfg.Personal {

@@ -14,10 +14,13 @@ import (
 // ChainStateDB manages statedb and additional informations about blocks like a state root hash
 type ChainStateDB struct {
 	sync.RWMutex
-	states   *StateDB
-	store    db.DB
-	testmode bool
+	states           *StateDB
+	store            db.DB
+	testmode         bool
+	MaintenanceEvent MaintenanceEventHandler
 }
+
+type MaintenanceEventHandler func(event db.CompactionEvent)
 
 // NewChainStateDB creates instance of ChainStateDB
 func NewChainStateDB() *ChainStateDB {
@@ -48,6 +51,19 @@ func (sdb *ChainStateDB) Init(dbType string, dataDir string, bestBlock *types.Bl
 		sdb.store = db.NewDB(db.ImplType(dbType), dbPath, db.Opt{
 			Name:  "compactionController",
 			Value: true,
+		})
+		sdb.store.SetCompactionEvent(func(event db.CompactionEvent) {
+			if event.Start {
+				logger.Info().Str("reason", event.Reason).Int("level", event.Level).
+					Int("next level", event.Level).Float64("score", event.Score).Msg("compaction started")
+			} else {
+				logger.Info().Str("reason", event.Reason).Int("level", event.Level).
+					Int("next level", event.Level).Float64("score", event.Score).Msg("compaction complete")
+			}
+			// FIXME: add condition for maintenance event from compaction/workload
+			if sdb.MaintenanceEvent != nil {
+				sdb.MaintenanceEvent(event)
+			}
 		})
 	}
 
