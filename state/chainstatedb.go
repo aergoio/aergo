@@ -58,10 +58,10 @@ func (sdb *ChainStateDB) Init(dbType string, dataDir string, bestBlock *types.Bl
 		sdb.store.SetCompactionEvent(func(event db.CompactionEvent) {
 			if event.Start {
 				logger.Info().Str("reason", event.Reason).Int("level", event.Level).
-					Int("next level", event.Level).Float64("score", event.Score).Msg("sdb compaction started")
+					Int("next level", event.Level).Msg("sdb compaction started")
 			} else {
 				logger.Info().Str("reason", event.Reason).Int("level", event.Level).
-					Int("next level", event.Level).Float64("score", event.Score).Msg("sdb compaction complete")
+					Int("next level", event.Level).Msg("sdb compaction complete")
 			}
 			if sdb.MaintenanceEvent != nil {
 				// fire maintenance event only for manual maintenance event
