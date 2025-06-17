@@ -112,9 +112,11 @@ func (cdb *ChainDB) Init(dbType string, dataDir string) error {
 
 		cdb.store.SetCompactionEvent(func(event db.CompactionEvent) {
 			if event.Start {
-				fmt.Println("cdb compaction started", event.Reason, event.Level)
+				logger.Info().Str("reason", event.Reason).Int("fromlevel", event.Level).
+					Int("nextlevel", event.Level).Msg("cdb compaction started")
 			} else {
-				fmt.Println("cdb compaction complete", event.Reason, event.Level)
+				logger.Info().Str("reason", event.Reason).Int("fromlevel", event.Level).
+					Int("nextlevel", event.Level).Msg("cdb compaction complete")
 			}
 		})
 	}
