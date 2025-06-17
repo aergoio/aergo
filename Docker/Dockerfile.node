@@ -1,4 +1,4 @@
-FROM alpine:3.21
+FROM alpine:3.9
 RUN apk add libgcc
 COPY bin/aergosvr /usr/local/bin/
 COPY lib/* /usr/local/lib/
