@@ -2,7 +2,6 @@ package statedb
 
 import (
 	"encoding/json"
-
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/types"
 )
@@ -96,4 +95,71 @@ func (sdb *StateDB) RawDump() (Dump, error) {
 	}
 
 	return dump, nil
+}
+
+type RawDumpConfig struct {
+	ShowCode bool
+}
+
+func DefaultConfig() RawDumpConfig {
+	return RawDumpConfig{
+		ShowCode: false,
+	}
+}
+
+type Processor func(idx int64, accountId types.AccountID, account *DumpAccount) error
+
+// RawDumpWith iterate accounts information and let the processor handle them.
+func (sdb *StateDB) RawDumpWith(config RawDumpConfig, processor Processor) error {
+	var err error
+	skipCode := []byte("(skipped)")
+
+	self := sdb.Clone()
+
+	// write accounts
+	for idx, key := range self.Trie.GetKeys() {
+		var st *types.State
+		var code []byte
+		storage := make(map[types.AccountID][]byte)
+
+		// load account state
+		aid := types.AccountID(types.ToHashID(key))
+		st, err = sdb.getState(aid)
+		if err != nil {
+			return err
+		}
+		if len(st.GetCodeHash()) > 0 {
+			if config.ShowCode {
+				// load code
+				loadData(self.Store, st.GetCodeHash(), &code)
+			} else {
+				code = skipCode
+			}
+
+			// load contract state
+			cs, err := OpenContractState(key, st, self)
+			if err != nil {
+				return err
+			}
+
+			// load storage
+			for _, key := range cs.storage.Trie.GetKeys() {
+				data, _ := cs.getInitialData(key)
+				aid := types.AccountID(types.ToHashID(key))
+				storage[aid] = data
+			}
+		}
+
+		dumpAccount := DumpAccount{
+			State:   st,
+			Code:    code,
+			Storage: storage,
+		}
+		err = processor(int64(idx), aid, &dumpAccount)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

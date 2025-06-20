@@ -1,6 +1,8 @@
 package statedb
 
 import (
+	"encoding/json"
+	"os"
 	"testing"
 
 	"github.com/aergoio/aergo/v2/internal/common"
@@ -140,4 +142,37 @@ func TestDumpStorage(t *testing.T) {
 	},
 	"root": "9bQx52KdKfMkVdakKEWQLBscgkMiFwd2Zx2hr7u1GYam"
 }`)
+}
+
+func TestStateDB_RawDumpWith(t *testing.T) {
+	initTest(t)
+	defer deinitTest()
+
+	// set account state
+	for _, v := range testStates {
+		err := stateDB.PutState(testAccount, v)
+		require.NoError(t, err, "failed to put state")
+	}
+	stateDB.Update()
+	stateDB.Commit()
+
+	W := os.Stdout
+	processor := func(idx int64, accountId types.AccountID, account *DumpAccount) error {
+		if idx > 0 {
+			W.Write([]byte(",\n"))
+		}
+		accountJson, err := json.MarshalIndent(account, "", "\t")
+		if err != nil {
+			return err
+		}
+		W.Write([]byte("\""))
+		W.Write([]byte(accountId.String()))
+		W.Write([]byte("\":"))
+		W.Write(accountJson)
+		return nil
+	}
+
+	W.Write([]byte("{\n"))
+	stateDB.RawDumpWith(DefaultConfig(), processor)
+	W.Write([]byte("\n}\n"))
 }
