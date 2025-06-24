@@ -81,7 +81,23 @@ func (cdb *ChainDB) Init(dbType string, dataDir string) error {
 	if cdb.store == nil {
 		logger.Info().Str("datadir", dataDir).Msg("chain database initialized")
 		dbPath := common.PathMkdirAll(dataDir, dbkey.ChainDBName)
-		cdb.store = db.NewDB(db.ImplType(dbType), dbPath)
+		cdb.store = db.NewDB(db.ImplType(dbType), dbPath, db.Opt{
+			Name:  "compactionController",
+			Value: true,
+		}, db.Opt{
+			Name:  "compactionControllerPort",
+			Value: 17092,
+		})
+
+		cdb.store.SetCompactionEvent(func(event db.CompactionEvent) {
+			if event.Start {
+				logger.Info().Str("reason", event.Reason).Int("fromlevel", event.Level).
+					Int("nextlevel", event.Level).Int("splits", event.NumSplits).Msg("cdb compaction started")
+			} else {
+				logger.Info().Str("reason", event.Reason).Int("fromlevel", event.Level).
+					Int("nextlevel", event.Level).Int("splits", event.NumSplits).Msg("cdb compaction complete")
+			}
+		})
 	}
 
 	// load data

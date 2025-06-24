@@ -20,10 +20,13 @@ var (
 // ChainStateDB manages statedb and additional informations about blocks like a state root hash
 type ChainStateDB struct {
 	sync.RWMutex
-	states   *statedb.StateDB
-	store    db.DB
-	testmode bool
+	states           *statedb.StateDB
+	store            db.DB
+	testmode         bool
+	MaintenanceEvent MaintenanceEventHandler
 }
+
+type MaintenanceEventHandler func(event db.CompactionEvent)
 
 // NewChainStateDB creates instance of ChainStateDB
 func NewChainStateDB() *ChainStateDB {
@@ -51,7 +54,28 @@ func (sdb *ChainStateDB) Init(dbType string, dataDir string, bestBlock *types.Bl
 	// init db
 	if sdb.store == nil {
 		dbPath := common.PathMkdirAll(dataDir, statedb.StateName)
-		sdb.store = db.NewDB(db.ImplType(dbType), dbPath)
+		sdb.store = db.NewDB(db.ImplType(dbType), dbPath, db.Opt{
+			Name:  "compactionController",
+			Value: true,
+		}, db.Opt{
+			Name:  "compactionControllerPort",
+			Value: 17091,
+		})
+		sdb.store.SetCompactionEvent(func(event db.CompactionEvent) {
+			if event.Start {
+				logger.Info().Str("reason", event.Reason).Int("fromlevel", event.Level).
+					Int("nextlevel", event.Level).Int("splits", event.NumSplits).Msg("sdb compaction started")
+			} else {
+				logger.Info().Str("reason", event.Reason).Int("fromlevel", event.Level).
+					Int("nextlevel", event.Level).Int("splits", event.NumSplits).Msg("sdb compaction complete")
+			}
+			if sdb.MaintenanceEvent != nil {
+				// fire maintenance event only for manual maintenance event
+				if event.Reason == "maintenance" {
+					sdb.MaintenanceEvent(event)
+				}
+			}
+		})
 	}
 
 	// init trie
