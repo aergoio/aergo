@@ -6,11 +6,12 @@
 package chain
 
 import (
-	"os"
 	"errors"
 	"fmt"
+	"github.com/aergoio/aergo-lib/db"
 	"math"
 	"math/big"
+	"os"
 	"reflect"
 	"runtime"
 	"strings"
@@ -54,13 +55,13 @@ type Core struct {
 }
 
 // NewCore returns an instance of Core.
-func NewCore(dbType string, dataDir string, testModeOn bool, forceResetHeight types.BlockNo) (*Core, error) {
+func NewCore(dbType string, dataDir string, testModeOn bool, forceResetHeight types.BlockNo, dbConfig *cfg.DBConfig) (*Core, error) {
 	core := &Core{
 		cdb: NewChainDB(),
 		sdb: state.NewChainStateDB(),
 	}
 
-	err := core.init(dbType, dataDir, testModeOn, forceResetHeight)
+	err := core.init(dbType, dataDir, testModeOn, forceResetHeight, dbConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -69,9 +70,10 @@ func NewCore(dbType string, dataDir string, testModeOn bool, forceResetHeight ty
 }
 
 // Init prepares Core (chain & state DB).
-func (core *Core) init(dbType string, dataDir string, testModeOn bool, forceResetHeight types.BlockNo) error {
+func (core *Core) init(dbType string, dataDir string, testModeOn bool, forceResetHeight types.BlockNo, config *cfg.DBConfig) error {
 	// init chaindb
-	if err := core.cdb.Init(dbType, dataDir); err != nil {
+	if err := core.cdb.Init(dbType, dataDir, db.WithControlCompaction(
+		config.ControlCompaction, config.ChainDBPort)); err != nil {
 		logger.Fatal().Err(err).Msg("failed to initialize chaindb")
 		return err
 	}
@@ -91,7 +93,8 @@ func (core *Core) init(dbType string, dataDir string, testModeOn bool, forceRese
 		return err
 	}
 
-	if err := core.sdb.Init(dbType, dataDir, bestBlock, testModeOn); err != nil {
+	if err := core.sdb.Init(dbType, dataDir, bestBlock, testModeOn, db.WithControlCompaction(
+		config.ControlCompaction, config.StateDBPort)); err != nil {
 		logger.Fatal().Err(err).Msg("failed to initialize statedb")
 		return err
 	}
@@ -234,7 +237,7 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	cs.setRecovered(false)
 
 	var err error
-	if cs.Core, err = NewCore(cfg.DbType, cfg.DataDir, cfg.EnableTestmode, types.BlockNo(cfg.Blockchain.ForceResetHeight)); err != nil {
+	if cs.Core, err = NewCore(cfg.DbType, cfg.DataDir, cfg.EnableTestmode, types.BlockNo(cfg.Blockchain.ForceResetHeight), cfg.DB); err != nil {
 		logger.Panic().Err(err).Msg("failed to initialize DB")
 	}
 

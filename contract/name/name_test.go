@@ -19,7 +19,7 @@ var block *types.Block
 func initTest(t *testing.T) {
 	genesis := types.GetTestGenesis()
 	sdb = state.NewChainStateDB()
-	sdb.Init(string(db.BadgerImpl), "test", genesis.Block(), false)
+	sdb.Init(string(db.BadgerImpl), "test", genesis.Block(), false, nil)
 	err := sdb.SetGenesis(genesis, nil)
 	if err != nil {
 		t.Fatalf("failed init : %s", err.Error())
