@@ -19,6 +19,7 @@ type Config struct {
 	P2P        *P2PConfig        `mapstructure:"p2p"`
 	Polaris    *PolarisConfig    `mapstructure:"polaris"`
 	Blockchain *BlockchainConfig `mapstructure:"blockchain"`
+	DB         *DBConfig         `mapstructure:"db"`
 	Mempool    *MempoolConfig    `mapstructure:"mempool"`
 	Consensus  *ConsensusConfig  `mapstructure:"consensus"`
 	Monitor    *MonitorConfig    `mapstructure:"monitor"`
@@ -120,14 +121,21 @@ type BlockchainConfig struct {
 	CloseLimit       int    `mapstructure:"closelimit" description:"number of LuaVM states which a LuaVM state closer closes at one time"`
 }
 
+// DBConfig defines configurations for db modnitoring
+type DBConfig struct {
+	ControlCompaction bool `mapstructure:"controlcompaction" description:"enable control compaction"`
+	StateDBPort       int  `mapstructure:"statedbport" description:"StateDB control port"`
+	ChainDBPort       int  `mapstructure:"chaindbport" description:"ChainDB control port"`
+}
+
 // MempoolConfig defines configurations for mempool service
 type MempoolConfig struct {
-	ShowMetrics    bool   `mapstructure:"showmetrics" description:"show mempool metric periodically"`
-	EnableFadeout  bool   `mapstructure:"enablefadeout" description:"Enable transaction fadeout over timeout period"`
-	FadeoutPeriod  int    `mapstructure:"fadeoutperiod" description:"time period for evict transactions(in hour)"`
-	VerifierNumber int    `mapstructure:"verifiers" description:"number of concurrent verifier"`
-	DumpFilePath   string `mapstructure:"dumpfilepath" description:"file path for recording mempool at process termintation"`
-	BlockDeploy    bool   `mapstructure:"blockdeploy" description:"block the deployment of new contracts"`
+	ShowMetrics    bool     `mapstructure:"showmetrics" description:"show mempool metric periodically"`
+	EnableFadeout  bool     `mapstructure:"enablefadeout" description:"Enable transaction fadeout over timeout period"`
+	FadeoutPeriod  int      `mapstructure:"fadeoutperiod" description:"time period for evict transactions(in hour)"`
+	VerifierNumber int      `mapstructure:"verifiers" description:"number of concurrent verifier"`
+	DumpFilePath   string   `mapstructure:"dumpfilepath" description:"file path for recording mempool at process termintation"`
+	BlockDeploy    bool     `mapstructure:"blockdeploy" description:"block the deployment of new contracts"`
 	Blacklist      []string `mapstructure:"blacklist" description:"List of account addresses or ids to be blocked"`
 }
 
@@ -253,6 +261,11 @@ forceresetheight = "{{.Blockchain.ForceResetHeight}}"
 numworkers = "{{.Blockchain.NumWorkers}}"
 numclosers = "{{.Blockchain.NumLStateClosers}}"
 closelimit = "{{.Blockchain.CloseLimit}}"
+
+[db]
+controlcompaction = "{{.DB.ControlCompaction}}"
+statedbport = {{.DB.StateDBPort}}
+chaindbport = {{.DB.ChainDBPort}}
 
 [mempool]
 showmetrics = {{.Mempool.ShowMetrics}}

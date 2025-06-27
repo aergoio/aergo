@@ -102,7 +102,7 @@ func LoadDummyChainEx(chainType ChainType) (*DummyChain, error) {
 	// clear folder if exists
 	_ = os.RemoveAll(dataPath)
 	// initialize the state database
-	err = bc.sdb.Init(string(dbImpl), dataPath, nil, false)
+	err = bc.sdb.Init(string(dbImpl), dataPath, nil, false, nil)
 	if err != nil {
 		return nil, err
 	}

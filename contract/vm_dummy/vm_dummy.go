@@ -20,8 +20,8 @@ import (
 	"github.com/aergoio/aergo/v2/contract"
 	"github.com/aergoio/aergo/v2/contract/system"
 	"github.com/aergoio/aergo/v2/fee"
-	"github.com/aergoio/aergo/v2/internal/enc/hex"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/internal/enc/hex"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
@@ -115,7 +115,7 @@ func LoadDummyChain(opts ...DummyChainOptions) (*DummyChain, error) {
 	// reset the transaction id counter
 	luaTxId = 0
 
-	err = bc.sdb.Init(string(db.MemoryImpl), dataPath, nil, false)
+	err = bc.sdb.Init(string(db.MemoryImpl), dataPath, nil, false, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -411,7 +411,7 @@ func hash(id uint64) []byte {
 type luaTxDeploy struct {
 	luaTxContractCommon
 	isCompiled bool
-	cErr error
+	cErr       error
 }
 
 var _ LuaTxTester = (*luaTxDeploy)(nil)
@@ -445,7 +445,7 @@ func NewLuaTxDeployBig(sender, recipient string, amount *big.Int, code string) *
 			txId:       newTxId(),
 		},
 		isCompiled: isCompiled,
-		cErr: nil,
+		cErr:       nil,
 	}
 }
 
@@ -657,12 +657,12 @@ func NewLuaTxCallFeeDelegate(sender, recipient string, amount uint64, payload st
 func NewLuaTxMultiCall(sender, payload string) *luaTxCall {
 	return &luaTxCall{
 		luaTxContractCommon: luaTxContractCommon{
-			_sender:     contract.StrHash(sender),
-			_recipient:  contract.StrHash(""),
-			_amount:     new(big.Int).SetUint64(0),
-			_payload:    []byte(payload),
-			txId:        newTxId(),
-			multiCall:   true,
+			_sender:    contract.StrHash(sender),
+			_recipient: contract.StrHash(""),
+			_amount:    new(big.Int).SetUint64(0),
+			_payload:   []byte(payload),
+			txId:       newTxId(),
+			multiCall:  true,
 		},
 	}
 }

@@ -46,7 +46,7 @@ func (sdb *ChainStateDB) Clone() *ChainStateDB {
 }
 
 // Init initialize database and load statedb of latest block
-func (sdb *ChainStateDB) Init(dbType string, dataDir string, bestBlock *types.Block, test bool) error {
+func (sdb *ChainStateDB) Init(dbType string, dataDir string, bestBlock *types.Block, test bool, opts []db.Opt) error {
 	sdb.Lock()
 	defer sdb.Unlock()
 
@@ -54,13 +54,7 @@ func (sdb *ChainStateDB) Init(dbType string, dataDir string, bestBlock *types.Bl
 	// init db
 	if sdb.store == nil {
 		dbPath := common.PathMkdirAll(dataDir, statedb.StateName)
-		sdb.store = db.NewDB(db.ImplType(dbType), dbPath, db.Opt{
-			Name:  "compactionController",
-			Value: true,
-		}, db.Opt{
-			Name:  "compactionControllerPort",
-			Value: 17091,
-		})
+		sdb.store = db.NewDB(db.ImplType(dbType), dbPath, opts...)
 		sdb.store.SetCompactionEvent(func(event db.CompactionEvent) {
 			if event.Start {
 				logger.Info().Str("reason", event.Reason).Int("fromlevel", event.Level).
