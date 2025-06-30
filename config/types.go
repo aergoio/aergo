@@ -137,6 +137,7 @@ type MempoolConfig struct {
 	FadeoutPeriod  int      `mapstructure:"fadeoutperiod" description:"time period for evict transactions(in hour)"`
 	VerifierNumber int      `mapstructure:"verifiers" description:"number of concurrent verifier"`
 	DumpFilePath   string   `mapstructure:"dumpfilepath" description:"file path for recording mempool at process termintation"`
+	BlockMulticall bool     `mapstructure:"blockmulticall" description:"block the multicall transaction"`
 	BlockDeploy    bool     `mapstructure:"blockdeploy" description:"block the deployment of new contracts"`
 	Blacklist      []string `mapstructure:"blacklist" description:"List of account addresses or ids to be blocked"`
 }
@@ -276,6 +277,7 @@ enablefadeout = {{.Mempool.EnableFadeout}}
 fadeoutperiod = {{.Mempool.FadeoutPeriod}}
 verifiers = {{.Mempool.VerifierNumber}}
 dumpfilepath = "{{.Mempool.DumpFilePath}}"
+blockmulticall = {{.Mempool.BlockMulticall}}
 blockdeploy = {{.Mempool.BlockDeploy}}
 blacklist = [{{range .Mempool.Blacklist}}
 "{{.}}", {{end}}
