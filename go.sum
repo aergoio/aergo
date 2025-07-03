@@ -55,10 +55,8 @@ github.com/Workiva/go-datastructures v1.0.50 h1:slDmfW6KCHcC7U+LP3DDBbm4fqTwZGn1
 github.com/Workiva/go-datastructures v1.0.50/go.mod h1:Z+F2Rca0qCsVYDS8z7bAGm8f3UkzuWYS/oBZz5a7VVA=
 github.com/aergoio/aergo-actor v0.0.0-20190219030625-562037d5fec7 h1:dYRi21hTS3fJwjSh/KZTAuLXUbV/Ijm2395Nf4b3wNs=
 github.com/aergoio/aergo-actor v0.0.0-20190219030625-562037d5fec7/go.mod h1:/nqZcvcM0UipJRnUm61LrQ8rC7IyBr8mfx5F00sCbvs=
-github.com/aergoio/aergo-lib v1.2.1-dev1 h1:KvjENkAvjV5tENC4lp8Ka8Zr0Wxu49UKrGcARsVWprQ=
-github.com/aergoio/aergo-lib v1.2.1-dev1/go.mod h1:vGXUumCltCrJ6xvXT1gAyNLiI1qLP1AqskPUnm1cOII=
-github.com/aergoio/aergo-lib v1.2.1-dev3 h1:M164TM6YHNRb+8QtR4SXmUoQAR3yvdybUM27kIsylRI=
-github.com/aergoio/aergo-lib v1.2.1-dev3/go.mod h1:vGXUumCltCrJ6xvXT1gAyNLiI1qLP1AqskPUnm1cOII=
+github.com/aergoio/aergo-lib v1.3.0 h1:29lPhJPsE75KtK3UpueVjSY9NX4jp6oLqrnHIDT3qTY=
+github.com/aergoio/aergo-lib v1.3.0/go.mod h1:vGXUumCltCrJ6xvXT1gAyNLiI1qLP1AqskPUnm1cOII=
 github.com/aergoio/etcd v0.0.0-20190429013412-e8b3f96f6399 h1:dJSTOiNe0xJFreGUBSh4bY3KGDxjilUVxAKqjij1pcw=
 github.com/aergoio/etcd v0.0.0-20190429013412-e8b3f96f6399/go.mod h1:Blp9ztau8P3FoDynvGUeKUD6qqW/2xQ80kNwU+ywPUM=
 github.com/afex/hystrix-go v0.0.0-20180502004556-fa1af6a1f4f5/go.mod h1:SkGFH1ia65gfNATL8TAiHDNxPzPdmEL5uirI2Uyuz6c=

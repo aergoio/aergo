@@ -77,21 +77,23 @@ func (cdb *ChainDB) NewTx() db.Transaction {
 	return cdb.store.NewTx()
 }
 
-func (cdb *ChainDB) Init(dbType string, dataDir string, opts []db.Opt) error {
+func (cdb *ChainDB) Init(dbType string, dataDir string, opts []db.Option) error {
 	if cdb.store == nil {
 		logger.Info().Str("datadir", dataDir).Msg("chain database initialized")
 		dbPath := common.PathMkdirAll(dataDir, dbkey.ChainDBName)
-		cdb.store = db.NewDB(db.ImplType(dbType), dbPath, opts...)
-
-		cdb.store.SetCompactionEvent(func(event db.CompactionEvent) {
-			if event.Start {
-				logger.Info().Str("reason", event.Reason).Int("fromlevel", event.Level).
-					Int("nextlevel", event.Level).Int("splits", event.NumSplits).Msg("cdb compaction started")
-			} else {
-				logger.Info().Str("reason", event.Reason).Int("fromlevel", event.Level).
-					Int("nextlevel", event.Level).Int("splits", event.NumSplits).Msg("cdb compaction complete")
-			}
+		opts = append(opts, db.Option{
+			Name: db.OptCompactionEventHandler,
+			Value: func(event db.CompactionEvent) {
+				if event.Start {
+					logger.Info().Str("reason", event.Reason).Int("fromlevel", event.Level).
+						Int("nextlevel", event.Level).Int("splits", event.NumSplits).Msg("cdb compaction started")
+				} else {
+					logger.Info().Str("reason", event.Reason).Int("fromlevel", event.Level).
+						Int("nextlevel", event.Level).Int("splits", event.NumSplits).Msg("cdb compaction complete")
+				}
+			},
 		})
+		cdb.store = db.NewDB(db.ImplType(dbType), dbPath, opts...)
 	}
 
 	// load data
@@ -113,16 +115,6 @@ func (cdb *ChainDB) Init(dbType string, dataDir string, opts []db.Opt) error {
 	// 	cdb.generateGenesisBlock(seed)
 	// }
 	return nil
-}
-
-func getMonitoringOption(port int) []db.Opt {
-	return []db.Opt{db.Opt{
-		Name:  "compactionController",
-		Value: true,
-	}, db.Opt{
-		Name:  "compactionControllerPort",
-		Value: port,
-	}}
 }
 
 func (cdb *ChainDB) recover() error {
