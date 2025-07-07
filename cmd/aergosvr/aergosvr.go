@@ -6,7 +6,9 @@ package main
 
 import (
 	"fmt"
+	"github.com/aergoio/aergo-lib/db"
 	"os"
+	"time"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/v2/account"
@@ -117,6 +119,14 @@ func rootRun(cmd *cobra.Command, args []string) {
 	syncSvc := syncer.NewSyncer(cfg, chainSvc, nil)
 	p2pSvc := p2p.NewP2P(cfg, chainSvc)
 	pmapSvc := polarisclient.NewPolarisConnectSvc(cfg.P2P, p2pSvc)
+
+	chainSvc.SDB().MaintenanceEvent = func(event db.CompactionEvent) {
+		svrlog.Info().Msg("Maintenance event Started")
+		svrlog.Info().Msg("Closing listener")
+		rpcSvc.Listener.Close()
+		time.Sleep(10 * time.Second)
+		svrlog.Info().Msg("Connection drained for 10 seconds")
+	}
 
 	var accountSvc component.IComponent
 	if cfg.Personal {
