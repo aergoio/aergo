@@ -34,6 +34,7 @@ const (
 	AergoRPCService_GetTX_FullMethodName                   = "/types.AergoRPCService/GetTX"
 	AergoRPCService_GetBlockTX_FullMethodName              = "/types.AergoRPCService/GetBlockTX"
 	AergoRPCService_GetReceipt_FullMethodName              = "/types.AergoRPCService/GetReceipt"
+	AergoRPCService_GetInternalOperations_FullMethodName   = "/types.AergoRPCService/GetInternalOperations"
 	AergoRPCService_GetABI_FullMethodName                  = "/types.AergoRPCService/GetABI"
 	AergoRPCService_SendTX_FullMethodName                  = "/types.AergoRPCService/SendTX"
 	AergoRPCService_SignTX_FullMethodName                  = "/types.AergoRPCService/SignTX"
@@ -97,6 +98,8 @@ type AergoRPCServiceClient interface {
 	GetBlockTX(ctx context.Context, in *SingleBytes, opts ...grpc.CallOption) (*TxInBlock, error)
 	// Return transaction receipt, queried by transaction hash
 	GetReceipt(ctx context.Context, in *SingleBytes, opts ...grpc.CallOption) (*Receipt, error)
+	// Return internal operations, queried by block number
+	GetInternalOperations(ctx context.Context, in *BlockNumberParam, opts ...grpc.CallOption) (*SingleBytes, error)
 	// Return ABI stored at contract address
 	GetABI(ctx context.Context, in *SingleBytes, opts ...grpc.CallOption) (*ABI, error)
 	// Sign and send a transaction from an unlocked account
@@ -336,6 +339,15 @@ func (c *aergoRPCServiceClient) GetBlockTX(ctx context.Context, in *SingleBytes,
 func (c *aergoRPCServiceClient) GetReceipt(ctx context.Context, in *SingleBytes, opts ...grpc.CallOption) (*Receipt, error) {
 	out := new(Receipt)
 	err := c.cc.Invoke(ctx, AergoRPCService_GetReceipt_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aergoRPCServiceClient) GetInternalOperations(ctx context.Context, in *BlockNumberParam, opts ...grpc.CallOption) (*SingleBytes, error) {
+	out := new(SingleBytes)
+	err := c.cc.Invoke(ctx, AergoRPCService_GetInternalOperations_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -642,6 +654,8 @@ type AergoRPCServiceServer interface {
 	GetBlockTX(context.Context, *SingleBytes) (*TxInBlock, error)
 	// Return transaction receipt, queried by transaction hash
 	GetReceipt(context.Context, *SingleBytes) (*Receipt, error)
+	// Return internal operations, queried by block number
+	GetInternalOperations(context.Context, *BlockNumberParam) (*SingleBytes, error)
 	// Return ABI stored at contract address
 	GetABI(context.Context, *SingleBytes) (*ABI, error)
 	// Sign and send a transaction from an unlocked account
@@ -747,6 +761,9 @@ func (UnimplementedAergoRPCServiceServer) GetBlockTX(context.Context, *SingleByt
 }
 func (UnimplementedAergoRPCServiceServer) GetReceipt(context.Context, *SingleBytes) (*Receipt, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetReceipt not implemented")
+}
+func (UnimplementedAergoRPCServiceServer) GetInternalOperations(context.Context, *BlockNumberParam) (*SingleBytes, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetInternalOperations not implemented")
 }
 func (UnimplementedAergoRPCServiceServer) GetABI(context.Context, *SingleBytes) (*ABI, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetABI not implemented")
@@ -1114,6 +1131,24 @@ func _AergoRPCService_GetReceipt_Handler(srv interface{}, ctx context.Context, d
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(AergoRPCServiceServer).GetReceipt(ctx, req.(*SingleBytes))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AergoRPCService_GetInternalOperations_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BlockNumberParam)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AergoRPCServiceServer).GetInternalOperations(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AergoRPCService_GetInternalOperations_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AergoRPCServiceServer).GetInternalOperations(ctx, req.(*BlockNumberParam))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1665,6 +1700,10 @@ var AergoRPCService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetReceipt",
 			Handler:    _AergoRPCService_GetReceipt_Handler,
+		},
+		{
+			MethodName: "GetInternalOperations",
+			Handler:    _AergoRPCService_GetInternalOperations_Handler,
 		},
 		{
 			MethodName: "GetABI",

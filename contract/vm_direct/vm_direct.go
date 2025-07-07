@@ -135,7 +135,7 @@ func LoadDummyChainEx(chainType ChainType) (*DummyChain, error) {
 	contract.SetStateSQLMaxDBSize(1024)
 
 	contract.StartLStateFactory(lStateMaxSize, config.GetDefaultNumLStateClosers(), 1)
-	contract.InitContext(3)
+	contract.InitContext(3, false)
 
 	// To pass the governance tests.
 	types.InitGovernance("dpos", true)
@@ -482,10 +482,12 @@ func executeTx(
 
 	var txFee *big.Int
 	var rv string
+	var internalOps string
 	var events []*types.Event
+
 	switch txBody.Type {
 	case types.TxType_NORMAL, types.TxType_REDEPLOY, types.TxType_TRANSFER, types.TxType_CALL, types.TxType_DEPLOY:
-		rv, events, txFee, err = contract.Execute(execCtx, bs, cdb, tx.GetTx(), sender, receiver, bi, executionMode, false)
+		rv, events, internalOps, txFee, err = contract.Execute(execCtx, bs, cdb, tx.GetTx(), sender, receiver, bi, executionMode, false)
 		sender.SubBalance(txFee)
 	case types.TxType_GOVERNANCE:
 		txFee = new(big.Int).SetUint64(0)
@@ -512,7 +514,7 @@ func executeTx(
 			}
 			return types.ErrNotAllowedFeeDelegation
 		}
-		rv, events, txFee, err = contract.Execute(execCtx, bs, cdb, tx.GetTx(), sender, receiver, bi, executionMode, true)
+		rv, events, internalOps, txFee, err = contract.Execute(execCtx, bs, cdb, tx.GetTx(), sender, receiver, bi, executionMode, true)
 		receiver.SubBalance(txFee)
 	}
 
@@ -566,6 +568,10 @@ func executeTx(
 		rv = adjustReturnValue(rv)
 	}
 	bs.BpReward.Add(&bs.BpReward, txFee)
+
+	if len(internalOps) > 0 {
+		bs.AddInternalOps(internalOps)
+	}
 
 	receipt := types.NewReceipt(receiver.ID(), status, rv)
 	receipt.FeeUsed = txFee.Bytes()

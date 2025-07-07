@@ -185,6 +185,7 @@ type IChainHandler interface {
 	getReceipt(txHash []byte) (*types.Receipt, error)
 	getReceipts(blockHash []byte) (*types.Receipts, error)
 	getReceiptsByNo(blockNo types.BlockNo) (*types.Receipts, error)
+	getInternalOperations(blockNo types.BlockNo) (string, error)
 	getAccountVote(addr []byte) (*types.AccountVoteInfo, error)
 	getVotes(id string, n uint32) (*types.VoteList, error)
 	getStaking(addr []byte) (*types.Staking, error)
@@ -299,7 +300,7 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	contract.TraceBlockNo = cfg.Blockchain.StateTrace
 	contract.SetStateSQLMaxDBSize(cfg.SQL.MaxDbSize)
 	contract.StartLStateFactory((cfg.Blockchain.NumWorkers+2)*(int(contract.MaxCallDepth(cfg.Hardfork.Version(math.MaxUint64)))+2), cfg.Blockchain.NumLStateClosers, cfg.Blockchain.CloseLimit)
-	contract.InitContext(cfg.Blockchain.NumWorkers + 2)
+	contract.InitContext(cfg.Blockchain.NumWorkers + 2, cfg.RPC.LogInternalOperations)
 
 	// For a strict governance transaction validation.
 	types.InitGovernance(cs.ConsensusType(), cs.IsPublic())
@@ -447,6 +448,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 		*message.GetReceipt,
 		*message.GetReceipts,
 		*message.GetReceiptsByNo,
+		*message.GetInternalOperations,
 		*message.GetABI,
 		*message.GetQuery,
 		*message.GetStateQuery,
@@ -815,6 +817,12 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			Receipts: receipts,
 			Err:      err,
 		})
+	case *message.GetInternalOperations:
+		operations, err := cw.getInternalOperations(msg.BlockNo)
+		context.Respond(message.GetInternalOperationsRsp{
+			Operations: operations,
+			Err:        err,
+		})
 	case *message.GetABI:
 		sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetRoot())
 		address, err := getAddressNameResolved(sdb, msg.Contract)
@@ -989,4 +997,8 @@ func (cs *ChainService) ChainID(bno types.BlockNo) *types.ChainID {
 	}
 	cid.Version = cs.cfg.Hardfork.Version(bno)
 	return cid
+}
+
+func (cs *ChainService) HardforkHeights() map[string]types.BlockNo {
+	return cs.cdb.hardforkHeights()
 }
