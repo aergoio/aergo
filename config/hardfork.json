@@ -11,7 +11,12 @@
     },
     {
         "Version": 4,
-        "MainNetHeight": 1000000000,
-        "TestNetHeight": 1000000000
+        "MainNetHeight": 173677571,
+        "TestNetHeight": 140020000
+    },
+    {
+        "Version": 5,
+        "MainNetHeight": 199000000,
+        "TestNetHeight": 199000000
     }
 ]

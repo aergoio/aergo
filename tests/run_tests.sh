@@ -205,6 +205,27 @@ else
   check ./test-internal-operations.sh
 fi
 
+# change the hardfork version
+set_version 5
+
+# run the integration tests - version 5
+if [ "$short_tests" = true ]; then
+  check ./test-contract-deploy.sh
+else
+  check ./test-max-call-depth.sh
+  check ./test-gas-deploy.sh
+  check ./test-gas-op.sh
+  check ./test-gas-bf.sh
+  check ./test-gas-verify-proof.sh
+  check ./test-gas-per-function-v4.sh
+  check ./test-contract-deploy.sh
+  check ./test-pcall-events.sh
+  check ./test-transaction-types.sh
+  check ./test-name-service.sh
+  check ./test-multicall.sh
+  check ./test-disabled-functions.sh
+fi
+
 # terminate the server process
 echo ""
 echo "closing the aergo nodes"
