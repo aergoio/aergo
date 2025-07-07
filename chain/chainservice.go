@@ -72,8 +72,9 @@ func NewCore(dbType string, dataDir string, testModeOn bool, forceResetHeight ty
 // Init prepares Core (chain & state DB).
 func (core *Core) init(dbType string, dataDir string, testModeOn bool, forceResetHeight types.BlockNo, config *cfg.DBConfig) error {
 	// init chaindb
-	if err := core.cdb.Init(dbType, dataDir, db.WithControlCompaction(
-		config.ControlCompaction, config.ChainDBPort)); err != nil {
+	// Compaction option currently only supported by BadgerDB
+	optionsForChainDB := db.WithControlCompaction(config.ControlCompaction, config.ChainDBPort);
+	if err := core.cdb.Init(dbType, dataDir, optionsForChainDB); err != nil {
 		logger.Fatal().Err(err).Msg("failed to initialize chaindb")
 		return err
 	}
@@ -93,8 +94,8 @@ func (core *Core) init(dbType string, dataDir string, testModeOn bool, forceRese
 		return err
 	}
 
-	if err := core.sdb.Init(dbType, dataDir, bestBlock, testModeOn, db.WithControlCompaction(
-		config.ControlCompaction, config.StateDBPort)); err != nil {
+	optionsForStateDB := db.WithControlCompaction(config.ControlCompaction, config.StateDBPort);
+	if err := core.sdb.Init(dbType, dataDir, bestBlock, testModeOn, optionsForStateDB); err != nil {
 		logger.Fatal().Err(err).Msg("failed to initialize statedb")
 		return err
 	}

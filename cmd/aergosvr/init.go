@@ -93,7 +93,7 @@ func getGenesis(path string) *types.Genesis {
 }
 
 func getCore(dataDir string) *chain.Core {
-	// if dataDir is provided, it must guarantee accessible
+	// Ensure that the provided dataDir exists and is accessible
 	fi, err := os.Stat(dataDir)
 	if err == nil && !fi.IsDir() {
 		fmt.Printf("%s is not a directory\n", dataDir)
