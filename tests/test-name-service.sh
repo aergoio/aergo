@@ -28,7 +28,7 @@ status=$(cat receipt.json | jq .status | sed 's/"//g')
 ret=$(cat receipt.json | jq .ret | sed 's/"//g')
 gasUsed=$(cat receipt.json | jq .gasUsed | sed 's/"//g')
 
-if [ "$fork_version" -eq "4" ]; then
+if [ "$fork_version" -ge "4" ]; then
   assert_equals   "$status" "ERROR"
   # assert_equals "$ret"    "[Contract.LuaResolve] Data and checksum don't match"
   assert_contains "$ret"    "Data and checksum don't match"
@@ -49,7 +49,7 @@ get_receipt $txhash
 status=$(cat receipt.json | jq .status | sed 's/"//g')
 ret=$(cat receipt.json | jq .ret | sed 's/"//g')
 
-if [ "$fork_version" -eq "4" ]; then
+if [ "$fork_version" -ge "4" ]; then
   assert_equals "$status" "SUCCESS"
   assert_equals "$ret"    "AmgExqUu6J4Za8VjyWMJANxoRaUvwgngGQJgemHgwWvuRSEd3wnE"
 else
@@ -69,7 +69,7 @@ get_receipt $txhash
 status=$(cat receipt.json | jq .status | sed 's/"//g')
 ret=$(cat receipt.json | jq .ret | sed 's/"//g')
 
-if [ "$fork_version" -eq "4" ]; then
+if [ "$fork_version" -ge "4" ]; then
   assert_equals "$status" "SUCCESS"
   assert_equals "$ret"    ""
 else
@@ -88,7 +88,7 @@ get_receipt $txhash
 status=$(cat receipt.json | jq .status | sed 's/"//g')
 ret=$(cat receipt.json | jq .ret | sed 's/"//g')
 
-if [ "$fork_version" -eq "4" ]; then
+if [ "$fork_version" -ge "4" ]; then
   assert_equals "$status" "SUCCESS"
   assert_equals "$ret"    ""
 else
@@ -127,7 +127,7 @@ get_receipt $txhash
 status=$(cat receipt.json | jq .status | sed 's/"//g')
 ret=$(cat receipt.json | jq .ret | sed 's/"//g')
 
-if [ "$fork_version" -eq "4" ]; then
+if [ "$fork_version" -ge "4" ]; then
   assert_equals "$status" "SUCCESS"
   assert_equals "$ret"    "AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R"
 else
@@ -160,7 +160,7 @@ get_receipt $txhash
 status=$(cat receipt.json | jq .status | sed 's/"//g')
 ret=$(cat receipt.json | jq .ret | sed 's/"//g')
 
-if [ "$fork_version" -eq "4" ]; then
+if [ "$fork_version" -ge "4" ]; then
   assert_equals "$status" "SUCCESS"
   assert_equals "$ret"    "Amh9vfP5My5DpSafe3gcZ1u8DiZNuqHSN2oAWehZW1kgB3XP4kPi"
 else
@@ -174,7 +174,7 @@ echo "-- query the contract --"
 ../bin/aergocli contract query ${address} resolve '["'$account_name'"]' > result.txt 2> result.txt || true
 result=$(cat result.txt)
 
-if [ "$fork_version" -eq "4" ]; then
+if [ "$fork_version" -ge "4" ]; then
   result=$(echo $result | sed 's/"//g' | sed 's/\\//g' | sed 's/value://g')
   assert_equals   "$result"  "Amh9vfP5My5DpSafe3gcZ1u8DiZNuqHSN2oAWehZW1kgB3XP4kPi"
 else
