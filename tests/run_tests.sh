@@ -78,6 +78,13 @@ elif [ "$consensus" == "raft" ]; then
   config_files=("./node1/config.toml" "./node2/config.toml" "./node3/config.toml" "./node4/config.toml" "./node5/config.toml")
 fi
 
+# define which port is used for queries
+if [ "$consensus" == "sbp" ]; then
+  query_port="7845"
+else
+  query_port="9845"
+fi
+
 echo ""
 echo "starting nodes..."
 start_nodes
@@ -135,6 +142,7 @@ function check() {
 
 # make these variables accessible to the called scripts
 export consensus
+export query_port
 
 # create the account used on tests
 echo "creating user account..."
@@ -172,6 +180,7 @@ else
   check ./test-pcall-events.sh
   check ./test-transaction-types.sh
   check ./test-name-service.sh
+  check ./test-internal-operations.sh
 fi
 
 # change the hardfork version
@@ -193,6 +202,7 @@ else
   check ./test-name-service.sh
   check ./test-multicall.sh
   check ./test-disabled-functions.sh
+  check ./test-internal-operations.sh
 fi
 
 # terminate the server process

@@ -55,7 +55,7 @@ jobs:
         coverageLocations: ${{github.workspace}}/build/c.out:gocov
         debug: true
 
-      # run unit test only in other cases
+    # run unit test only in other cases
     - name: Unit Tests
       if: github.event_name != 'push' || github.ref_name != 'master' || github.ref_type != 'branch'
       run: go test -timeout 999s ./...
@@ -81,7 +81,8 @@ jobs:
       run: cd tests && ./run_tests.sh raft
 
     - name: Upload Logs on Failure
-      if: failure()
+      # only upload logs if any of the integration tests failed (even with continue-on-error)
+      if: steps.sbp_test.outcome == 'failure' || steps.dpos_test.outcome == 'failure' || steps.raft_test.outcome == 'failure'
       uses: actions/upload-artifact@v4
       with:
         name: integration-test-logs
@@ -91,3 +92,9 @@ jobs:
           tests/error.txt
           tests/output.json
           tests/receipt*.json
+
+    - name: Mark Job as Failed
+      if: steps.sbp_test.outcome == 'failure' || steps.dpos_test.outcome == 'failure' || steps.raft_test.outcome == 'failure'
+      run: |
+        echo "One or more integration tests failed!"
+        exit 1

@@ -2,7 +2,7 @@ start_nodes() {
 
   if [ "$consensus" == "sbp" ]; then
     # open the aergo node in testmode
-    ../bin/aergosvr --testmode --home ./aergo-files > logs 2> logs &
+    ../bin/aergosvr --testmode --home ./aergo-files >> logs 2>> logs &
     pid=$!
   else
     # open the 5 nodes
@@ -237,6 +237,26 @@ get_receipt() {
   # rename receipt1.json to receipt.json and delete the others
   mv receipt1.json receipt.json
   rm receipt{2..5}.json
+}
+
+get_internal_operations() {
+  txhash=$1
+  # do not stop on errors
+  set +e
+
+  output=$(../bin/aergocli operations $txhash --port $query_port 2>&1 > internal_operations.json)
+
+  #echo "output: $output"
+
+  if [[ $output == *"No internal operations found for this transaction"* ]]; then
+    echo -n "" > internal_operations.json
+  elif [[ -n $output ]]; then
+    echo "Error getting internal operations: $output"
+    exit 1
+  fi
+
+  # stop on errors
+  set -e
 }
 
 assert_equals() {
