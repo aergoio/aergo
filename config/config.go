@@ -45,6 +45,7 @@ func (ctx *ServerContext) GetDefaultConfig() interface{} {
 		Web3:       ctx.GetDefaultWeb3Config(),
 		P2P:        ctx.GetDefaultP2PConfig(),
 		Blockchain: ctx.GetDefaultBlockchainConfig(),
+		DB:         ctx.GetDefaultDBConfig(),
 		Mempool:    ctx.GetDefaultMempoolConfig(),
 		Consensus:  ctx.GetDefaultConsensusConfig(),
 		Monitor:    ctx.GetDefaultMonitorConfig(),
@@ -147,6 +148,14 @@ func (ctx *ServerContext) GetDefaultBlockchainConfig() *BlockchainConfig {
 		NumWorkers:       runtime.NumCPU(),
 		NumLStateClosers: GetDefaultNumLStateClosers(),
 		CloseLimit:       GetDefaultCloseLimit(),
+	}
+}
+
+func (ctx *ServerContext) GetDefaultDBConfig() *DBConfig {
+	return &DBConfig{
+		ControlCompaction: false,
+		StateDBPort:       7851,
+		ChainDBPort:       7852,
 	}
 }
 

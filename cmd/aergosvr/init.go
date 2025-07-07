@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/aergoio/aergo/v2/config"
 	"os"
 
 	"github.com/aergoio/aergo/v2/chain"
@@ -92,7 +93,7 @@ func getGenesis(path string) *types.Genesis {
 }
 
 func getCore(dataDir string) *chain.Core {
-	// if initpath is feeded, gaurantee initpath is accessible directory
+	// if dataDir is provided, it must guarantee accessible
 	fi, err := os.Stat(dataDir)
 	if err == nil && !fi.IsDir() {
 		fmt.Printf("%s is not a directory\n", dataDir)
@@ -111,7 +112,9 @@ func getCore(dataDir string) *chain.Core {
 		}
 	}
 
-	core, err := chain.NewCore(cfg.DbType, dataDir, false, 0)
+	dummyDbConfig := &config.DBConfig{}
+
+	core, err := chain.NewCore(cfg.DbType, dataDir, false, 0, dummyDbConfig)
 	if err != nil {
 		fmt.Printf("fail to init a blockchain core (error:%s)\n", err)
 		return nil

@@ -48,6 +48,7 @@ type RPC struct {
 	grpcWebServer *grpcweb.WrappedGrpcServer
 	actualServer  *AergoRPCService
 	httpServer    *http.Server
+	Listener      net.Listener
 
 	ca      types.ChainAccessor
 	version string
@@ -277,6 +278,7 @@ func (ns *RPC) serveGRPC(l net.Listener, server *grpc.Server) {
 		switch err {
 		case cmux.ErrListenerClosed:
 			// Server killed, usually by ctrl-c signal
+			ns.Info().Msg("Listener closed")
 		default:
 			panic(err)
 		}
@@ -286,7 +288,12 @@ func (ns *RPC) serveGRPC(l net.Listener, server *grpc.Server) {
 // Serve HTTP server over TCP
 func (ns *RPC) serveHTTP(l net.Listener, server *http.Server) {
 	if err := server.Serve(l); err != nil && err != http.ErrServerClosed {
-		panic(err)
+		switch err {
+		case cmux.ErrListenerClosed:
+			ns.Info().Msg("Listener closed")
+		default:
+			panic(err)
+		}
 	}
 }
 
@@ -303,6 +310,8 @@ func (ns *RPC) serve() {
 	if err != nil {
 		panic(err)
 	}
+
+	ns.Listener = l
 
 	// Setup TCP multiplexer
 	tcpm := cmux.New(l)
