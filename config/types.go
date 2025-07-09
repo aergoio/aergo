@@ -54,7 +54,7 @@ type RPCConfig struct {
 	NSCACert    string `mapstructure:"nscacert" description:"CA Certificate file for RPC or REST API"`
 	NSAllowCORS bool   `mapstructure:"nsallowcors" description:"Allow CORS to RPC or REST API"`
 	// Internal operations
-	LogInternalOperations bool `mapstructure:"internal_operations" description:"Log internal operations"`
+	LogInternalOperations bool `mapstructure:"log_internal_operations" description:"Log internal operations"`
 }
 
 // Web3Config defines configurations for web3 service
@@ -208,7 +208,7 @@ nscert = "{{.RPC.NSCert}}"
 nskey = "{{.RPC.NSKey}}"
 nscacert = "{{.RPC.NSCACert}}"
 nsallowcors = {{.RPC.NSAllowCORS}}
-internal_operations = {{.RPC.LogInternalOperations}}
+log_internal_operations = {{.RPC.LogInternalOperations}}
 
 [p2p]
 # Set address and port to which the inbound peers connect, and don't set loopback address or private network unless used in local network 
