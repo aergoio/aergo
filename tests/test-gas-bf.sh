@@ -6,7 +6,7 @@ fork_version=$1
 
 echo "-- deploy --"
 
-if [ "$fork_version" -eq "4" ]; then
+if [ "$fork_version" -ge "4" ]; then
   deploy ../contract/vm_dummy/test_files/gas_bf_v4.lua
 else
   deploy ../contract/vm_dummy/test_files/gas_bf_v2.lua
@@ -42,7 +42,7 @@ fi
 
 if [ "$consensus" = "raft" ]; then
   assert_equals "$gasUsed"  "0"
-elif [ "$fork_version" -eq "4" ]; then
+elif [ "$fork_version" -ge "4" ]; then
   assert_equals "$gasUsed"  "47342481"
 elif [ "$fork_version" -eq "3" ]; then
   assert_equals "$gasUsed"  "47456046"

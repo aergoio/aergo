@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"sync/atomic"
 
 	"github.com/aergoio/aergo-lib/db"
@@ -77,11 +78,23 @@ func (cdb *ChainDB) NewTx() db.Transaction {
 	return cdb.store.NewTx()
 }
 
-func (cdb *ChainDB) Init(dbType string, dataDir string) error {
+func (cdb *ChainDB) Init(dbType string, dataDir string, opts []db.Option) error {
 	if cdb.store == nil {
 		logger.Info().Str("datadir", dataDir).Msg("chain database initialized")
 		dbPath := common.PathMkdirAll(dataDir, dbkey.ChainDBName)
-		cdb.store = db.NewDB(db.ImplType(dbType), dbPath)
+		opts = append(opts, db.Option{
+			Name: db.OptCompactionEventHandler,
+			Value: func(event db.CompactionEvent) {
+				if event.Start {
+					logger.Info().Str("reason", event.Reason).Int("fromlevel", event.Level).
+						Int("nextlevel", event.Level).Int("splits", event.NumSplits).Msg("cdb compaction started")
+				} else {
+					logger.Info().Str("reason", event.Reason).Int("fromlevel", event.Level).
+						Int("nextlevel", event.Level).Int("splits", event.NumSplits).Msg("cdb compaction complete")
+				}
+			},
+		})
+		cdb.store = db.NewDB(db.ImplType(dbType), dbPath, opts...)
 	}
 
 	// load data
@@ -520,7 +533,7 @@ func (cdb *ChainDB) dropBlock(dropNo types.BlockNo) error {
 	}
 
 	// remove receipt
-	cdb.deleteReceipts(&dbTx, dropBlock.BlockHash(), dropBlock.BlockNo())
+	cdb.deleteReceiptsAndOperations(&dbTx, dropBlock.BlockHash(), dropBlock.BlockNo())
 
 	// remove (hash/block)
 	dbTx.Delete(dropBlock.BlockHash())
@@ -665,6 +678,11 @@ func (cdb *ChainDB) checkExistReceipts(blockHash []byte, blockNo types.BlockNo) 
 	return true
 }
 
+func (cdb *ChainDB) getInternalOperations(blockNo types.BlockNo) string {
+	data := cdb.store.Get(dbkey.InternalOps(blockNo))
+	return string(data)
+}
+
 type ChainTree struct {
 	Tree []ChainInfo
 }
@@ -691,18 +709,35 @@ func (cdb *ChainDB) GetChainTree() ([]byte, error) {
 	return jsonBytes, nil
 }
 
-func (cdb *ChainDB) writeReceipts(blockHash []byte, blockNo types.BlockNo, receipts *types.Receipts) {
+func (cdb *ChainDB) writeReceiptsAndOperations(block *types.Block, receipts *types.Receipts, internalOps string) {
+	hasReceipts := len(receipts.Get()) != 0
+	hasInternalOps := len(internalOps) != 0
+
+	if !hasReceipts && !hasInternalOps {
+		return
+	}
+
 	dbTx := cdb.store.NewTx()
 	defer dbTx.Discard()
 
-	val, _ := gob.Encode(receipts)
-	dbTx.Set(dbkey.Receipts(blockHash, blockNo), val)
+	blockHash := block.BlockHash()
+	blockNo := block.BlockNo()
+
+	if hasReceipts {
+		val, _ := gob.Encode(receipts)
+		dbTx.Set(dbkey.Receipts(blockHash, blockNo), val)
+	}
+
+	if hasInternalOps {
+		dbTx.Set(dbkey.InternalOps(blockNo), []byte(internalOps))
+	}
 
 	dbTx.Commit()
 }
 
-func (cdb *ChainDB) deleteReceipts(dbTx *db.Transaction, blockHash []byte, blockNo types.BlockNo) {
+func (cdb *ChainDB) deleteReceiptsAndOperations(dbTx *db.Transaction, blockHash []byte, blockNo types.BlockNo) {
 	(*dbTx).Delete(dbkey.Receipts(blockHash, blockNo))
+	(*dbTx).Delete(dbkey.InternalOps(blockNo))
 }
 
 func (cdb *ChainDB) writeReorgMarker(marker *ReorgMarker) error {
@@ -757,10 +792,40 @@ func (cdb *ChainDB) Hardfork(hConfig config.HardforkConfig) config.HardforkDbCon
 	if err := json.Unmarshal(data, &c); err != nil {
 		return nil
 	}
-	// When a new hardkfork height is added, the hardfork config from DB  (HardforkDBConfig)
+	// When a new hardfork height is added, the hardfork config from DB  (HardforkDBConfig)
 	// must be modified by using the height from HardforkConfig. Without this, aergosvr fails
-	// to start, since a harfork heght value not stored on DB is evaluated as 0.
+	// to start, since a hardfork height value not stored on DB is evaluated as 0.
 	return c.FixDbConfig(hConfig)
+}
+
+func (cdb *ChainDB) hardforkHeights() config.HardforkDbConfig {
+	var c config.HardforkDbConfig
+	data := cdb.store.Get(dbkey.HardFork())
+	if len(data) == 0 {
+		return c
+	}
+	// TODO Hardfork status is not changed during the lifetime of server process.
+	//    We can optimize this
+	if err := json.Unmarshal(data, &c); err != nil {
+		logger.Error().Msg("Failed to read hardfork from cdb")
+		return c
+	}
+	returned := make(map[string]uint64, len(c))
+	for key, value := range c {
+		newKey := key[1:]
+		if key[0] != 'V' || !IsInteger(newKey) {
+			return make(map[string]uint64, 0)
+		}
+		returned[newKey] = value
+	}
+
+	return returned
+}
+
+// IsInteger check the parameter is integer form or not
+func IsInteger(s string) bool {
+	_, err := strconv.Atoi(s)
+	return err == nil
 }
 
 func (cdb *ChainDB) WriteHardfork(c *config.HardforkConfig) error {

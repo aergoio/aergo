@@ -6,11 +6,12 @@
 package chain
 
 import (
-	"os"
 	"errors"
 	"fmt"
+	"github.com/aergoio/aergo-lib/db"
 	"math"
 	"math/big"
+	"os"
 	"reflect"
 	"runtime"
 	"strings"
@@ -54,13 +55,13 @@ type Core struct {
 }
 
 // NewCore returns an instance of Core.
-func NewCore(dbType string, dataDir string, testModeOn bool, forceResetHeight types.BlockNo) (*Core, error) {
+func NewCore(dbType string, dataDir string, testModeOn bool, forceResetHeight types.BlockNo, dbConfig *cfg.DBConfig) (*Core, error) {
 	core := &Core{
 		cdb: NewChainDB(),
 		sdb: state.NewChainStateDB(),
 	}
 
-	err := core.init(dbType, dataDir, testModeOn, forceResetHeight)
+	err := core.init(dbType, dataDir, testModeOn, forceResetHeight, dbConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -69,9 +70,11 @@ func NewCore(dbType string, dataDir string, testModeOn bool, forceResetHeight ty
 }
 
 // Init prepares Core (chain & state DB).
-func (core *Core) init(dbType string, dataDir string, testModeOn bool, forceResetHeight types.BlockNo) error {
+func (core *Core) init(dbType string, dataDir string, testModeOn bool, forceResetHeight types.BlockNo, config *cfg.DBConfig) error {
 	// init chaindb
-	if err := core.cdb.Init(dbType, dataDir); err != nil {
+	// Compaction option currently only supported by BadgerDB
+	optionsForChainDB := db.WithControlCompaction(config.ControlCompaction, config.ChainDBPort);
+	if err := core.cdb.Init(dbType, dataDir, optionsForChainDB); err != nil {
 		logger.Fatal().Err(err).Msg("failed to initialize chaindb")
 		return err
 	}
@@ -91,7 +94,8 @@ func (core *Core) init(dbType string, dataDir string, testModeOn bool, forceRese
 		return err
 	}
 
-	if err := core.sdb.Init(dbType, dataDir, bestBlock, testModeOn); err != nil {
+	optionsForStateDB := db.WithControlCompaction(config.ControlCompaction, config.StateDBPort);
+	if err := core.sdb.Init(dbType, dataDir, bestBlock, testModeOn, optionsForStateDB); err != nil {
 		logger.Fatal().Err(err).Msg("failed to initialize statedb")
 		return err
 	}
@@ -185,6 +189,7 @@ type IChainHandler interface {
 	getReceipt(txHash []byte) (*types.Receipt, error)
 	getReceipts(blockHash []byte) (*types.Receipts, error)
 	getReceiptsByNo(blockNo types.BlockNo) (*types.Receipts, error)
+	getInternalOperations(blockNo types.BlockNo) (string, error)
 	getAccountVote(addr []byte) (*types.AccountVoteInfo, error)
 	getVotes(id string, n uint32) (*types.VoteList, error)
 	getStaking(addr []byte) (*types.Staking, error)
@@ -233,7 +238,7 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	cs.setRecovered(false)
 
 	var err error
-	if cs.Core, err = NewCore(cfg.DbType, cfg.DataDir, cfg.EnableTestmode, types.BlockNo(cfg.Blockchain.ForceResetHeight)); err != nil {
+	if cs.Core, err = NewCore(cfg.DbType, cfg.DataDir, cfg.EnableTestmode, types.BlockNo(cfg.Blockchain.ForceResetHeight), cfg.DB); err != nil {
 		logger.Panic().Err(err).Msg("failed to initialize DB")
 	}
 
@@ -299,7 +304,7 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	contract.TraceBlockNo = cfg.Blockchain.StateTrace
 	contract.SetStateSQLMaxDBSize(cfg.SQL.MaxDbSize)
 	contract.StartLStateFactory((cfg.Blockchain.NumWorkers+2)*(int(contract.MaxCallDepth(cfg.Hardfork.Version(math.MaxUint64)))+2), cfg.Blockchain.NumLStateClosers, cfg.Blockchain.CloseLimit)
-	contract.InitContext(cfg.Blockchain.NumWorkers + 2)
+	contract.InitContext(cfg.Blockchain.NumWorkers + 2, cfg.RPC.LogInternalOperations)
 
 	// For a strict governance transaction validation.
 	types.InitGovernance(cs.ConsensusType(), cs.IsPublic())
@@ -447,6 +452,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 		*message.GetReceipt,
 		*message.GetReceipts,
 		*message.GetReceiptsByNo,
+		*message.GetInternalOperations,
 		*message.GetABI,
 		*message.GetQuery,
 		*message.GetStateQuery,
@@ -815,6 +821,12 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			Receipts: receipts,
 			Err:      err,
 		})
+	case *message.GetInternalOperations:
+		operations, err := cw.getInternalOperations(msg.BlockNo)
+		context.Respond(message.GetInternalOperationsRsp{
+			Operations: operations,
+			Err:        err,
+		})
 	case *message.GetABI:
 		sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetRoot())
 		address, err := getAddressNameResolved(sdb, msg.Contract)
@@ -989,4 +1001,8 @@ func (cs *ChainService) ChainID(bno types.BlockNo) *types.ChainID {
 	}
 	cid.Version = cs.cfg.Hardfork.Version(bno)
 	return cid
+}
+
+func (cs *ChainService) HardforkHeights() map[string]types.BlockNo {
+	return cs.cdb.hardforkHeights()
 }

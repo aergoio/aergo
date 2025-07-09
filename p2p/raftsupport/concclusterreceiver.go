@@ -19,30 +19,39 @@ import (
 	"github.com/pkg/errors"
 )
 
-// ClusterInfoReceiver is send p2p getClusterInfo to connected peers and Receive p2p responses one of peers return successful response
-// The first version will be simplified version. it send and Receive one by one.
+// ConcurrentClusterInfoReceiver is a struct that manages concurrent requests for cluster information from peers.
+// It sends p2p GetClusterInfo requests to connected peers and collects responses until either:
+//   - A successful response is received
+//   - The required number of responses are collected
+//   - The operation times out
+//
+// The initial implementation processes requests and responses sequentially (one by one).
 type ConcurrentClusterInfoReceiver struct {
-	logger *log.Logger
-	mf     p2pcommon.MoFactory
+	logger *log.Logger            // Logger for recording events and errors
+	mf     p2pcommon.MoFactory    // Factory for creating message objects
+	peers  []p2pcommon.RemotePeer // List of connected peers to query
 
-	peers   []p2pcommon.RemotePeer
-	mutex   sync.Mutex
-	sent    map[p2pcommon.MsgID]p2pcommon.RemotePeer
-	sentCnt int
+	mutex sync.Mutex // Mutex to protect concurrent access to the struct
 
-	req *message.GetCluster
+	sent    map[p2pcommon.MsgID]p2pcommon.RemotePeer // Tracks sent requests by message ID
+	sentCnt int                                      // Count of total sent requests
 
-	ttl          time.Duration
-	timeout      time.Time
-	respCnt      int
-	requiredResp int
-	succResps    map[types.PeerID]*types.GetClusterInfoResponse
-	status       receiverStatus
+	req     *message.GetCluster // The cluster information request message
+	ttl     time.Duration       // Time-to-live duration for the operation
+	timeout time.Time           // Absolute time when the operation will timeout
 
-	finished chan bool
+	respCnt      int // Count of received responses
+	requiredResp int // Minimum required responses before completing
+	// Successful responses by peer ID
+	succResps map[types.PeerID]*types.GetClusterInfoResponse
+
+	status   receiverStatus // Current state of the receiver
+	finished chan bool      // Channel to signal operation completion
 }
 
 func NewConcClusterInfoReceiver(actor p2pcommon.ActorService, mf p2pcommon.MoFactory, peers []p2pcommon.RemotePeer, ttl time.Duration, req *message.GetCluster, logger *log.Logger) *ConcurrentClusterInfoReceiver {
+	// TODO the value requiredResp of can cause trouble.
+	// Only the members of cluster can give the cluster information. There is a possibility of calculating the quorum because it sends requests to all connected peers regardless of membership. There is another problem. There is no cluster information in node when it send a request, so it is difficult to get the exact quorum because it also has no number of members.
 	r := &ConcurrentClusterInfoReceiver{logger: logger, mf: mf, peers: peers, ttl: ttl, req: req,
 		requiredResp: len(peers)/2 + 1,
 		succResps:    make(map[types.PeerID]*types.GetClusterInfoResponse),
@@ -194,19 +203,19 @@ func (r *ConcurrentClusterInfoReceiver) calculate(err error) *message.GetCluster
 	if err != nil {
 		rsp.Err = err
 	} else if len(r.succResps) < r.requiredResp {
-		rsp.Err = errors.New("too low responses: " + strconv.Itoa(len(r.succResps)))
+		rsp.Err = errors.New("too few responses: " + strconv.Itoa(len(r.succResps)) + " , required " + strconv.Itoa(r.requiredResp))
 	} else {
 		r.logger.Debug().Int("respCnt", len(r.succResps)).Msg("calculating collected responses")
 		var bestRsp *types.GetClusterInfoResponse = nil
 		var bestPid types.PeerID
-		for pid, rsp := range r.succResps {
+		for peerId, rsp := range r.succResps {
 			if bestRsp == nil || rsp.BestBlockNo > bestRsp.BestBlockNo {
 				bestRsp = rsp
-				bestPid = pid
+				bestPid = peerId
 			}
 		}
 		if bestRsp != nil {
-			r.logger.Debug().Stringer(p2putil.LogPeerID, types.LogPeerShort(bestPid)).Object("resp", bestRsp).Msg("chosed best response")
+			r.logger.Debug().Stringer(p2putil.LogPeerID, types.LogPeerShort(bestPid)).Object("resp", bestRsp).Msg("chose best response")
 			rsp.ClusterID = bestRsp.GetClusterID()
 			rsp.ChainID = bestRsp.GetChainID()
 			rsp.Members = bestRsp.GetMbrAttrs()

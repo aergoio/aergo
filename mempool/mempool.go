@@ -21,6 +21,7 @@ import (
 	"github.com/aergoio/aergo-actor/router"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/v2/account/key"
+	"github.com/aergoio/aergo/v2/blacklist"
 	"github.com/aergoio/aergo/v2/chain"
 	cfg "github.com/aergoio/aergo/v2/config"
 	"github.com/aergoio/aergo/v2/contract/enterprise"
@@ -35,7 +36,6 @@ import (
 	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/message"
-	"github.com/aergoio/aergo/v2/blacklist"
 )
 
 const (
@@ -75,6 +75,7 @@ type MemPool struct {
 	acceptChainIdHash []byte
 	isPublic          bool
 	whitelist         *whitelistConf
+	blockMulticall    bool
 	blockDeploy       bool
 	// followings are for test
 	testConfig bool
@@ -104,6 +105,7 @@ func NewMemPoolService(cfg *cfg.Config, cs *chain.ChainService) *MemPool {
 		status:   initial,
 		verifier: nil,
 		quit:     make(chan bool),
+		blockMulticall: cfg.Mempool.BlockMulticall,
 		blockDeploy: cfg.Mempool.BlockDeploy,
 	}
 	actor.BaseComponent = component.NewBaseComponent(message.MemPoolSvc, actor, log.NewLogger("mempool"))
@@ -671,6 +673,10 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 			if recipientAddr == nil {
 				return types.ErrTxInvalidRecipient
 			}
+		}
+	case types.TxType_MULTICALL:
+		if mp.blockMulticall {
+			return types.ErrTxInvalidType
 		}
 	case types.TxType_DEPLOY:
 		if tx.GetBody().GetRecipient() != nil {

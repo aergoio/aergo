@@ -18,6 +18,7 @@ nscert = ""
 nskey = ""
 nscacert = ""
 nsallowcors = false
+log_internal_operations = true
 
 [p2p]
 # Set address and port to which the inbound peers connect, and don't set loopback address or private network unless used in local network 
@@ -82,3 +83,4 @@ enablelocalconf = "false"
 v2 = "0"
 v3 = "10000"
 v4 = "10000"
+v5 = "10000"

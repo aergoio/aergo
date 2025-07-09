@@ -10,6 +10,7 @@ nstls = false
 nscert = ""
 nskey = ""
 nsallowcors = false
+log_internal_operations = true
 
 [p2p]
 netprotocoladdr = "127.0.0.1"
@@ -48,3 +49,4 @@ name="bp03"
 v2 = "0"
 v3 = "10000"
 v4 = "10000"
+v5 = "10000"

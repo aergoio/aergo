@@ -64,6 +64,7 @@ func TestConfigFromToml(t *testing.T) {
 v2 = "9223"
 v3 = "13000"
 v4 = "14000"
+v5 = "15000"
 `,
 	)
 	if cfg.V2 != 9223 {
@@ -75,6 +76,9 @@ v4 = "14000"
 	if cfg.V4 != 14000 {
 		t.Errorf("V4 = %d, want %d", cfg.V4, 14000)
 	}
+	if cfg.V5 != 15000 {
+		t.Errorf("V5 = %d, want %d", cfg.V5, 15000)
+	}
 }
 
 func TestCompatibility(t *testing.T) {
@@ -83,13 +87,15 @@ func TestCompatibility(t *testing.T) {
 v2 = "9223"
 v3 = "11000"
 v4 = "14000"
+v5 = "15000"
 `,
 	)
 	dbCfg, _ := readDbConfig(`
 {
-	"V2": 18446744073709551415,
-	"V3": 18446744073709551515,
-	"V4": 18446744073709551615
+	"V2": 18446744073709551315,
+	"V3": 18446744073709551415,
+	"V4": 18446744073709551515,
+	"V5": 18446744073709551615
 }`,
 	)
 	err := cfg.CheckCompatibility(dbCfg, 10)
@@ -101,7 +107,8 @@ v4 = "14000"
 {
 	"V2": 9223,
 	"V3": 10000,
-	"V4": 14000
+	"V4": 14000,
+	"V5": 15000
 }`,
 	)
 	err = cfg.CheckCompatibility(dbCfg, 10)
@@ -113,7 +120,8 @@ v4 = "14000"
 {
 	"V2": 9223,
 	"V3": 10000,
-	"V4": 14000
+	"V4": 14000,
+	"V5": 15000
 }`,
 	)
 	err = cfg.CheckCompatibility(dbCfg, 9500)
@@ -125,7 +133,8 @@ v4 = "14000"
 {
 	"V2": 9221,
 	"V3": 10000,
-	"V4": 14000
+	"V4": 14000,
+	"V5": 15000
 }`,
 	)
 	err = cfg.CheckCompatibility(dbCfg, 9500)
@@ -136,7 +145,9 @@ v4 = "14000"
 	dbCfg, _ = readDbConfig(`
 {
 	"V2": 9223,
-	"V3": 10000
+	"V3": 10000,
+	"V4": 14000,
+	"V5": 15000
 }`,
 	)
 	err = cfg.CheckCompatibility(dbCfg, 10000)
@@ -160,7 +171,8 @@ v4 = "14000"
 	"V2": 9223,
 	"VV": 10000,
 	"V3": 11000,
-	"V4": 12000
+	"V4": 12000,
+	"V5": 15000
 }`,
 	)
 	err = cfg.CheckCompatibility(dbCfg, 9000)
@@ -178,6 +190,7 @@ func TestVersion(t *testing.T) {
 v2 = "9223"
 v3 = "10000"
 v4 = "14000"
+v5 = "20000"
 `,
 	)
 	tests := []struct {
@@ -232,8 +245,23 @@ v4 = "14000"
 		},
 		{
 			"greater v4",
-			21001,
+			14001,
 			4,
+		},
+		{
+			"before v5",
+			19999,
+			4,
+		},
+		{
+			"equal v5",
+			20000,
+			5,
+		},
+		{
+			"greater v5",
+			21001,
+			5,
 		},
 	}
 	for _, tt := range tests {
@@ -251,6 +279,7 @@ func TestFixDbConfig(t *testing.T) {
 v2 = "9223"
 v3 = "10000"
 v4 = "14000"
+v5 = "20000"
 `,
 	)
 	dbConfig, _ := readDbConfig(`

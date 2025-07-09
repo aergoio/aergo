@@ -20,8 +20,8 @@ import (
 	"github.com/aergoio/aergo/v2/contract"
 	"github.com/aergoio/aergo/v2/contract/system"
 	"github.com/aergoio/aergo/v2/fee"
-	"github.com/aergoio/aergo/v2/internal/enc/hex"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/internal/enc/hex"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
@@ -115,7 +115,7 @@ func LoadDummyChain(opts ...DummyChainOptions) (*DummyChain, error) {
 	// reset the transaction id counter
 	luaTxId = 0
 
-	err = bc.sdb.Init(string(db.MemoryImpl), dataPath, nil, false)
+	err = bc.sdb.Init(string(db.MemoryImpl), dataPath, nil, false, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +130,7 @@ func LoadDummyChain(opts ...DummyChainOptions) (*DummyChain, error) {
 	contract.LoadTestDatabase(dataPath) // sql database
 	contract.SetStateSQLMaxDBSize(1024)
 	contract.StartLStateFactory(lStateMaxSize, config.GetDefaultNumLStateClosers(), 1)
-	contract.InitContext(3)
+	contract.InitContext(3, false)
 
 	bc.HardforkVersion = 2
 
@@ -411,7 +411,7 @@ func hash(id uint64) []byte {
 type luaTxDeploy struct {
 	luaTxContractCommon
 	isCompiled bool
-	cErr error
+	cErr       error
 }
 
 var _ LuaTxTester = (*luaTxDeploy)(nil)
@@ -445,7 +445,7 @@ func NewLuaTxDeployBig(sender, recipient string, amount *big.Int, code string) *
 			txId:       newTxId(),
 		},
 		isCompiled: isCompiled,
-		cErr: nil,
+		cErr:       nil,
 	}
 }
 
@@ -485,7 +485,7 @@ func (l *luaTxDeploy) Constructor(args string) *luaTxDeploy {
 }
 
 func contractFrame(l luaTxContract, bs *state.BlockState, cdb contract.ChainAccessor, receiptTx db.Transaction,
-	run func(s, c *state.AccountState, id types.AccountID, cs *statedb.ContractState) (string, []*types.Event, *big.Int, error)) error {
+	run func(s, c *state.AccountState, id types.AccountID, cs *statedb.ContractState) (string, []*types.Event, string, *big.Int, error)) error {
 
 	creatorId := types.ToAccountID(l.sender())
 	creatorState, err := state.GetAccountState(l.sender(), bs.StateDB)
@@ -539,7 +539,7 @@ func contractFrame(l luaTxContract, bs *state.BlockState, cdb contract.ChainAcce
 		return err
 	}
 
-	rv, events, cFee, err := run(creatorState, contractState, contractId, eContractState)
+	rv, events, _, cFee, err := run(creatorState, contractState, contractId, eContractState)
 
 	if cFee != nil {
 		usedFee.Add(usedFee, cFee)
@@ -600,20 +600,20 @@ func (l *luaTxDeploy) run(execCtx context.Context, bs *state.BlockState, bc *Dum
 		l._payload = util.NewLuaCodePayload(byteCode, payload.Args())
 	}
 	return contractFrame(l, bs, bc, receiptTx,
-		func(sender, contractV *state.AccountState, contractId types.AccountID, eContractState *statedb.ContractState) (string, []*types.Event, *big.Int, error) {
+		func(sender, contractV *state.AccountState, contractId types.AccountID, eContractState *statedb.ContractState) (string, []*types.Event, string, *big.Int, error) {
 			contractV.State().SqlRecoveryPoint = 1
 
 			ctx := contract.NewVmContext(execCtx, bs, nil, sender, contractV, eContractState, sender.ID(), l.Hash(), bi, "", true, false, contractV.State().SqlRecoveryPoint, contract.BlockFactory, l.amount(), math.MaxUint64, false, false)
 
-			rv, events, ctrFee, err := contract.Create(eContractState, l.payload(), l.recipient(), ctx)
+			rv, events, internalOps, ctrFee, err := contract.Create(eContractState, l.payload(), l.recipient(), ctx)
 			if err != nil {
-				return "", nil, ctrFee, err
+				return "", nil, internalOps, ctrFee, err
 			}
 			err = statedb.StageContractState(eContractState, bs.StateDB)
 			if err != nil {
-				return "", nil, ctrFee, err
+				return "", nil, internalOps, ctrFee, err
 			}
-			return rv, events, ctrFee, nil
+			return rv, events, internalOps, ctrFee, nil
 		},
 	)
 }
@@ -657,12 +657,12 @@ func NewLuaTxCallFeeDelegate(sender, recipient string, amount uint64, payload st
 func NewLuaTxMultiCall(sender, payload string) *luaTxCall {
 	return &luaTxCall{
 		luaTxContractCommon: luaTxContractCommon{
-			_sender:     contract.StrHash(sender),
-			_recipient:  contract.StrHash(""),
-			_amount:     new(big.Int).SetUint64(0),
-			_payload:    []byte(payload),
-			txId:        newTxId(),
-			multiCall:   true,
+			_sender:    contract.StrHash(sender),
+			_recipient: contract.StrHash(""),
+			_amount:    new(big.Int).SetUint64(0),
+			_payload:   []byte(payload),
+			txId:       newTxId(),
+			multiCall:  true,
 		},
 	}
 }
@@ -674,23 +674,23 @@ func (l *luaTxCall) Fail(expectedErr string) *luaTxCall {
 
 func (l *luaTxCall) run(execCtx context.Context, bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error {
 	err := contractFrame(l, bs, bc, receiptTx,
-		func(sender, contractV *state.AccountState, contractId types.AccountID, eContractState *statedb.ContractState) (string, []*types.Event, *big.Int, error) {
+		func(sender, contractV *state.AccountState, contractId types.AccountID, eContractState *statedb.ContractState) (string, []*types.Event, string, *big.Int, error) {
 
 			ctx := contract.NewVmContext(execCtx, bs, bc, sender, contractV, eContractState, sender.ID(), l.Hash(), bi, "", true, false, contractV.State().SqlRecoveryPoint, contract.BlockFactory, l.amount(), math.MaxUint64, l.feeDelegate, l.multiCall)
 
-			rv, events, ctrFee, err := contract.Call(eContractState, l.payload(), l.recipient(), ctx)
+			rv, events, internalOps, ctrFee, err := contract.Call(eContractState, l.payload(), l.recipient(), ctx)
 			if err != nil {
-				return "", nil, ctrFee, err
+				return "", nil, internalOps, ctrFee, err
 			}
 
 			if !ctx.IsMultiCall() {
 				err = statedb.StageContractState(eContractState, bs.StateDB)
 				if err != nil {
-					return "", nil, ctrFee, err
+					return "", nil, internalOps, ctrFee, err
 				}
 			}
 
-			return rv, events, ctrFee, nil
+			return rv, events, internalOps, ctrFee, nil
 		},
 	)
 	if l.expectedErr != "" {

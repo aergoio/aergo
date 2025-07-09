@@ -5,13 +5,12 @@ import (
 	"strings"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/rs/zerolog"
 )
 
 // Logger is a logging unit. It controls the flow of messages to a given
 // (swappable) backend.
 type RaftLogger struct {
-	logger zerolog.Logger
+	logger *log.Logger
 }
 
 func NewRaftLogger(logger *log.Logger) *RaftLogger {
@@ -19,7 +18,7 @@ func NewRaftLogger(logger *log.Logger) *RaftLogger {
 		panic("base logger of raft is nil")
 	}
 
-	return &RaftLogger{logger: logger.With().CallerWithSkipFrameCount(3).Logger()}
+	return &RaftLogger{logger: logger.WithSkipFrameCount(3)}
 }
 func (l RaftLogger) Fatal(args ...interface{}) {
 	s := fmt.Sprint(args...)
