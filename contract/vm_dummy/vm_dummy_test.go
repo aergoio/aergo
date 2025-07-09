@@ -17,6 +17,7 @@ import (
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/aergoio/aergo/v2/cmd/aergoluac/util"
 )
 
 const min_version int32 = 2
@@ -6276,7 +6277,8 @@ func readLuaCode(t *testing.T, file string) (luaCode string) {
 	if ok != true {
 		return ""
 	}
-	raw, err := os.ReadFile(filepath.Join(filepath.Dir(filename), "test_files", file))
+	filePath := filepath.Join(filepath.Dir(filename), "test_files", file)
+	raw, err := util.ReadContract(filePath)
 	require.NoErrorf(t, err, "failed to read "+file)
 	require.NotEmpty(t, raw, "failed to read "+file)
 	return string(raw)
