@@ -14,7 +14,7 @@ var (
 		V2: types.BlockNo(19611555),
 		V3: types.BlockNo(111499715),
 		V4: types.BlockNo(173677571),
-		V5: types.BlockNo(195730000),
+		V5: types.BlockNo(196310000),
 	}
 	TestNetHardforkConfig = &HardforkConfig{
 		V2: types.BlockNo(18714241),
