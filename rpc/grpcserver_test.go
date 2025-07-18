@@ -189,3 +189,44 @@ func (fs *FutureStub) Result() interface{} {
 func NewFutureStub(result interface{}) FutureStub {
 	return FutureStub{dumbResult: result}
 }
+
+func TestAergoRPCService_GetBlockIncompleteArg(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockMsgHelper := messagemock.NewHelper(ctrl)
+	mockActorHelper := p2pmock.NewMockActorService(ctrl)
+
+	dummyResult := make(map[string]*component.CompStatRsp)
+	mockActorHelper.EXPECT().CallRequestDefaultTimeout(gomock.Any(), gomock.Any()).Return(dummyResult, nil).AnyTimes()
+	type fields struct {
+		hub         *component.ComponentHub
+		actorHelper p2pcommon.ActorService
+		msgHelper   message.Helper
+	}
+	type args struct {
+		ctx context.Context
+		in  *types.SingleBytes
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{name: "nilValue", fields: fields{hubStub, mockActorHelper, mockMsgHelper},
+			args: args{mockCtx, &types.SingleBytes{}}, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rpc := &AergoRPCService{
+				hub: tt.fields.hub, actorHelper: mockActorHelper, msgHelper: mockMsgHelper,
+			}
+			_, err := rpc.GetBlock(tt.args.ctx, tt.args.in)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetBlock() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+		})
+	}
+}
