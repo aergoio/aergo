@@ -44,4 +44,5 @@ type PeerManager interface {
 	AddDesignatedPeer(meta PeerMeta)
 	RemoveDesignatedPeer(peerID types.PeerID)
 	ListDesignatedPeers() []PeerMeta
+	MsgBufSize() int
 }
