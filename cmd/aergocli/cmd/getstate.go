@@ -8,6 +8,7 @@ package cmd
 import (
 	"context"
 
+	"github.com/aergoio/aergo/v2/internal/enc/hex"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/aergo/v2/types/jsonrpc"
@@ -21,7 +22,7 @@ var getstateCmd = &cobra.Command{
 }
 
 func init() {
-	getstateCmd.Flags().StringVar(&address, "address", "", "Get state from the address")
+	getstateCmd.Flags().StringVar(&address, "address", "", "Get state from the address or hex key")
 	getstateCmd.MarkFlagRequired("address")
 	getstateCmd.Flags().StringVar(&stateroot, "root", "", "Get the state at a specified state root")
 	getstateCmd.Flags().BoolVar(&proof, "proof", false, "Get the proof for the state")
@@ -33,7 +34,9 @@ func init() {
 
 func execGetState(cmd *cobra.Command, args []string) {
 	var root []byte
+	var addr []byte
 	var err error
+
 	if len(stateroot) != 0 {
 		root, err = base58.Decode(stateroot)
 		if err != nil {
@@ -41,11 +44,17 @@ func execGetState(cmd *cobra.Command, args []string) {
 			return
 		}
 	}
-	addr, err := types.DecodeAddress(address)
+
+	if len(address) == 64 {
+		addr, err = hex.Decode(address)
+	} else {
+		addr, err = types.DecodeAddress(address)
+	}
 	if err != nil {
 		cmd.Printf("Failed: %s\n", err.Error())
 		return
 	}
+
 	if staking {
 		msg, err := client.GetStaking(context.Background(),
 			&types.AccountAddress{Value: addr})
