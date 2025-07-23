@@ -75,8 +75,7 @@ type peerManager struct {
 	designatedPeers map[types.PeerID]p2pcommon.PeerMeta
 	hiddenPeerSet   map[types.PeerID]bool
 
-	msgBufSize int
-	logger     *log.Logger
+	logger *log.Logger
 }
 
 // getPeerTask is struct to get peer for concurrent use
@@ -91,10 +90,6 @@ var _ p2pcommon.PeerManager = (*peerManager)(nil)
 func NewPeerManager(is p2pcommon.InternalService, hsFactory p2pcommon.HSHandlerFactory, actor p2pcommon.ActorService, pf p2pcommon.PeerFactory, nt p2pcommon.NetworkTransport, mm metric.MetricsManager, lm p2pcommon.ListManager, logger *log.Logger, cfg *cfg.Config, skipHandshakeSync bool) p2pcommon.PeerManager {
 	p2pConf := cfg.P2P
 	//logger.SetLevel("debug")
-	msgBufSize := p2pConf.MsgBufSize
-	if msgBufSize < writeMsgBufferSize {
-		msgBufSize = writeMsgBufferSize
-	}
 	pm := &peerManager{
 		is:                is,
 		nt:                nt,
@@ -130,7 +125,6 @@ func NewPeerManager(is p2pcommon.InternalService, hsFactory p2pcommon.HSHandlerF
 		eventListeners:    make([]p2pcommon.PeerEventListener, 0, 4),
 		taskChannel:       make(chan pmTask, 4),
 		finishChannel:     make(chan struct{}),
-		msgBufSize:        msgBufSize,
 	}
 
 	// additional initializations
@@ -475,10 +469,6 @@ func (pm *peerManager) GetPeerBlockInfos() []types.PeerBlockInfo {
 		infos[i] = peer
 	}
 	return infos
-}
-
-func (pm *peerManager) MsgBufSize() int {
-	return pm.msgBufSize
 }
 
 func (pm *peerManager) GetPeerAddresses(noHidden bool, showSelf bool) []*message.PeerInfo {
