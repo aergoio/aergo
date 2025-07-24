@@ -213,6 +213,9 @@ echo "✓"
 # Test contract calls (3 different types)
 echo "--- Testing contract calls ---"
 
+# Capture initial block height for event testing
+initial_block_height=$(../bin/aergocli blockchain | jq '.height')
+
 # Test value_set call
 echo -n "Testing value_set call... "
 txhash=$(../bin/aergocli --keystore . --password bmttest \
@@ -428,4 +431,90 @@ if [ "$status" != "SUCCESS" ]; then
   echo "ERROR: name registration failed with status: $status"
   exit 1
 fi
+echo "✓"
+
+# Test event command with initial block height
+echo -n "Testing event command... "
+events=$(../bin/aergocli event list --address $contract_address --start $initial_block_height)
+if [ -z "$events" ]; then
+  echo "ERROR: No events found from block $initial_block_height"
+  exit 1
+fi
+
+# Save events to a file for parsing
+echo "$events" > events.json
+
+# Since events are returned as separate JSON objects (not an array), we need to parse them differently
+# Split events into individual objects and count them
+event_count=0
+event_names=""
+
+# Process the events output line by line, handling multi-line JSON objects
+while IFS= read -r line; do
+  if [[ "$line" == "{"* ]]; then
+    # Start of a new JSON object
+    current_event="$line"
+  elif [[ "$line" == "}"* ]]; then
+    # End of JSON object
+    current_event="$current_event
+$line"
+
+    # Parse this complete event
+    if echo "$current_event" | jq . >/dev/null 2>&1; then
+      event_count=$((event_count + 1))
+
+      # Extract event name
+      event_name=$(echo "$current_event" | jq -r .eventName)
+      contract_addr=$(echo "$current_event" | jq -r .contractAddress)
+
+      # Validate required fields
+      if [ "$event_name" = "null" ] || [ "$contract_addr" = "null" ]; then
+        echo "ERROR: Event missing required fields: $current_event"
+        exit 1
+      fi
+
+      # Verify contract address matches
+      if [ "$contract_addr" != "$contract_address" ]; then
+        echo "ERROR: Event contract address mismatch. Expected: $contract_address, Got: $contract_addr"
+        exit 1
+      fi
+
+      # Collect event names
+      if [ -z "$event_names" ]; then
+        event_names="$event_name"
+      else
+        event_names="$event_names
+$event_name"
+      fi
+    else
+      echo "ERROR: Invalid JSON event: $current_event"
+      exit 1
+    fi
+
+    current_event=""
+  else
+    # Middle of JSON object
+    current_event="$current_event
+$line"
+  fi
+done <<< "$events"
+
+# Check event count
+if [ "$event_count" -ne 3 ]; then
+  echo "ERROR: Expected 3 events, but found $event_count"
+  exit 1
+fi
+
+# Check event names in order
+expected_events="value_set
+array_append
+map_set"
+
+if [ "$event_names" != "$expected_events" ]; then
+  echo "ERROR: Event names don't match expected sequence"
+  echo "Expected: value_set, array_append, map_set"
+  echo "Actual: $(echo "$event_names" | tr '\n' ', ' | sed 's/,$//')"
+  exit 1
+fi
+
 echo "✓"
