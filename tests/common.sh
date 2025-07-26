@@ -13,8 +13,8 @@ start_nodes() {
     ../bin/aergosvr --home ./node3 >> logs3 2>> logs3 &
     pid3=$!
     # nodes 4 and 5 use a previous version of aergosvr for backwards compatibility check
-    docker run --name aergo-test-node4 --rm --net=host -v $(pwd)/node4:/aergo aergo/node:2.6.1 aergosvr --home /aergo >> logs4 2>> logs4 &
-    docker run --name aergo-test-node5 --rm --net=host -v $(pwd)/node5:/aergo aergo/node:2.6.1 aergosvr --home /aergo >> logs5 2>> logs5 &
+    docker run --name aergo-test-node4 --rm --net=host -v $(pwd)/node4:/aergo aergo/node:2.8.1 aergosvr --home /aergo >> logs4 2>> logs4 &
+    docker run --name aergo-test-node5 --rm --net=host -v $(pwd)/node5:/aergo aergo/node:2.8.1 aergosvr --home /aergo >> logs5 2>> logs5 &
   fi
 
 }
