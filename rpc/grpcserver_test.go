@@ -72,17 +72,10 @@ func init() {
 }
 
 func TestAergoRPCService_GetTX(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockMsgHelper := messagemock.NewHelper(ctrl)
-	mockActorHelper := p2pmock.NewMockActorService(ctrl)
-
 	dummyTxBody := types.TxBody{Account: dummyWalletAddress, Amount: new(big.Int).SetUint64(4332).Bytes(),
 		Recipient: dummyWalletAddress2, Payload: dummyPayload}
 	sampleTx := &types.Tx{Hash: dummyTxHash, Body: &dummyTxBody}
-	mockActorHelper.EXPECT().CallRequestDefaultTimeout(message.MemPoolSvc, gomock.Any()).Return(message.MemPoolGetRsp{}, nil)
-	mockMsgHelper.EXPECT().ExtractTxFromResponse(gomock.AssignableToTypeOf(message.MemPoolGetRsp{})).Return(sampleTx, nil)
+
 	type fields struct {
 		hub         *component.ComponentHub
 		actorHelper p2pcommon.ActorService
@@ -99,14 +92,28 @@ func TestAergoRPCService_GetTX(t *testing.T) {
 		want    *types.Tx
 		wantErr bool
 	}{
-		{name: "T00", args: args{ctx: mockCtx, in: &types.SingleBytes{Value: append(dummyTxHash, 'b', 'd')}}, fields: fields{hubStub, mockActorHelper, mockMsgHelper},
+		{name: "TNormal", args: args{ctx: mockCtx, in: &types.SingleBytes{Value: dummyTxHash}},
 			want: &types.Tx{Hash: dummyTxHash, Body: &dummyTxBody}, wantErr: false},
-		// TODO: Add test cases.
+		// TODO the malformed hash is allowed until v2.8.x , but should return error at v2.9.0
+		{name: "TMalformedHash", args: args{ctx: mockCtx, in: &types.SingleBytes{Value: append(dummyTxHash, 'b', 'd')}},
+			want: &types.Tx{Hash: dummyTxHash, Body: &dummyTxBody}, wantErr: false},
+		{name: "TEmptyHash", args: args{ctx: mockCtx, in: &types.SingleBytes{Value: []byte{}}},
+			want: &types.Tx{Hash: dummyTxHash, Body: &dummyTxBody}, wantErr: false},
+		{name: "TNilHash", args: args{ctx: mockCtx, in: &types.SingleBytes{Value: nil}},
+			want: nil, wantErr: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			mockMsgHelper := messagemock.NewHelper(ctrl)
+			mockActorHelper := p2pmock.NewMockActorService(ctrl)
+			mockActorHelper.EXPECT().CallRequestDefaultTimeout(message.MemPoolSvc, gomock.Any()).Return(message.MemPoolGetRsp{}, nil).AnyTimes()
+			mockMsgHelper.EXPECT().ExtractTxFromResponse(gomock.AssignableToTypeOf(message.MemPoolGetRsp{})).Return(sampleTx, nil).AnyTimes()
+
 			rpc := &AergoRPCService{
-				hub: tt.fields.hub, actorHelper: mockActorHelper, msgHelper: mockMsgHelper,
+				hub: hubStub, actorHelper: mockActorHelper, msgHelper: mockMsgHelper,
 			}
 			got, err := rpc.GetTX(tt.args.ctx, tt.args.in)
 			if (err != nil) != tt.wantErr {

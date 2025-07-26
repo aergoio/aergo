@@ -65,7 +65,7 @@ func TestToAccountID(t *testing.T) {
 		{"zeros", Address(zeroBytes),
 			ToAccountID(zeroBytes)},
 		{"empty", ToAddress(emptyAddress), ToAccountID([]byte{})},
-		{"nil", ToAddress(emptyAddress), ToAccountID([]byte{})},
+		{"nil", ToAddress(emptyAddress), ToAccountID(nil)},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
