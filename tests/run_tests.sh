@@ -150,8 +150,9 @@ echo "creating user account..."
 
 # run the integration tests - version 2
 if [ "$short_tests" = true ]; then
-  check ./test-contract-deploy.sh
+  check ./test-aergocli.sh
 else
+  check ./test-aergocli.sh
   check ./test-gas-deploy.sh
   check ./test-gas-op.sh
   check ./test-gas-bf.sh
@@ -168,8 +169,9 @@ set_version 3
 
 # run the integration tests - version 3
 if [ "$short_tests" = true ]; then
-  check ./test-contract-deploy.sh
+  check ./test-aergocli.sh
 else
+  check ./test-aergocli.sh
   check ./test-max-call-depth.sh
   check ./test-gas-deploy.sh
   check ./test-gas-op.sh
@@ -188,8 +190,9 @@ set_version 4
 
 # run the integration tests - version 4
 if [ "$short_tests" = true ]; then
-  check ./test-contract-deploy.sh
+  check ./test-aergocli.sh
 else
+  check ./test-aergocli.sh
   check ./test-max-call-depth.sh
   check ./test-gas-deploy.sh
   check ./test-gas-op.sh
@@ -210,8 +213,9 @@ set_version 5
 
 # run the integration tests - version 5
 if [ "$short_tests" = true ]; then
-  check ./test-contract-deploy.sh
+  check ./test-aergocli.sh
 else
+  check ./test-aergocli.sh
   check ./test-max-call-depth.sh
   check ./test-gas-deploy.sh
   check ./test-gas-op.sh
