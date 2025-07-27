@@ -7,6 +7,7 @@ package rpc
 import (
 	"context"
 	"fmt"
+	"github.com/aergoio/aergo/v2/types/utils"
 	"math/big"
 	"reflect"
 	"testing"
@@ -69,18 +70,12 @@ func init() {
 
 	mockCtx = &Context{}
 }
+
 func TestAergoRPCService_GetTX(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockMsgHelper := messagemock.NewHelper(ctrl)
-	mockActorHelper := p2pmock.NewMockActorService(ctrl)
-
 	dummyTxBody := types.TxBody{Account: dummyWalletAddress, Amount: new(big.Int).SetUint64(4332).Bytes(),
 		Recipient: dummyWalletAddress2, Payload: dummyPayload}
 	sampleTx := &types.Tx{Hash: dummyTxHash, Body: &dummyTxBody}
-	mockActorHelper.EXPECT().CallRequestDefaultTimeout(message.MemPoolSvc, gomock.Any()).Return(message.MemPoolGetRsp{}, nil)
-	mockMsgHelper.EXPECT().ExtractTxFromResponse(gomock.AssignableToTypeOf(message.MemPoolGetRsp{})).Return(sampleTx, nil)
+
 	type fields struct {
 		hub         *component.ComponentHub
 		actorHelper p2pcommon.ActorService
@@ -97,14 +92,28 @@ func TestAergoRPCService_GetTX(t *testing.T) {
 		want    *types.Tx
 		wantErr bool
 	}{
-		{name: "T00", args: args{ctx: mockCtx, in: &types.SingleBytes{Value: append(dummyTxHash, 'b', 'd')}}, fields: fields{hubStub, mockActorHelper, mockMsgHelper},
+		{name: "TNormal", args: args{ctx: mockCtx, in: &types.SingleBytes{Value: dummyTxHash}},
 			want: &types.Tx{Hash: dummyTxHash, Body: &dummyTxBody}, wantErr: false},
-		// TODO: Add test cases.
+		// TODO the malformed hash is allowed until v2.8.x , but should return error at v2.9.0
+		{name: "TMalformedHash", args: args{ctx: mockCtx, in: &types.SingleBytes{Value: append(dummyTxHash, 'b', 'd')}},
+			want: &types.Tx{Hash: dummyTxHash, Body: &dummyTxBody}, wantErr: false},
+		{name: "TEmptyHash", args: args{ctx: mockCtx, in: &types.SingleBytes{Value: []byte{}}},
+			want: &types.Tx{Hash: dummyTxHash, Body: &dummyTxBody}, wantErr: false},
+		{name: "TNilHash", args: args{ctx: mockCtx, in: &types.SingleBytes{Value: nil}},
+			want: nil, wantErr: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			mockMsgHelper := messagemock.NewHelper(ctrl)
+			mockActorHelper := p2pmock.NewMockActorService(ctrl)
+			mockActorHelper.EXPECT().CallRequestDefaultTimeout(message.MemPoolSvc, gomock.Any()).Return(message.MemPoolGetRsp{}, nil).AnyTimes()
+			mockMsgHelper.EXPECT().ExtractTxFromResponse(gomock.AssignableToTypeOf(message.MemPoolGetRsp{})).Return(sampleTx, nil).AnyTimes()
+
 			rpc := &AergoRPCService{
-				hub: tt.fields.hub, actorHelper: mockActorHelper, msgHelper: mockMsgHelper,
+				hub: hubStub, actorHelper: mockActorHelper, msgHelper: mockMsgHelper,
 			}
 			got, err := rpc.GetTX(tt.args.ctx, tt.args.in)
 			if (err != nil) != tt.wantErr {
@@ -112,6 +121,63 @@ func TestAergoRPCService_GetTX(t *testing.T) {
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("AergoRPCService.GetTX() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestAergoRPCService_NodeState(t *testing.T) {
+	var emptyMap = []byte("{}")
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockMsgHelper := messagemock.NewHelper(ctrl)
+	mockActorHelper := p2pmock.NewMockActorService(ctrl)
+
+	dummyResult := make(map[string]*component.CompStatRsp)
+	mockActorHelper.EXPECT().CallRequestDefaultTimeout(gomock.Any(), gomock.Any()).Return(dummyResult, nil).AnyTimes()
+	type fields struct {
+		hub         *component.ComponentHub
+		actorHelper p2pcommon.ActorService
+		msgHelper   message.Helper
+	}
+	type args struct {
+		ctx context.Context
+		in  *types.NodeReq
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *types.SingleBytes
+		wantErr bool
+	}{
+		{name: "normal", args: args{ctx: mockCtx,
+			in: &types.NodeReq{Timeout: utils.ToByteArrayOrEmpty(int64(5)), Component: nil}}, fields: fields{hubStub, mockActorHelper, mockMsgHelper},
+			want: &types.SingleBytes{Value: emptyMap}, wantErr: false},
+		{name: "nilTime", args: args{ctx: mockCtx,
+			in: &types.NodeReq{Timeout: nil, Component: nil}}, fields: fields{hubStub, mockActorHelper, mockMsgHelper},
+			want: &types.SingleBytes{Value: emptyBytes}, wantErr: true},
+		{name: "shortData", args: args{ctx: mockCtx,
+			in: &types.NodeReq{Timeout: []byte("short"), Component: nil}}, fields: fields{hubStub, mockActorHelper, mockMsgHelper},
+			want: &types.SingleBytes{Value: emptyMap}, wantErr: true},
+		{name: "wrongComponent", args: args{ctx: mockCtx,
+			in: &types.NodeReq{Timeout: utils.ToByteArrayOrEmpty(int64(5)), Component: []byte("nope")}}, fields: fields{hubStub, mockActorHelper, mockMsgHelper},
+			want: &types.SingleBytes{Value: emptyBytes}, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rpc := &AergoRPCService{
+				hub: tt.fields.hub, actorHelper: mockActorHelper, msgHelper: mockMsgHelper,
+			}
+			got, err := rpc.NodeState(tt.args.ctx, tt.args.in)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("AergoRPCService.GetTX() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			// do not check return value when error is expected
+			if !tt.wantErr && !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("AergoRPCService.GetTX() = %v, want %v", got, tt.want)
 			}
 		})
@@ -129,4 +195,45 @@ func (fs *FutureStub) Result() interface{} {
 
 func NewFutureStub(result interface{}) FutureStub {
 	return FutureStub{dumbResult: result}
+}
+
+func TestAergoRPCService_GetBlockIncompleteArg(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockMsgHelper := messagemock.NewHelper(ctrl)
+	mockActorHelper := p2pmock.NewMockActorService(ctrl)
+
+	dummyResult := make(map[string]*component.CompStatRsp)
+	mockActorHelper.EXPECT().CallRequestDefaultTimeout(gomock.Any(), gomock.Any()).Return(dummyResult, nil).AnyTimes()
+	type fields struct {
+		hub         *component.ComponentHub
+		actorHelper p2pcommon.ActorService
+		msgHelper   message.Helper
+	}
+	type args struct {
+		ctx context.Context
+		in  *types.SingleBytes
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{name: "nilValue", fields: fields{hubStub, mockActorHelper, mockMsgHelper},
+			args: args{mockCtx, &types.SingleBytes{}}, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rpc := &AergoRPCService{
+				hub: tt.fields.hub, actorHelper: mockActorHelper, msgHelper: mockMsgHelper,
+			}
+			_, err := rpc.GetBlock(tt.args.ctx, tt.args.in)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetBlock() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+		})
+	}
 }
