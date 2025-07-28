@@ -564,6 +564,7 @@ func (rpc *AergoRPCService) GetTX(ctx context.Context, in *types.SingleBytes) (*
 	if err := rpc.checkAuth(ctx, ReadBlockChain); err != nil {
 		return nil, err
 	}
+	// in.Value is txHash
 	if in.Value == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid input hash")
 	}
@@ -610,9 +611,6 @@ var emptyBytes = make([]byte, 0)
 func (rpc *AergoRPCService) SendTX(ctx context.Context, tx *types.Tx) (*types.CommitResult, error) {
 	if err := rpc.checkAuth(ctx, WriteBlockChain); err != nil {
 		return nil, err
-	}
-	if tx.Hash == nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid tx hash")
 	}
 	if tx.Body == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "input tx is empty")
@@ -686,7 +684,7 @@ func (rpc *AergoRPCService) CommitTX(ctx context.Context, in *types.TxList) (*ty
 		return nil, status.Errorf(codes.InvalidArgument, "empty transaction")
 	}
 	for _, tx := range in.Txs {
-		if tx.Body == nil || len(tx.Hash) == 0 {
+		if tx.Body == nil {
 			return nil, status.Errorf(codes.InvalidArgument, "input tx is empty")
 		}
 	}
@@ -925,7 +923,7 @@ func (rpc *AergoRPCService) SignTX(ctx context.Context, in *types.Tx) (*types.Tx
 	if err := rpc.checkAuth(ctx, WriteBlockChain); err != nil {
 		return nil, err
 	}
-	if in.Body == nil || len(in.Hash) == 0 {
+	if in.Body == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "input tx is empty")
 	}
 
@@ -951,7 +949,7 @@ func (rpc *AergoRPCService) VerifyTX(ctx context.Context, in *types.Tx) (*types.
 		return nil, err
 	}
 	//TODO : verify without account service
-	if in.Body == nil || len(in.Hash) == 0 {
+	if in.Body == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "input tx is empty")
 	}
 
