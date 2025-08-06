@@ -98,3 +98,13 @@ jobs:
       run: |
         echo "One or more integration tests failed!"
         exit 1
+
+    - name: Upload Binaries on Release
+      if: github.event_name == 'push' && github.ref_name == 'master' && github.ref_type == 'branch'
+      uses: actions/upload-artifact@v4
+      with:
+        name: aergo-binaries
+        retention-days: 30
+        path: |
+          bin/aergo*
+          bin/brick
