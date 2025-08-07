@@ -722,7 +722,7 @@ func getAddressNameResolved(sdb *statedb.StateDB, account []byte) ([]byte, error
 	if len(account) == types.NameLength {
 		scs, err := statedb.GetNameAccountState(sdb)
 		if err != nil {
-			logger.Error().Str("hash", base58.Encode(account)).Err(err).Msg("failed to get state for account")
+			logger.Error().Str("hash", base58.Encode(account)).Err(err).Msg("failed to get state for name account")
 			return nil, err
 		}
 		return name.GetAddress(scs, account), nil
@@ -779,7 +779,12 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			})
 			return
 		}
-		id := types.ToAccountID(address)
+		var id types.AccountID
+		if len(address) == 32 {
+			id = types.AccountID(types.ToHashID(address))
+		} else {
+			id = types.ToAccountID(address)
+		}
 		accState, err := sdb.GetAccountState(id)
 		if err != nil {
 			logger.Error().Str("hash", base58.Encode(address)).Err(err).Msg("failed to get state for account")
