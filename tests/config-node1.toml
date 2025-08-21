@@ -1,5 +1,6 @@
 # aergo TOML Configuration File (https://github.com/toml-lang/toml)
 # base configurations
+dbtype = "hashtabledb"
 enableprofile = false
 
 [rpc]
