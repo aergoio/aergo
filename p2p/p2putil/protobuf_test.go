@@ -55,10 +55,7 @@ func Test_MarshalTxResp(t *testing.T) {
 				t.Errorf("Invalid proto error %s", err.Error())
 			}
 			actualSize := len(actual)
-			cut := 80
-			if actualSize < cut {
-				cut = actualSize
-			}
+			cut := min(actualSize, 80)
 			//fmt.Println("ACTUAL: ",hex.HexEncode(actual[:cut]))
 
 			assert.Equal(t, test.expectedSize, actualSize)

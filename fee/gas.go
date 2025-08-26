@@ -34,10 +34,7 @@ func TxGas(payloadSize int) uint64 {
 	if IsZeroFee() {
 		return 0
 	}
-	size := paymentDataSize(int64(payloadSize))
-	if size > payloadMaxSize {
-		size = payloadMaxSize
-	}
+	size := min(paymentDataSize(int64(payloadSize)), payloadMaxSize)
 	txGas := txGasSize
 	payloadGas := uint64(size) * payloadGasSize
 	return txGas + payloadGas

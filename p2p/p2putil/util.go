@@ -162,10 +162,7 @@ func ComparePeerID(pid1, pid2 types.PeerID) int {
 	p2 := []byte(string(pid2))
 	l1 := len(p1)
 	l2 := len(p2)
-	compLen := l1
-	if l1 > l2 {
-		compLen = l2
-	}
+	compLen := min(l1, l2)
 
 	// check bytes
 	for i := 0; i < compLen; i++ {
