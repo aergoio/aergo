@@ -85,6 +85,7 @@ func (core *Core) init(dbType string, dataDir string, testModeOn bool, forceRese
 			return err
 		}
 		logger.Info().Uint64("height", forceResetHeight).Msg("reset chaindb")
+		core.Close()
 		os.Exit(0)
 	}
 
@@ -392,12 +393,11 @@ func (cs *ChainService) AfterStart() {
 
 // BeforeStop close chain database and stop BlockValidator
 func (cs *ChainService) BeforeStop() {
-	cs.Close()
-
 	cs.chainManager.Stop()
 	cs.chainWorker.Stop()
-
 	cs.validator.Stop()
+	// Close dbs after stopping services
+	cs.Close()
 }
 
 func (cs *ChainService) notifyBlock(block *types.Block, isByBP bool) {
