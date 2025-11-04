@@ -6,7 +6,7 @@ toolchain go1.23.7
 
 require (
 	github.com/aergoio/aergo-actor v0.0.0-20190219030625-562037d5fec7
-	github.com/aergoio/aergo-lib v1.3.0
+	github.com/aergoio/aergo-lib v1.3.1-0.20251104060841-4c719ee95c25
 	github.com/aergoio/etcd v0.0.0-20190429013412-e8b3f96f6399
 	github.com/anaskhan96/base58check v0.0.0-20181220122047-b05365d494c4
 	github.com/bluele/gcache v0.0.0-20190518031135-bc40bd653833
@@ -173,6 +173,7 @@ require (
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/syndtr/goleveldb v1.0.0 // indirect
+	github.com/tecbot/gorocksdb v0.0.0-20191217155057-f0fad39f321c // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.0 // indirect
 	github.com/willf/bitset v1.1.10 // indirect
