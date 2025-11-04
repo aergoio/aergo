@@ -39,7 +39,16 @@ jobs:
 
     - name: Install dependencies
       run: |
-        sudo apt-get install -y jq m4 make cmake librocksdb-dev
+        sudo apt-get install -y jq m4 make cmake libsnappy-dev
+
+    - name: Cache RocksDB
+      id: cache-rocksdb
+      uses: actions/cache@v3
+      with:
+        path: |
+          libtool/lib/librocksdb.a
+          libtool/include/rocksdb
+        key: rocksdb-library-10.5.1
 
     - name: Build
       run: make

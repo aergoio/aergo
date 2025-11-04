@@ -1,5 +1,5 @@
 FROM debian:stable-slim
-RUN apt-get update && apt-get install -y librocksdb
+RUN apt-get update && apt-get install -y libsnappy1v5
 COPY bin/aergosvr /usr/local/bin/
 COPY lib/* /usr/local/lib/
 COPY conf/* /aergo/
