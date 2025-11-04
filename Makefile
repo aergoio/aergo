@@ -22,7 +22,7 @@ BUILD_RULES := \
 	libtool libtool-clean \
 	libluajit liblmdb libgmp librocksdb \
 	libluajit-clean liblmdb-clean libgmp-clean librocksdb-clean \
-	check cover-check \
+	check short-check cover-check \
 	distclean \
 	protoc protoclean
 
