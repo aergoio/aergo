@@ -15,32 +15,76 @@ if(CMAKE_BUILD_TYPE MATCHES "Debug")
     set(GFLAG -tags Debug)
 endif()
 
+# CMake command line option to accept GITHASH
+option(GIT_TAG "Git hash value")
+option(GIT_BRANCH "Git hash value")
+option(GIT_REVISION "Git hash value")
+
+# Determine the git hash value
+if(GIT_TAG)
+    set(GIT_TAG_CMD ${GIT_TAG})
+else()
+    execute_process(
+        COMMAND git describe --tags
+        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+        OUTPUT_VARIABLE GIT_TAG_CMD
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+endif()
+if(GIT_BRANCH)
+    set(GIT_BRANCH_CMD ${GIT_BRANCH})
+else()
+    execute_process(
+        COMMAND git rev-parse --symbolic-full-name --abbrev-ref HEAD
+        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+        OUTPUT_VARIABLE GIT_BRANCH_CMD
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+endif()
+if(GIT_REVISION)
+    set(GIT_REVISION_CMD ${GIT_REVISION})
+else()
+    execute_process(
+        COMMAND git rev-parse --short HEAD
+        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+        OUTPUT_VARIABLE GIT_REVISION_CMD
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+endif()
+
+# Pass the determined GIT_* value to makefile
+configure_file(
+    "GITINFO.txt.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/GITINFO.txt"
+    @ONLY
+)
+
 add_custom_target(build ALL DEPENDS aergocli aergosvr aergoluac brick)
 
-add_custom_target(aergocli GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X github.com/aergoio/aergo/v2/cmd/aergocli/cmd.githash=`git describe --tags`\" ./cmd/aergocli/...
+add_custom_target(aergocli GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X github.com/aergoio/aergo/v2/cmd/aergocli/cmd.githash=${GIT_TAG_CMD}\" ./cmd/aergocli/...
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     DEPENDS libtool)
 
-add_custom_target(aergosvr GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X main.githash=`git describe --tags` -X main.gitRevision=`git rev-parse --short HEAD` -X main.gitBranch=`git rev-parse --symbolic-full-name --abbrev-ref HEAD`\" ./cmd/aergosvr/...
+add_custom_target(aergosvr GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X main.githash=${GIT_TAG_CMD} -X main.gitRevision=${GIT_REVISION_CMD} -X main.gitBranch=${GIT_BRANCH_CMD}\" ./cmd/aergosvr/...
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     DEPENDS libtool)
 
-add_custom_target(polaris GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X main.githash=`git describe --tags`\" ./cmd/polaris/...
+add_custom_target(polaris GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X main.githash=${GIT_TAG_CMD}\" ./cmd/polaris/...
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR})
 
-add_custom_target(colaris GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X github.com/aergoio/aergo/v2/cmd/colaris/cmd.githash=`git describe --tags`\" ./cmd/colaris/...
+add_custom_target(colaris GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X github.com/aergoio/aergo/v2/cmd/colaris/cmd.githash=${GIT_TAG_CMD}\" ./cmd/colaris/...
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR})
 
-add_custom_target(aergoluac GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X main.githash=`git describe --tags`\" ./cmd/aergoluac/...
+add_custom_target(aergoluac GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X main.githash=${GIT_TAG_CMD}\" ./cmd/aergoluac/...
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     DEPENDS libtool)
 
-add_custom_target(brick GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS} ${GFLAG} -ldflags \"-X 'github.com/aergoio/aergo/v2/cmd/brick/context.GitHash=`git describe --tags`'
+add_custom_target(brick GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS} ${GFLAG} -ldflags \"-X 'github.com/aergoio/aergo/v2/cmd/brick/context.GitHash=${GIT_TAG_CMD}'
 -X 'github.com/aergoio/aergo-lib/log.defaultConfStr=`cat ./cmd/brick/arglog.toml`'\"  ./cmd/brick/...
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     DEPENDS libtool)
 
-add_custom_target(mpdumpdiag GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X main.githash=`git describe --tags`\" ./tools/mpdumpdiag/...
+add_custom_target(mpdumpdiag GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X main.githash=${GIT_TAG_CMD}\" ./tools/mpdumpdiag/...
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR})
 
 add_custom_target(deps DEPENDS libtool)
