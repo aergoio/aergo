@@ -74,7 +74,7 @@ add_custom_target(libluajit $(MAKE) PREFIX=${LIB_DIR} ${CFLAGS} all install
 	WORKING_DIRECTORY ${LUAJIT_BUILD_DIR})
 add_custom_target(liblmdb $(MAKE) prefix=${LIB_DIR} all install
 	WORKING_DIRECTORY ${LMDB_BUILD_DIR})
-add_custom_target(librocksdb $(MAKE) PREFIX=${LIB_DIR} PORTABLE=1 -j2 install-static
+add_custom_target(librocksdb ROCKSDB_DISABLE_ZLIB=1 ROCKSDB_DISABLE_BZIP=1 ROCKSDB_DISABLE_LZ4=1 ROCKSDB_DISABLE_ZSTD=1 $(MAKE) PREFIX=${LIB_DIR} PORTABLE=1 -j2 install-static
 	WORKING_DIRECTORY ${ROCKSDB_SRC_DIR})
 
 add_custom_target(libtool-clean
