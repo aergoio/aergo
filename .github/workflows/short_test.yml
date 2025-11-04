@@ -39,7 +39,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        sudo apt-get install -y jq m4 make cmake
+        sudo apt-get install -y jq m4 make cmake librocksdb-dev
 
     - name: Build
       run: make
