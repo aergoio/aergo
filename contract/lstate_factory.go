@@ -76,7 +76,7 @@ func newLState() *LState {
 	return C.vm_newstate(C.int(currentForkVersion))
 }
 
-func (L *LState) close() {
+func closeLState(L *LState) {
 	if L != nil {
 		C.lua_close(L)
 	}
