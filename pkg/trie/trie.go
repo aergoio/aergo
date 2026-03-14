@@ -60,8 +60,7 @@ func NewTrie(root []byte, hash func(data ...[]byte) []byte, store db.DB) *Trie {
 	}
 	s.db = &CacheDB{
 		liveCache:    make(map[Hash][][]byte),
-		updatedNodes: make(map[Hash][][]byte),
-		deletedNodes: make(map[Hash]bool),
+		nodeChanges:  make(map[Hash]*nodeChange),
 		Store:        store,
 	}
 	// don't store any cache by default (contracts state don't use cache)
@@ -267,7 +266,9 @@ func (s *Trie) updateParallel(lnode, rnode, root []byte, lkeys, rkeys, lvalues, 
 	ch <- mresult{node, false, nil}
 }
 
-// deleteOldNode deletes an old node that has been updated
+// deleteOldNode marks an old node for deletion by decrementing its refcount.
+// For light nodes, this will queue a deletion in the DB after the delay period.
+// For non-light nodes, this removes the node from the pending updates.
 func (s *Trie) deleteOldNode(root []byte, height int, movingUp bool) {
 	if len(root) < HashLength {
 		return
@@ -275,22 +276,22 @@ func (s *Trie) deleteOldNode(root []byte, height int, movingUp bool) {
 	var node Hash
 	copy(node[:], root)
 
-	s.db.updatedMux.Lock()
+	s.db.nodeChangesMux.Lock()
 	if s.lightNode {
-		// check if the node is already present in the updatedNodes list
-		_, exists := s.db.updatedNodes[node]
-		// if it is a new node/batch, then there is no need to delete it from the db
-		if !exists {
-			// add it to the list of deleted nodes
-			s.db.deletedNodes[node] = true
+		// For light nodes: decrement the refcount
+		// This will result in Delete() calls on commit if refcount < 0
+		if change, exists := s.db.nodeChanges[node]; exists {
+			change.refcount--
+		} else {
+			s.db.nodeChanges[node] = &nodeChange{batch: nil, refcount: -1}
+		}
+	} else {
+		// For non-light nodes: remove from pending updates (original behavior)
+		if !s.atomicUpdate || movingUp {
+			delete(s.db.nodeChanges, node)
 		}
 	}
-	if !s.atomicUpdate || movingUp {
-		// dont delete old nodes with atomic updated except when
-		// moving up a shortcut, we dont record every single move
-		delete(s.db.updatedNodes, node)
-	}
-	s.db.updatedMux.Unlock()
+	s.db.nodeChangesMux.Unlock()
 
 	// update the cache
 	if height >= s.CacheHeightLimit {
@@ -357,7 +358,7 @@ func (s *Trie) moveUpShortcut(shortcut, root []byte, batch [][]byte, iBatch, iSh
 		batch[2*iBatch+2] = shortcutVal
 		batch[2*iShortcut+1] = nil
 		batch[2*iShortcut+2] = nil
-		// cache and updatedNodes deleted by store node
+		// cache and nodeChanges updated by store node
 		s.storeNode(batch, newShortcut, root, height)
 	} else if (height-1)%4 == 0 {
 		// move up shortcut and delete old batch
@@ -471,18 +472,20 @@ func (s *Trie) loadBatch(root []byte) ([][]byte, error) {
 		if s.atomicUpdate {
 			// Return a copy so that Commit() doesnt have to be called at
 			// each block and still commit every state transition.
-			// Before Commit, the same batch is in liveCache and in updatedNodes
+			// Before Commit, the same batch is in liveCache and in nodeChanges
 			newVal := make([][]byte, 31, 31)
 			copy(newVal, val)
 			return newVal, nil
 		}
 		return val, nil
 	}
-	// checking updated nodes is useful if get() or update() is called twice in a row without db commit
-	s.db.updatedMux.RLock()
-	val, exists = s.db.updatedNodes[node]
-	s.db.updatedMux.RUnlock()
-	if exists {
+	// checking nodeChanges is useful if get() or update() is called twice in a row without db commit
+	s.db.nodeChangesMux.RLock()
+	change, exists := s.db.nodeChanges[node]
+	// Only return the batch if refcount > 0 (node is "live" in this block)
+	if exists && change.refcount > 0 && change.batch != nil {
+		val = change.batch
+		s.db.nodeChangesMux.RUnlock()
 		if s.atomicUpdate {
 			// Return a copy so that Commit() doesnt have to be called at
 			// each block and still commit every state transition.
@@ -492,6 +495,7 @@ func (s *Trie) loadBatch(root []byte) ([][]byte, error) {
 		}
 		return val, nil
 	}
+	s.db.nodeChangesMux.RUnlock()
 	//Fetch node in disk database
 	if s.db.Store == nil {
 		return nil, fmt.Errorf("DB not connected to trie")
@@ -533,7 +537,7 @@ func (s *Trie) parseBatch(val []byte) [][]byte {
 	return batch
 }
 
-// leafHash returns the hash of key_value_byte(height) concatenated, stores it in the updatedNodes and maybe in liveCache.
+// leafHash returns the hash of key_value_byte(height) concatenated, stores it in the nodeChanges and maybe in liveCache.
 // leafHash is never called for a default value. Default value should not be stored.
 func (s *Trie) leafHash(key, value, oldRoot []byte, batch [][]byte, iBatch, height int) []byte {
 	// byte(height) is here for 2 reasons.
@@ -554,31 +558,42 @@ func (s *Trie) leafHash(key, value, oldRoot []byte, batch [][]byte, iBatch, heig
 	return h
 }
 
-// storeNode stores a batch and deletes the old node from cache
+// storeNode stores a batch and marks the old node for deletion.
+// For light nodes, it uses reference counting to track creates and deletes.
 func (s *Trie) storeNode(batch [][]byte, newRoot, oldRoot []byte, height int) {
 	if !bytes.Equal(newRoot, oldRoot) {
 		var node Hash
 		copy(node[:], newRoot)
-		// record new node
-		s.db.updatedMux.Lock()
-		s.db.updatedNodes[node] = batch
-		if s.lightNode {
-			// remove the new node from the list of nodes to be deleted
-			delete(s.db.deletedNodes, node)
+		// record new node with refcount
+		s.db.nodeChangesMux.Lock()
+		if change, exists := s.db.nodeChanges[node]; exists {
+			// Node already tracked - update refcount
+			if change.refcount < 0 {
+				// Was marked for deletion, now being created - reset to 1
+				change.refcount = 1
+			} else {
+				// Already positive, increment
+				change.refcount++
+			}
+			// Update batch data (should be same content for same hash)
+			change.batch = batch
+		} else {
+			// New node - create with refcount 1
+			s.db.nodeChanges[node] = &nodeChange{batch: batch, refcount: 1}
 		}
-		s.db.updatedMux.Unlock()
+		s.db.nodeChangesMux.Unlock()
 		// Cache the shortcut node if it's height is over CacheHeightLimit
 		if height >= s.CacheHeightLimit {
 			s.db.liveMux.Lock()
 			s.db.liveCache[node] = batch
 			s.db.liveMux.Unlock()
 		}
-		// delete the old node from the updatedNodes list
+		// mark the old node for deletion
 		s.deleteOldNode(oldRoot, height, false)
 	}
 }
 
-// interiorHash hashes 2 children to get the parent hash and stores it in the updatedNodes and maybe in liveCache.
+// interiorHash hashes 2 children to get the parent hash and stores it in the nodeChanges and maybe in liveCache.
 func (s *Trie) interiorHash(left, right, oldRoot []byte, batch [][]byte, iBatch, height int) []byte {
 	var h []byte
 	// left and right cannot both be default. It is handled by maybeMoveUpShortcut()

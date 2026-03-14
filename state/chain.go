@@ -9,6 +9,7 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/v2/internal/common"
 	"github.com/aergoio/aergo/v2/internal/enc/base58"
+	"github.com/aergoio/aergo/v2/internal/enc/hex"
 	"github.com/aergoio/aergo/v2/state/statedb"
 	"github.com/aergoio/aergo/v2/types"
 )
@@ -174,8 +175,10 @@ func (sdb *ChainStateDB) persistGenesisState() {
 			value := iter.Value()
 			keys = append(keys, key)
 			values = append(values, value)
+			logger.Info().Msg("persistGenesisState - key: " + hex.Encode(key) + " - value: " + hex.Encode(value))
 		}
 		iter.Close()
+
 		// create a transaction on the database
 		tx := sdb.store.NewTx()
 		for i, key := range keys {
@@ -184,6 +187,20 @@ func (sdb *ChainStateDB) persistGenesisState() {
 		}
 		// commit the transaction
 		tx.Commit()
+
+		logger.Info().Msg("-------------------------------------------------------------")
+		iter = sdb.store.Iterator(nil, nil)
+		for ; iter.Valid(); iter.Next() {
+			logger.Info().Msg("persistGenesisState - key: " + hex.Encode(iter.Key()) + " - value: " + hex.Encode(iter.Value()))
+		}
+		iter.Close()
+
+		logger.Info().Msg("-------------------------------------------------------------")
+		iter = sdb.store.Iterator(nil, nil)
+		for ; iter.Valid(); iter.Next() {
+			logger.Info().Msg("persistGenesisState - key: " + hex.Encode(iter.Key()) + " - value: " + hex.Encode(iter.Value()))
+		}
+		iter.Close()
 	}
 }
 

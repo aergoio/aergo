@@ -394,8 +394,9 @@ func (sn *Snapshots) gatherRankers() ([]string, error) {
 func (sn *Snapshots) UpdateCluster(blockNo types.BlockNo) (s []string) {
 	var err error
 
+	logger.Debug().Uint64("cur block no", blockNo).Msg("get BP list snapshot")
+
 	if s, err = sn.getCurrentCluster(blockNo); err == nil {
-		logger.Debug().Uint64("cur block no", blockNo).Msg("get BP list snapshot")
 		err = sn.cm.Update(s)
 	}
 

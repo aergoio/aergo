@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/aergoio/aergo-actor v0.0.0-20190219030625-562037d5fec7
-	github.com/aergoio/aergo-lib v1.1.0
+	github.com/aergoio/aergo-lib v1.1.1
 	github.com/aergoio/etcd v0.0.0-20190429013412-e8b3f96f6399
 	github.com/anaskhan96/base58check v0.0.0-20181220122047-b05365d494c4
 	github.com/bluele/gcache v0.0.0-20190518031135-bc40bd653833
@@ -178,3 +178,5 @@ replace github.com/Sirupsen/logrus => github.com/sirupsen/logrus v1.8.1
 replace sourcegraph.com/sourcegraph/go-diff => github.com/sourcegraph/go-diff v0.5.3
 
 replace sourcegraph.com/sourcegraph/appdash => github.com/sourcegraph/appdash v0.0.0-20190731080439-ebfcffb1b5c0
+
+replace github.com/aergoio/aergo-lib => ../aergo-lib

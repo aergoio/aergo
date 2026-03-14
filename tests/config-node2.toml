@@ -1,6 +1,7 @@
 # aergo TOML Configuration File (https://github.com/toml-lang/toml)
 # base configurations
 enableprofile = false
+dbtype = "dummydb"
 
 [rpc]
 netserviceaddr = "0.0.0.0"

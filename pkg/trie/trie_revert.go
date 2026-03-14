@@ -59,8 +59,7 @@ func (s *Trie) Revert(toOldRoot []byte) error {
 	s.pastTries = s.pastTries[:toIndex+1]
 	s.Root = toOldRoot
 	s.db.liveCache = make(map[Hash][][]byte)
-	s.db.updatedNodes = make(map[Hash][][]byte)
-	s.db.deletedNodes = make(map[Hash]bool)
+	s.db.nodeChanges = make(map[Hash]*nodeChange)
 	if isShortcut {
 		// If toOldRoot is a shortcut batch, it is possible that
 		// revert has deleted it if the key was ever stored at height0
@@ -170,7 +169,7 @@ func (s *Trie) deleteSubTree(root []byte, height, iBatch int, batch [][]byte, ch
 	ch <- nil
 }
 
-// maybeDeleteRevertedNode adds the node to updatedNodes to be reverted
+// maybeDeleteRevertedNode adds the node to nodesToRevert to be reverted
 // if it is a batch node at height%4 == 0
 func (s *Trie) maybeDeleteRevertedNode(root []byte, iBatch int) {
 	if iBatch == 0 {

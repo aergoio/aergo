@@ -174,7 +174,7 @@ func (s *Trie) StageUpdates(txn DbTx) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	// Commit the new nodes to database, clear updatedNodes and store the Root in pastTries for reverts.
+	// Commit the new nodes to database, clear nodeChanges and store the Root in pastTries for reverts.
 	if !s.atomicUpdate {
 		// if previously AtomicUpdate was called, then past tries is already updated
 		s.updatePastTries()
@@ -183,9 +183,8 @@ func (s *Trie) StageUpdates(txn DbTx) {
 	// commit the new nodes to the database
 	s.db.commit(&txn)
 
-	// clear the nodes lists
-	s.db.updatedNodes = make(map[Hash][][]byte)
-	s.db.deletedNodes = make(map[Hash]bool)
+	// clear the nodes list
+	s.db.nodeChanges = make(map[Hash]*nodeChange)
 
 	// set the previous root to the current root
 	s.prevRoot = s.Root
@@ -200,9 +199,8 @@ func (s *Trie) Stash(rollbackCache bool) error {
 	// revert to the previous root
 	s.Root = s.prevRoot
 
-	// clear the nodes lists
-	s.db.updatedNodes = make(map[Hash][][]byte)
-	s.db.deletedNodes = make(map[Hash]bool)
+	// clear the nodes list
+	s.db.nodeChanges = make(map[Hash]*nodeChange)
 	s.db.liveCache = make(map[Hash][][]byte)
 
 	if rollbackCache {
