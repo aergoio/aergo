@@ -30,6 +30,7 @@ import (
 
 	"github.com/aergoio/aergo/v2/chain"
 	"github.com/aergoio/aergo/v2/consensus"
+	cchain "github.com/aergoio/aergo/v2/consensus/chain"
 	"github.com/aergoio/aergo/v2/internal/enc/proto"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/aergoio/aergo/v2/pkg/component"
@@ -355,7 +356,7 @@ func (rs *raftServer) startRaft() {
 		if isEmptyLog() {
 			logger.Info().Msg("there is no log, so import cluster information from remote. This server may have been added and terminated before the first synchronization was completed")
 
-			if _, err := rs.ImportExistingCluster(); err != nil {
+			if _, _, err := rs.ImportExistingCluster(); err != nil {
 				logger.Fatal().Err(err).Str("mine", rs.cluster.toString()).Msg("failed to import existing cluster info")
 			}
 		}
@@ -367,13 +368,14 @@ func (rs *raftServer) startRaft() {
 
 		var (
 			hardstateinfo *types.HardStateInfo
+			remoteBestNo  types.BlockNo
 			err           error
 		)
 
 		rs.cluster.ResetMembers()
 
 		// get cluster info from existing cluster member and hardstate of bestblock
-		if hardstateinfo, err = rs.ImportExistingCluster(); err != nil {
+		if hardstateinfo, remoteBestNo, err = rs.ImportExistingCluster(); err != nil {
 			logger.Fatal().Err(err).Str("mine", rs.cluster.toString()).Msg("failed to import existing cluster info")
 		}
 
@@ -391,6 +393,38 @@ func (rs *raftServer) startRaft() {
 			node = rs.restartNode(true)
 
 			logger.Info().Msg("raft restarted from backup")
+		} else if rs.cluster.Members().getMemberByName(rs.cluster.NodeName()) != nil {
+			// This node already exists in the cluster but its data was wiped.
+			// If we call startNode() the leader's pr.Match for this peer is still at the old
+			// commit index, so the first heartbeat would carry Commit > lastIndex → panic.
+			// Fix: sync the chain to the cluster's current state, reset the WAL at that
+			// commit level, then restartNode() so MemoryStorage.lastIndex == committed.
+			logger.Info().Uint64("remoteBestNo", remoteBestNo).Msg("wiped existing raft member detected; syncing chain before restart")
+
+			peerID, peerErr := rs.cluster.getAnyPeerAddressToSync()
+			if peerErr != nil {
+				logger.Fatal().Err(peerErr).Msg("no peer available to sync chain for raft recovery")
+			}
+
+			if hardstateinfo == nil {
+				logger.Fatal().Msg("received nil hardstate from remote cluster; cannot recover wiped member")
+			}
+
+			if syncErr := cchain.SyncChain(rs.ComponentHub, nil, remoteBestNo, peerID); syncErr != nil {
+				logger.Fatal().Err(syncErr).Uint64("targetNo", remoteBestNo).Msg("failed to sync chain for raft recovery")
+			}
+
+			if err := rs.walDB.ResetWAL(hardstateinfo); err != nil {
+				logger.Fatal().Err(err).Msg("reset wal failed for raft recovery of wiped member")
+			}
+
+			if err := rs.SaveIdentity(); err != nil {
+				logger.Fatal().Err(err).Msg("failed to save identity for raft recovery")
+			}
+
+			node = rs.restartNode(true)
+
+			logger.Info().Msg("wiped raft member recovered: chain synced and WAL reset")
 		} else {
 			node = rs.startNode(nil)
 		}
@@ -419,11 +453,11 @@ func (rs *raftServer) startRaft() {
 	go rs.serveChannels()
 }
 
-func (rs *raftServer) ImportExistingCluster() (*types.HardStateInfo, error) {
+func (rs *raftServer) ImportExistingCluster() (*types.HardStateInfo, types.BlockNo, error) {
 	logger.Info().Msg("import cluster information from remote")
 
 	// get cluster info from existing cluster member and hardstate of bestblock
-	existCluster, hardstateinfo, err := rs.GetExistingCluster()
+	existCluster, hardstateinfo, remoteBestNo, err := rs.GetExistingCluster()
 	if err != nil {
 		logger.Fatal().Err(err).Str("mine", rs.cluster.toString()).Msg("failed to get existing cluster info")
 	}
@@ -437,7 +471,7 @@ func (rs *raftServer) ImportExistingCluster() (*types.HardStateInfo, error) {
 		logger.Fatal().Str("existcluster", existCluster.toString()).Str("mycluster", rs.cluster.toString()).Msg("this cluster configuration is not compatible with existing cluster")
 	}
 
-	return hardstateinfo, nil
+	return hardstateinfo, remoteBestNo, nil
 }
 
 func (rs *raftServer) ID() uint64 {
@@ -1482,13 +1516,15 @@ func (rs *raftServer) GetClusterProgress() (*ClusterProgress, error) {
 
 // GetExistingCluster returns information of existing cluster.
 // It requests member info to all peers.
-func (rs *raftServer) GetExistingCluster() (*Cluster, *types.HardStateInfo, error) {
+// Returns cluster, hardstate of remote best block, remote best block number, and error.
+func (rs *raftServer) GetExistingCluster() (*Cluster, *types.HardStateInfo, types.BlockNo, error) {
 	var (
-		cl        *Cluster
-		hardstate *types.HardStateInfo
-		err       error
-		bestHash  []byte
-		bestBlk   *types.Block
+		cl           *Cluster
+		hardstate    *types.HardStateInfo
+		remoteBestNo types.BlockNo
+		err          error
+		bestHash     []byte
+		bestBlk      *types.Block
 	)
 
 	getBestHash := func() []byte {
@@ -1508,7 +1544,7 @@ func (rs *raftServer) GetExistingCluster() (*Cluster, *types.HardStateInfo, erro
 	bestHash = getBestHash()
 
 	for i := 1; i <= MaxTryGetCluster; i++ {
-		cl, hardstate, err = GetClusterInfo(rs.ComponentHub, bestHash)
+		cl, hardstate, remoteBestNo, err = GetClusterInfo(rs.ComponentHub, bestHash)
 		if err != nil {
 			if err != ErrGetClusterTimeout && i != MaxTryGetCluster {
 				logger.Error().Err(err).Int("try", i).Msg("failed try to get cluster. and sleep")
@@ -1519,10 +1555,10 @@ func (rs *raftServer) GetExistingCluster() (*Cluster, *types.HardStateInfo, erro
 			continue
 		}
 
-		return cl, hardstate, nil
+		return cl, hardstate, remoteBestNo, nil
 	}
 
-	return nil, nil, ErrGetClusterFail
+	return nil, nil, 0, ErrGetClusterFail
 }
 
 func marshalEntryData(block *types.Block) ([]byte, error) {

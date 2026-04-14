@@ -220,6 +220,7 @@ func (r *ConcurrentClusterInfoReceiver) calculate(err error) *message.GetCluster
 			rsp.ChainID = bestRsp.GetChainID()
 			rsp.Members = bestRsp.GetMbrAttrs()
 			rsp.HardStateInfo = bestRsp.HardStateInfo
+			rsp.BestBlockNo = bestRsp.BestBlockNo
 		} else {
 			rsp.Err = errors.New("no successful responses")
 		}

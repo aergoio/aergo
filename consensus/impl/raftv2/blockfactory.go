@@ -803,9 +803,18 @@ func (bf *BlockFactory) ClusterInfo(bestBlockHash []byte) *types.GetClusterInfoR
 		return &types.GetClusterInfoResponse{Error: ErrClusterNotReady.Error()}
 	}
 
-	if bestBlockHash != nil {
-		if hardStateInfo, err = bf.getHardStateOfBlock(bestBlockHash); err != nil {
-			return &types.GetClusterInfoResponse{Error: err.Error()}
+	{
+		lookupHash := bestBlockHash
+		if lookupHash == nil {
+			// caller did not specify a hash; use our own best block so we always return a valid hardstate
+			if localBest, err2 := bf.GetBestBlock(); err2 == nil && localBest.BlockNo() > 0 {
+				lookupHash = localBest.BlockHash()
+			}
+		}
+		if lookupHash != nil {
+			if hardStateInfo, err = bf.getHardStateOfBlock(lookupHash); err != nil {
+				return &types.GetClusterInfoResponse{Error: err.Error()}
+			}
 		}
 	}
 

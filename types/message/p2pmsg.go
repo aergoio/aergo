@@ -199,6 +199,7 @@ type GetClusterRsp struct {
 	Members       []*types.MemberAttr
 	Err           error
 	HardStateInfo *types.HardStateInfo
+	BestBlockNo   types.BlockNo
 }
 
 type GetRaftTransport struct {
