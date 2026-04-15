@@ -707,15 +707,21 @@ func (rs *raftServer) serveChannels() {
 				}
 			}
 
+			// Snapshot must be persisted before HardState. If the node crashes after
+			// saving HardState (commit=snapshot.index) but before saving the snapshot,
+			// restart would find commit > lastIndex and panic in the raft library.
+			// Persisting the snapshot first ensures lastIndex >= commit on any restart.
+			if !raftlib.IsEmptySnap(rd.Snapshot) {
+				if err := rs.walDB.WriteSnapshot(&rd.Snapshot); err != nil {
+					logger.Fatal().Err(err).Msg("failed to save snapshot to wal")
+				}
+			}
+
 			if err := rs.walDB.SaveEntry(rd.HardState, rd.Entries); err != nil {
 				logger.Fatal().Err(err).Msg("failed to save entry to wal")
 			}
 
 			if !raftlib.IsEmptySnap(rd.Snapshot) {
-				if err := rs.walDB.WriteSnapshot(&rd.Snapshot); err != nil {
-					logger.Fatal().Err(err).Msg("failed to save snapshot to wal")
-				}
-
 				if err := rs.raftStorage.ApplySnapshot(rd.Snapshot); err != nil {
 					logger.Fatal().Err(err).Msg("failed to apply snapshot")
 				}
