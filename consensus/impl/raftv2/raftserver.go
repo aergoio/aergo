@@ -1273,6 +1273,16 @@ func (rs *raftServer) Process(ctx context.Context, m raftpb.Message) error {
 	if node == nil {
 		return ErrRaftNotReady
 	}
+	// A MsgHeartbeat from the leader carries the leader's current commit index.
+	// If this node is behind (e.g. restored from an old backup), m.Commit can
+	// exceed our lastIndex, causing commitTo() in the raft library to panic.
+	// Cap it to our lastIndex so the library handles it safely; the leader will
+	// detect we are behind and send a snapshot to catch us up.
+	if m.Type == raftpb.MsgHeartbeat {
+		if lastIdx, err := rs.raftStorage.LastIndex(); err == nil && m.Commit > lastIdx {
+			m.Commit = lastIdx
+		}
+	}
 	return node.Step(ctx, m)
 }
 
