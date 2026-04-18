@@ -92,7 +92,14 @@ type ChainWAL interface {
 
 	// ClearWAL removes all data used by raft
 	ClearWAL()
-	ResetWAL(hardStateInfo *types.HardStateInfo) error
+	// ResetWAL rebuilds the raft WAL from scratch using the provided hard state
+	// and cluster members. `members` is used to populate both the snapshot's
+	// ConfState.Nodes (required by the raft library to take future snapshots)
+	// and the SnapshotData.Members payload (so peers can learn cluster state
+	// from this node's snapshot if it ever serves as a catch-up source).
+	// `members` may be nil/empty in scenarios where cluster membership is not
+	// yet known at reset time; ResetWAL must still produce a valid snapshot.
+	ResetWAL(hardStateInfo *types.HardStateInfo, members []*Member) error
 	WriteRaftEntry([]*WalEntry, []*types.Block, []*raftpb.ConfChange) error
 	GetRaftEntry(idx uint64) (*WalEntry, error)
 	HasWal(identity RaftIdentity) (bool, error)

@@ -380,7 +380,12 @@ func (rs *raftServer) startRaft() {
 		if rs.UseBackup {
 			logger.Info().Msg("raft use given backup as wal")
 
-			if err := rs.walDB.ResetWAL(hardstateinfo); err != nil {
+			// Pass current cluster members into ResetWAL so the freshly
+			// written snapshot has a populated SnapshotData.Members *and*
+			// ConfState.Nodes. Without the latter, the first local snapshot
+			// triggered after this restart fatals with
+			// "confstate node is empty for snapshot".
+			if err := rs.walDB.ResetWAL(hardstateinfo, rs.cluster.Members().ToArray()); err != nil {
 				logger.Fatal().Err(err).Msg("reset wal failed for raft")
 			}
 

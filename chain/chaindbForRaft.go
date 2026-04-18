@@ -21,12 +21,12 @@ var (
 	ErrNilHardState       = errors.New("hardstateinfo must not be nil")
 )
 
-func (cdb *ChainDB) ResetWAL(hardStateInfo *types.HardStateInfo) error {
+func (cdb *ChainDB) ResetWAL(hardStateInfo *types.HardStateInfo, members []*consensus.Member) error {
 	if hardStateInfo == nil {
 		return ErrNilHardState
 	}
 
-	logger.Info().Str("hardstate", hardStateInfo.ToString()).Msg("reset wal with given hardstate")
+	logger.Info().Str("hardstate", hardStateInfo.ToString()).Int("members", len(members)).Msg("reset wal with given hardstate")
 
 	cdb.ClearWAL()
 
@@ -43,7 +43,10 @@ func (cdb *ChainDB) ResetWAL(hardStateInfo *types.HardStateInfo) error {
 		return err
 	}
 
-	snapData := consensus.NewSnapshotData(nil, nil, snapBlock)
+	// Populate SnapshotData.Members so that this snapshot is a valid
+	// catch-up source for any peer that later needs it, and so that a
+	// subsequent restart can recover cluster membership from the snapshot.
+	snapData := consensus.NewSnapshotData(members, nil, snapBlock)
 	if snapData == nil {
 		logger.Panic().Uint64("SnapBlockNo", snapBlock.BlockNo()).Msg("new snap failed")
 	}
@@ -53,9 +56,25 @@ func (cdb *ChainDB) ResetWAL(hardStateInfo *types.HardStateInfo) error {
 		return err
 	}
 
+	// Populate ConfState.Nodes with the raft IDs of all current members.
+	// The raft library uses this ConfState as the baseline when later
+	// compacting the log into a new snapshot (see triggerSnapshot). If
+	// left empty, a fatal will be triggered on the next compaction.
+	confState := raftpb.ConfState{}
+	for _, m := range members {
+		if m == nil || m.ID == 0 {
+			continue
+		}
+		confState.Nodes = append(confState.Nodes, m.ID)
+	}
+
 	tmpSnapshot := raftpb.Snapshot{
-		Metadata: raftpb.SnapshotMetadata{Index: hardStateInfo.Commit, Term: hardStateInfo.Term},
-		Data:     data,
+		Metadata: raftpb.SnapshotMetadata{
+			Index:     hardStateInfo.Commit,
+			Term:      hardStateInfo.Term,
+			ConfState: confState,
+		},
+		Data: data,
 	}
 
 	if err := cdb.WriteSnapshot(&tmpSnapshot); err != nil {
@@ -63,7 +82,7 @@ func (cdb *ChainDB) ResetWAL(hardStateInfo *types.HardStateInfo) error {
 	}
 
 	// write initial values
-	// last entry index = commit
+	// last entry index = commit (no log entries exist; the snapshot covers [1..commit])
 	dbTx := cdb.store.NewTx()
 	defer dbTx.Discard()
 
