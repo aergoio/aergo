@@ -133,7 +133,49 @@ func (cdb *ChainDB) ClearWAL() {
 		removeAllRaftEntries(last)
 	}
 
+	// Also remove the block-hash → raft-index inverted index and any
+	// conf-change progress records. These are Raft-specific and would
+	// otherwise leak stale mappings into the newly reset state (leading,
+	// e.g., to GetRaftEntryIndexOfBlock returning a bogus index for a
+	// block whose entry has just been deleted).
+	cdb.deleteByPrefix(dbkey.RaftEntryInvertPrefix())
+	cdb.deleteByPrefix(dbkey.RaftConfChangeProgressPrefix())
+
 	logger.Debug().Msg("clear WAL done")
+}
+
+// deleteByPrefix deletes every key in the store whose bytes start with `prefix`.
+// Assumes the last byte of `prefix` is < 0xFF (true for all current raft
+// prefixes, which end in '.'); the range end is `prefix` with its last byte
+// incremented by one.
+func (cdb *ChainDB) deleteByPrefix(prefix []byte) {
+	if len(prefix) == 0 {
+		return
+	}
+
+	end := append([]byte(nil), prefix...)
+	end[len(end)-1]++
+
+	// Collect keys first; it is unsafe to delete while iterating a live
+	// badger iterator on the same transaction.
+	var keys [][]byte
+	iter := cdb.store.Iterator(prefix, end)
+	for ; iter.Valid(); iter.Next() {
+		keys = append(keys, append([]byte(nil), iter.Key()...))
+	}
+
+	if len(keys) == 0 {
+		return
+	}
+
+	bulk := cdb.store.NewBulk()
+	defer bulk.DiscardLast()
+	for _, k := range keys {
+		bulk.Delete(k)
+	}
+	bulk.Flush()
+
+	logger.Debug().Int("count", len(keys)).Bytes("prefix", prefix).Msg("deleted keys by prefix")
 }
 
 func (cdb *ChainDB) WriteHardState(hardstate *raftpb.HardState) error {
