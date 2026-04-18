@@ -684,16 +684,42 @@ func (rs *raftServer) serveChannels() {
 		panic(err)
 	}
 	confState := snapshot.Metadata.ConfState
-	// A snapshot written before all initial ConfChange entries were applied has an
-	// empty ConfState (see MatchClusterAndConfState comment in cluster.go). The
-	// cluster members are still correctly recovered from the snapshot data, so
-	// rebuild ConfState.Nodes from appliedMembers to avoid a fatal in triggerSnapshot.
+	// A snapshot written before all initial ConfChange entries were applied, or
+	// written by an older aergosvr, has an empty ConfState (see
+	// MatchClusterAndConfState comment in cluster.go). The cluster members are
+	// still correctly recovered from the snapshot data, so rebuild
+	// ConfState.Nodes from the known cluster members to avoid a fatal in
+	// triggerSnapshot the next time the log is compacted.
+	//
+	// We prefer AppliedMembers (ConfChange entries actually replayed), then
+	// fall back to Members (populated by ImportExistingCluster on usebackup
+	// restarts, where ConfChange entries never flow through the apply loop).
 	if len(confState.Nodes) == 0 {
-		for id := range rs.cluster.AppliedMembers().MapByID {
-			confState.Nodes = append(confState.Nodes, id)
+		addIDs := func(src map[uint64]*consensus.Member) {
+			for id := range src {
+				if id == 0 {
+					continue
+				}
+				confState.Nodes = append(confState.Nodes, id)
+			}
+		}
+		addIDs(rs.cluster.AppliedMembers().MapByID)
+		if len(confState.Nodes) == 0 {
+			addIDs(rs.cluster.Members().MapByID)
 		}
 		if len(confState.Nodes) > 0 {
-			logger.Warn().Msg("snapshot has empty ConfState, recovered from cluster applied members")
+			logger.Warn().Ints64("nodes", func() []int64 {
+				out := make([]int64, len(confState.Nodes))
+				for i, id := range confState.Nodes {
+					out[i] = int64(id)
+				}
+				return out
+			}()).Msg("snapshot has empty ConfState, recovered from cluster members")
+		} else {
+			// With no members at all we cannot safely take future
+			// snapshots; surface the problem loudly rather than letting
+			// triggerSnapshot fatal far from the root cause.
+			logger.Fatal().Msg("cannot recover ConfState: cluster has no known members")
 		}
 	}
 	rs.setConfState(&confState)
