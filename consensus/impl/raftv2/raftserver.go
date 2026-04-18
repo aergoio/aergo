@@ -677,7 +677,20 @@ func (rs *raftServer) serveChannels() {
 	if err != nil {
 		logger.Panic().Err(err).Msg("failed to get snapshot")
 	}
-	rs.setConfState(&snapshot.Metadata.ConfState)
+	confState := snapshot.Metadata.ConfState
+	// A snapshot written before all initial ConfChange entries were applied has an
+	// empty ConfState (see MatchClusterAndConfState comment in cluster.go). The
+	// cluster members are still correctly recovered from the snapshot data, so
+	// rebuild ConfState.Nodes from appliedMembers to avoid a fatal in triggerSnapshot.
+	if len(confState.Nodes) == 0 {
+		for id := range rs.cluster.AppliedMembers().MapByID {
+			confState.Nodes = append(confState.Nodes, id)
+		}
+		if len(confState.Nodes) > 0 {
+			logger.Warn().Msg("snapshot has empty ConfState, recovered from cluster applied members")
+		}
+	}
+	rs.setConfState(&confState)
 	rs.setSnapshotIndex(snapshot.Metadata.Index)
 	rs.setAppliedIndex(snapshot.Metadata.Index)
 
