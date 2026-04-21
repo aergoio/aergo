@@ -157,10 +157,17 @@ func (r *ConcurrentClusterInfoReceiver) handleInWaiting(peer p2pcommon.RemotePee
 	// remote peer response malformed data.
 	body, ok := msgBody.(*types.GetClusterInfoResponse)
 	if !ok {
-		r.logger.Debug().Str(p2putil.LogPeerName, peer.Name()).Stringer(p2putil.LogMsgID, msg.ID()).Msg("get cluster invalid response data")
+		r.logger.Warn().Str(p2putil.LogPeerName, peer.Name()).Stringer(p2putil.LogMsgID, msg.ID()).Msg("get cluster invalid response data")
 		return
-	} else if len(body.MbrAttrs) == 0 || body.Error != "" {
-		r.logger.Debug().Str(p2putil.LogPeerName, peer.Name()).Stringer(p2putil.LogMsgID, msg.ID()).Err(errors.New(body.Error)).Msg("get cluster response empty member")
+	} else if body.Error != "" {
+		// Surface the remote peer's rejection reason at WARN so operators
+		// can diagnose why ImportExistingCluster failed. Previously this
+		// was logged at DEBUG, so a "too few responses" fatal elsewhere
+		// gave no hint about the actual cause (e.g. raft entry pruned).
+		r.logger.Warn().Str(p2putil.LogPeerName, peer.Name()).Stringer(p2putil.LogMsgID, msg.ID()).Str("err", body.Error).Msg("get cluster response returned error from peer")
+		return
+	} else if len(body.MbrAttrs) == 0 {
+		r.logger.Warn().Str(p2putil.LogPeerName, peer.Name()).Stringer(p2putil.LogMsgID, msg.ID()).Msg("get cluster response has empty member list")
 		return
 	}
 
