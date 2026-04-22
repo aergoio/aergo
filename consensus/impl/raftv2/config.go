@@ -111,6 +111,8 @@ func (bf *BlockFactory) InitCluster(cfg *config.Config) error {
 		return err
 	}
 
+	warnOnSuspiciousRaftConfig(raftConfig)
+
 	bf.bpc = NewCluster(chainID, bf, raftConfig.Name, p2pkey.NodeID(), genesis.Timestamp, func(event *message.RaftClusterEvent) { bf.Tell(message.P2PSvc, event) })
 
 	if raftConfig.NewCluster {
@@ -139,6 +141,40 @@ func (bf *BlockFactory) InitCluster(cfg *config.Config) error {
 	logger.Info().Bool("skipempty", RaftSkipEmptyBlock).Int64("rafttick(nanosec)", RaftTick.Nanoseconds()).Float64("interval(sec)", consensus.BlockInterval.Seconds()).Msg(bf.bpc.toString())
 
 	return nil
+}
+
+// warnOnSuspiciousRaftConfig emits operator-visible warnings for raft config
+// combinations that are silently ignored or semantically dangerous.
+//
+// Two cases are flagged:
+//
+//  1. `recoverbp` is only consumed when `newcluster=true` AND `usebackup=true`
+//     (see the NewCluster branch above, which calls getRecoverBp). In any
+//     other combination it is silently ignored, which has historically hidden
+//     misconfigured restarts — e.g. an operator leaving `recoverbp` set while
+//     intending a normal rejoin, not realizing it has no effect.
+//
+//  2. `newcluster=true` bootstraps a brand-new raft cluster from this node.
+//     If other BPs for this chain are already running, this WILL fork the
+//     chain (observed in practice: a node restarted with newcluster=true +
+//     usebackup=true + recoverbp=self created a singleton cluster that
+//     diverged from the live 3-BP cluster). `newcluster=true` should only be
+//     used for initial cluster bring-up or total-loss recovery where every
+//     other BP is known to be offline.
+func warnOnSuspiciousRaftConfig(raftConfig *config.RaftConfig) {
+	if raftConfig.RecoverBP != nil && !(raftConfig.NewCluster && raftConfig.UseBackup) {
+		logger.Warn().
+			Bool("newcluster", raftConfig.NewCluster).
+			Bool("usebackup", raftConfig.UseBackup).
+			Str("recoverbp_name", raftConfig.RecoverBP.Name).
+			Msg("recoverbp is set but will be IGNORED; it is only read when both newcluster=true and usebackup=true. Remove it from the config to silence this warning.")
+	}
+
+	if raftConfig.NewCluster {
+		logger.Warn().
+			Bool("usebackup", raftConfig.UseBackup).
+			Msg("newcluster=true will BOOTSTRAP a fresh raft cluster from this node. If other BPs for this chain are already running, this will FORK the chain. Only use newcluster=true for initial bring-up or total-cluster-loss recovery.")
+	}
 }
 
 // getRecoverBp returns Enterprise BP to use initial bp of new cluster for recovery from backup
