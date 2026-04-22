@@ -25,6 +25,7 @@ import (
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/mr-tron/base58/base58"
 )
 
 var (
