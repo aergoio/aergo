@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/aergoio/aergo-lib/db"
+	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/types"
@@ -43,6 +44,7 @@ func (sdb *ChainStateDB) Clone() *ChainStateDB {
 func (sdb *ChainStateDB) Init(dbType string, dataDir string, bestBlock *types.Block, test bool) error {
 	sdb.Lock()
 	defer sdb.Unlock()
+	dbConfig := config.GetDBConfig()
 
 	sdb.testmode = test
 	// init db
@@ -50,10 +52,10 @@ func (sdb *ChainStateDB) Init(dbType string, dataDir string, bestBlock *types.Bl
 		dbPath := common.PathMkdirAll(dataDir, stateName)
 		sdb.store = db.NewDB(db.ImplType(dbType), dbPath, db.Opt{
 			Name:  "compactionController",
-			Value: true,
+			Value: dbConfig.ControlCompaction,
 		}, db.Opt{
 			Name:  "compactionControllerPort",
-			Value: 17091,
+			Value: dbConfig.StateDBPort,
 		})
 		sdb.store.SetCompactionEvent(func(event db.CompactionEvent) {
 			if event.Start {
