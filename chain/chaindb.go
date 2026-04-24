@@ -99,15 +99,17 @@ func (cdb *ChainDB) NewTx() db.Transaction {
 }
 
 func (cdb *ChainDB) Init(dbType string, dataDir string) error {
+	dbConfig := config.GetDBConfig()
+
 	if cdb.store == nil {
 		logger.Info().Str("datadir", dataDir).Msg("chain database initialized")
 		dbPath := common.PathMkdirAll(dataDir, chainDBName)
 		cdb.store = db.NewDB(db.ImplType(dbType), dbPath, db.Opt{
 			Name:  "compactionController",
-			Value: true,
+			Value: dbConfig.ControlCompaction,
 		}, db.Opt{
 			Name:  "compactionControllerPort",
-			Value: 17092,
+			Value: dbConfig.ChainDBPort,
 		})
 
 		cdb.store.SetCompactionEvent(func(event db.CompactionEvent) {
