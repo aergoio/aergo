@@ -57,7 +57,7 @@ var (
 // _ ActorService     = (*LiteContainerService)(nil)
 )
 
-// NewP2P create a new ActorService for p2p
+// NewNTContainer creates a new LiteContainerService for network transport
 func NewNTContainer(cfg *config.Config) *LiteContainerService {
 	lntc := &LiteContainerService{}
 	lntc.BaseComponent = component.NewBaseComponent(message.P2PSvc, lntc, log.NewLogger("p2p"))
