@@ -746,53 +746,69 @@ func (bf *BlockFactory) MakeConfChangeProposal(req *types.MembershipChange) (*co
 	return proposal, nil
 }
 
-// getHardStateOfBlock returns (term/commit) corresponding to best block hash.
+// getHardStateOfBlock is invoked on a live provider (this node) to answer a
+// recovering requester's GetClusterInfo request. `requesterBestHash` is the
+// hash of the REQUESTER's best block (not ours); we look up which raft
+// (term, index) that block was committed at, so the requester can bootstrap
+// its WAL from there.
 //
 // Lookup strategy, from most to least precise:
-//  1. Exact match: the raft entry for the requested block hash is still in WAL.
-//  2. Upward scan: the requested block's entry has been compacted, but a newer
-//     block's entry is still in WAL. Return that — it represents the oldest
-//     raft index that the caller can safely resume from (any older index has
-//     been compacted here and cannot be served via MsgApp anyway).
-//  3. Snapshot fallback: no block entry in WAL at all (deeply lagging caller,
-//     or fresh cluster). Return this node's latest snapshot metadata, which is
-//     by definition a valid raft checkpoint.
+//  1. Exact match: our WAL still has the raft entry for requesterBestHash.
+//  2. Upward scan: that entry was compacted/missing, but a newer block on our
+//     chain does have an entry. Return that — it represents the oldest raft
+//     index we can safely serve to the requester (any older index has been
+//     compacted here and cannot be served via MsgApp anyway).
+//  3. Snapshot fallback: we have no block entry in WAL covering the requester
+//     (deeply lagging requester, pruned r_inv index, or fresh cluster).
+//     Return our latest raft snapshot metadata, which is by definition a
+//     valid raft checkpoint.
 //
-// Prior to this, only (1) and a downward scan (which can never succeed if the
-// caller's block is pre-retention — every older block is also pre-retention)
-// were attempted. That caused ImportExistingCluster to fatal on recovering
-// nodes whose backup was older than the peers' WAL retention window.
+// NOTE on naming: `requesterBestHash` / `requesterBlock` refer to the REMOTE
+// node that sent us this request. `myTip` is OUR (the provider's) local best
+// block. In a normal recovery scenario myTip >> requesterBlock, so the
+// upward scan has plenty of blocks to probe. If instead the requester is at
+// or past our tip, the scan bounds collapse to an empty range and we fall
+// through to (3).
+//
+// Prior to this function, only (1) and a downward scan (which can never
+// succeed if the requester's block is pre-retention — every older block is
+// also pre-retention) were attempted. That caused ImportExistingCluster to
+// fatal on recovering nodes whose backup was older than our WAL retention
+// window.
 //
 // NOTE: When the caller receives a hardstate from (2) or (3), its local
 // bestblock is older than the block that hardstate corresponds to. After
-// ResetWAL, the local chain DB will have a gap relative to the raft state.
-// That gap is bridged at runtime by the block syncer and/or by a MsgSnap
-// from the raft leader; handling it is outside the scope of this function.
-func (bf *BlockFactory) getHardStateOfBlock(bestBlockHash []byte) (*types.HardStateInfo, error) {
+// ResetWAL, the caller's chain DB will have a gap relative to the raft
+// state. That gap is bridged at runtime by the block syncer and/or by a
+// MsgSnap from the raft leader; handling it is outside the scope of this
+// function.
+func (bf *BlockFactory) getHardStateOfBlock(requesterBestHash []byte) (*types.HardStateInfo, error) {
 	// Upper bound on how many blocks to probe during the upward scan. The
 	// first successful probe returns immediately, so this only matters when
-	// the gap between the caller's bestblock and the oldest in-WAL entry is
-	// very large (deep-old backups); in that case we'd rather fall through
-	// to the snapshot fallback than iterate for seconds.
+	// the gap between the requester's bestblock and the oldest in-WAL entry
+	// is very large (deep-old backups); in that case we'd rather fall
+	// through to the snapshot fallback than iterate for seconds.
 	const maxUpwardScan = 10000
 
-	bestBlock, err := bf.GetBlock(bestBlockHash)
+	requesterBlock, err := bf.GetBlock(requesterBestHash)
 	if err == nil {
 		// (1) Exact match.
-		if entry, err := bf.ChainWAL.GetRaftEntryOfBlock(bestBlockHash); err == nil {
+		if entry, err := bf.ChainWAL.GetRaftEntryOfBlock(requesterBestHash); err == nil {
 			logger.Debug().Uint64("term", entry.Term).Uint64("commit", entry.Index).Msg("get hardstate of block")
 			return &types.HardStateInfo{Term: entry.Term, Commit: entry.Index}, nil
 		}
 
-		logger.Warn().Uint64("request no", bestBlock.BlockNo()).Msg("raft entry for requested block hash is not in WAL; scanning newer blocks")
+		logger.Warn().Uint64("requester_no", requesterBlock.BlockNo()).Msg("raft entry for requested block hash is not in WAL; scanning newer blocks on this node")
 
-		// (2) Upward scan.
-		if tip, err := bf.GetBestBlock(); err == nil && tip != nil {
-			end := bestBlock.BlockNo() + maxUpwardScan
-			if end > tip.BlockNo() {
-				end = tip.BlockNo()
+		// (2) Upward scan from the requester's block toward OUR tip.
+		// Since we (the provider) are typically ahead of the requester,
+		// this range is non-empty in normal recovery scenarios.
+		if myTip, err := bf.GetBestBlock(); err == nil && myTip != nil {
+			end := requesterBlock.BlockNo() + maxUpwardScan
+			if end > myTip.BlockNo() {
+				end = myTip.BlockNo()
 			}
-			for i := bestBlock.BlockNo() + 1; i <= end; i++ {
+			for i := requesterBlock.BlockNo() + 1; i <= end; i++ {
 				hash, err := bf.GetHashByNo(i)
 				if err != nil {
 					continue
@@ -801,18 +817,18 @@ func (bf *BlockFactory) getHardStateOfBlock(bestBlockHash []byte) (*types.HardSt
 				if err != nil {
 					continue
 				}
-				logger.Warn().Uint64("requested_no", bestBlock.BlockNo()).Uint64("returned_no", i).Uint64("term", entry.Term).Uint64("commit", entry.Index).Msg("raft entry for requested block was pruned; returning closest newer entry")
+				logger.Warn().Uint64("requester_no", requesterBlock.BlockNo()).Uint64("returned_no", i).Uint64("term", entry.Term).Uint64("commit", entry.Index).Msg("raft entry for requested block was pruned; returning closest newer entry from our WAL")
 				return &types.HardStateInfo{Term: entry.Term, Commit: entry.Index}, nil
 			}
 		}
 	} else {
-		logger.Warn().Str("hash", base58.Encode(bestBlockHash)).Err(err).Msg("requested block not in chain; falling back to local snapshot")
+		logger.Warn().Str("hash", base58.Encode(requesterBestHash)).Err(err).Msg("requested block not in our chain; falling back to local snapshot")
 	}
 
-	// (3) Snapshot fallback. GetSnapshot returns this node's most recently
-	// persisted raft snapshot, whose metadata is always a valid checkpoint.
+	// (3) Snapshot fallback. GetSnapshot returns OUR most recently persisted
+	// raft snapshot, whose metadata is always a valid checkpoint.
 	if snap, err := bf.ChainWAL.GetSnapshot(); err == nil && snap != nil {
-		logger.Warn().Uint64("snap_index", snap.Metadata.Index).Uint64("snap_term", snap.Metadata.Term).Msg("returning latest raft snapshot hardstate as fallback")
+		logger.Warn().Uint64("snap_index", snap.Metadata.Index).Uint64("snap_term", snap.Metadata.Term).Msg("returning our latest raft snapshot hardstate as fallback")
 		return &types.HardStateInfo{Term: snap.Metadata.Term, Commit: snap.Metadata.Index}, nil
 	}
 
