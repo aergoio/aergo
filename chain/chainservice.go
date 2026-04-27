@@ -390,14 +390,21 @@ func (cs *ChainService) BeforeStart() {
 func (cs *ChainService) AfterStart() {
 }
 
-// BeforeStop close chain database and stop BlockValidator
+// BeforeStop drains chain workers/validator and only then closes the chain
+// and state databases.
+//
+// chainManager/chainWorker can be in the middle of connectBlock, which calls
+// state.Update -> trie.Trie.Update and spawns parallel goroutines that read
+// from the underlying badger store. Closing sdb/cdb before those workers are
+// drained leaves orphaned goroutines reading from a closed badger DB and
+// crashes with a nil-pointer panic in (*memTable).IncrRef.
 func (cs *ChainService) BeforeStop() {
-	cs.Close()
-
 	cs.chainManager.Stop()
 	cs.chainWorker.Stop()
 
 	cs.validator.Stop()
+
+	cs.Close()
 }
 
 func (cs *ChainService) notifyBlock(block *types.Block, isByBP bool) {
