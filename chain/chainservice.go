@@ -78,6 +78,9 @@ func (core *Core) init(dbType string, dataDir string, testModeOn bool, forceRese
 			logger.Fatal().Err(err).Uint64("height", forceResetHeight).Msg("failed to reset chaindb")
 			return err
 		}
+		logger.Info().Uint64("height", forceResetHeight).Msg("reset chaindb")
+		core.Close()
+		os.Exit(0)
 	}
 
 	// init statedb
