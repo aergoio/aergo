@@ -248,7 +248,7 @@ func newLState() *LState {
 	return C.vm_newstate()
 }
 
-func (L *LState) close() {
+func closeLState(L *LState) {
 	if L != nil {
 		C.lua_close(L)
 	}
