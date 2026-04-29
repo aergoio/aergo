@@ -1,7 +1,7 @@
 # aergo TOML Configuration File (https://github.com/toml-lang/toml)
 # base configurations
 datadir = "./aergo-files/data"
-dbtype = "badgerdb"
+dbtype = "hashtabledb"
 enableprofile = false
 profileport = 6060
 enabledump = false
