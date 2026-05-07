@@ -34,10 +34,13 @@ var initGenesis = &cobra.Command{
 
 		core := getCore(cfg.DataDir)
 		if core != nil {
+			// Flush and release DB files (especially hashtabledb) before the process exits.
+			defer core.Close()
+		}
+		if core != nil {
 			exist := core.GetGenesisInfo()
 			if exist != nil {
 				fmt.Printf("genesis block(%s) is already initialized\n", enc.ToString(exist.Block().GetHash()))
-				core.Close()
 				return
 			}
 		}
