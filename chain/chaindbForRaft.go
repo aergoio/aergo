@@ -127,6 +127,17 @@ func (cdb *ChainDB) ClearWAL() {
 
 	dbTx.Commit()
 
+	// hashtabledb cannot honor range bounds in Iterator(start,end), so the
+	// prefix sweeps below would scan and tombstone the entire database.
+	// Skip them: r_identity/r_state/r_snap/r_last are mutable keys that
+	// ResetWAL will overwrite immediately after ClearWAL returns; the
+	// orphaned r_entry.*/r_inv.*/r_ccstatus.* records are never read by
+	// raft once the new snapshot covers [1..commit].
+	if cdb.store.Type() == "hashtabledb" {
+		logger.Debug().Msg("clear WAL done (hashtabledb fast-path)")
+		return // <-- skip removal of raft entries
+	}
+
 	// remove raft entries
 	if last, err := cdb.GetRaftEntryLastIdx(); err == nil {
 		// remove 1 ~ last raft entry
