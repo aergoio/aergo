@@ -1,0 +1,51 @@
+# aergo TOML Configuration File (https://github.com/toml-lang/toml)
+# base configurations
+dbtype = "hashtabledb"
+enableprofile = false
+
+[rpc]
+netserviceaddr = "0.0.0.0"
+netserviceport = 9845
+netservicetrace = false
+nstls = false
+nscert = ""
+nskey = ""
+nsallowcors = false
+log_internal_operations = true
+
+[p2p]
+netprotocoladdr = "127.0.0.1"
+netprotocolport = 2003
+npbindaddr = "0.0.0.0"
+npbindport = 2003
+nptls = false
+npcert = ""
+npkey = "bp03.key"
+npaddpeers = [
+"/ip4/127.0.0.1/tcp/2001/p2p/16Uiu2HAmG4PSXYUxkPbNb7qTcEExFpgAwBrm3hB32aJXuvX2f1sd",
+"/ip4/127.0.0.1/tcp/2002/p2p/16Uiu2HAmMzncFmnpjigZJRoraToKkABvZimMUAyXf6bdrZeN7mbJ"
+]
+npexposeself = false
+npdiscoverpeers = false
+npusepolaris = false
+peerrole = "producer"
+
+[blockchain]
+maxblocksize = 1000000
+
+[mempool]
+showmetrics = false
+
+[consensus]
+enablebp = true
+
+[consensus.raft]
+newcluster=true
+name="bp03"
+snapfrequency=5
+
+[hardfork]
+v2 = "0"
+v3 = "10000"
+v4 = "10000"
+v5 = "10000"

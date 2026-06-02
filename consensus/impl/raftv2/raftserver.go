@@ -381,7 +381,12 @@ func (rs *raftServer) startRaft() {
 		if rs.UseBackup {
 			logger.Info().Msg("raft use given backup as wal")
 
-			if err := rs.walDB.ResetWAL(hardstateinfo); err != nil {
+			// Pass current cluster members into ResetWAL so the freshly
+			// written snapshot has a populated SnapshotData.Members *and*
+			// ConfState.Nodes. Without the latter, the first local snapshot
+			// triggered after this restart fatals with
+			// "confstate node is empty for snapshot".
+			if err := rs.walDB.ResetWAL(hardstateinfo, rs.cluster.Members().ToArray()); err != nil {
 				logger.Fatal().Err(err).Msg("reset wal failed for raft")
 			}
 
@@ -678,7 +683,46 @@ func (rs *raftServer) serveChannels() {
 	if err != nil {
 		panic(err)
 	}
-	rs.setConfState(&snapshot.Metadata.ConfState)
+	confState := snapshot.Metadata.ConfState
+	// A snapshot written before all initial ConfChange entries were applied, or
+	// written by an older aergosvr, has an empty ConfState (see
+	// MatchClusterAndConfState comment in cluster.go). The cluster members are
+	// still correctly recovered from the snapshot data, so rebuild
+	// ConfState.Nodes from the known cluster members to avoid a fatal in
+	// triggerSnapshot the next time the log is compacted.
+	//
+	// We prefer AppliedMembers (ConfChange entries actually replayed), then
+	// fall back to Members (populated by ImportExistingCluster on usebackup
+	// restarts, where ConfChange entries never flow through the apply loop).
+	if len(confState.Nodes) == 0 {
+		addIDs := func(src map[uint64]*consensus.Member) {
+			for id := range src {
+				if id == 0 {
+					continue
+				}
+				confState.Nodes = append(confState.Nodes, id)
+			}
+		}
+		addIDs(rs.cluster.AppliedMembers().MapByID)
+		if len(confState.Nodes) == 0 {
+			addIDs(rs.cluster.Members().MapByID)
+		}
+		if len(confState.Nodes) > 0 {
+			logger.Warn().Ints64("nodes", func() []int64 {
+				out := make([]int64, len(confState.Nodes))
+				for i, id := range confState.Nodes {
+					out[i] = int64(id)
+				}
+				return out
+			}()).Msg("snapshot has empty ConfState, recovered from cluster members")
+		} else {
+			// With no members at all we cannot safely take future
+			// snapshots; surface the problem loudly rather than letting
+			// triggerSnapshot fatal far from the root cause.
+			logger.Fatal().Msg("cannot recover ConfState: cluster has no known members")
+		}
+	}
+	rs.setConfState(&confState)
 	rs.setSnapshotIndex(snapshot.Metadata.Index)
 	rs.setAppliedIndex(snapshot.Metadata.Index)
 
@@ -707,15 +751,21 @@ func (rs *raftServer) serveChannels() {
 				}
 			}
 
+			// Snapshot must be persisted before HardState. If the node crashes after
+			// saving HardState (commit=snapshot.index) but before saving the snapshot,
+			// restart would find commit > lastIndex and panic in the raft library.
+			// Persisting the snapshot first ensures lastIndex >= commit on any restart.
+			if !raftlib.IsEmptySnap(rd.Snapshot) {
+				if err := rs.walDB.WriteSnapshot(&rd.Snapshot); err != nil {
+					logger.Fatal().Err(err).Msg("failed to save snapshot to wal")
+				}
+			}
+
 			if err := rs.walDB.SaveEntry(rd.HardState, rd.Entries); err != nil {
 				logger.Fatal().Err(err).Msg("failed to save entry to wal")
 			}
 
 			if !raftlib.IsEmptySnap(rd.Snapshot) {
-				if err := rs.walDB.WriteSnapshot(&rd.Snapshot); err != nil {
-					logger.Fatal().Err(err).Msg("failed to save snapshot to wal")
-				}
-
 				if err := rs.raftStorage.ApplySnapshot(rd.Snapshot); err != nil {
 					logger.Fatal().Err(err).Msg("failed to apply snapshot")
 				}
@@ -1264,6 +1314,16 @@ func (rs *raftServer) Process(ctx context.Context, m raftpb.Message) error {
 	node := rs.getNodeSync()
 	if node == nil {
 		return ErrRaftNotReady
+	}
+	// A MsgHeartbeat from the leader carries the leader's current commit index.
+	// If this node is behind (e.g. restored from an old backup), m.Commit can
+	// exceed our lastIndex, causing commitTo() in the raft library to panic.
+	// Cap it to our lastIndex so the library handles it safely; the leader will
+	// detect we are behind and send a snapshot to catch us up.
+	if m.Type == raftpb.MsgHeartbeat {
+		if lastIdx, err := rs.raftStorage.LastIndex(); err == nil && m.Commit > lastIdx {
+			m.Commit = lastIdx
+		}
 	}
 	return node.Step(ctx, m)
 }
