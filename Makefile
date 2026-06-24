@@ -20,8 +20,8 @@ BUILD_RULES := \
 	deps \
 	aergocli aergosvr aergoluac polaris colaris brick \
 	libtool libtool-clean \
-	libluajit liblmdb libgmp \
-	libluajit-clean liblmdb-clean libgmp-clean \
+	libluajit liblmdb libgmp librocksdb \
+	libluajit-clean liblmdb-clean libgmp-clean librocksdb-clean \
 	check cover-check \
 	distclean \
 	protoc protoclean

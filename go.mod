@@ -4,12 +4,11 @@ go 1.23
 
 require (
 	github.com/aergoio/aergo-actor v0.0.0-20190219030625-562037d5fec7
-	github.com/aergoio/aergo-lib v1.1.3-0.20260429030355-b6d239f4cb10
+	github.com/aergoio/aergo-lib v1.1.3-0.20260624055821-a7dcb8003203
 	github.com/aergoio/etcd v0.0.0-20190429013412-e8b3f96f6399
 	github.com/anaskhan96/base58check v0.0.0-20181220122047-b05365d494c4
 	github.com/bluele/gcache v0.0.0-20190518031135-bc40bd653833
 	github.com/btcsuite/btcd v0.0.0-20190824003749-130ea5bddde3
-	github.com/btcsuite/btcd/btcec/v2 v2.3.6
 	github.com/c-bata/go-prompt v0.2.3
 	github.com/coreos/go-semver v0.3.0
 	github.com/davecgh/go-spew v1.1.1
@@ -43,7 +42,7 @@ require (
 	github.com/soheilhy/cmux v0.1.4
 	github.com/spf13/cobra v0.0.5
 	github.com/spf13/viper v1.5.0
-	github.com/stretchr/testify v1.8.0
+	github.com/stretchr/testify v1.11.1
 	github.com/willf/bloom v2.0.3+incompatible
 	golang.org/x/crypto v0.24.0
 	golang.org/x/net v0.26.0
@@ -54,14 +53,13 @@ require (
 	github.com/DataDog/zstd v1.3.6-0.20190409195224-796139022798 // indirect
 	github.com/Shopify/sarama v1.22.1 // indirect
 	github.com/Workiva/go-datastructures v1.0.50 // indirect
-	github.com/aergoio/hashtabledb v0.0.0-20251017201446-c5c26be07a6e // indirect
+	github.com/aergoio/hashtabledb v0.0.0-20260529045927-e6e1a30baa9e // indirect
 	github.com/apache/thrift v0.12.0 // indirect
 	github.com/beorn7/perks v1.0.0 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
 	github.com/coreos/go-systemd v0.0.0-20190321100706-95778dfbb74e // indirect
 	github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f // indirect
-	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
 	github.com/dgraph-io/badger/v3 v3.2104.3 // indirect
 	github.com/dgraph-io/ristretto v0.1.0 // indirect
 	github.com/dustin/go-humanize v1.0.0 // indirect
@@ -120,6 +118,7 @@ require (
 	github.com/libp2p/go-tcp-transport v0.1.1 // indirect
 	github.com/libp2p/go-ws-transport v0.1.2 // indirect
 	github.com/libp2p/go-yamux v1.2.3 // indirect
+	github.com/linxGnu/grocksdb v1.10.3 // indirect
 	github.com/mailru/easyjson v0.0.0-20180823135443-60711f1a8329 // indirect
 	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/mattn/go-runewidth v0.0.4 // indirect
@@ -156,7 +155,7 @@ require (
 	github.com/spf13/cast v1.3.0 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/stretchr/objx v0.4.0 // indirect
+	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/subosito/gotenv v1.2.0 // indirect
 	github.com/syndtr/goleveldb v1.0.0 // indirect
 	github.com/ugorji/go/codec v1.1.7 // indirect

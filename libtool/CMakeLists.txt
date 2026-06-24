@@ -20,6 +20,12 @@ if(NOT EXISTS ${LMDB_SRC_DIR})
     execute_process(COMMAND git clone https://github.com/lmdb/lmdb.git ${LMDB_SRC_DIR})
 endif()
 
+set(ROCKSDB_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/rocksdb)
+
+if(NOT EXISTS ${ROCKSDB_SRC_DIR})
+    execute_process(COMMAND git clone --depth 1 --branch v10.5.1 https://github.com/facebook/rocksdb.git ${ROCKSDB_SRC_DIR})
+endif()
+
 set(GMP_VERSION "6.3.0" CACHE STRING "Override libgmp version" )
 if (NOT "$ENV{GMP_VERSION}" STREQUAL "")
     message(STATUS "Overriding libgmp version to $ENV{GMP_VERSION} by environment variable")
@@ -52,20 +58,23 @@ ExternalProject_Add(libgmp
    BUILD_COMMAND $(MAKE) all install > make.log
    BUILD_ALWAYS 1)
 
-add_custom_target(libtool DEPENDS libluajit liblmdb libgmp)
+add_custom_target(libtool DEPENDS libluajit liblmdb libgmp librocksdb)
 
 add_custom_target(libluajit $(MAKE) PREFIX=${LIB_DIR} ${CFLAGS} all install
 	WORKING_DIRECTORY ${LUAJIT_BUILD_DIR})
 add_custom_target(liblmdb $(MAKE) prefix=${LIB_DIR} all install
 	WORKING_DIRECTORY ${LMDB_BUILD_DIR})
+add_custom_target(librocksdb ROCKSDB_DISABLE_ZLIB=1 ROCKSDB_DISABLE_BZIP=1 ROCKSDB_DISABLE_LZ4=1 ROCKSDB_DISABLE_ZSTD=1 $(MAKE) PREFIX=${LIB_DIR} PORTABLE=1 -j2 install-static
+	WORKING_DIRECTORY ${ROCKSDB_SRC_DIR})
 
 add_custom_target(libtool-clean 
     COMMAND rm -rf ${LIB_DIR}/lib/*
     COMMAND rm -rf ${LIB_DIR}/include/*
     COMMAND rm -rf ${LIB_DIR}/bin/*
     COMMAND rm -rf ${LIB_DIR}/share/*
-    DEPENDS libluajit-clean liblmdb-clean libgmp-clean)
+    DEPENDS libluajit-clean liblmdb-clean libgmp-clean librocksdb-clean)
 
 add_custom_target(libluajit-clean $(MAKE) clean WORKING_DIRECTORY ${LUAJIT_BUILD_DIR})
 add_custom_target(liblmdb-clean $(MAKE) clean WORKING_DIRECTORY ${LMDB_BUILD_DIR})
 add_custom_target(libgmp-clean $(MAKE) clean WORKING_DIRECTORY ${GMP_BUILD_DIR})
+add_custom_target(librocksdb-clean $(MAKE) clean WORKING_DIRECTORY ${ROCKSDB_SRC_DIR})

@@ -10,6 +10,9 @@ project(aergo NONE)
 set(BIN_DIR ${CMAKE_CURRENT_LIST_DIR}/bin)
 set(PROTO_DIR ${CMAKE_CURRENT_LIST_DIR}/aergo-protobuf/proto)
 
+set(CGO_CFLAGS "-I${CMAKE_CURRENT_LIST_DIR}/libtool/include")
+set(CGO_LDFLAGS "-L${CMAKE_CURRENT_LIST_DIR}/libtool/lib -lrocksdb -lstdc++ -lm -lz -lsnappy")
+
 if(CMAKE_BUILD_TYPE MATCHES "Debug")
     set(GCFLAGS "-gcflags=\"-N" "-l\"")
     set(GFLAG -tags Debug)
@@ -17,11 +20,11 @@ endif()
 
 add_custom_target(build ALL DEPENDS aergocli aergosvr aergoluac brick)
 
-add_custom_target(aergocli GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X github.com/aergoio/aergo/cmd/aergocli/cmd.githash=`git describe --tags`\" ./cmd/aergocli/...
+add_custom_target(aergocli CGO_CFLAGS=${CGO_CFLAGS} CGO_LDFLAGS=${CGO_LDFLAGS} GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS} -tags grocksdb_clean_link -ldflags \"-X github.com/aergoio/aergo/cmd/aergocli/cmd.githash=`git describe --tags`\" ./cmd/aergocli/...
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     DEPENDS libtool)
 
-add_custom_target(aergosvr GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X main.githash=`git describe --tags` -X main.gitRevision=`git rev-parse --short HEAD` -X main.gitBranch=`git rev-parse --symbolic-full-name --abbrev-ref HEAD`\" ./cmd/aergosvr/...
+add_custom_target(aergosvr CGO_CFLAGS=${CGO_CFLAGS} CGO_LDFLAGS=${CGO_LDFLAGS} GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS} -tags grocksdb_clean_link -ldflags \"-X main.githash=`git describe --tags` -X main.gitRevision=`git rev-parse --short HEAD` -X main.gitBranch=`git rev-parse --symbolic-full-name --abbrev-ref HEAD`\" ./cmd/aergosvr/...
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     DEPENDS libtool)
 
@@ -31,21 +34,21 @@ add_custom_target(polaris GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS} 
 add_custom_target(colaris GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X github.com/aergoio/aergo/cmd/colaris/cmd.githash=`git describe --tags`\" ./cmd/colaris/...
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR})
 
-add_custom_target(aergoluac GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X main.githash=`git describe --tags`\" ./cmd/aergoluac/...
+add_custom_target(aergoluac CGO_CFLAGS=${CGO_CFLAGS} CGO_LDFLAGS=${CGO_LDFLAGS} GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS} -tags grocksdb_clean_link -ldflags \"-X main.githash=`git describe --tags`\" ./cmd/aergoluac/...
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     DEPENDS libtool)
 
-add_custom_target(brick GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS} ${GFLAG} -ldflags \"-X 'github.com/aergoio/aergo/cmd/brick/context.GitHash=`git describe --tags`'
+add_custom_target(brick CGO_CFLAGS=${CGO_CFLAGS} CGO_LDFLAGS=${CGO_LDFLAGS} GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS} ${GFLAG} -tags grocksdb_clean_link -ldflags \"-X 'github.com/aergoio/aergo/cmd/brick/context.GitHash=`git describe --tags`'
 -X 'github.com/aergoio/aergo-lib/log.defaultConfStr=`cat ./cmd/brick/arglog.toml`'\"  ./cmd/brick/...
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     DEPENDS libtool)
 
 add_custom_target(deps DEPENDS libtool)
 
-add_custom_target(check GO111MODULE=on go test ./...
+add_custom_target(check CGO_CFLAGS=${CGO_CFLAGS} CGO_LDFLAGS=${CGO_LDFLAGS} GO111MODULE=on go test -timeout 600s ./...
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     DEPENDS build)
-add_custom_target(cover-check GO111MODULE=on go test -coverprofile c.out ./...
+add_custom_target(cover-check CGO_CFLAGS=${CGO_CFLAGS} CGO_LDFLAGS=${CGO_LDFLAGS} GO111MODULE=on go test -timeout 600s -coverprofile c.out ./...
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     DEPENDS build)
 
