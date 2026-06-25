@@ -1,5 +1,5 @@
 FROM alpine:3.21
-RUN apk add libgcc
+RUN apk add libgcc libstdc++ snappy
 COPY bin/aergosvr /usr/local/bin/
 COPY lib/* /usr/local/lib/
 COPY conf/* /aergo/
