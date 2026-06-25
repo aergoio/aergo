@@ -6,6 +6,10 @@
 .SUFFIXES:
 
 CMAKE_CMD ?= cmake
+LIBTOOL_DIR := $(abspath libtool)
+
+export CGO_CFLAGS := -D_LARGEFILE64_SOURCE -I$(LIBTOOL_DIR)/include
+export CGO_LDFLAGS := -L$(LIBTOOL_DIR)/lib -lrocksdb -lstdc++ -lm -lz -lsnappy
 
 BUILD_DIR := build
 BUILD_FILE := $(BUILD_DIR)/Makefile

@@ -23,7 +23,7 @@ endif()
 set(ROCKSDB_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/rocksdb)
 
 if(NOT EXISTS ${ROCKSDB_SRC_DIR})
-    execute_process(COMMAND git clone --depth 1 --branch v10.5.1 https://github.com/facebook/rocksdb.git ${ROCKSDB_SRC_DIR})
+    execute_process(COMMAND git clone --depth 1 --branch v10.10.1 https://github.com/facebook/rocksdb.git ${ROCKSDB_SRC_DIR})
 endif()
 
 set(GMP_VERSION "6.3.0" CACHE STRING "Override libgmp version" )
@@ -44,6 +44,16 @@ set(GMP_BUILD_DIR ${CMAKE_CURRENT_BINARY_DIR}/build/${GMP_NAME})
 
 include(ExternalProject)
 
+set(GMP_CONFIGURE_CC "gcc")
+execute_process(COMMAND gcc -dumpversion OUTPUT_VARIABLE _gmp_gcc_ver OUTPUT_STRIP_TRAILING_WHITESPACE)
+string(REGEX MATCH "^([0-9]+)" _gmp_gcc_major "${_gmp_gcc_ver}")
+if(_gmp_gcc_major GREATER_EQUAL "14")
+    find_program(GMP_GCC12 gcc-12)
+    if(GMP_GCC12)
+        set(GMP_CONFIGURE_CC ${GMP_GCC12})
+    endif()
+endif()
+
 ExternalProject_Add(libgmp
    SOURCE_DIR ${GMP_SRC_DIR}
    BINARY_DIR ${GMP_BUILD_DIR}
@@ -53,7 +63,7 @@ ExternalProject_Add(libgmp
    URL_HASH     SHA256=${GMP_HASH}
    TMP_DIR      ${GMP_BUILD_DIR}
    STAMP_DIR    ${GMP_BUILD_DIR}
-   CONFIGURE_COMMAND ${GMP_SRC_DIR}/configure --prefix=${LIB_DIR} --disable-static --enable-shared > /dev/null
+   CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env CC=${GMP_CONFIGURE_CC} ${GMP_SRC_DIR}/configure --prefix=${LIB_DIR} --disable-static --enable-shared > /dev/null
    PREFIX ${GMP_SRC_DIR}
    BUILD_COMMAND $(MAKE) all install > make.log
    BUILD_ALWAYS 1)
