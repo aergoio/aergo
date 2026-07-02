@@ -228,6 +228,7 @@ func (bf *BlockFactory) newRaftServer(cfg *config.Config) error {
 
 	bf.bpc.rs = bf.raftServer
 	bf.raftOp.rs = bf.raftServer
+	bf.raftOp.leaderReadyFn = bf.isLeaderReady
 
 	return nil
 }
@@ -902,6 +903,8 @@ type RaftOperator struct {
 	cl *Cluster
 	rs *raftServer
 
+	leaderReadyFn func() (bool, uint64)
+
 	proposed *Proposed
 }
 
@@ -916,6 +919,25 @@ func (rop *RaftOperator) propose(block *types.Block, blockState *state.BlockStat
 	if !rop.rs.IsLeaderOfTerm(term) {
 		logger.Info().Msg("dropped produced block because this bp became no longer leader")
 		return ErrNotRaftLeader
+	}
+
+	raftTerm := rop.rs.Status().Term
+	if term != raftTerm {
+		logger.Debug().Uint64("work", term).Uint64("raft", raftTerm).Msg("dropped block proposal with stale work term")
+		return ErrNotRaftLeader
+	}
+
+	if rop.leaderReadyFn != nil {
+		if ready, readyTerm := rop.leaderReadyFn(); !ready || readyTerm != raftTerm {
+			logger.Debug().Uint64("raft", raftTerm).Msg("dropped block proposal because leader is not ready")
+			return ErrNotRaftLeader
+		}
+	}
+
+	lastReq := rop.rs.commitProgress.GetRequest()
+	if lastReq != nil && lastReq.block != nil && lastReq.block.BlockNo() >= block.BlockNo() {
+		logger.Debug().Uint64("no", block.BlockNo()).Uint64("last", lastReq.block.BlockNo()).Msg("dropped duplicate height block proposal")
+		return ErrCancelGenerate
 	}
 
 	debugRaftProposeSleep()
