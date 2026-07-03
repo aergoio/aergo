@@ -1,6 +1,7 @@
 package sbp
 
 import (
+	"bytes"
 	"runtime"
 	"time"
 
@@ -53,11 +54,14 @@ type SimpleBlockFactory struct {
 	blockInterval    time.Duration
 	maxBlockBodySize uint32
 	txOp             chain.TxOp
-	bpTimeoutC       chan struct{}
 	quit             chan interface{}
 	sdb              *state.ChainStateDB
 	prevBlock        *types.Block
 	bv               types.BlockVersionner
+
+	recentRejectedTx *chain.RejTxInfo
+	bpTimeoutC       chan struct{}
+	connecting       bool
 }
 
 // GetName returns the name of the consensus.
@@ -112,6 +116,9 @@ func (s *SimpleBlockFactory) Ticker() *time.Ticker {
 
 // QueueJob send a block triggering information to jq.
 func (s *SimpleBlockFactory) QueueJob(now time.Time, jq chan<- interface{}) {
+	if s.connecting {
+		return
+	}
 	if b, _ := s.GetBestBlock(); b != nil {
 		if s.prevBlock != nil && s.prevBlock.BlockNo() == b.BlockNo() {
 			logger.Debug().Msg("previous block not connected. skip to generate block")
@@ -181,6 +188,13 @@ func (s *SimpleBlockFactory) bpProductionTimeout() time.Duration {
 	return s.blockInterval / 2
 }
 
+func (s *SimpleBlockFactory) connectTimeout() time.Duration {
+	if d := s.blockInterval * 300; d > time.Second {
+		return d
+	}
+	return 300 * time.Second
+}
+
 func (s *SimpleBlockFactory) drainBpTimeout() {
 	select {
 	case <-s.bpTimeoutC:
@@ -209,6 +223,74 @@ func (s *SimpleBlockFactory) checkBpTimeout() error {
 	}
 }
 
+func (s *SimpleBlockFactory) rejected() *chain.RejTxInfo {
+	return s.recentRejectedTx
+}
+
+func (s *SimpleBlockFactory) setRejected(rej *chain.RejTxInfo) {
+	logger.Warn().Str("hash", enc.ToString(rej.Hash())).Msg("timeout tx reserved for rescheduling")
+	s.recentRejectedTx = rej
+}
+
+func (s *SimpleBlockFactory) unsetRejected() {
+	s.recentRejectedTx = nil
+}
+
+func (s *SimpleBlockFactory) handleRejected(bGen *chain.BlockGenerator, block *types.Block, elapsed time.Duration) {
+	var (
+		cutoff = s.bpProductionTimeout() * 2 / 3
+		bfRej  = s.rejected()
+		rej    = bGen.Rejected()
+		txs    = block.GetBody().GetTxs()
+	)
+
+	if rej == nil {
+		if bfRej != nil && len(txs) != 0 && bytes.Equal(txs[0].GetHash(), bfRej.Hash()) {
+			s.unsetRejected()
+		}
+		return
+	}
+
+	if rej.Evictable() && elapsed >= cutoff {
+		bGen.SetTimeoutTx(rej.Tx())
+		s.unsetRejected()
+		return
+	}
+
+	s.setRejected(rej)
+}
+
+func (s *SimpleBlockFactory) deco() chain.FetchDeco {
+	rej := s.rejected()
+	if rej == nil {
+		return nil
+	}
+
+	return func(fetch chain.FetchFn) chain.FetchFn {
+		return func(hs component.ICompSyncRequester, maxBlockBodySize uint32) []types.Transaction {
+			txs := fetch(hs, maxBlockBodySize)
+
+			j := 0
+			for i, tx := range txs {
+				if bytes.Equal(tx.GetHash(), rej.Hash()) {
+					j = i
+					break
+				}
+			}
+
+			x := []types.Transaction{rej.Tx()}
+			if j != 0 {
+				x = append(x, txs[:j]...)
+				x = append(x, txs[j+1:]...)
+			} else {
+				x = append(x, txs...)
+			}
+
+			return x
+		}
+	}
+}
+
 // Start run a simple block factory service.
 func (s *SimpleBlockFactory) Start() {
 	defer logger.Info().Msg("shutdown initiated. stop the service")
@@ -229,20 +311,32 @@ func (s *SimpleBlockFactory) Start() {
 				)
 				blockState.SetGasPrice(system.GetGasPriceFromState(blockState))
 				blockState.Receipts().SetHardFork(s.bv, bi.No)
-				txOp := chain.NewCompTxOp(s.txOp, newTxExec(s.ChainDB, bi))
 
-				block, err := chain.NewBlockGenerator(s, bi, blockState, txOp, false).GenerateBlock()
+				bGen := chain.NewBlockGenerator(
+					s, bi, blockState, chain.NewCompTxOp(s.txOp, newTxExec(s.ChainDB, bi)), false,
+				).WithDeco(s.deco())
+
+				begT := time.Now()
+				block, err := bGen.GenerateBlock()
 				if err == chain.ErrQuit {
 					return
 				} else if err != nil {
 					logger.Info().Err(err).Msg("failed to produce block")
 					continue
 				}
+
+				s.handleRejected(bGen, block, time.Since(begT))
+
 				logger.Info().Uint64("no", block.GetHeader().GetBlockNo()).Str("hash", block.ID()).
 					Str("TrieRoot", enc.ToString(block.GetHeader().GetBlocksRootHash())).
 					Err(err).Msg("block produced")
 
-				chain.ConnectBlock(s, block, blockState, time.Second)
+				s.connecting = true
+				err = chain.ConnectBlock(s, block, blockState, s.connectTimeout())
+				s.connecting = false
+				if err != nil {
+					logger.Error().Err(err).Msg("failed to connect block")
+				}
 			}
 		case <-s.quit:
 			return
