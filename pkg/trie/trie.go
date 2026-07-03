@@ -491,22 +491,26 @@ func (s *Trie) loadBatch(root []byte) ([][]byte, error) {
 	return nil, fmt.Errorf("the trie node %x is unavailable in the disk db, db may be corrupted", root)
 }
 
-// parseBatch decodes the byte data into a slice of nodes and bitmap
+// parseBatch decodes the byte data into a slice of nodes and bitmap.
+// Subslices use full slice expressions (lo:hi:hi) so cap==len. DB-backed val (e.g. mmap)
+// would otherwise inherit a huge cap; append on those slices could write into read-only pages.
 func (s *Trie) parseBatch(val []byte) [][]byte {
 	batch := make([][]byte, 31, 31)
 	bitmap := val[:4]
 	// check if the batch root is a shortcut
 	if bitIsSet(val, 31) {
 		batch[0] = []byte{1}
-		batch[1] = val[4 : 4+33]
-		batch[2] = val[4+33 : 4+33*2]
+		const k1, k2 = 4 + 33, 4 + 33*2
+		batch[1] = val[4:k1:k1]
+		batch[2] = val[k1:k2:k2]
 	} else {
 		batch[0] = []byte{0}
-		j := 0
+		start := 4
 		for i := 1; i <= 30; i++ {
 			if bitIsSet(bitmap, i-1) {
-				batch[i] = val[4+33*j : 4+33*(j+1)]
-				j++
+				end := start + 33
+				batch[i] = val[start:end:end]
+				start = end
 			}
 		}
 	}
