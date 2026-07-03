@@ -53,6 +53,7 @@ type SimpleBlockFactory struct {
 	blockInterval    time.Duration
 	maxBlockBodySize uint32
 	txOp             chain.TxOp
+	bpTimeoutC       chan struct{}
 	quit             chan interface{}
 	sdb              *state.ChainStateDB
 	prevBlock        *types.Block
@@ -85,6 +86,7 @@ func New(
 		jobQueue:         make(chan interface{}, slotQueueMax),
 		blockInterval:    consensus.BlockInterval,
 		maxBlockBodySize: chain.MaxBlockBodySize(),
+		bpTimeoutC:       make(chan struct{}, 1),
 		quit:             make(chan interface{}),
 		sdb:              sdb,
 		bv:               bv,
@@ -95,10 +97,11 @@ func New(
 			case <-s.quit:
 				return chain.ErrQuit
 			default:
-				return nil
+				return s.checkBpTimeout()
 			}
 		}),
 	)
+	contract.SetBPTimeout(s.bpTimeoutC)
 	return s, nil
 }
 
@@ -172,6 +175,40 @@ func (s *SimpleBlockFactory) NeedReorganization(rootNo types.BlockNo) bool {
 	return true
 }
 
+// bpProductionTimeout returns the max wall time for simulating txs during block production.
+// DPoS uses the same fraction: blockInterval / 2 (bpMaxTimeLimitMs).
+func (s *SimpleBlockFactory) bpProductionTimeout() time.Duration {
+	return s.blockInterval / 2
+}
+
+func (s *SimpleBlockFactory) drainBpTimeout() {
+	select {
+	case <-s.bpTimeoutC:
+	default:
+	}
+}
+
+func (s *SimpleBlockFactory) notifyBpTimeout() {
+	timeout := s.bpProductionTimeout()
+	go func() {
+		time.Sleep(timeout)
+		select {
+		case s.bpTimeoutC <- struct{}{}:
+		default:
+		}
+		logger.Debug().Dur("timeout", timeout).Msg("block production timeout signaled")
+	}()
+}
+
+func (s *SimpleBlockFactory) checkBpTimeout() error {
+	select {
+	case <-s.bpTimeoutC:
+		return chain.ErrTimeout{Kind: "block"}
+	default:
+		return nil
+	}
+}
+
 // Start run a simple block factory service.
 func (s *SimpleBlockFactory) Start() {
 	defer logger.Info().Msg("shutdown initiated. stop the service")
@@ -182,6 +219,9 @@ func (s *SimpleBlockFactory) Start() {
 		select {
 		case e := <-s.jobQueue:
 			if prevBlock, ok := e.(*types.Block); ok {
+				s.drainBpTimeout()
+				s.notifyBpTimeout()
+
 				bi := types.NewBlockHeaderInfoFromPrevBlock(prevBlock, time.Now().UnixNano(), s.bv)
 				blockState := s.sdb.NewBlockState(
 					prevBlock.GetHeader().GetBlocksRootHash(),
