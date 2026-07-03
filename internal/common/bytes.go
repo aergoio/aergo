@@ -36,6 +36,6 @@ func GobEncode(e interface{}) ([]byte, error) {
 
 // GobDecode decodes a gob-encoded value v.
 func GobDecode(v []byte, e interface{}) error {
-	dec := gob.NewDecoder(bytes.NewBuffer(v))
+	dec := gob.NewDecoder(bytes.NewReader(v))
 	return dec.Decode(e)
 }

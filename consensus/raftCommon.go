@@ -232,15 +232,12 @@ func (csnap *ChainSnapshot) Encode() ([]byte, error) {
 }
 
 func DecodeChainSnapshot(data []byte) (*ChainSnapshot, error) {
-	var snap ChainSnapshot
-	var b bytes.Buffer
-	b.Write(data)
-
 	if data == nil {
 		return nil, ErrEmptySnapData
 	}
 
-	decoder := gob.NewDecoder(&b)
+	var snap ChainSnapshot
+	decoder := gob.NewDecoder(bytes.NewReader(data))
 	if err := decoder.Decode(&snap); err != nil {
 		logger.Fatal().Err(err).Msg("failed to decode chainsnap")
 		return nil, err

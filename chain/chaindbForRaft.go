@@ -326,9 +326,7 @@ func (cdb *ChainDB) GetRaftEntry(idx uint64) (*consensus.WalEntry, error) {
 	}
 
 	var entry consensus.WalEntry
-	var b bytes.Buffer
-	b.Write(data)
-	decoder := gob.NewDecoder(&b)
+	decoder := gob.NewDecoder(bytes.NewReader(data))
 	if err := decoder.Decode(&entry); err != nil {
 		return nil, err
 	}
@@ -535,9 +533,7 @@ func (cdb *ChainDB) GetIdentity() (*consensus.RaftIdentity, error) {
 	}
 
 	var id consensus.RaftIdentity
-	var b bytes.Buffer
-	b.Write(data)
-	decoder := gob.NewDecoder(&b)
+	decoder := gob.NewDecoder(bytes.NewReader(data))
 	if err := decoder.Decode(&id); err != nil {
 		return nil, ErrDecodeRaftIdentity
 	}

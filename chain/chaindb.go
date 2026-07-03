@@ -683,12 +683,10 @@ func (cdb *ChainDB) getReceipts(blockHash []byte, blockNo types.BlockNo,
 	if len(data) == 0 {
 		return nil, errors.New("cannot find a receipt")
 	}
-	var b bytes.Buffer
-	b.Write(data)
 	var receipts types.Receipts
 
 	receipts.SetHardFork(hardForkConfig, blockNo)
-	decoder := gob.NewDecoder(&b)
+	decoder := gob.NewDecoder(bytes.NewReader(data))
 	err := decoder.Decode(&receipts)
 
 	return &receipts, err
@@ -787,9 +785,7 @@ func (cdb *ChainDB) getReorgMarker() (*ReorgMarker, error) {
 	}
 
 	var marker ReorgMarker
-	var b bytes.Buffer
-	b.Write(data)
-	decoder := gob.NewDecoder(&b)
+	decoder := gob.NewDecoder(bytes.NewReader(data))
 	err := decoder.Decode(&marker)
 
 	return &marker, err
