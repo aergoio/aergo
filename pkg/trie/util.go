@@ -22,10 +22,10 @@ const (
 type Hash [HashLength]byte
 
 func bitIsSet(bits []byte, i int) bool {
-	return bits[i/8]&(1<<uint(7-i%8)) != 0
+	return bits[i>>3]&(1<<(7-(i&7))) != 0
 }
 func bitSet(bits []byte, i int) {
-	bits[i/8] |= 1 << uint(7-i%8)
+	bits[i>>3] |= 1 << (7 - (i & 7))
 }
 
 // for sorting test data
