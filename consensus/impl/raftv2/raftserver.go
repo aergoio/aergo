@@ -1263,6 +1263,8 @@ func (rs *raftServer) publishEntries(ents []raftpb.Entry) bool {
 
 				if block != nil {
 					if isDuplicateCommit(block) {
+						// raft index must advance even when the block is skipped
+						rs.setAppliedIndex(ents[i].Index)
 						continue
 					}
 
