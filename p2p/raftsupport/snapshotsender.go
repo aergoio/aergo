@@ -35,6 +35,8 @@ type snapshotSender struct {
 	peer p2pcommon.RemotePeer
 }
 
+const maxSnapshotResponseSize = 64 * 1024
+
 func newSnapshotSender(logger *log.Logger, nt p2pcommon.NetworkTransport, rAcc consensus.AergoRaftAccessor, peer p2pcommon.RemotePeer) *snapshotSender {
 	return &snapshotSender{logger: logger, nt: nt, rAcc: rAcc, stopChan: make(chan interface{}), peer: peer}
 }
@@ -161,6 +163,9 @@ func readWireHSResp(rd io.Reader) (resp types.SnapshotResponse, err error) {
 	}
 
 	respLen := binary.BigEndian.Uint32(bytebuf)
+	if respLen > maxSnapshotResponseSize {
+		return resp, ErrExceedSizeLimit
+	}
 	bodyBuf := make([]byte, respLen)
 	readn, err = p2putil.ReadToLen(rd, bodyBuf)
 	if err != nil {

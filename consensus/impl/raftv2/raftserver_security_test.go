@@ -54,3 +54,33 @@ func TestRaftMessagePeerBinding(t *testing.T) {
 		})
 	}
 }
+
+func TestSnapshotMembershipMustMatchConfState(t *testing.T) {
+	member := &consensus.Member{MemberAttr: types.MemberAttr{
+		ID:      1,
+		Name:    "member",
+		Address: "/ip4/127.0.0.1/tcp/11001",
+		PeerID:  []byte(types.RandomPeerID()),
+	}}
+	block := types.NewBlock(types.EmptyBlockHeaderInfo, nil, nil, nil, nil, nil)
+	data, err := consensus.NewSnapshotData([]*consensus.Member{member}, nil, block).Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot := &raftpb.Snapshot{
+		Data: data,
+		Metadata: raftpb.SnapshotMetadata{
+			Index:     1,
+			Term:      1,
+			ConfState: raftpb.ConfState{Nodes: []uint64{member.ID}},
+		},
+	}
+	if err := validateSnapshotConsistency(snapshot); err != nil {
+		t.Fatalf("validateSnapshotConsistency() rejected valid snapshot: %v", err)
+	}
+
+	snapshot.Metadata.ConfState.Nodes[0] = 2
+	if err := validateSnapshotConsistency(snapshot); !errors.Is(err, ErrSnapshotMembershipMismatch) {
+		t.Fatalf("validateSnapshotConsistency() error = %v, want %v", err, ErrSnapshotMembershipMismatch)
+	}
+}

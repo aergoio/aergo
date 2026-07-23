@@ -102,6 +102,7 @@ func Test_readWireHSResp(t *testing.T) {
 		{"TLongBody", append(CopyOf(sample), []byte("dummies")...), false},
 		{"TShortBody", CopyOf(sample)[:len(sample)-1], true},
 		{"TWrongHead", CopyOf(sample)[:3], true},
+		{"TOversizedBody", []byte{0x00, 0x01, 0x00, 0x01}, true},
 		//		{"TInvalidByte", CopyOf(currupted), true},
 	}
 	for _, tt := range tests {

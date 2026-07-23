@@ -62,9 +62,13 @@ var (
 	ErrEmptySnapshot             = errors.New("received empty snapshot")
 	ErrInvalidRaftIdentity       = errors.New("raft identity is not set")
 	ErrProposeNilBlock           = errors.New("proposed block is nil")
-	ErrUnknownRaftPeer           = errors.New("raft message sender is not a cluster member")
-	ErrRaftSenderMismatch        = errors.New("raft message sender does not match authenticated peer")
-	ErrRaftTargetMismatch        = errors.New("raft message is addressed to another node")
+	ErrUnknownRaftPeer            = errors.New("raft message sender is not a cluster member")
+	ErrRaftSenderMismatch         = errors.New("raft message sender does not match authenticated peer")
+	ErrRaftTargetMismatch         = errors.New("raft message is addressed to another node")
+	ErrSnapshotBlockMismatch      = errors.New("snapshot block hash does not match synchronized chain")
+	ErrStaleRaftSnapshot          = errors.New("raft snapshot is stale")
+	ErrUnexpectedRaftSnapshot     = errors.New("raft snapshot is not from the current leader")
+	ErrSnapshotMembershipMismatch = errors.New("snapshot membership does not match raft conf state")
 )
 
 const (
@@ -1037,28 +1041,11 @@ func (rs *raftServer) triggerSnapshot() {
 }
 
 func (rs *raftServer) publishSnapshot(snapshotToSave raftpb.Snapshot) error {
-	updateProgress := func() error {
-		var snapdata = &consensus.SnapshotData{}
-
-		err := snapdata.Decode(snapshotToSave.Data)
-		if err != nil {
-			logger.Error().Msg("failed to unmarshal snapshot data to progress")
-			return err
-		}
-
-		block, err := rs.walDB.GetBlockByNo(snapdata.Chain.No)
-		if err != nil {
-			logger.Fatal().Msg("failed to get synchronized block")
-			return err
-		}
-
-		rs.commitProgress.UpdateConnect(&commitEntry{block: block, index: snapshotToSave.Metadata.Index, term: snapshotToSave.Metadata.Term})
-
-		return nil
-	}
-
 	if raftlib.IsEmptySnap(snapshotToSave) {
 		return ErrEmptySnapshot
+	}
+	if err := validateSnapshotConsistency(&snapshotToSave); err != nil {
+		return err
 	}
 
 	logger.Info().Uint64("index", rs.snapshotIndex).Str("snap", consensus.SnapToString(&snapshotToSave, nil)).Msg("publishing snapshot at index")
@@ -1067,18 +1054,28 @@ func (rs *raftServer) publishSnapshot(snapshotToSave raftpb.Snapshot) error {
 	if snapshotToSave.Metadata.Index <= rs.appliedIndex {
 		logger.Fatal().Msgf("snapshot index [%d] should > progress.appliedIndex [%d] + 1", snapshotToSave.Metadata.Index, rs.appliedIndex)
 	}
+
+	var snapdata consensus.SnapshotData
+	if err := snapdata.Decode(snapshotToSave.Data); err != nil {
+		logger.Error().Err(err).Msg("failed to decode snapshot data")
+		return err
+	}
+	block, err := rs.walDB.GetBlockByNo(snapdata.Chain.No)
+	if err != nil {
+		logger.Error().Err(err).Msg("failed to get synchronized snapshot block")
+		return err
+	}
+	if !bytes.Equal(block.BlockHash(), snapdata.Chain.Hash) {
+		return ErrSnapshotBlockMismatch
+	}
 	//rs.commitC <- nil // trigger kvstore to load snapshot
 
 	rs.setConfState(&snapshotToSave.Metadata.ConfState)
 	rs.setSnapshotIndex(snapshotToSave.Metadata.Index)
 	rs.setAppliedIndex(snapshotToSave.Metadata.Index)
 
-	var (
-		isEqual bool
-		err     error
-	)
-
-	if isEqual, err = rs.cluster.Recover(&snapshotToSave); err != nil {
+	isEqual, err := rs.cluster.Recover(&snapshotToSave)
+	if err != nil {
 		return err
 	}
 
@@ -1086,7 +1083,8 @@ func (rs *raftServer) publishSnapshot(snapshotToSave raftpb.Snapshot) error {
 		rs.recoverTransport()
 	}
 
-	return updateProgress()
+	rs.commitProgress.UpdateConnect(&commitEntry{block: block, index: snapshotToSave.Metadata.Index, term: snapshotToSave.Metadata.Term})
+	return nil
 }
 
 func (rs *raftServer) recoverTransport() {
@@ -1618,6 +1616,31 @@ type raftHttpWrapper struct {
 	raftServer *raftServer
 }
 
+func validateSnapshotConsistency(snapshot *raftpb.Snapshot) error {
+	var data consensus.SnapshotData
+	if snapshot == nil || snapshot.Metadata.Index == 0 || data.Decode(snapshot.Data) != nil ||
+		len(data.Chain.Hash) == 0 || len(data.Members) != len(snapshot.Metadata.ConfState.Nodes) {
+		return ErrSnapshotMembershipMismatch
+	}
+
+	memberIDs := make(map[uint64]struct{}, len(data.Members))
+	for _, member := range data.Members {
+		if member == nil || !member.IsValid() {
+			return ErrSnapshotMembershipMismatch
+		}
+		if _, exists := memberIDs[member.ID]; exists {
+			return ErrSnapshotMembershipMismatch
+		}
+		memberIDs[member.ID] = struct{}{}
+	}
+	for _, id := range snapshot.Metadata.ConfState.Nodes {
+		if _, exists := memberIDs[id]; !exists {
+			return ErrSnapshotMembershipMismatch
+		}
+	}
+	return nil
+}
+
 func (rhw *raftHttpWrapper) ValidateMessage(peerID types.PeerID, m raftpb.Message) error {
 	member := rhw.GetMemberByPeerID(peerID)
 	if member == nil {
@@ -1630,6 +1653,20 @@ func (rhw *raftHttpWrapper) ValidateMessage(peerID types.PeerID, m raftpb.Messag
 	if m.To != rhw.raftServer.ID() {
 		return fmt.Errorf("%w: local %x, message target %x",
 			ErrRaftTargetMismatch, rhw.raftServer.ID(), m.To)
+	}
+	if m.Type == raftpb.MsgSnap {
+		if err := validateSnapshotConsistency(&m.Snapshot); err != nil {
+			return err
+		}
+		status := rhw.raftServer.Status()
+		if m.Term < status.Term || m.Snapshot.Metadata.Index <= status.Applied {
+			return fmt.Errorf("%w: term %d/%d, index %d/%d",
+				ErrStaleRaftSnapshot, m.Term, status.Term, m.Snapshot.Metadata.Index, status.Applied)
+		}
+		if m.Term == status.Term && status.Lead != HasNoLeader && m.From != status.Lead {
+			return fmt.Errorf("%w: leader %x, sender %x",
+				ErrUnexpectedRaftSnapshot, status.Lead, m.From)
+		}
 	}
 	return nil
 }
