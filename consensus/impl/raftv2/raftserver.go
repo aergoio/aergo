@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/aergoio/aergo/chain"
+	conschain "github.com/aergoio/aergo/consensus/chain"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/pkg/component"
@@ -388,6 +389,10 @@ func (rs *raftServer) startRaft() {
 		if rs.UseBackup {
 			logger.Info().Msg("raft use given backup as wal")
 
+			if hardstateinfo, err = rs.resolveBackupHardState(hardstateinfo); err != nil {
+				logger.Fatal().Err(err).Msg("failed to resolve exact hardstate for backup recovery")
+			}
+
 			// Pass current cluster members into ResetWAL so the freshly
 			// written snapshot has a populated SnapshotData.Members *and*
 			// ConfState.Nodes. Without the latter, the first local snapshot
@@ -443,6 +448,8 @@ func (rs *raftServer) ImportExistingCluster() (*types.HardStateInfo, error) {
 
 	if hardstateinfo != nil {
 		logger.Info().Str("hardstate", hardstateinfo.ToString()).Msg("received hard state of best hash from remote cluster")
+	} else {
+		logger.Info().Msg("remote cluster returned membership without exact hardstate for local best block")
 	}
 
 	// config validate
@@ -451,6 +458,108 @@ func (rs *raftServer) ImportExistingCluster() (*types.HardStateInfo, error) {
 	}
 
 	return hardstateinfo, nil
+}
+
+// resolveBackupHardState returns an exact hardstate for the local best block.
+// If peers cannot map the current backup tip to retained raft history, sync the
+// missing chain delta first and retry so ResetWAL never jumps ahead of the chain.
+func (rs *raftServer) resolveBackupHardState(hardstateinfo *types.HardStateInfo) (*types.HardStateInfo, error) {
+	if hardstateinfo != nil {
+		return hardstateinfo, nil
+	}
+
+	logger.Warn().Msg("exact hardstate missing for backup tip; syncing chain forward before raft wal reset")
+	if err := rs.syncBackupChainToClusterTip(); err != nil {
+		return nil, err
+	}
+
+	_, hardstateinfo, err := rs.GetExistingCluster()
+	if err != nil {
+		return nil, err
+	}
+	if hardstateinfo == nil {
+		best, bestErr := rs.walDB.GetBestBlock()
+		if bestErr != nil {
+			return nil, fmt.Errorf("no exact hardstate after backup sync and failed to read local best: %w", bestErr)
+		}
+		return nil, fmt.Errorf("no exact hardstate after syncing backup to block %d (%s)",
+			best.BlockNo(), best.ID())
+	}
+
+	logger.Info().Str("hardstate", hardstateinfo.ToString()).Msg("resolved exact hardstate after backup chain sync")
+	return hardstateinfo, nil
+}
+
+func (rs *raftServer) syncBackupChainToClusterTip() error {
+	const (
+		maxSyncTargetWait = 30
+		syncTargetSleep   = time.Second
+	)
+
+	localBest, err := rs.walDB.GetBestBlock()
+	if err != nil {
+		return fmt.Errorf("failed to get local backup best block: %w", err)
+	}
+
+	var (
+		peerID     types.PeerID
+		targetHash []byte
+		targetNo   uint64
+	)
+
+	for i := 0; i < maxSyncTargetWait; i++ {
+		peerID, targetHash, targetNo, err = rs.pickBackupSyncTarget(localBest.BlockNo())
+		if err == nil {
+			break
+		}
+		logger.Warn().Err(err).Int("try", i+1).Msg("waiting for cluster peer tip to sync backup chain")
+		time.Sleep(syncTargetSleep)
+	}
+	if err != nil {
+		return err
+	}
+
+	logger.Info().Str("peer", peerID.Pretty()).Uint64("from", localBest.BlockNo()).Uint64("to", targetNo).
+		Msg("syncing backup chain delta before exact hardstate reset")
+	return conschain.SyncChain(rs.ComponentHub, targetHash, targetNo, peerID)
+}
+
+func (rs *raftServer) pickBackupSyncTarget(localBestNo uint64) (types.PeerID, []byte, uint64, error) {
+	if rs.pa == nil {
+		return "", nil, 0, errors.New("peer accessor is not set for backup chain sync")
+	}
+
+	var (
+		bestPeer types.PeerID
+		bestHash []byte
+		bestNo   uint64
+	)
+
+	for _, info := range rs.pa.GetPeerBlockInfos() {
+		if info == nil || info.State() != types.RUNNING {
+			continue
+		}
+		rs.cluster.Lock()
+		member := rs.cluster.Members().getMemberByPeerID(info.ID())
+		rs.cluster.Unlock()
+		if member == nil {
+			continue
+		}
+		status := info.LastStatus()
+		if status == nil || len(status.BlockHash) == 0 || status.BlockNumber <= localBestNo {
+			continue
+		}
+		if status.BlockNumber > bestNo {
+			bestNo = status.BlockNumber
+			bestHash = append([]byte(nil), status.BlockHash...)
+			bestPeer = info.ID()
+		}
+	}
+
+	if bestNo == 0 {
+		return "", nil, 0, errors.New("no live cluster peer tip ahead of backup chain")
+	}
+	return bestPeer, bestHash, bestNo, nil
 }
 
 func (rs *raftServer) ID() uint64 {
