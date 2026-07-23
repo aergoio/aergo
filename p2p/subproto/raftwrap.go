@@ -7,6 +7,7 @@ package subproto
 
 import (
 	"context"
+	"errors"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
@@ -24,6 +25,8 @@ type raftWrapperHandler struct {
 
 var _ p2pcommon.MessageHandler = (*raftWrapperHandler)(nil)
 
+var ErrUnauthorizedRaftPeer = errors.New("raft message from non-member peer")
+
 // NewGetClusterReqHandler creates handler for PingRequest
 func NewRaftWrapperHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService, consAcc consensus.ConsensusAccessor) *raftWrapperHandler {
 	ph := &raftWrapperHandler{
@@ -34,6 +37,9 @@ func NewRaftWrapperHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, 
 }
 
 func (ph *raftWrapperHandler) ParsePayload(rawbytes []byte) (p2pcommon.MessageBody, error) {
+	if ph.consAcc == nil || ph.consAcc.RaftAccessor().GetMemberByPeerID(ph.peer.ID()) == nil {
+		return nil, ErrUnauthorizedRaftPeer
+	}
 	return p2putil.UnmarshalAndReturn(rawbytes, &raftpb.Message{})
 }
 
