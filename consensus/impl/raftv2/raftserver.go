@@ -225,6 +225,7 @@ func makeConfig(nodeID uint64, storage *raftlib.MemoryStorage) *raftlib.Config {
 		MaxInflightMsgs:           256,
 		Logger:                    raftLogger,
 		CheckQuorum:               true,
+		PreVote:                   true,
 		DisableProposalForwarding: true,
 	}
 
