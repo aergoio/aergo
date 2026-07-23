@@ -6,10 +6,17 @@ import (
 
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/types"
+	raftlib "github.com/aergoio/etcd/raft"
 	"github.com/aergoio/etcd/raft/raftpb"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 )
+
+func TestRaftConfigEnablesPreVote(t *testing.T) {
+	if config := makeConfig(1, raftlib.NewMemoryStorage()); !config.PreVote {
+		t.Fatal("raft pre-vote must be enabled to prevent disruptive term inflation after partitions")
+	}
+}
 
 func TestRaftMessagePeerBinding(t *testing.T) {
 	senderPeerID := types.RandomPeerID()
