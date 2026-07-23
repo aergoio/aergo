@@ -395,6 +395,12 @@ func (cl *Cluster) getAnyPeerAddressToSync() (types.PeerID, error) {
 	return "", ErrNoEnableSyncPeer
 }
 
+func (cl *Cluster) getMemberPeerAddress(id uint64) (types.PeerID, error) {
+	cl.Lock()
+	defer cl.Unlock()
+	return cl.Members().getMemberPeerAddress(id)
+}
+
 func (cl *Cluster) isValidMember(member *consensus.Member) error {
 	cl.Lock()
 	defer cl.Unlock()
