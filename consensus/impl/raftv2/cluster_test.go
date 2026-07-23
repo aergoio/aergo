@@ -130,6 +130,11 @@ func TestClusterConfChange(t *testing.T) {
 		assert.NoError(t, err)
 	}
 
+	_, err = cl.makeProposal(nil, true)
+	assert.Error(t, err, "nil membership request")
+	_, err = cl.makeProposal(&types.MembershipChange{}, true)
+	assert.Error(t, err, "nil membership attributes")
+
 	// normal case
 	req := &types.MembershipChange{
 		Type: types.MembershipChangeType_ADD_MEMBER,
@@ -161,6 +166,13 @@ func TestClusterConfChange(t *testing.T) {
 	}
 	_, err = cl.makeProposal(req, true)
 	assert.Error(t, err, "duplicate peerid")
+
+	req = &types.MembershipChange{
+		Type: types.MembershipChangeType_ADD_MEMBER,
+		Attr: &types.MemberAttr{Name: "test4", Address: "/ip4/127.0.0.1/tcp/10004", PeerID: []byte("not-a-peer-id")},
+	}
+	_, err = cl.makeProposal(req, true)
+	assert.Error(t, err, "malformed peerid")
 
 	req = &types.MembershipChange{
 		Type: types.MembershipChangeType_REMOVE_MEMBER,

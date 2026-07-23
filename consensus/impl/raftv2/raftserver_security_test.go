@@ -64,33 +64,50 @@ func TestRaftMessagePeerBinding(t *testing.T) {
 	}
 }
 
-func TestSnapshotMembershipMustMatchConfState(t *testing.T) {
-	member := &consensus.Member{MemberAttr: types.MemberAttr{
-		ID:      1,
-		Name:    "member",
-		Address: "/ip4/127.0.0.1/tcp/11001",
-		PeerID:  []byte(types.RandomPeerID()),
-	}}
+func TestPublishFirstBlockDoesNotDereferenceEmptyProgress(t *testing.T) {
 	block := types.NewBlock(types.EmptyBlockHeaderInfo, nil, nil, nil, nil, nil)
-	data, err := consensus.NewSnapshotData([]*consensus.Member{member}, nil, block).Encode()
+	data, err := marshalEntryData(block)
 	if err != nil {
 		t.Fatal(err)
 	}
-	snapshot := &raftpb.Snapshot{
-		Data: data,
-		Metadata: raftpb.SnapshotMetadata{
-			Index:     1,
-			Term:      1,
-			ConfState: raftpb.ConfState{Nodes: []uint64{member.ID}},
-		},
+
+	server := &raftServer{
+		commitC: make(chan *commitEntry, 1),
+		stopc:   make(chan struct{}),
 	}
-	if err := validateSnapshotConsistency(snapshot); err != nil {
-		t.Fatalf("validateSnapshotConsistency() rejected valid snapshot: %v", err)
+	if ok := server.publishEntries([]raftpb.Entry{{
+		Index: 1,
+		Term:  1,
+		Type:  raftpb.EntryNormal,
+		Data:  data,
+	}}); !ok {
+		t.Fatal("publishEntries() unexpectedly stopped")
+	}
+}
+
+func TestMalformedConfChangeReturnsErrorWithoutPanic(t *testing.T) {
+	server := &raftServer{cluster: NewCluster([]byte("chain"), nil, "local", types.RandomPeerID(), 0, nil)}
+
+	if _, _, err := server.ValidateConfChangeEntry(&raftpb.Entry{
+		Index: 1,
+		Term:  1,
+		Type:  raftpb.EntryConfChange,
+		Data:  []byte{0xff},
+	}); err == nil {
+		t.Fatal("ValidateConfChangeEntry() accepted malformed protobuf")
 	}
 
-	snapshot.Metadata.ConfState.Nodes[0] = 2
-	if err := validateSnapshotConsistency(snapshot); !errors.Is(err, ErrSnapshotMembershipMismatch) {
-		t.Fatalf("validateSnapshotConsistency() error = %v, want %v", err, ErrSnapshotMembershipMismatch)
+	data, err := (&raftpb.ConfChange{NodeID: 1, Type: raftpb.ConfChangeAddNode}).Marshal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := server.ValidateConfChangeEntry(&raftpb.Entry{
+		Index: 1,
+		Term:  1,
+		Type:  raftpb.EntryConfChange,
+		Data:  data,
+	}); !errors.Is(err, ErrCCMemberIsNil) {
+		t.Fatalf("ValidateConfChangeEntry() error = %v, want %v", err, ErrCCMemberIsNil)
 	}
 }
 
@@ -133,23 +150,32 @@ func TestRaftBlockSignerMustBeCurrentMember(t *testing.T) {
 	}
 }
 
-func TestPublishFirstBlockDoesNotDereferenceEmptyProgress(t *testing.T) {
+func TestSnapshotMembershipMustMatchConfState(t *testing.T) {
+	member := &consensus.Member{MemberAttr: types.MemberAttr{
+		ID:      1,
+		Name:    "member",
+		Address: "/ip4/127.0.0.1/tcp/11001",
+		PeerID:  []byte(types.RandomPeerID()),
+	}}
 	block := types.NewBlock(types.EmptyBlockHeaderInfo, nil, nil, nil, nil, nil)
-	data, err := marshalEntryData(block)
+	data, err := consensus.NewSnapshotData([]*consensus.Member{member}, nil, block).Encode()
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	server := &raftServer{
-		commitC: make(chan *commitEntry, 1),
-		stopc:   make(chan struct{}),
+	snapshot := &raftpb.Snapshot{
+		Data: data,
+		Metadata: raftpb.SnapshotMetadata{
+			Index:     1,
+			Term:      1,
+			ConfState: raftpb.ConfState{Nodes: []uint64{member.ID}},
+		},
 	}
-	if ok := server.publishEntries([]raftpb.Entry{{
-		Index: 1,
-		Term:  1,
-		Type:  raftpb.EntryNormal,
-		Data:  data,
-	}}); !ok {
-		t.Fatal("publishEntries() unexpectedly stopped")
+	if err := validateSnapshotConsistency(snapshot); err != nil {
+		t.Fatalf("validateSnapshotConsistency() rejected valid snapshot: %v", err)
+	}
+
+	snapshot.Metadata.ConfState.Nodes[0] = 2
+	if err := validateSnapshotConsistency(snapshot); !errors.Is(err, ErrSnapshotMembershipMismatch) {
+		t.Fatalf("validateSnapshotConsistency() error = %v, want %v", err, ErrSnapshotMembershipMismatch)
 	}
 }

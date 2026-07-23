@@ -1235,19 +1235,19 @@ func unmarshalConfChangeEntry(entry *raftpb.Entry) (*raftpb.ConfChange, *consens
 	var cc raftpb.ConfChange
 
 	if err := cc.Unmarshal(entry.Data); err != nil {
-		logger.Fatal().Err(err).Uint64("idx", entry.Index).Uint64("term", entry.Term).Msg("failed to unmarshal of conf change entry")
-		return nil, nil, err
+		logger.Error().Err(err).Uint64("idx", entry.Index).Uint64("term", entry.Term).Msg("failed to unmarshal conf change entry")
+		return &raftpb.ConfChange{}, nil, err
 	}
 
 	// skip confChange of empty context
 	if len(cc.Context) == 0 {
-		return nil, nil, nil
+		return &cc, nil, nil
 	}
 
 	var member = consensus.Member{}
 	if err := json.Unmarshal(cc.Context, &member); err != nil {
-		logger.Fatal().Err(err).Uint64("idx", entry.Index).Uint64("term", entry.Term).Msg("failed to unmarshal of context of cc entry")
-		return nil, nil, err
+		logger.Error().Err(err).Uint64("idx", entry.Index).Uint64("term", entry.Term).Msg("failed to unmarshal context of conf change entry")
+		return &cc, nil, err
 	}
 
 	return &cc, &member, nil
@@ -1265,7 +1265,8 @@ func (rs *raftServer) ValidateConfChangeEntry(entry *raftpb.Entry) (*raftpb.Conf
 
 	cc, member, err = unmarshalConfChangeEntry(entry)
 	if err != nil {
-		logger.Fatal().Err(err).Str("entry", entry.String()).Uint64("requestID", cc.ID).Msg("failed to unmarshal conf change")
+		logger.Error().Err(err).Str("entry", entry.String()).Msg("failed to unmarshal conf change")
+		return cc, member, err
 	}
 
 	if alreadyApplied(entry) {
