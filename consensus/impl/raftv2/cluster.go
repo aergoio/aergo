@@ -499,9 +499,9 @@ func (cl *Cluster) ValidateAndMergeExistingCluster(existingCl *Cluster) bool {
 		return false
 	}
 
-	// TODO check my network config is equal to member of remote
 	if base58.Encode(remoteMember.PeerID) != cl.NodePeerID() {
 		logger.Error().Msg("peerid is different with peerid of member of existing cluster")
+		return false
 	}
 
 	cl.members = existingCl.Members()
