@@ -208,3 +208,17 @@ func TestClusterEqual(t *testing.T) {
 
 	assert.False(t, cl.isAllMembersEqual(testMbrs, nil))
 }
+
+func TestValidateAndMergeExistingClusterRejectsPeerIDMismatch(t *testing.T) {
+	chainID := []byte("test-chain")
+	local := NewCluster(chainID, nil, "joining-node", testPeerIDs[0], 0, nil)
+
+	remote, err := NewClusterFromMemberAttrs(1, chainID, []*types.MemberAttr{{
+		ID:      1,
+		Name:    "joining-node",
+		Address: "/ip4/127.0.0.1/tcp/11001",
+		PeerID:  []byte(testPeerIDs[1]),
+	}})
+	assert.NoError(t, err)
+	assert.False(t, local.ValidateAndMergeExistingCluster(remote))
+}
