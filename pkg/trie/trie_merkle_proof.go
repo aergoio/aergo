@@ -84,12 +84,12 @@ func (s *Trie) merkleProof(root, key []byte, batch [][]byte, height, iBatch int)
 		return nil, false, nil, nil, err
 	}
 	if isShortcut || height == 0 {
-		if bytes.Equal(lnode[:HashLength], key) {
+		if bytes.Equal(hashData(lnode), key) {
 			// return the value so a call to trie.Get() is not needed.
-			return nil, true, nil, rnode[:HashLength], nil
+			return nil, true, nil, hashData(rnode), nil
 		}
 		// Return the proof of the leaf key that is on the path of the non included key
-		return nil, false, lnode[:HashLength], rnode[:HashLength], nil
+		return nil, false, hashData(lnode), hashData(rnode), nil
 	}
 
 	// append the left or right node to the proof
@@ -99,7 +99,7 @@ func (s *Trie) merkleProof(root, key []byte, batch [][]byte, height, iBatch int)
 			return nil, false, nil, nil, err
 		}
 		if len(lnode) != 0 {
-			return append(mp, lnode[:HashLength]), included, proofKey, proofValue, nil
+			return append(mp, hashData(lnode)), included, proofKey, proofValue, nil
 		} else {
 			return append(mp, DefaultLeaf), included, proofKey, proofValue, nil
 		}
@@ -110,7 +110,7 @@ func (s *Trie) merkleProof(root, key []byte, batch [][]byte, height, iBatch int)
 		return nil, false, nil, nil, err
 	}
 	if len(rnode) != 0 {
-		return append(mp, rnode[:HashLength]), included, proofKey, proofValue, nil
+		return append(mp, hashData(rnode)), included, proofKey, proofValue, nil
 	} else {
 		return append(mp, DefaultLeaf), included, proofKey, proofValue, nil
 	}

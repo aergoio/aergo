@@ -152,7 +152,7 @@ func (s *Trie) update(root []byte, keys, values, batch [][]byte, iBatch, height 
 	}
 	// Check if the keys are updating the shortcut node
 	if isShortcut {
-		keys, values = s.maybeAddShortcutToKV(keys, values, lnode[:HashLength], rnode[:HashLength])
+		keys, values = s.maybeAddShortcutToKV(keys, values, hashData(lnode), hashData(rnode))
 		if iBatch == 0 {
 			// shortcut is moving so it's root will change
 			s.deleteOldNode(root, height, false)
@@ -327,7 +327,7 @@ func (s *Trie) moveUpShortcut(shortcut, root []byte, batch [][]byte, iBatch, iSh
 		return
 	}
 	// when moving up the shortcut, it's hash will change because height is +1
-	newShortcut := s.hash(shortcutKey[:HashLength], shortcutVal[:HashLength], []byte{byte(height)})
+	newShortcut := s.hash(hashData(shortcutKey), hashData(shortcutVal), []byte{byte(height)})
 	newShortcut = append(newShortcut, byte(1))
 
 	if iBatch == 0 {
@@ -496,7 +496,7 @@ func (s *Trie) loadBatch(root []byte) ([][]byte, error) {
 // would otherwise inherit a huge cap; append on those slices could write into read-only pages.
 func (s *Trie) parseBatch(val []byte) [][]byte {
 	batch := make([][]byte, 31, 31)
-	bitmap := val[:4]
+	bitmap := val[:4:4]
 	// check if the batch root is a shortcut
 	if bitIsSet(val, 31) {
 		batch[0] = []byte{1}
@@ -562,11 +562,11 @@ func (s *Trie) interiorHash(left, right, oldRoot []byte, batch [][]byte, iBatch,
 	var h []byte
 	// left and right cannot both be default. It is handled by maybeMoveUpShortcut()
 	if len(left) == 0 {
-		h = s.hash(DefaultLeaf, right[:HashLength])
+		h = s.hash(DefaultLeaf, hashData(right))
 	} else if len(right) == 0 {
-		h = s.hash(left[:HashLength], DefaultLeaf)
+		h = s.hash(hashData(left), DefaultLeaf)
 	} else {
-		h = s.hash(left[:HashLength], right[:HashLength])
+		h = s.hash(hashData(left), hashData(right))
 	}
 	h = append(h, byte(0))
 	batch[2*iBatch+2] = right

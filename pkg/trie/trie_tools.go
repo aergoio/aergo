@@ -98,8 +98,8 @@ func (s *Trie) get(root, key []byte, batch [][]byte, iBatch, height int) ([]byte
 		return nil, err
 	}
 	if isShortcut {
-		if bytes.Equal(lnode[:HashLength], key) {
-			return rnode[:HashLength], nil
+		if bytes.Equal(hashData(lnode), key) {
+			return hashData(rnode), nil
 		}
 		// also returns nil if height 0 is not a shortcut
 		return nil, nil

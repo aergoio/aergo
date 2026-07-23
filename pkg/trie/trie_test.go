@@ -723,3 +723,40 @@ func getFreshData(size, length int) [][]byte {
 	sort.Sort(DataArray(data))
 	return data
 }
+
+// TestHashDataCappedSubslice ensures hashData caps subslices so append does not
+// write into mmap-backed backing storage (parseBatch keeps zero-copy views).
+func TestHashDataCappedSubslice(t *testing.T) {
+	buf := make([]byte, 256)
+	key := make([]byte, HashLength)
+	value := make([]byte, HashLength)
+	_, err := rand.Read(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = rand.Read(value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	copy(buf[4:4+HashLength], key)
+	copy(buf[4+HashLength:4+HashLength*2], value)
+	bitSet(buf, 31)
+	val := buf[0 : 4+HashLength*2]
+	s := NewTrie(nil, common.Hasher, nil)
+	batch := s.parseBatch(val)
+	uncappedKey := batch[1][:HashLength]
+	if cap(uncappedKey) <= len(uncappedKey) {
+		t.Fatal("test setup: uncapped subslice should have cap > len")
+	}
+	shortcutKey := hashData(batch[1])
+	shortcutVal := hashData(batch[2])
+	if cap(shortcutKey) != len(shortcutKey) || cap(shortcutVal) != len(shortcutVal) {
+		t.Fatalf("hashData cap mismatch: key cap=%d len=%d val cap=%d len=%d",
+			cap(shortcutKey), len(shortcutKey), cap(shortcutVal), len(shortcutVal))
+	}
+	out := make([][]byte, 31, 31)
+	s.leafHash(shortcutKey, shortcutVal, nil, out, 0, 0)
+	if len(out[1]) != HashLength+1 || out[1][HashLength] != 2 {
+		t.Fatalf("unexpected stored key: %v", out[1])
+	}
+}

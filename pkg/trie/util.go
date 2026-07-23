@@ -19,6 +19,16 @@ const (
 	maxPastTries = 300
 )
 
+// hashData returns the hash prefix of a trie node with cap==len. Subslices of
+// mmap-backed DB values inherit spare capacity; uncapped [:HashLength] leaves
+// room for append to write into read-only pages.
+func hashData(b []byte) []byte {
+	if len(b) <= HashLength {
+		return b[:len(b):len(b)]
+	}
+	return b[:HashLength:HashLength]
+}
+
 type Hash [HashLength]byte
 
 func bitIsSet(bits []byte, i int) bool {
