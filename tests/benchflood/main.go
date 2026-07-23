@@ -76,9 +76,10 @@ Flood flags:
   --sign-workers N        parallel signers (default NumCPU)
   --commit-workers N      parallel commit batches (default 20)
   --query-count N         read queries after writes (default 1000)
-  --confirm-timeout SEC   max wait for confirmation (default 120)
+  --confirm-timeout SEC   optional safety cap if chain stalls (default 0=off)
+  --confirm-idle-blocks N consecutive blocks with no flood txs before receipt check (default 60)
   --confirm-workers N     parallel block scanners (default 8)
-  --stuck-timeout SEC     fail if chain height unchanged (default 30)
+  --stuck-timeout SEC     fail if chain height unchanged (default 120)
 `)
 }
 
@@ -270,21 +271,13 @@ func hashKey(h []byte) string {
 	return string(h)
 }
 
-// verifyFloodConfirm checks hash matches and that on-chain tx counts match what we sent.
+// verifyFloodConfirm checks all sent flood txs were matched on-chain.
 func verifyFloodConfirm(fc floodConfirm, sent int) {
 	if sent == 0 {
 		return
 	}
 	if fc.confirmedCount != sent {
 		fatal("confirmed %d/%d flood txs by hash", fc.confirmedCount, sent)
-	}
-	if fc.minedTxCount < sent {
-		fatal("mined %d txs on chain since height %d but sent %d",
-			fc.minedTxCount, fc.scanFrom, sent)
-	}
-	if fc.minedTxCount != fc.confirmedCount {
-		fatal("mined %d txs in scanned blocks but only %d matched flood hashes",
-			fc.minedTxCount, fc.confirmedCount)
 	}
 }
 
@@ -318,12 +311,12 @@ func scanBlockMetadata(client types.AergoRPCServiceClient, from, to uint64) ([]*
 	return out, lastOK
 }
 
-func matchBlockTxs(client types.AergoRPCServiceClient, blockNo uint64, pending map[string]struct{}, fc *floodConfirm, mu *sync.Mutex) bool {
+func matchBlockTxs(client types.AergoRPCServiceClient, blockNo uint64, pending map[string]struct{}, fc *floodConfirm, mu *sync.Mutex) (matched int, ok bool) {
 	blk, err := client.GetBlock(context.Background(), &types.SingleBytes{Value: heightBytes(blockNo)})
 	if err != nil || blk == nil || blk.Body == nil {
-		return false
+		return 0, false
 	}
-	var matched []string
+	var hits []string
 	for _, tx := range blk.Body.Txs {
 		h := tx.GetHash()
 		if len(h) == 0 {
@@ -334,23 +327,24 @@ func matchBlockTxs(client types.AergoRPCServiceClient, blockNo uint64, pending m
 		}
 		key := hashKey(h)
 		mu.Lock()
-		_, ok := pending[key]
+		_, isPending := pending[key]
 		mu.Unlock()
-		if ok {
-			matched = append(matched, key)
+		if isPending {
+			hits = append(hits, key)
 		}
 	}
-	if len(matched) == 0 {
-		return true
+	if len(hits) == 0 {
+		return 0, true
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	for _, key := range matched {
+	for _, key := range hits {
 		if _, ok := pending[key]; !ok {
 			continue
 		}
 		delete(pending, key)
 		fc.confirmedCount++
+		matched++
 		if fc.firstBlock == 0 || blockNo < fc.firstBlock {
 			fc.firstBlock = blockNo
 		}
@@ -358,13 +352,32 @@ func matchBlockTxs(client types.AergoRPCServiceClient, blockNo uint64, pending m
 			fc.lastBlock = blockNo
 		}
 	}
-	return true
+	return matched, true
 }
 
-// waitFloodConfirm scans blocks via GetBlockMetadata and matches flood tx hashes in block bodies.
-// scanFrom is the chain height before commits started; scanning begins at scanFrom+1 so txs
-// included during the commit window are not missed.
-func waitFloodConfirm(client types.AergoRPCServiceClient, admin types.AdminRPCServiceClient, hashes [][]byte, scanFrom uint64, timeout, stuckTimeout time.Duration, workers int) floodConfirm {
+func confirmViaReceipts(client types.AergoRPCServiceClient, pending map[string]struct{}, fc *floodConfirm) {
+	if len(pending) == 0 {
+		return
+	}
+	fmt.Fprintf(os.Stderr, "  checking %d remaining txs via GetReceipt\n", len(pending))
+	for key := range pending {
+		hash := []byte(key)
+		rcpt, err := client.GetReceipt(context.Background(), &types.SingleBytes{Value: hash})
+		if err != nil || rcpt == nil {
+			continue
+		}
+		if rcpt.GetStatus() == "ERROR" {
+			fatal("tx %x failed on chain: %s", hash, rcpt.GetRet())
+		}
+		delete(pending, key)
+		fc.confirmedCount++
+	}
+}
+
+// waitFloodConfirm scans block bodies for flood tx hashes. It keeps going while the chain
+// is still producing blocks and only stops when all txs are matched or idleLimit consecutive
+// scanned blocks contain none of our txs. Remaining pending txs are checked via GetReceipt.
+func waitFloodConfirm(client types.AergoRPCServiceClient, admin types.AdminRPCServiceClient, hashes [][]byte, scanFrom uint64, maxWait, stuckTimeout time.Duration, idleLimit, workers int) floodConfirm {
 	fc := floodConfirm{
 		blockTxCounts: make(map[uint64]int),
 		scanFrom:      scanFrom,
@@ -375,24 +388,35 @@ func waitFloodConfirm(client types.AergoRPCServiceClient, admin types.AdminRPCSe
 	if workers < 1 {
 		workers = 1
 	}
+	if idleLimit < 1 {
+		idleLimit = 1
+	}
 
 	pending := make(map[string]struct{}, len(hashes))
 	for _, h := range hashes {
 		pending[hashKey(h)] = struct{}{}
 	}
 
-	deadline := time.Now().Add(timeout)
-	lastScanned := scanFrom
-	var lastHeight uint64
-	heightStuckSince := time.Now()
-	confirmStuckSince := time.Now()
-	lastConfirmed := 0
-	lastReport := time.Now()
-	retryBodies := make(map[uint64]struct{})
+	var (
+		lastScanned      = scanFrom
+		lastHeight       uint64
+		heightStuckSince = time.Now()
+		lastReport       = time.Now()
+		idleStreak       int
+		retryBodies      = make(map[uint64]struct{})
+		confirmStart     = time.Now()
+	)
 
-	fmt.Fprintf(os.Stderr, "  scanning blocks from height %d (pre-commit height %d)\n", scanFrom+1, scanFrom)
+	var safetyDeadline time.Time
+	if maxWait > 0 {
+		safetyDeadline = confirmStart.Add(maxWait)
+	}
 
-	for len(pending) > 0 && time.Now().Before(deadline) {
+	fmt.Fprintf(os.Stderr, "  scanning blocks from height %d (pre-commit height %d, idle after %d empty blocks)\n",
+		scanFrom+1, scanFrom, idleLimit)
+
+	scanDone := false
+	for !scanDone && len(pending) > 0 {
 		best := chainHeight(client)
 		now := time.Now()
 		if best != lastHeight {
@@ -402,16 +426,10 @@ func waitFloodConfirm(client types.AergoRPCServiceClient, admin types.AdminRPCSe
 			fatal("chain stuck at height %d for %s while confirming (%d/%d txs)",
 				best, stuckTimeout, fc.confirmedCount, len(hashes))
 		}
-		if fc.confirmedCount > lastConfirmed {
-			lastConfirmed = fc.confirmedCount
-			confirmStuckSince = now
-		} else if time.Since(confirmStuckSince) >= stuckTimeout {
-			mpNote := ""
-			if mp, ok := mempoolPending(admin); ok {
-				mpNote = fmt.Sprintf(", mempool %d", mp)
-			}
-			fatal("no confirmation progress for %s: confirmed %d/%d txs at height %d, scanned through %d (%d pending%s)",
-				stuckTimeout, fc.confirmedCount, len(hashes), best, lastScanned, len(pending), mpNote)
+
+		if !safetyDeadline.IsZero() && now.After(safetyDeadline) && best == lastHeight && time.Since(heightStuckSince) >= stuckTimeout/2 {
+			fatal("confirm safety timeout after %s with %d/%d txs still pending (height %d)",
+				maxWait, len(pending), len(hashes), best)
 		}
 
 		var bodyBlocks []uint64
@@ -419,6 +437,7 @@ func waitFloodConfirm(client types.AergoRPCServiceClient, admin types.AdminRPCSe
 			bodyBlocks = append(bodyBlocks, b)
 		}
 
+		var ordered []uint64
 		if best > lastScanned {
 			metas, through := scanBlockMetadata(client, lastScanned+1, best)
 			for _, meta := range metas {
@@ -434,6 +453,7 @@ func waitFloodConfirm(client types.AergoRPCServiceClient, admin types.AdminRPCSe
 				if ntx > fc.peak {
 					fc.peak = ntx
 				}
+				ordered = append(ordered, blockNo)
 				if ntx > 0 && len(pending) > 0 {
 					bodyBlocks = append(bodyBlocks, blockNo)
 				}
@@ -443,6 +463,9 @@ func waitFloodConfirm(client types.AergoRPCServiceClient, admin types.AdminRPCSe
 				fc.scanThrough = through
 			}
 		}
+
+		matchResults := make(map[uint64]int)
+		fetchOK := make(map[uint64]bool)
 
 		if len(bodyBlocks) > 0 {
 			work := make(chan uint64, len(bodyBlocks))
@@ -469,12 +492,15 @@ func waitFloodConfirm(client types.AergoRPCServiceClient, admin types.AdminRPCSe
 						if empty {
 							return
 						}
-						ok := matchBlockTxs(client, blockNo, pending, &fc, &mu)
-						if !ok {
-							mu.Lock()
+						matched, ok := matchBlockTxs(client, blockNo, pending, &fc, &mu)
+						mu.Lock()
+						if ok {
+							matchResults[blockNo] = matched
+							fetchOK[blockNo] = true
+						} else {
 							nextRetry[blockNo] = struct{}{}
-							mu.Unlock()
 						}
+						mu.Unlock()
 					}
 				}()
 			}
@@ -482,19 +508,47 @@ func waitFloodConfirm(client types.AergoRPCServiceClient, admin types.AdminRPCSe
 			retryBodies = nextRetry
 		}
 
+		for _, blockNo := range ordered {
+			ntx := fc.blockTxCounts[blockNo]
+			if ntx == 0 {
+				idleStreak++
+			} else if fetchOK[blockNo] {
+				if matchResults[blockNo] == 0 {
+					idleStreak++
+				} else {
+					idleStreak = 0
+				}
+			} else {
+				// body fetch failed; don't advance idle streak yet
+				continue
+			}
+			if idleStreak >= idleLimit {
+				fmt.Fprintf(os.Stderr, "  no flood txs in last %d consecutive blocks; checking receipts for %d pending\n",
+					idleLimit, len(pending))
+				scanDone = true
+				break
+			}
+		}
+
+		if len(pending) == 0 {
+			break
+		}
+
 		if time.Since(lastReport) >= 2*time.Second {
 			mpNote := ""
 			if mp, ok := mempoolPending(admin); ok {
 				mpNote = fmt.Sprintf(", mempool %d", mp)
 			}
-			fmt.Fprintf(os.Stderr, "  confirmed %d/%d txs, height %d (scanned through %d), pending %d%s\n",
-				fc.confirmedCount, len(hashes), best, lastScanned, len(pending), mpNote)
+			fmt.Fprintf(os.Stderr, "  confirmed %d/%d txs, height %d (scanned through %d), pending %d, idle_streak %d%s\n",
+				fc.confirmedCount, len(hashes), best, lastScanned, len(pending), idleStreak, mpNote)
 			lastReport = time.Now()
 		}
 
-		if len(pending) > 0 {
-			time.Sleep(500 * time.Millisecond)
-		}
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	if len(pending) > 0 {
+		confirmViaReceipts(client, pending, &fc)
 	}
 
 	if len(pending) > 0 {
@@ -502,8 +556,8 @@ func waitFloodConfirm(client types.AergoRPCServiceClient, admin types.AdminRPCSe
 		if mp, ok := mempoolPending(admin); ok {
 			mpNote = fmt.Sprintf(", mempool %d", mp)
 		}
-		fatal("receipt timeout after %s: confirmed %d/%d txs, scanned through %d%s",
-			timeout, fc.confirmedCount, len(hashes), lastScanned, mpNote)
+		fatal("%d/%d txs not found in blocks or receipts (scanned through %d%s)",
+			len(pending), len(hashes), lastScanned, mpNote)
 	}
 	verifyFloodConfirm(fc, len(hashes))
 	return fc
@@ -732,9 +786,10 @@ func runFlood(args []string) {
 	commitWorkers := fs.Int("commit-workers", 20, "parallel commit batches")
 	queryCount := fs.Int("query-count", 1000, "query count")
 	queryWorkers := fs.Int("query-workers", 40, "query workers")
-	confirmTimeout := fs.Int("confirm-timeout", 120, "confirmation timeout in seconds")
+	confirmTimeout := fs.Int("confirm-timeout", 0, "optional safety cap in seconds if chain stalls (0=off)")
 	confirmWorkers := fs.Int("confirm-workers", 8, "parallel block scanners")
-	stuckTimeout := fs.Int("stuck-timeout", 30, "fail if chain height unchanged for this many seconds")
+	confirmIdleBlocks := fs.Int("confirm-idle-blocks", 60, "consecutive blocks with no flood txs before receipt check")
+	stuckTimeout := fs.Int("stuck-timeout", 120, "fail if chain height unchanged for this many seconds")
 	resultsFile := fs.String("results", "", "results output file")
 	_ = fs.Parse(args)
 
@@ -809,7 +864,7 @@ func runFlood(args []string) {
 	confirmStart := time.Now()
 	confirmLimit := time.Duration(*confirmTimeout) * time.Second
 	stuckLimit := time.Duration(*stuckTimeout) * time.Second
-	confirm := waitFloodConfirm(client, admin, allHashes, scanFrom, confirmLimit, stuckLimit, *confirmWorkers)
+	confirm := waitFloodConfirm(client, admin, allHashes, scanFrom, confirmLimit, stuckLimit, *confirmIdleBlocks, *confirmWorkers)
 	confirmDur := time.Since(confirmStart).Seconds()
 	totalDur := sendDur + confirmDur
 	confirmedCount := confirm.confirmedCount

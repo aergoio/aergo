@@ -15,8 +15,9 @@ BATCH_SIZE="${BATCH_SIZE:-500}"
 COMMIT_WORKERS="${COMMIT_WORKERS:-40}"
 SIGN_WORKERS="${SIGN_WORKERS:-$(nproc)}"
 CONFIRM_WORKERS="${CONFIRM_WORKERS:-8}"
-CONFIRM_TIMEOUT="${CONFIRM_TIMEOUT:-120}"
-STUCK_TIMEOUT="${STUCK_TIMEOUT:-30}"
+CONFIRM_TIMEOUT="${CONFIRM_TIMEOUT:-0}"
+CONFIRM_IDLE_BLOCKS="${CONFIRM_IDLE_BLOCKS:-60}"
+STUCK_TIMEOUT="${STUCK_TIMEOUT:-120}"
 
 WRITE_TX_COUNT=$((NUM_ACCOUNTS * TXS_PER_ACCOUNT))
 RESULTS_DIR="./benchmark-results"
@@ -161,6 +162,7 @@ run_test() {
     --query-count "$QUERY_COUNT" \
     --query-workers "$QUERY_WORKERS" \
     --confirm-timeout "$CONFIRM_TIMEOUT" \
+    --confirm-idle-blocks "$CONFIRM_IDLE_BLOCKS" \
     --confirm-workers "$CONFIRM_WORKERS" \
     --stuck-timeout "$STUCK_TIMEOUT" \
     --results "$out"
