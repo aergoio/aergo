@@ -540,6 +540,8 @@ func (cl *Cluster) getMemberAttrs() ([]*types.MemberAttr, error) {
 
 // IsIDRemoved return true if given raft id is not exist in cluster
 func (cl *Cluster) IsIDRemoved(id uint64) bool {
+	cl.Lock()
+	defer cl.Unlock()
 	return cl.RemovedMembers().isExist(id)
 }
 

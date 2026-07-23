@@ -176,14 +176,16 @@ func (cp *CommitProgress) GetConnect() *commitEntry {
 	cp.Lock()
 	defer cp.Unlock()
 
-	return &cp.connect
+	entry := cp.connect
+	return &entry
 }
 
 func (cp *CommitProgress) GetRequest() *commitEntry {
 	cp.Lock()
 	defer cp.Unlock()
 
-	return &cp.request
+	entry := cp.request
+	return &entry
 }
 
 func (cp *CommitProgress) IsReadyToPropose() bool {
@@ -1346,7 +1348,7 @@ func (rs *raftServer) publishEntries(ents []raftpb.Entry) bool {
 	isDuplicateCommit := func(block *types.Block) bool {
 		lastReq := rs.commitProgress.GetRequest()
 
-		if lastReq != nil && lastReq.block.BlockNo() >= block.BlockNo() {
+		if lastReq != nil && lastReq.block != nil && lastReq.block.BlockNo() >= block.BlockNo() {
 			if StopDupCommit {
 				logger.Fatal().Str("last", lastReq.block.ID()).Str("dup", block.ID()).Uint64("no", block.BlockNo()).Msg("fork occured by invalid commit entry")
 			} else {
@@ -1473,10 +1475,10 @@ func (rs *raftServer) updateTerm(term uint64) {
 }
 
 func (rs *raftServer) updateLeader(softState *raftlib.SoftState) {
-	if softState.Lead != rs.GetLeader() {
-		rs.Lock()
-		defer rs.Unlock()
+	rs.leaderStatus.Lock()
+	defer rs.leaderStatus.Unlock()
 
+	if softState.Lead != rs.leaderStatus.Leader {
 		rs.leaderStatus.Leader = softState.Lead
 
 		if rs.curTerm == 0 {
@@ -1515,8 +1517,12 @@ func (rs *raftServer) GetLeaderStatus() LeaderStatus {
 	rs.leaderStatus.RLock()
 	defer rs.leaderStatus.RUnlock()
 
-	tmpStatus := rs.leaderStatus
-	return tmpStatus
+	return LeaderStatus{
+		Leader:        rs.leaderStatus.Leader,
+		Term:          rs.leaderStatus.Term,
+		leaderChanged: rs.leaderStatus.leaderChanged,
+		IsLeader:      rs.leaderStatus.IsLeader,
+	}
 }
 
 // IsTermLeader returns true if this node is leader of given term
@@ -1806,11 +1812,17 @@ func (rhw *raftHttpWrapper) ReportSnapshot(peerID types.PeerID, status raftlib.S
 }
 
 func (rhw *raftHttpWrapper) GetMemberByID(id uint64) *consensus.Member {
-	return rhw.raftServer.cluster.Members().getMember(id)
+	cluster := rhw.raftServer.cluster
+	cluster.Lock()
+	defer cluster.Unlock()
+	return cluster.Members().getMember(id)
 }
 
 func (rhw *raftHttpWrapper) GetMemberByPeerID(peerID types.PeerID) *consensus.Member {
-	return rhw.raftServer.cluster.Members().getMemberByPeerID(peerID)
+	cluster := rhw.raftServer.cluster
+	cluster.Lock()
+	defer cluster.Unlock()
+	return cluster.Members().getMemberByPeerID(peerID)
 }
 
 func (rhw *raftHttpWrapper) SaveFromRemote(r io.Reader, id uint64, msg raftpb.Message) (int64, error) {

@@ -100,20 +100,18 @@ func (s *snapshotSender) pushBMsg(body io.Reader, to io.ReadWriteCloser) error {
 		ProcessingLimit = time.Minute * 20    // receiving peer should complete and response within after receiving whole snapshot data.
 	)
 
-	wErr := make(chan error, 1)
+	wResult := make(chan error, 1)
 	rResult := make(chan error, 1)
 	t := time.NewTimer(WholeTimeLimit)
 	// write snapshot bytes
 	go func() {
 		_, err := io.Copy(to, body)
-		if err != nil {
-			wErr <- err
-		}
 		// renew timer if timer is not expired yet.
 		if !t.Stop() {
 			<-t.C
 		}
 		t.Reset(ProcessingLimit)
+		wResult <- err
 	}()
 
 	// read response of receiver
@@ -129,15 +127,38 @@ func (s *snapshotSender) pushBMsg(body io.Reader, to io.ReadWriteCloser) error {
 		rResult <- err
 	}()
 
-	select {
-	case <-s.stopChan:
-		return errors.New("stopped")
-	case <-t.C:
-		return errors.New("timeout")
-	case r := <-wErr:
-		return r
-	case r := <-rResult:
-		return r
+	var writeErr error
+	writeDone := false
+	for {
+		select {
+		case <-s.stopChan:
+			to.Close()
+			if !writeDone {
+				<-wResult
+			}
+			return errors.New("stopped")
+		case <-t.C:
+			to.Close()
+			if !writeDone {
+				<-wResult
+			}
+			return errors.New("timeout")
+		case writeErr = <-wResult:
+			writeDone = true
+			wResult = nil
+			if writeErr != nil {
+				return writeErr
+			}
+		case readErr := <-rResult:
+			if !writeDone {
+				writeErr = <-wResult
+				writeDone = true
+			}
+			if writeErr != nil {
+				return writeErr
+			}
+			return readErr
+		}
 	}
 }
 

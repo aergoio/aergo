@@ -132,3 +132,24 @@ func TestRaftBlockSignerMustBeCurrentMember(t *testing.T) {
 		t.Fatal("IsBlockValid() accepted signer outside current membership")
 	}
 }
+
+func TestPublishFirstBlockDoesNotDereferenceEmptyProgress(t *testing.T) {
+	block := types.NewBlock(types.EmptyBlockHeaderInfo, nil, nil, nil, nil, nil)
+	data, err := marshalEntryData(block)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	server := &raftServer{
+		commitC: make(chan *commitEntry, 1),
+		stopc:   make(chan struct{}),
+	}
+	if ok := server.publishEntries([]raftpb.Entry{{
+		Index: 1,
+		Term:  1,
+		Type:  raftpb.EntryNormal,
+		Data:  data,
+	}}); !ok {
+		t.Fatal("publishEntries() unexpectedly stopped")
+	}
+}

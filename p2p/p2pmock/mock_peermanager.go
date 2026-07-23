@@ -273,3 +273,17 @@ func (mr *MockPeerManagerMockRecorder) ListDesignatedPeers() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListDesignatedPeers", reflect.TypeOf((*MockPeerManager)(nil).ListDesignatedPeers))
 }
+
+// MsgBufSize mocks base method
+func (m *MockPeerManager) MsgBufSize() int {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MsgBufSize")
+	ret0, _ := ret[0].(int)
+	return ret0
+}
+
+// MsgBufSize indicates an expected call of MsgBufSize
+func (mr *MockPeerManagerMockRecorder) MsgBufSize() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MsgBufSize", reflect.TypeOf((*MockPeerManager)(nil).MsgBufSize))
+}
