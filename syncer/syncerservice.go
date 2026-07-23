@@ -83,6 +83,7 @@ var (
 var (
 	ErrFinderInternal = errors.New("error finder internal")
 	ErrSyncerPanic    = errors.New("syncer panic")
+	ErrSyncerBusy     = errors.New("syncer is already running")
 )
 
 type ErrSyncMsg struct {
@@ -318,17 +319,30 @@ func (syncer *Syncer) handleSyncStart(msg *message.SyncStart) error {
 	var err error
 	var bestBlock *types.Block
 
+	notify := func(err error) {
+		if msg.NotifyC == nil {
+			return
+		}
+		select {
+		case msg.NotifyC <- err:
+		default:
+			logger.Debug().Msg("failed to notify rejected sync request")
+		}
+	}
+
 	logger.Debug().Uint64("targetNo", msg.TargetNo).Str("peer", p2putil.ShortForm(msg.PeerID)).Msg("syncer requested")
 
 	if syncer.isRunning {
 		logger.Debug().Uint64("targetNo", msg.TargetNo).Msg("skipped syncer is running")
-		return nil
+		notify(ErrSyncerBusy)
+		return ErrSyncerBusy
 	}
 
 	//TODO skip sync in reorgnizing
-	bestBlock, _ = syncer.chain.GetBestBlock()
+	bestBlock, err = syncer.chain.GetBestBlock()
 	if err != nil {
 		logger.Error().Err(err).Msg("error getting block in syncer")
+		notify(err)
 		return err
 	}
 
@@ -337,6 +351,7 @@ func (syncer *Syncer) handleSyncStart(msg *message.SyncStart) error {
 	if msg.TargetNo <= bestBlockNo {
 		logger.Debug().Uint64("targetNo", msg.TargetNo).Uint64("bestNo", bestBlockNo).
 			Msg("skipped syncer. requested no is too low")
+		notify(nil)
 		return nil
 	}
 
