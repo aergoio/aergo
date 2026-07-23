@@ -53,15 +53,18 @@ var (
 )
 
 var (
-	ErrRaftNotReady        = errors.New("raft library is not initialized")
-	ErrCCAlreadyApplied    = errors.New("conf change entry is already applied")
-	ErrInvalidMember       = errors.New("member of conf change is invalid")
-	ErrCCAlreadyAdded      = errors.New("member has already added")
-	ErrCCAlreadyRemoved    = errors.New("member has already removed")
-	ErrCCNoMemberToRemove  = errors.New("there is no member to remove")
-	ErrEmptySnapshot       = errors.New("received empty snapshot")
-	ErrInvalidRaftIdentity = errors.New("raft identity is not set")
-	ErrProposeNilBlock     = errors.New("proposed block is nil")
+	ErrRaftNotReady              = errors.New("raft library is not initialized")
+	ErrCCAlreadyApplied          = errors.New("conf change entry is already applied")
+	ErrInvalidMember             = errors.New("member of conf change is invalid")
+	ErrCCAlreadyAdded            = errors.New("member has already added")
+	ErrCCAlreadyRemoved          = errors.New("member has already removed")
+	ErrCCNoMemberToRemove        = errors.New("there is no member to remove")
+	ErrEmptySnapshot             = errors.New("received empty snapshot")
+	ErrInvalidRaftIdentity       = errors.New("raft identity is not set")
+	ErrProposeNilBlock           = errors.New("proposed block is nil")
+	ErrUnknownRaftPeer           = errors.New("raft message sender is not a cluster member")
+	ErrRaftSenderMismatch        = errors.New("raft message sender does not match authenticated peer")
+	ErrRaftTargetMismatch        = errors.New("raft message is addressed to another node")
 )
 
 const (
@@ -1615,7 +1618,26 @@ type raftHttpWrapper struct {
 	raftServer *raftServer
 }
 
+func (rhw *raftHttpWrapper) ValidateMessage(peerID types.PeerID, m raftpb.Message) error {
+	member := rhw.GetMemberByPeerID(peerID)
+	if member == nil {
+		return fmt.Errorf("%w: peer %s", ErrUnknownRaftPeer, peerID)
+	}
+	if m.From != member.ID {
+		return fmt.Errorf("%w: peer %s is raft member %x, message claims %x",
+			ErrRaftSenderMismatch, peerID, member.ID, m.From)
+	}
+	if m.To != rhw.raftServer.ID() {
+		return fmt.Errorf("%w: local %x, message target %x",
+			ErrRaftTargetMismatch, rhw.raftServer.ID(), m.To)
+	}
+	return nil
+}
+
 func (rhw *raftHttpWrapper) Process(ctx context.Context, peerID types.PeerID, m raftpb.Message) error {
+	if err := rhw.ValidateMessage(peerID, m); err != nil {
+		return err
+	}
 	return rhw.raftServer.Process(ctx, m)
 }
 

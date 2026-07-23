@@ -379,6 +379,10 @@ type DummyRaftAccessor struct {
 
 var IllegalArgumentError = errors.New("illegal argument")
 
+func (DummyRaftAccessor) ValidateMessage(peerID types.PeerID, m raftpb.Message) error {
+	return IllegalArgumentError
+}
+
 func (DummyRaftAccessor) Process(ctx context.Context, peerID types.PeerID, m raftpb.Message) error {
 	return IllegalArgumentError
 }

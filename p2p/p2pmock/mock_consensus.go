@@ -177,6 +177,20 @@ func (mr *MockAergoRaftAccessorMockRecorder) IsIDRemoved(arg0 interface{}) *gomo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsIDRemoved", reflect.TypeOf((*MockAergoRaftAccessor)(nil).IsIDRemoved), arg0)
 }
 
+// ValidateMessage mocks base method.
+func (m *MockAergoRaftAccessor) ValidateMessage(arg0 peer.ID, arg1 raftpb.Message) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ValidateMessage", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ValidateMessage indicates an expected call of ValidateMessage.
+func (mr *MockAergoRaftAccessorMockRecorder) ValidateMessage(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateMessage", reflect.TypeOf((*MockAergoRaftAccessor)(nil).ValidateMessage), arg0, arg1)
+}
+
 // Process mocks base method.
 func (m *MockAergoRaftAccessor) Process(arg0 context.Context, arg1 peer.ID, arg2 raftpb.Message) error {
 	m.ctrl.T.Helper()
