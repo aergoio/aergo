@@ -153,3 +153,29 @@ func TestPublishFirstBlockDoesNotDereferenceEmptyProgress(t *testing.T) {
 		t.Fatal("publishEntries() unexpectedly stopped")
 	}
 }
+
+func TestMalformedConfChangeReturnsErrorWithoutPanic(t *testing.T) {
+	server := &raftServer{cluster: NewCluster([]byte("chain"), nil, "local", types.RandomPeerID(), 0, nil)}
+
+	if _, _, err := server.ValidateConfChangeEntry(&raftpb.Entry{
+		Index: 1,
+		Term:  1,
+		Type:  raftpb.EntryConfChange,
+		Data:  []byte{0xff},
+	}); err == nil {
+		t.Fatal("ValidateConfChangeEntry() accepted malformed protobuf")
+	}
+
+	data, err := (&raftpb.ConfChange{NodeID: 1, Type: raftpb.ConfChangeAddNode}).Marshal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := server.ValidateConfChangeEntry(&raftpb.Entry{
+		Index: 1,
+		Term:  1,
+		Type:  raftpb.EntryConfChange,
+		Data:  data,
+	}); !errors.Is(err, ErrCCMemberIsNil) {
+		t.Fatalf("ValidateConfChangeEntry() error = %v, want %v", err, ErrCCMemberIsNil)
+	}
+}

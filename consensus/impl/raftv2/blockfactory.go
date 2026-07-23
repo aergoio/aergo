@@ -702,6 +702,9 @@ func (bf *BlockFactory) ConfChange(req *types.MembershipChange) (*consensus.Memb
 	if bf.bpc == nil {
 		return nil, ErrorMembershipChange{ErrClusterNotReady}
 	}
+	if req == nil || req.Attr == nil {
+		return nil, ErrorMembershipChange{consensus.ErrInvalidMemberAttr}
+	}
 
 	if !bf.raftServer.IsLeader() {
 		return nil, ErrorMembershipChange{ErrNotRaftLeader}
@@ -737,6 +740,9 @@ func (bf *BlockFactory) MakeConfChangeProposal(req *types.MembershipChange) (*co
 
 	if bf.bpc == nil {
 		return nil, ErrorMembershipChange{ErrClusterNotReady}
+	}
+	if req == nil || req.Attr == nil {
+		return nil, consensus.ErrInvalidMemberAttr
 	}
 
 	cl := bf.bpc
