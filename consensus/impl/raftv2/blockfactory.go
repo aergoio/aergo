@@ -34,10 +34,11 @@ var (
 )
 
 var (
-	ErrClusterNotReady      = errors.New("cluster is not ready")
-	ErrNotRaftLeader        = errors.New("this node is not leader")
-	ErrInvalidConsensusName = errors.New("invalid consensus name")
-	ErrCancelGenerate       = errors.New("cancel generating block because work becomes stale")
+	ErrClusterNotReady         = errors.New("cluster is not ready")
+	ErrNotRaftLeader           = errors.New("this node is not leader")
+	ErrInvalidConsensusName    = errors.New("invalid consensus name")
+	ErrCancelGenerate          = errors.New("cancel generating block because work becomes stale")
+	ErrUnauthorizedBlockSigner = errors.New("block signer is not a current raft member")
 )
 
 func init() {
@@ -326,10 +327,17 @@ func (bf *BlockFactory) VerifySign(block *types.Block) error {
 
 // IsBlockValid checks the consensus level validity of a block.
 func (bf *BlockFactory) IsBlockValid(block *types.Block, bestBlock *types.Block) error {
-	// BlockFactory has no block valid check.
-	_, err := block.BPID()
+	producerID, err := block.BPID()
 	if err != nil {
 		return &consensus.ErrorConsensus{Msg: "bad public key in block", Err: err}
+	}
+	if bf.bpc != nil {
+		bf.bpc.Lock()
+		member := bf.bpc.Members().getMemberByPeerID(producerID)
+		bf.bpc.Unlock()
+		if member == nil {
+			return &consensus.ErrorConsensus{Msg: "unauthorized raft block signer", Err: ErrUnauthorizedBlockSigner}
+		}
 	}
 	return nil
 }

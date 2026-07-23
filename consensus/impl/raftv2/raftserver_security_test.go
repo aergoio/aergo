@@ -7,6 +7,8 @@ import (
 	"github.com/aergoio/aergo/v2/consensus"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/etcd/raft/raftpb"
+	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/libp2p/go-libp2p/core/peer"
 )
 
 func TestRaftMessagePeerBinding(t *testing.T) {
@@ -82,5 +84,44 @@ func TestSnapshotMembershipMustMatchConfState(t *testing.T) {
 	snapshot.Metadata.ConfState.Nodes[0] = 2
 	if err := validateSnapshotConsistency(snapshot); !errors.Is(err, ErrSnapshotMembershipMismatch) {
 		t.Fatalf("validateSnapshotConsistency() error = %v, want %v", err, ErrSnapshotMembershipMismatch)
+	}
+}
+
+func TestRaftBlockSignerMustBeCurrentMember(t *testing.T) {
+	memberKey, memberPub, err := crypto.GenerateKeyPair(crypto.Secp256k1, -1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	memberPeerID, err := peer.IDFromPublicKey(memberPub)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cluster := NewCluster([]byte("chain"), nil, "local", memberPeerID, 0, nil)
+	cluster.Members().add(&consensus.Member{MemberAttr: types.MemberAttr{
+		ID:      1,
+		Name:    "member",
+		Address: "/ip4/127.0.0.1/tcp/11001",
+		PeerID:  []byte(memberPeerID),
+	}})
+	factory := &BlockFactory{bpc: cluster}
+
+	authorized := types.NewBlock(types.EmptyBlockHeaderInfo, nil, nil, nil, nil, nil)
+	if err := authorized.Sign(memberKey); err != nil {
+		t.Fatal(err)
+	}
+	if err := factory.IsBlockValid(authorized, nil); err != nil {
+		t.Fatalf("IsBlockValid() rejected current member: %v", err)
+	}
+
+	otherKey, _, err := crypto.GenerateKeyPair(crypto.Secp256k1, -1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	unauthorized := types.NewBlock(types.EmptyBlockHeaderInfo, nil, nil, nil, nil, nil)
+	if err := unauthorized.Sign(otherKey); err != nil {
+		t.Fatal(err)
+	}
+	if err := factory.IsBlockValid(unauthorized, nil); err == nil {
+		t.Fatal("IsBlockValid() accepted signer outside current membership")
 	}
 }
