@@ -80,7 +80,8 @@ var (
 var (
 	ErrFinderInternal = errors.New("error finder internal")
 	ErrSyncerPanic    = errors.New("syncer panic")
-	ErrSyncerBusy     = errors.New("syncer is already running")
+	// ErrSyncerBusy aliases message.ErrSyncerBusy for local callers/tests.
+	ErrSyncerBusy = message.ErrSyncerBusy
 )
 
 type ErrSyncMsg struct {
@@ -330,9 +331,12 @@ func (syncer *Syncer) handleSyncStart(msg *message.SyncStart) error {
 	logger.Debug().Uint64("targetNo", msg.TargetNo).Stringer("peer", types.LogPeerShort(msg.PeerID)).Msg("syncer requested")
 
 	if syncer.isRunning {
+		// Expected when tip/orphan blocks keep requesting sync during an
+		// in-flight catch-up. Wake NotifyC waiters, but do not surface as a
+		// handleMessage failure (avoids Error log spam / false sync failures).
 		logger.Debug().Uint64("targetNo", msg.TargetNo).Msg("skipped syncer is running")
 		notify(ErrSyncerBusy)
-		return ErrSyncerBusy
+		return nil
 	}
 
 	//TODO skip sync in reorgnizing
