@@ -1,10 +1,17 @@
 package message
 
 import (
+	"errors"
+
 	"github.com/aergoio/aergo/types"
 )
 
 const SyncerSvc = "SyncerSvc"
+
+// ErrSyncerBusy is returned (via NotifyC) when SyncStart is requested while a
+// sync is already in progress. Callers should wait/retry rather than treating
+// this as a fatal sync failure.
+var ErrSyncerBusy = errors.New("syncer is already running")
 
 //Syncer
 type SyncStart struct {
