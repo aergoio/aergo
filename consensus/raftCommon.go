@@ -325,6 +325,11 @@ func (m *Member) IsValid() bool {
 		return false
 	}
 
+	if _, err := types.IDFromBytes(m.PeerID); err != nil {
+		logger.Error().Err(err).Msg("parse peer ID of member")
+		return false
+	}
+
 	if _, err := types.ParseMultiaddr(m.Address); err != nil {
 		logger.Error().Err(err).Msg("parse address of member")
 		return false
@@ -384,6 +389,10 @@ type DummyRaftAccessor struct {
 }
 
 var IllegalArgumentError = errors.New("illegal argument")
+
+func (DummyRaftAccessor) ValidateMessage(peerID types.PeerID, m raftpb.Message) error {
+	return IllegalArgumentError
+}
 
 func (DummyRaftAccessor) Process(ctx context.Context, peerID types.PeerID, m raftpb.Message) error {
 	return IllegalArgumentError

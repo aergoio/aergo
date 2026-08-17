@@ -97,6 +97,7 @@ type ChainDB interface {
 
 // AergoRaftAccessor is interface to access raft messaging. It is wrapping raft message with aergo internal types
 type AergoRaftAccessor interface {
+	ValidateMessage(peerID types.PeerID, m raftpb.Message) error
 	Process(ctx context.Context, peerID types.PeerID, m raftpb.Message) error
 	IsIDRemoved(peerID types.PeerID) bool
 	ReportUnreachable(peerID types.PeerID)

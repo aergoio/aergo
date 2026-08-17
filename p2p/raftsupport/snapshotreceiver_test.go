@@ -7,6 +7,7 @@ package raftsupport
 
 import (
 	"bytes"
+	"encoding/binary"
 	"testing"
 
 	"github.com/aergoio/aergo-lib/log"
@@ -19,12 +20,12 @@ func TestSnapshotReceiver_sendResp(t *testing.T) {
 		resp *types.SnapshotResponse
 	}
 	tests := []struct {
-		name   string
-		args   args
+		name string
+		args args
 	}{
-		{"TOK",args{&types.SnapshotResponse{Status:types.ResultStatus_OK,}}},
-		{"TWrongHead",args{&types.SnapshotResponse{Status:types.ResultStatus_INVALID_ARGUMENT,Message:"wrong type"}}},
-		{"TInternal",args{&types.SnapshotResponse{Status:types.ResultStatus_INTERNAL,Message:""}}},
+		{"TOK", args{&types.SnapshotResponse{Status: types.ResultStatus_OK}}},
+		{"TWrongHead", args{&types.SnapshotResponse{Status: types.ResultStatus_INVALID_ARGUMENT, Message: "wrong type"}}},
+		{"TInternal", args{&types.SnapshotResponse{Status: types.ResultStatus_INTERNAL, Message: ""}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -43,11 +44,23 @@ func TestSnapshotReceiver_sendResp(t *testing.T) {
 				t.Fatalf("readWireHSResp() err %v, want no error ", err.Error())
 			}
 			if tt.args.resp.Status != resp.Status {
-				t.Fatalf("Response status %v, want %v",resp.Status.String(), tt.args.resp.Status.String() )
+				t.Fatalf("Response status %v, want %v", resp.Status.String(), tt.args.resp.Status.String())
 			}
 			if tt.args.resp.Message != resp.Message {
-				t.Fatalf("Response message %v, want %v",resp.Message, tt.args.resp.Message )
+				t.Fatalf("Response message %v, want %v", resp.Message, tt.args.resp.Message)
 			}
 		})
+	}
+}
+
+func TestSnapshotReceiverRejectsOversizedRaftEnvelope(t *testing.T) {
+	var wire bytes.Buffer
+	if err := binary.Write(&wire, binary.BigEndian, uint64(maxSnapshotRaftMessageSize+1)); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := (&RaftMsgDecoder{r: &wire}).DecodeLimit(maxSnapshotRaftMessageSize)
+	if err != ErrExceedSizeLimit {
+		t.Fatalf("DecodeLimit() error = %v, want %v", err, ErrExceedSizeLimit)
 	}
 }

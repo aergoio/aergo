@@ -33,6 +33,7 @@ var (
 	errRemovedMember     = errors.New("member was removed")
 	errUnreachableMember = errors.New("member is unreachable")
 )
+
 // AergoRaftTransport is wrapper of p2p module
 type AergoRaftTransport struct {
 	logger *log.Logger
@@ -48,8 +49,9 @@ type AergoRaftTransport struct {
 	cluster *raftv2.Cluster
 
 	// statuses have connection status of memeber peers
-	statuses map[rtypes.ID]*rPeerStatus
-	stByPID  map[types.PeerID]*rPeerStatus
+	statuses         map[rtypes.ID]*rPeerStatus
+	stByPID          map[types.PeerID]*rPeerStatus
+	snapshotReceiveC chan struct{}
 
 	// copied from original transport
 	ServerStats *stats.ServerStats
@@ -60,9 +62,10 @@ var _ raftv2.Transporter = (*AergoRaftTransport)(nil)
 
 func NewAergoRaftTransport(logger *log.Logger, nt p2pcommon.NetworkTransport, pm p2pcommon.PeerManager, mf p2pcommon.MoFactory, consAcc consensus.ConsensusAccessor, cluster interface{}) *AergoRaftTransport {
 	t := &AergoRaftTransport{logger: logger, nt: nt, pm: pm, mf: mf, consAcc: consAcc, raftAcc: consAcc.RaftAccessor(), cluster: cluster.(*raftv2.Cluster),
-		statuses:    make(map[rtypes.ID]*rPeerStatus),
-		stByPID:     make(map[types.PeerID]*rPeerStatus),
-		ServerStats: stats.NewServerStats("", ""),
+		statuses:         make(map[rtypes.ID]*rPeerStatus),
+		stByPID:          make(map[types.PeerID]*rPeerStatus),
+		snapshotReceiveC: make(chan struct{}, 1),
+		ServerStats:      stats.NewServerStats("", ""),
 	}
 	// TODO need check real id type
 	t.LeaderStats = stats.NewLeaderStats(strconv.Itoa(int(t.cluster.NodeID())))
@@ -108,7 +111,6 @@ func (t *AergoRaftTransport) Send(msgs []raftpb.Message) {
 			continue
 		}
 
-		t.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(member.GetPeerID())).Object("raftMsg", &RaftMsgMarshaller{&m}).Msg("can't send message to unconnected peer")
 	}
 }
 
@@ -252,6 +254,24 @@ func (t *AergoRaftTransport) OnRaftSnapshot(s network.Stream) {
 		s.Close()
 		return
 	}
+	if t.raftAcc.GetMemberByPeerID(peerID) == nil {
+		t.logger.Warn().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("rejecting snapshot stream from non-member peer")
+		hsresp.RespCode = p2pcommon.HSCodeNoPermission
+		s.Write(hsresp.Marshal())
+		s.Close()
+		return
+	}
+	select {
+	case t.snapshotReceiveC <- struct{}{}:
+		defer func() { <-t.snapshotReceiveC }()
+	default:
+		t.logger.Warn().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("rejecting concurrent snapshot stream")
+		hsresp.RespCode = p2pcommon.HSCodeInvalidState
+		s.Write(hsresp.Marshal())
+		s.Close()
+		return
+	}
+	_ = s.SetReadDeadline(time.Now().Add(30 * time.Second))
 	//// TODO raft role is not properly set yet.
 	//if peer.AcceptedRole() != p2pcommon.RaftLeader {
 	//	t.logger.Warn().Str(p2putil.LogPeerName, peer.Name()).Msg("Closing snapshot stream from follower node")

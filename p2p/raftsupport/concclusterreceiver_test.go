@@ -156,6 +156,9 @@ func TestConcurrentClusterInfoReceiver_ReceiveResp(t *testing.T) {
 
 	sampleChainID := []byte("testChain")
 	members := make([]*types.MemberAttr, 4)
+	for i := range members {
+		members[i] = &types.MemberAttr{ID: uint64(i + 1), Name: "member"}
+	}
 
 	type args struct {
 		retStats []retStat
@@ -164,16 +167,16 @@ func TestConcurrentClusterInfoReceiver_ReceiveResp(t *testing.T) {
 		name string
 		args args
 
-		wantBestNo int  // count of sent to remote peers
+		wantBestNo  int  // count of sent to remote peers
 		wantErrResp bool // result with error or not
 	}{
 		{"TAllSame", args{[]retStat{10, 10, 10, 10, 10}}, 10, false},
-		{"TErrRet", args{ []retStat{ERR,ERR,ERR,ERR,ERR}}, 10,  true},
-		{"TMixed", args{ []retStat{100, ERR, 99, 98, ERR}}, 100,  false},
-		{"TMixed2", args{ []retStat{100, ERR, NOR, ERR, 100}}, 100,  true},
-		{"TTimeSucc", args{ []retStat{NOR, 99, NOR, 98, 99}}, 99,  false},
-		{"TTime1", args{ []retStat{NOR, ERR, NOR, 100, 100}}, 100,  true},
-		{"TTime2", args{ []retStat{NOR, NOR, NOR, 100, 100}}, 100,  true},
+		{"TErrRet", args{[]retStat{ERR, ERR, ERR, ERR, ERR}}, 10, true},
+		{"TMixed", args{[]retStat{100, ERR, 99, 98, ERR}}, 100, false},
+		{"TMixed2", args{[]retStat{100, ERR, NOR, ERR, 100}}, 100, true},
+		{"TTimeSucc", args{[]retStat{NOR, 99, NOR, 98, 99}}, 99, false},
+		{"TTime1", args{[]retStat{NOR, ERR, NOR, 100, 100}}, 100, true},
+		{"TTime2", args{[]retStat{NOR, NOR, NOR, 100, 100}}, 100, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -205,7 +208,8 @@ func TestConcurrentClusterInfoReceiver_ReceiveResp(t *testing.T) {
 				mockPeer.EXPECT().Name().Return("peer" + p2putil.ShortForm(dummyPeerID)).AnyTimes()
 				mockPeer.EXPECT().ConsumeRequest(gomock.Any()).AnyTimes()
 				mockPeer.EXPECT().SendMessage(mockMO).Do(func(arg interface{}) {
-					atomic.StoreInt32(&sentTrigger, 1)})
+					atomic.StoreInt32(&sentTrigger, 1)
+				})
 				peers[i] = mockPeer
 				sMap[msgID] = mockPeer
 
@@ -229,8 +233,8 @@ func TestConcurrentClusterInfoReceiver_ReceiveResp(t *testing.T) {
 					rBodies = append(rBodies, body)
 				}
 			}
-			ttl := time.Second>>4
-			target := NewConcClusterInfoReceiver(mockActor, mockMF, peers, ttl , dummyReq, logger)
+			ttl := time.Second >> 4
+			target := NewConcClusterInfoReceiver(mockActor, mockMF, peers, ttl, dummyReq, logger)
 			target.StartGet()
 
 			wg := sync.WaitGroup{}
@@ -270,5 +274,87 @@ func TestConcurrentClusterInfoReceiver_ReceiveResp(t *testing.T) {
 
 			ctrl.Finish()
 		})
+	}
+}
+
+func TestConcurrentClusterInfoReceiverRequiresConfigurationAgreement(t *testing.T) {
+	logger := log.NewLogger("raft.support.test")
+	member := &types.MemberAttr{ID: 1, Name: "member", Address: "/ip4/127.0.0.1/tcp/11001", PeerID: []byte("peer")}
+	honest := func(commit, best uint64) *types.GetClusterInfoResponse {
+		return &types.GetClusterInfoResponse{
+			ChainID:       []byte("chain"),
+			ClusterID:     7,
+			MbrAttrs:      []*types.MemberAttr{member},
+			BestBlockNo:   best,
+			HardStateInfo: &types.HardStateInfo{Term: 2, Commit: commit},
+		}
+	}
+	malicious := honest(1<<60, 1<<60)
+	malicious.ClusterID = 999
+
+	receiver := &ConcurrentClusterInfoReceiver{
+		logger:       logger,
+		requiredResp: 2,
+		succResps: map[types.PeerID]*types.GetClusterInfoResponse{
+			types.RandomPeerID(): honest(11, 10),
+			types.RandomPeerID(): honest(11, 11),
+			types.RandomPeerID(): honest(11, 12),
+			types.RandomPeerID(): malicious,
+		},
+	}
+
+	result := receiver.calculate(nil)
+	if result.Err != nil {
+		t.Fatalf("calculate() error = %v", result.Err)
+	}
+	if result.ClusterID != 7 || result.HardStateInfo.Commit != 11 {
+		t.Fatalf("calculate() selected cluster %d commit %d, want cluster 7 commit 11",
+			result.ClusterID, result.HardStateInfo.Commit)
+	}
+}
+
+func TestConcurrentClusterInfoReceiverRejectsSplitConfiguration(t *testing.T) {
+	logger := log.NewLogger("raft.support.test")
+	response := func(clusterID uint64) *types.GetClusterInfoResponse {
+		return &types.GetClusterInfoResponse{
+			ChainID:   []byte("chain"),
+			ClusterID: clusterID,
+			MbrAttrs:  []*types.MemberAttr{{ID: clusterID, Name: "member"}},
+		}
+	}
+	receiver := &ConcurrentClusterInfoReceiver{
+		logger:       logger,
+		requiredResp: 2,
+		succResps: map[types.PeerID]*types.GetClusterInfoResponse{
+			types.RandomPeerID(): response(1),
+			types.RandomPeerID(): response(2),
+		},
+	}
+
+	if result := receiver.calculate(nil); result.Err == nil {
+		t.Fatal("calculate() accepted responses that disagree on cluster configuration")
+	}
+}
+
+func TestConcurrentClusterInfoReceiverRejectsSplitCheckpoint(t *testing.T) {
+	response := func(commit uint64) *types.GetClusterInfoResponse {
+		return &types.GetClusterInfoResponse{
+			ChainID:       []byte("chain"),
+			ClusterID:     1,
+			MbrAttrs:      []*types.MemberAttr{{ID: 1, Name: "member"}},
+			HardStateInfo: &types.HardStateInfo{Term: 1, Commit: commit},
+		}
+	}
+	receiver := &ConcurrentClusterInfoReceiver{
+		logger:       log.NewLogger("raft.support.test"),
+		requiredResp: 2,
+		succResps: map[types.PeerID]*types.GetClusterInfoResponse{
+			types.RandomPeerID(): response(10),
+			types.RandomPeerID(): response(11),
+		},
+	}
+
+	if result := receiver.calculate(nil); result.Err == nil {
+		t.Fatal("calculate() accepted responses that disagree on raft checkpoint")
 	}
 }

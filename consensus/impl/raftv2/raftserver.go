@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/aergoio/aergo/chain"
+	conschain "github.com/aergoio/aergo/consensus/chain"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/pkg/component"
@@ -54,15 +55,22 @@ var (
 )
 
 var (
-	ErrRaftNotReady        = errors.New("raft library is not initialized")
-	ErrCCAlreadyApplied    = errors.New("conf change entry is already applied")
-	ErrInvalidMember       = errors.New("member of conf change is invalid")
-	ErrCCAlreadyAdded      = errors.New("member has already added")
-	ErrCCAlreadyRemoved    = errors.New("member has already removed")
-	ErrCCNoMemberToRemove  = errors.New("there is no member to remove")
-	ErrEmptySnapshot       = errors.New("received empty snapshot")
-	ErrInvalidRaftIdentity = errors.New("raft identity is not set")
-	ErrProposeNilBlock     = errors.New("proposed block is nil")
+	ErrRaftNotReady              = errors.New("raft library is not initialized")
+	ErrCCAlreadyApplied          = errors.New("conf change entry is already applied")
+	ErrInvalidMember             = errors.New("member of conf change is invalid")
+	ErrCCAlreadyAdded            = errors.New("member has already added")
+	ErrCCAlreadyRemoved          = errors.New("member has already removed")
+	ErrCCNoMemberToRemove        = errors.New("there is no member to remove")
+	ErrEmptySnapshot             = errors.New("received empty snapshot")
+	ErrInvalidRaftIdentity       = errors.New("raft identity is not set")
+	ErrProposeNilBlock           = errors.New("proposed block is nil")
+	ErrUnknownRaftPeer           = errors.New("raft message sender is not a cluster member")
+	ErrRaftSenderMismatch        = errors.New("raft message sender does not match authenticated peer")
+	ErrRaftTargetMismatch        = errors.New("raft message is addressed to another node")
+	ErrSnapshotBlockMismatch     = errors.New("snapshot block hash does not match synchronized chain")
+	ErrStaleRaftSnapshot         = errors.New("raft snapshot is stale")
+	ErrUnexpectedRaftSnapshot    = errors.New("raft snapshot is not from the current leader")
+	ErrSnapshotMembershipMismatch = errors.New("snapshot membership does not match raft conf state")
 )
 
 const (
@@ -168,14 +176,16 @@ func (cp *CommitProgress) GetConnect() *commitEntry {
 	cp.Lock()
 	defer cp.Unlock()
 
-	return &cp.connect
+	entry := cp.connect
+	return &entry
 }
 
 func (cp *CommitProgress) GetRequest() *commitEntry {
 	cp.Lock()
 	defer cp.Unlock()
 
-	return &cp.request
+	entry := cp.request
+	return &entry
 }
 
 func (cp *CommitProgress) IsReadyToPropose() bool {
@@ -218,6 +228,7 @@ func makeConfig(nodeID uint64, storage *raftlib.MemoryStorage) *raftlib.Config {
 		MaxInflightMsgs:           256,
 		Logger:                    raftLogger,
 		CheckQuorum:               true,
+		PreVote:                   true,
 		DisableProposalForwarding: true,
 	}
 
@@ -381,6 +392,10 @@ func (rs *raftServer) startRaft() {
 		if rs.UseBackup {
 			logger.Info().Msg("raft use given backup as wal")
 
+			if hardstateinfo, err = rs.resolveBackupHardState(hardstateinfo); err != nil {
+				logger.Fatal().Err(err).Msg("failed to resolve exact hardstate for backup recovery")
+			}
+
 			// Pass current cluster members into ResetWAL so the freshly
 			// written snapshot has a populated SnapshotData.Members *and*
 			// ConfState.Nodes. Without the latter, the first local snapshot
@@ -436,6 +451,8 @@ func (rs *raftServer) ImportExistingCluster() (*types.HardStateInfo, error) {
 
 	if hardstateinfo != nil {
 		logger.Info().Str("hardstate", hardstateinfo.ToString()).Msg("received hard state of best hash from remote cluster")
+	} else {
+		logger.Info().Msg("remote cluster returned membership without exact hardstate for local best block")
 	}
 
 	// config validate
@@ -444,6 +461,108 @@ func (rs *raftServer) ImportExistingCluster() (*types.HardStateInfo, error) {
 	}
 
 	return hardstateinfo, nil
+}
+
+// resolveBackupHardState returns an exact hardstate for the local best block.
+// If peers cannot map the current backup tip to retained raft history, sync the
+// missing chain delta first and retry so ResetWAL never jumps ahead of the chain.
+func (rs *raftServer) resolveBackupHardState(hardstateinfo *types.HardStateInfo) (*types.HardStateInfo, error) {
+	if hardstateinfo != nil {
+		return hardstateinfo, nil
+	}
+
+	logger.Warn().Msg("exact hardstate missing for backup tip; syncing chain forward before raft wal reset")
+	if err := rs.syncBackupChainToClusterTip(); err != nil {
+		return nil, err
+	}
+
+	_, hardstateinfo, err := rs.GetExistingCluster()
+	if err != nil {
+		return nil, err
+	}
+	if hardstateinfo == nil {
+		best, bestErr := rs.walDB.GetBestBlock()
+		if bestErr != nil {
+			return nil, fmt.Errorf("no exact hardstate after backup sync and failed to read local best: %w", bestErr)
+		}
+		return nil, fmt.Errorf("no exact hardstate after syncing backup to block %d (%s)",
+			best.BlockNo(), best.ID())
+	}
+
+	logger.Info().Str("hardstate", hardstateinfo.ToString()).Msg("resolved exact hardstate after backup chain sync")
+	return hardstateinfo, nil
+}
+
+func (rs *raftServer) syncBackupChainToClusterTip() error {
+	const (
+		maxSyncTargetWait = 30
+		syncTargetSleep   = time.Second
+	)
+
+	localBest, err := rs.walDB.GetBestBlock()
+	if err != nil {
+		return fmt.Errorf("failed to get local backup best block: %w", err)
+	}
+
+	var (
+		peerID     types.PeerID
+		targetHash []byte
+		targetNo   uint64
+	)
+
+	for i := 0; i < maxSyncTargetWait; i++ {
+		peerID, targetHash, targetNo, err = rs.pickBackupSyncTarget(localBest.BlockNo())
+		if err == nil {
+			break
+		}
+		logger.Warn().Err(err).Int("try", i+1).Msg("waiting for cluster peer tip to sync backup chain")
+		time.Sleep(syncTargetSleep)
+	}
+	if err != nil {
+		return err
+	}
+
+	logger.Info().Str("peer", peerID.Pretty()).Uint64("from", localBest.BlockNo()).Uint64("to", targetNo).
+		Msg("syncing backup chain delta before exact hardstate reset")
+	return conschain.SyncChain(rs.ComponentHub, targetHash, targetNo, peerID)
+}
+
+func (rs *raftServer) pickBackupSyncTarget(localBestNo uint64) (types.PeerID, []byte, uint64, error) {
+	if rs.pa == nil {
+		return "", nil, 0, errors.New("peer accessor is not set for backup chain sync")
+	}
+
+	var (
+		bestPeer types.PeerID
+		bestHash []byte
+		bestNo   uint64
+	)
+
+	for _, info := range rs.pa.GetPeerBlockInfos() {
+		if info == nil || info.State() != types.RUNNING {
+			continue
+		}
+		rs.cluster.Lock()
+		member := rs.cluster.Members().getMemberByPeerID(info.ID())
+		rs.cluster.Unlock()
+		if member == nil {
+			continue
+		}
+		status := info.LastStatus()
+		if status == nil || len(status.BlockHash) == 0 || status.BlockNumber <= localBestNo {
+			continue
+		}
+		if status.BlockNumber > bestNo {
+			bestNo = status.BlockNumber
+			bestHash = append([]byte(nil), status.BlockHash...)
+			bestPeer = info.ID()
+		}
+	}
+
+	if bestNo == 0 {
+		return "", nil, 0, errors.New("no live cluster peer tip ahead of backup chain")
+	}
+	return bestPeer, bestHash, bestNo, nil
 }
 
 func (rs *raftServer) ID() uint64 {
@@ -1034,28 +1153,11 @@ func (rs *raftServer) triggerSnapshot() {
 }
 
 func (rs *raftServer) publishSnapshot(snapshotToSave raftpb.Snapshot) error {
-	updateProgress := func() error {
-		var snapdata = &consensus.SnapshotData{}
-
-		err := snapdata.Decode(snapshotToSave.Data)
-		if err != nil {
-			logger.Error().Msg("failed to unmarshal snapshot data to progress")
-			return err
-		}
-
-		block, err := rs.walDB.GetBlockByNo(snapdata.Chain.No)
-		if err != nil {
-			logger.Fatal().Msg("failed to get synchronized block")
-			return err
-		}
-
-		rs.commitProgress.UpdateConnect(&commitEntry{block: block, index: snapshotToSave.Metadata.Index, term: snapshotToSave.Metadata.Term})
-
-		return nil
-	}
-
 	if raftlib.IsEmptySnap(snapshotToSave) {
 		return ErrEmptySnapshot
+	}
+	if err := validateSnapshotConsistency(&snapshotToSave); err != nil {
+		return err
 	}
 
 	logger.Info().Uint64("index", rs.snapshotIndex).Str("snap", consensus.SnapToString(&snapshotToSave, nil)).Msg("publishing snapshot at index")
@@ -1064,18 +1166,28 @@ func (rs *raftServer) publishSnapshot(snapshotToSave raftpb.Snapshot) error {
 	if snapshotToSave.Metadata.Index <= rs.appliedIndex {
 		logger.Fatal().Msgf("snapshot index [%d] should > progress.appliedIndex [%d] + 1", snapshotToSave.Metadata.Index, rs.appliedIndex)
 	}
+
+	var snapdata consensus.SnapshotData
+	if err := snapdata.Decode(snapshotToSave.Data); err != nil {
+		logger.Error().Err(err).Msg("failed to decode snapshot data")
+		return err
+	}
+	block, err := rs.walDB.GetBlockByNo(snapdata.Chain.No)
+	if err != nil {
+		logger.Error().Err(err).Msg("failed to get synchronized snapshot block")
+		return err
+	}
+	if !bytes.Equal(block.BlockHash(), snapdata.Chain.Hash) {
+		return ErrSnapshotBlockMismatch
+	}
 	//rs.commitC <- nil // trigger kvstore to load snapshot
 
 	rs.setConfState(&snapshotToSave.Metadata.ConfState)
 	rs.setSnapshotIndex(snapshotToSave.Metadata.Index)
 	rs.setAppliedIndex(snapshotToSave.Metadata.Index)
 
-	var (
-		isEqual bool
-		err     error
-	)
-
-	if isEqual, err = rs.cluster.Recover(&snapshotToSave); err != nil {
+	isEqual, err := rs.cluster.Recover(&snapshotToSave)
+	if err != nil {
 		return err
 	}
 
@@ -1083,7 +1195,8 @@ func (rs *raftServer) publishSnapshot(snapshotToSave raftpb.Snapshot) error {
 		rs.recoverTransport()
 	}
 
-	return updateProgress()
+	rs.commitProgress.UpdateConnect(&commitEntry{block: block, index: snapshotToSave.Metadata.Index, term: snapshotToSave.Metadata.Term})
+	return nil
 }
 
 func (rs *raftServer) recoverTransport() {
@@ -1122,19 +1235,19 @@ func unmarshalConfChangeEntry(entry *raftpb.Entry) (*raftpb.ConfChange, *consens
 	var cc raftpb.ConfChange
 
 	if err := cc.Unmarshal(entry.Data); err != nil {
-		logger.Fatal().Err(err).Uint64("idx", entry.Index).Uint64("term", entry.Term).Msg("failed to unmarshal of conf change entry")
-		return nil, nil, err
+		logger.Error().Err(err).Uint64("idx", entry.Index).Uint64("term", entry.Term).Msg("failed to unmarshal conf change entry")
+		return &raftpb.ConfChange{}, nil, err
 	}
 
 	// skip confChange of empty context
 	if len(cc.Context) == 0 {
-		return nil, nil, nil
+		return &cc, nil, nil
 	}
 
 	var member = consensus.Member{}
 	if err := json.Unmarshal(cc.Context, &member); err != nil {
-		logger.Fatal().Err(err).Uint64("idx", entry.Index).Uint64("term", entry.Term).Msg("failed to unmarshal of context of cc entry")
-		return nil, nil, err
+		logger.Error().Err(err).Uint64("idx", entry.Index).Uint64("term", entry.Term).Msg("failed to unmarshal context of conf change entry")
+		return &cc, nil, err
 	}
 
 	return &cc, &member, nil
@@ -1152,7 +1265,8 @@ func (rs *raftServer) ValidateConfChangeEntry(entry *raftpb.Entry) (*raftpb.Conf
 
 	cc, member, err = unmarshalConfChangeEntry(entry)
 	if err != nil {
-		logger.Fatal().Err(err).Str("entry", entry.String()).Uint64("requestID", cc.ID).Msg("failed to unmarshal conf change")
+		logger.Error().Err(err).Str("entry", entry.String()).Msg("failed to unmarshal conf change")
+		return cc, member, err
 	}
 
 	if alreadyApplied(entry) {
@@ -1235,7 +1349,7 @@ func (rs *raftServer) publishEntries(ents []raftpb.Entry) bool {
 	isDuplicateCommit := func(block *types.Block) bool {
 		lastReq := rs.commitProgress.GetRequest()
 
-		if lastReq != nil && lastReq.block.BlockNo() >= block.BlockNo() {
+		if lastReq != nil && lastReq.block != nil && lastReq.block.BlockNo() >= block.BlockNo() {
 			if StopDupCommit {
 				logger.Fatal().Str("last", lastReq.block.ID()).Str("dup", block.ID()).Uint64("no", block.BlockNo()).Msg("fork occured by invalid commit entry")
 			} else {
@@ -1362,10 +1476,10 @@ func (rs *raftServer) updateTerm(term uint64) {
 }
 
 func (rs *raftServer) updateLeader(softState *raftlib.SoftState) {
-	if softState.Lead != rs.GetLeader() {
-		rs.Lock()
-		defer rs.Unlock()
+	rs.leaderStatus.Lock()
+	defer rs.leaderStatus.Unlock()
 
+	if softState.Lead != rs.leaderStatus.Leader {
 		rs.leaderStatus.Leader = softState.Lead
 
 		if rs.curTerm == 0 {
@@ -1404,8 +1518,12 @@ func (rs *raftServer) GetLeaderStatus() LeaderStatus {
 	rs.leaderStatus.RLock()
 	defer rs.leaderStatus.RUnlock()
 
-	tmpStatus := rs.leaderStatus
-	return tmpStatus
+	return LeaderStatus{
+		Leader:        rs.leaderStatus.Leader,
+		Term:          rs.leaderStatus.Term,
+		leaderChanged: rs.leaderStatus.leaderChanged,
+		IsLeader:      rs.leaderStatus.IsLeader,
+	}
 }
 
 // IsTermLeader returns true if this node is leader of given term
@@ -1613,7 +1731,65 @@ type raftHttpWrapper struct {
 	raftServer *raftServer
 }
 
+func validateSnapshotConsistency(snapshot *raftpb.Snapshot) error {
+	var data consensus.SnapshotData
+	if snapshot == nil || snapshot.Metadata.Index == 0 || data.Decode(snapshot.Data) != nil ||
+		len(data.Chain.Hash) == 0 || len(data.Members) != len(snapshot.Metadata.ConfState.Nodes) {
+		return ErrSnapshotMembershipMismatch
+	}
+
+	memberIDs := make(map[uint64]struct{}, len(data.Members))
+	for _, member := range data.Members {
+		if member == nil || !member.IsValid() {
+			return ErrSnapshotMembershipMismatch
+		}
+		if _, exists := memberIDs[member.ID]; exists {
+			return ErrSnapshotMembershipMismatch
+		}
+		memberIDs[member.ID] = struct{}{}
+	}
+	for _, id := range snapshot.Metadata.ConfState.Nodes {
+		if _, exists := memberIDs[id]; !exists {
+			return ErrSnapshotMembershipMismatch
+		}
+	}
+	return nil
+}
+
+func (rhw *raftHttpWrapper) ValidateMessage(peerID types.PeerID, m raftpb.Message) error {
+	member := rhw.GetMemberByPeerID(peerID)
+	if member == nil {
+		return fmt.Errorf("%w: peer %s", ErrUnknownRaftPeer, peerID)
+	}
+	if m.From != member.ID {
+		return fmt.Errorf("%w: peer %s is raft member %x, message claims %x",
+			ErrRaftSenderMismatch, peerID, member.ID, m.From)
+	}
+	if m.To != rhw.raftServer.ID() {
+		return fmt.Errorf("%w: local %x, message target %x",
+			ErrRaftTargetMismatch, rhw.raftServer.ID(), m.To)
+	}
+	if m.Type == raftpb.MsgSnap {
+		if err := validateSnapshotConsistency(&m.Snapshot); err != nil {
+			return err
+		}
+		status := rhw.raftServer.Status()
+		if m.Term < status.Term || m.Snapshot.Metadata.Index <= status.Applied {
+			return fmt.Errorf("%w: term %d/%d, index %d/%d",
+				ErrStaleRaftSnapshot, m.Term, status.Term, m.Snapshot.Metadata.Index, status.Applied)
+		}
+		if m.Term == status.Term && status.Lead != HasNoLeader && m.From != status.Lead {
+			return fmt.Errorf("%w: leader %x, sender %x",
+				ErrUnexpectedRaftSnapshot, status.Lead, m.From)
+		}
+	}
+	return nil
+}
+
 func (rhw *raftHttpWrapper) Process(ctx context.Context, peerID types.PeerID, m raftpb.Message) error {
+	if err := rhw.ValidateMessage(peerID, m); err != nil {
+		return err
+	}
 	return rhw.raftServer.Process(ctx, m)
 }
 
@@ -1637,11 +1813,17 @@ func (rhw *raftHttpWrapper) ReportSnapshot(peerID types.PeerID, status raftlib.S
 }
 
 func (rhw *raftHttpWrapper) GetMemberByID(id uint64) *consensus.Member {
-	return rhw.raftServer.cluster.Members().getMember(id)
+	cluster := rhw.raftServer.cluster
+	cluster.Lock()
+	defer cluster.Unlock()
+	return cluster.Members().getMember(id)
 }
 
 func (rhw *raftHttpWrapper) GetMemberByPeerID(peerID types.PeerID) *consensus.Member {
-	return rhw.raftServer.cluster.Members().getMemberByPeerID(peerID)
+	cluster := rhw.raftServer.cluster
+	cluster.Lock()
+	defer cluster.Unlock()
+	return cluster.Members().getMemberByPeerID(peerID)
 }
 
 func (rhw *raftHttpWrapper) SaveFromRemote(r io.Reader, id uint64, msg raftpb.Message) (int64, error) {
