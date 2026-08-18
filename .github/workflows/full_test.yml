@@ -49,6 +49,7 @@ jobs:
       uses: paambaati/codeclimate-action@v4
       env:
         CC_TEST_REPORTER_ID: ${{secrets.CC_TEST_REPORTER_ID}}
+        TURN_OFF_CONTROL_COMPACTION: true
       with:
         coverageCommand: go test -timeout 999s -coverprofile build/c.out ./...
         prefix: github.com/aergoio/aergo/v2
