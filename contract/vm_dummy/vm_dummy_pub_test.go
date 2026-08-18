@@ -776,8 +776,8 @@ func TestTypeBigTable(t *testing.T) {
 		err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo), NewLuaTxDeploy("user1", "big", 0, code))
 		require.NoErrorf(t, err, "failed to deploy")
 
-		// About 900MB
-		err = bc.ConnectBlock(NewLuaTxCall("user1", "big", 0, `{"Name": "inserts", "Args":[25]}`))
+		// About 450MB?
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "big", 0, `{"Name": "inserts", "Args":[24]}`))
 		require.NoErrorf(t, err, "failed to call tx")
 
 		contract.SetStateSQLMaxDBSize(20)
