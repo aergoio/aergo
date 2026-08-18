@@ -231,6 +231,10 @@ func SetStateSQLMaxDBSize(size uint64) {
 	//sqlLgr.Info().Uint64("size", maxSQLDBSize).Msg("set max database size(MB)")
 }
 
+func GetStateSQLMaxDBSize() uint64 {
+	return maxSQLDBSize
+}
+
 func StrHash(d string) []byte {
 	// using real address
 	if len(d) == types.EncodedAddressLength && addressRegexp.MatchString(d) {

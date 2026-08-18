@@ -772,7 +772,14 @@ func TestTypeBigTable(t *testing.T) {
 	code := readLuaCode(t, "type_bigtable_1.lua")
 	code2 := readLuaCode(t, "type_bigtable_2.lua")
 
+	availableBefore, err := AvailableSpace(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("available space before test: %f", float64(availableBefore)/1024/1024)
+
 	for version := int32(3); version <= max_version; version++ {
+		t.Logf("current max DB size %d", contract.GetStateSQLMaxDBSize())
 		bc, err := LoadDummyChain(SetHardForkVersion(version))
 		require.NoErrorf(t, err, "failed to create dummy chain")
 		defer bc.Release()
