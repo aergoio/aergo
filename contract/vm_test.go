@@ -8,12 +8,19 @@ import (
 	"io/ioutil"
 	"math/big"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/aergoio/aergo/types"
 )
+
+func skipNotOnAmd64(t *testing.T) {
+	if runtime.GOARCH != "amd64" {
+		t.Skipf("%s: skip architecture dependent test", t.Name())
+	}
+}
 
 const (
 	helloCode = `function hello(say) return "Hello " .. say end abi.register(hello)`
@@ -3771,6 +3778,11 @@ abi.register(random)`
 }
 
 func TestBigTable(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+	skipNotOnAmd64(t)
+
 	bc, err := LoadDummyChain()
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
