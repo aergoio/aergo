@@ -6,7 +6,9 @@ package vm_dummy
 
 import (
 	"fmt"
+	"os"
 	"runtime"
+	"syscall"
 	"testing"
 
 	"github.com/aergoio/aergo/v2/contract"
@@ -764,6 +766,8 @@ func TestTypeBigTable(t *testing.T) {
 	code := readLuaCode(t, "type_bigtable_1.lua")
 	code2 := readLuaCode(t, "type_bigtable_2.lua")
 
+	CheckFreeSpaceOfTempDir(t, 4*1024*1024*1024) // 4GB
+
 	for version := int32(3); version <= max_version; version++ {
 		bc, err := LoadDummyChain(SetHardForkVersion(version))
 		require.NoErrorf(t, err, "failed to create dummy chain")
@@ -787,4 +791,36 @@ func TestTypeBigTable(t *testing.T) {
 		err = bc.ConnectBlock(NewLuaTxCall("user1", "big20", 0, `{"Name": "inserts"}`).Fail("database or disk is full"))
 		require.NoErrorf(t, err, "failed to call tx")
 	}
+}
+
+func CheckFreeSpaceOfTempDir(t *testing.T, required uint64) {
+	dir, err := os.MkdirTemp("", "mytest-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	available, err := AvailableSpace(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if available < required {
+		t.Skipf("not enough disk space: %.2f MB available, %.2f MB required",
+			float64(available)/1024/1024,
+			float64(required)/1024/1024,
+		)
+	} else {
+		t.Logf("enough disk space: %.2f MB available, %.2f MB required," , float64(available)/1024/1024,float64(required)/1024/1024)
+	}
+}
+
+func AvailableSpace(path string) (uint64, error) {
+	var stat syscall.Statfs_t
+
+	if err := syscall.Statfs(path, &stat); err != nil {
+		return 0, err
+	}
+
+	return stat.Bavail * uint64(stat.Bsize), nil
 }
