@@ -46,6 +46,7 @@ func Test_pbRequestOrder_SendTo(t *testing.T) {
 			mockPeerManager := p2pmock.NewMockPeerManager(ctrl)
 			mockRW := p2pmock.NewMockMsgReadWriter(ctrl)
 
+			mockPeerManager.EXPECT().MsgBufSize().Return(writeMsgBufferSize).AnyTimes()
 			mockRW.EXPECT().WriteMsg(gomock.Any()).Return(tt.writeErr)
 
 			peer := newRemotePeer(sampleRemote, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, mockRW)
@@ -93,6 +94,7 @@ func Test_pbMessageOrder_SendTo(t *testing.T) {
 			mockPeerManager := p2pmock.NewMockPeerManager(ctrl)
 			mockRW := p2pmock.NewMockMsgReadWriter(ctrl)
 
+			mockPeerManager.EXPECT().MsgBufSize().Return(writeMsgBufferSize).AnyTimes()
 			mockRW.EXPECT().WriteMsg(gomock.Any()).Return(tt.writeErr)
 
 			peer := newRemotePeer(sampleRemote, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, mockRW)
@@ -141,6 +143,8 @@ func Test_pbBlkNoticeOrder_SendTo(t *testing.T) {
 			mockActorServ := p2pmock.NewMockActorService(ctrl)
 			mockPeerManager := p2pmock.NewMockPeerManager(ctrl)
 			mockRW := p2pmock.NewMockMsgReadWriter(ctrl)
+
+			mockPeerManager.EXPECT().MsgBufSize().Return(writeMsgBufferSize).AnyTimes()
 
 			if tt.keyExist {
 				mockRW.EXPECT().WriteMsg(gomock.Any()).Return(tt.writeErr).Times(0)
@@ -212,6 +216,7 @@ func Test_pbBlkNoticeOrder_SendTo_SkipByHeight(t *testing.T) {
 			mockPeerManager := p2pmock.NewMockPeerManager(ctrl)
 			mockRW := p2pmock.NewMockMsgReadWriter(ctrl)
 
+			mockPeerManager.EXPECT().MsgBufSize().Return(writeMsgBufferSize).AnyTimes()
 			writeCnt := 0
 			mockRW.EXPECT().WriteMsg(gomock.Any()).Do(func(arg interface{}) {
 				writeCnt++
@@ -288,6 +293,7 @@ func Test_pbBlkNoticeOrder_SendTo_SkipByTime(t *testing.T) {
 			mockPeerManager := p2pmock.NewMockPeerManager(ctrl)
 			mockRW := p2pmock.NewMockMsgReadWriter(ctrl)
 
+			mockPeerManager.EXPECT().MsgBufSize().Return(writeMsgBufferSize).AnyTimes()
 			writeCnt := 0
 			mockRW.EXPECT().WriteMsg(gomock.Any()).Do(func(arg interface{}) {
 				writeCnt++
@@ -351,6 +357,7 @@ func Test_pbTxNoticeOrder_SendTo(t *testing.T) {
 			mockPeerManager := p2pmock.NewMockPeerManager(ctrl)
 			mockRW := p2pmock.NewMockMsgReadWriter(ctrl)
 
+			mockPeerManager.EXPECT().MsgBufSize().Return(writeMsgBufferSize).AnyTimes()
 			if tt.keyExist == len(sampleHashes) {
 				mockRW.EXPECT().WriteMsg(gomock.Any()).Return(tt.writeErr).Times(0)
 			} else {
