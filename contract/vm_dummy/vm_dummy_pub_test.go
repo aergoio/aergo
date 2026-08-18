@@ -763,10 +763,14 @@ func TestTypeBigTable(t *testing.T) {
 	}
 	skipNotOnAmd64(t)
 
+	dir, err := os.MkdirTemp("", "spacecheck-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
 	code := readLuaCode(t, "type_bigtable_1.lua")
 	code2 := readLuaCode(t, "type_bigtable_2.lua")
-
-	CheckFreeSpaceOfTempDir(t, 4*1024*1024*1024) // 4GB
 
 	for version := int32(3); version <= max_version; version++ {
 		bc, err := LoadDummyChain(SetHardForkVersion(version))
@@ -776,9 +780,21 @@ func TestTypeBigTable(t *testing.T) {
 		err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo), NewLuaTxDeploy("user1", "big", 0, code))
 		require.NoErrorf(t, err, "failed to deploy")
 
+		availableBefore, err := AvailableSpace(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("available space before test: %f", float64(availableBefore)/1024/1024)
+
 		// About 450MB?
-		err = bc.ConnectBlock(NewLuaTxCall("user1", "big", 0, `{"Name": "inserts", "Args":[24]}`))
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "big", 0, `{"Name": "inserts", "Args":[25]}`))
 		require.NoErrorf(t, err, "failed to call tx")
+
+		availableAfter, err := AvailableSpace(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("available space after test : %f", float64(availableAfter)/1024/1024)
 
 		contract.SetStateSQLMaxDBSize(20)
 		err = bc.ConnectBlock(NewLuaTxAccount("user1", 100, types.Aer), NewLuaTxDeploy("user1", "big20", 0, code2))
@@ -794,7 +810,7 @@ func TestTypeBigTable(t *testing.T) {
 }
 
 func CheckFreeSpaceOfTempDir(t *testing.T, required uint64) {
-	dir, err := os.MkdirTemp("", "mytest-*")
+	dir, err := os.MkdirTemp("", "spacecheck-*")
 	if err != nil {
 		t.Fatal(err)
 	}
