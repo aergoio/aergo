@@ -24,6 +24,9 @@ jobs:
     if: needs.check_if_pull_request.outputs.is_pull_request != 'true'
 
     runs-on: ubuntu-latest
+    env:
+      TURN_OFF_CONTROL_COMPACTION: true
+      TMPDIR: ${{ runner.temp }}
 
     steps:
 

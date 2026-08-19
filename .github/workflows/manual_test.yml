@@ -9,6 +9,9 @@ on:
 jobs:
   build_and_unittest:
     runs-on: ubuntu-latest
+    env:
+      TURN_OFF_CONTROL_COMPACTION: true
+      TMPDIR: ${{ runner.temp }}
 
     steps:
 

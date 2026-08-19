@@ -18,6 +18,9 @@ on:
 jobs:
   build_and_test:
     runs-on: ubuntu-latest
+    env:
+      TURN_OFF_CONTROL_COMPACTION: true
+      TMPDIR: ${{ runner.temp }}
 
     steps:
 
@@ -49,7 +52,6 @@ jobs:
       uses: paambaati/codeclimate-action@v4
       env:
         CC_TEST_REPORTER_ID: ${{secrets.CC_TEST_REPORTER_ID}}
-        TURN_OFF_CONTROL_COMPACTION: true
       with:
         coverageCommand: go test -timeout 999s -coverprofile build/c.out ./...
         prefix: github.com/aergoio/aergo/v2
