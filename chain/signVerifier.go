@@ -138,7 +138,7 @@ func (sv *SignVerifier) verifyTx(comm component.IComponentRequester, tx *types.T
 			logger.Error().Err(err).Msg("failed to get verify because of opening contract error")
 			return false, err
 		}
-		address := name.GetOwner(cs, tx.Body.Account)
+		address := name.GetAddress(cs, tx.Body.Account)
 		err = key.VerifyTxWithAddress(tx, address)
 		if err != nil {
 			return false, err
