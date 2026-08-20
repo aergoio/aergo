@@ -167,7 +167,7 @@ func (tchain *StubBlockChain) GetHashByNo(blockNo types.BlockNo) ([]byte, error)
 
 // TODO refactoring with getAnchorsNew()
 func (tchain *StubBlockChain) GetAnchors() (ChainAnchor, types.BlockNo, error) {
-	//from top : 8 * 32 = 256
+	// from top : 32 (MaxAnchors) * 16 (Skip) = 512
 	anchors := make(ChainAnchor, 0)
 	cnt := MaxAnchors
 	logger.Debug().Msg("get anchors")
@@ -179,7 +179,11 @@ LOOP:
 	for i := 0; i < cnt; i++ {
 		blockHash, err := tchain.GetHashByNo(blkNo)
 		if err != nil {
-			logger.Info().Msg("assertion - hash get failed")
+			logger.Info().Uint64("blkno", blkNo).Msg("assertion - hash get failed")
+			// if it got some anchors, return them
+			if len(anchors) > 0 {
+				break
+			}
 			// assertion!
 			return nil, 0, err
 		}

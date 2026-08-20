@@ -82,8 +82,20 @@ func RaftEntryInvert(blockHash []byte) []byte {
 	return append([]byte(raftEntryInvert), blockHash...)
 }
 
+// RaftEntryInvertPrefix returns the common prefix for all RaftEntryInvert keys.
+// Useful for range scans/deletions over the entire block-hash → raft-index index.
+func RaftEntryInvertPrefix() []byte {
+	return []byte(raftEntryInvert)
+}
+
 func RaftConfChangeProgress(id uint64) []byte {
 	return append([]byte(raftConfChangeProgress), types.Uint64ToBytes(id)...)
+}
+
+// RaftConfChangeProgressPrefix returns the common prefix for all
+// RaftConfChangeProgress keys. Useful for range scans/deletions.
+func RaftConfChangeProgressPrefix() []byte {
+	return []byte(raftConfChangeProgress)
 }
 
 //---------------------------------------------------------------------------------//

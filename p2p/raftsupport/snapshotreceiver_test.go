@@ -7,6 +7,7 @@ package raftsupport
 
 import (
 	"bytes"
+	"encoding/binary"
 	"testing"
 
 	"github.com/aergoio/aergo-lib/log"
@@ -49,5 +50,17 @@ func TestSnapshotReceiver_sendResp(t *testing.T) {
 				t.Fatalf("Response message %v, want %v", resp.Message, tt.args.resp.Message)
 			}
 		})
+	}
+}
+
+func TestSnapshotReceiverRejectsOversizedRaftEnvelope(t *testing.T) {
+	var wire bytes.Buffer
+	if err := binary.Write(&wire, binary.BigEndian, uint64(maxSnapshotRaftMessageSize+1)); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := (&RaftMsgDecoder{r: &wire}).DecodeLimit(maxSnapshotRaftMessageSize)
+	if err != ErrExceedSizeLimit {
+		t.Fatalf("DecodeLimit() error = %v, want %v", err, ErrExceedSizeLimit)
 	}
 }

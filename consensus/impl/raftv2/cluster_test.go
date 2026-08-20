@@ -130,6 +130,11 @@ func TestClusterConfChange(t *testing.T) {
 		assert.NoError(t, err)
 	}
 
+	_, err = cl.makeProposal(nil, true)
+	assert.Error(t, err, "nil membership request")
+	_, err = cl.makeProposal(&types.MembershipChange{}, true)
+	assert.Error(t, err, "nil membership attributes")
+
 	// normal case
 	req := &types.MembershipChange{
 		Type: types.MembershipChangeType_ADD_MEMBER,
@@ -139,6 +144,13 @@ func TestClusterConfChange(t *testing.T) {
 	assert.NoError(t, err)
 
 	id := cl.getNodeID("test3")
+	req = &types.MembershipChange{
+		Type: types.MembershipChangeType_ADD_MEMBER,
+		Attr: &types.MemberAttr{Name: "test4", Address: "/ip4/127.0.0.1/tcp/10004", PeerID: []byte("not-a-peer-id")},
+	}
+	_, err = cl.makeProposal(req, true)
+	assert.Error(t, err, "malformed peerid")
+
 	req = &types.MembershipChange{
 		Type: types.MembershipChangeType_REMOVE_MEMBER,
 		Attr: &types.MemberAttr{ID: id},
@@ -207,4 +219,18 @@ func TestClusterEqual(t *testing.T) {
 	}
 
 	assert.False(t, cl.isAllMembersEqual(testMbrs, nil))
+}
+
+func TestValidateAndMergeExistingClusterRejectsPeerIDMismatch(t *testing.T) {
+	chainID := []byte("test-chain")
+	local := NewCluster(chainID, nil, "joining-node", testPeerIDs[0], 0, nil)
+
+	remote, err := NewClusterFromMemberAttrs(1, chainID, []*types.MemberAttr{{
+		ID:      1,
+		Name:    "joining-node",
+		Address: "/ip4/127.0.0.1/tcp/11001",
+		PeerID:  []byte(testPeerIDs[1]),
+	}})
+	assert.NoError(t, err)
+	assert.False(t, local.ValidateAndMergeExistingCluster(remote))
 }

@@ -80,6 +80,8 @@ var (
 var (
 	ErrFinderInternal = errors.New("error finder internal")
 	ErrSyncerPanic    = errors.New("syncer panic")
+	// ErrSyncerBusy aliases message.ErrSyncerBusy for local callers/tests.
+	ErrSyncerBusy = message.ErrSyncerBusy
 )
 
 type ErrSyncMsg struct {
@@ -315,17 +317,33 @@ func (syncer *Syncer) handleSyncStart(msg *message.SyncStart) error {
 	var err error
 	var bestBlock *types.Block
 
+	notify := func(err error) {
+		if msg.NotifyC == nil {
+			return
+		}
+		select {
+		case msg.NotifyC <- err:
+		default:
+			logger.Debug().Msg("failed to notify rejected sync request")
+		}
+	}
+
 	logger.Debug().Uint64("targetNo", msg.TargetNo).Stringer("peer", types.LogPeerShort(msg.PeerID)).Msg("syncer requested")
 
 	if syncer.isRunning {
+		// Expected when tip/orphan blocks keep requesting sync during an
+		// in-flight catch-up. Wake NotifyC waiters, but do not surface as a
+		// handleMessage failure (avoids Error log spam / false sync failures).
 		logger.Debug().Uint64("targetNo", msg.TargetNo).Msg("skipped syncer is running")
+		notify(ErrSyncerBusy)
 		return nil
 	}
 
 	//TODO skip sync in reorgnizing
-	bestBlock, _ = syncer.chain.GetBestBlock()
+	bestBlock, err = syncer.chain.GetBestBlock()
 	if err != nil {
 		logger.Error().Err(err).Msg("error getting block in syncer")
+		notify(err)
 		return err
 	}
 
@@ -334,6 +352,7 @@ func (syncer *Syncer) handleSyncStart(msg *message.SyncStart) error {
 	if msg.TargetNo <= bestBlockNo {
 		logger.Debug().Uint64("targetNo", msg.TargetNo).Uint64("bestNo", bestBlockNo).
 			Msg("skipped syncer. requested no is too low")
+		notify(nil)
 		return nil
 	}
 

@@ -1,6 +1,7 @@
 package chain
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -213,22 +214,54 @@ func SyncChain(hs *component.ComponentHub, targetHash []byte, targetNo types.Blo
 	logger.Info().Stringer("peer", types.LogPeerShort(peerID)).Uint64("no", targetNo).
 		Str("hash", base58.Encode(targetHash)).Msg("request to sync for consensus")
 
-	notiC := make(chan error)
-	hs.Tell(message.SyncerSvc, &message.SyncStart{PeerID: peerID, TargetNo: targetNo, NotifyC: notiC})
-
-	// wait end of sync every 1sec
-	select {
-	case err := <-notiC:
+	verifyTarget := func() error {
+		result, err := hs.RequestFuture(message.ChainSvc, &message.GetBlockByNo{BlockNo: targetNo},
+			time.Second, "consensus/chain.SyncChain.verifyTarget").Result()
+		block, err := message.GetHelper().ExtractBlockFromResponseAndError(result, err)
 		if err != nil {
-			logger.Error().Err(err).Uint64("no", targetNo).
-				Str("hash", base58.Encode(targetHash)).
-				Msg("failed to sync")
-
 			return err
 		}
+		if block == nil || !bytes.Equal(block.BlockHash(), targetHash) {
+			return fmt.Errorf("%w: block %d hash does not match snapshot", ErrSyncChain, targetNo)
+		}
+		return nil
+	}
+
+	for {
+		if best := GetBestBlock(hs); best != nil && best.BlockNo() >= targetNo {
+			return verifyTarget()
+		}
+
+		notiC := make(chan error, 1)
+		hs.Tell(message.SyncerSvc, &message.SyncStart{PeerID: peerID, TargetNo: targetNo, NotifyC: notiC})
+
+		err := <-notiC
+		if err == nil {
+			break
+		}
+		// Another sync is already running (e.g. orphan/tip-triggered). Wait
+		// for progress and retry instead of failing consensus sync.
+		if errors.Is(err, message.ErrSyncerBusy) {
+			logger.Info().Uint64("no", targetNo).
+				Str("hash", base58.Encode(targetHash)).
+				Msg("syncer busy; waiting to retry consensus sync")
+			time.Sleep(time.Second)
+			continue
+		}
+
+		logger.Error().Err(err).Uint64("no", targetNo).
+			Str("hash", base58.Encode(targetHash)).
+			Msg("failed to sync")
+		return err
+	}
+
+	if err := verifyTarget(); err != nil {
+		logger.Error().Err(err).Uint64("no", targetNo).
+			Str("hash", base58.Encode(targetHash)).
+			Msg("sync completed at a different block")
+		return err
 	}
 
 	logger.Info().Stringer("peer", types.LogPeerShort(peerID)).Msg("succeeded to sync for consensus")
-	// TODO check best block is equal to target Hash/no
 	return nil
 }

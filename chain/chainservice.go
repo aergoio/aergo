@@ -71,10 +71,22 @@ func NewCore(dbType string, dataDir string, testModeOn bool, forceResetHeight ty
 
 // Init prepares Core (chain & state DB).
 func (core *Core) init(dbType string, dataDir string, testModeOn bool, forceResetHeight types.BlockNo, config *cfg.DBConfig) error {
+	var chainDbType, stateDbType string
+
+	// Split dbType if it contains a comma separator
+	if strings.Contains(dbType, ",") {
+		parts := strings.SplitN(dbType, ",", 2)
+		chainDbType = strings.TrimSpace(parts[0])
+		stateDbType = strings.TrimSpace(parts[1])
+	} else {
+		chainDbType = dbType
+		stateDbType = dbType
+	}
+
 	// init chaindb
 	// Compaction option currently only supported by BadgerDB
 	optionsForChainDB := db.WithControlCompaction(config.ControlCompaction, config.ChainDBPort);
-	if err := core.cdb.Init(dbType, dataDir, optionsForChainDB); err != nil {
+	if err := core.cdb.Init(chainDbType, dataDir, optionsForChainDB); err != nil {
 		logger.Fatal().Err(err).Msg("failed to initialize chaindb")
 		return err
 	}
@@ -85,6 +97,7 @@ func (core *Core) init(dbType string, dataDir string, testModeOn bool, forceRese
 			return err
 		}
 		logger.Info().Uint64("height", forceResetHeight).Msg("reset chaindb")
+		core.Close()
 		os.Exit(0)
 	}
 
@@ -95,7 +108,7 @@ func (core *Core) init(dbType string, dataDir string, testModeOn bool, forceRese
 	}
 
 	optionsForStateDB := db.WithControlCompaction(config.ControlCompaction, config.StateDBPort);
-	if err := core.sdb.Init(dbType, dataDir, bestBlock, testModeOn, optionsForStateDB); err != nil {
+	if err := core.sdb.Init(stateDbType, dataDir, bestBlock, testModeOn, optionsForStateDB); err != nil {
 		logger.Fatal().Err(err).Msg("failed to initialize statedb")
 		return err
 	}
@@ -164,9 +177,11 @@ func (core *Core) GetGenesisInfo() *types.Genesis {
 // Close closes chain & state DB.
 func (core *Core) Close() {
 	if core.sdb != nil {
+		logger.Info().Msg("closing statedb")
 		core.sdb.Close()
 	}
 	if core.cdb != nil {
+		logger.Info().Msg("closing chaindb")
 		core.cdb.Close()
 	}
 	contract.CloseDatabase()
@@ -390,14 +405,20 @@ func (cs *ChainService) BeforeStart() {
 func (cs *ChainService) AfterStart() {
 }
 
-// BeforeStop close chain database and stop BlockValidator
+// BeforeStop drains chain workers/validator and only then closes the chain
+// and state databases.
+//
+// chainManager/chainWorker can be in the middle of connectBlock, which calls
+// state.Update -> trie.Trie.Update and spawns parallel goroutines that read
+// from the underlying badger store. Closing sdb/cdb before those workers are
+// drained leaves orphaned goroutines reading from a closed badger DB and
+// crashes with a nil-pointer panic in (*memTable).IncrRef.
 func (cs *ChainService) BeforeStop() {
-	cs.Close()
-
 	cs.chainManager.Stop()
 	cs.chainWorker.Stop()
-
 	cs.validator.Stop()
+
+	cs.Close()
 }
 
 func (cs *ChainService) notifyBlock(block *types.Block, isByBP bool) {

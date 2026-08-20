@@ -206,6 +206,9 @@ func NewClusterFromMemberAttrs(clusterID uint64, chainID []byte, memberAttrs []*
 	cl := NewCluster(chainID, nil, "", "", 0, nil)
 
 	for _, mbrAttr := range memberAttrs {
+		if mbrAttr == nil {
+			return nil, consensus.ErrInvalidMemberAttr
+		}
 		var mbr consensus.Member
 
 		mbr.SetAttr(mbrAttr)
@@ -299,12 +302,18 @@ func (cl *Cluster) Recover(snapshot *raftpb.Snapshot) (bool, error) {
 
 	// members restore
 	for _, mbr := range snapdata.Members {
+		if err := cl.isValidMember(mbr); err != nil {
+			return false, err
+		}
 		if err := cl.addMember(mbr, true); err != nil {
 			return false, err
 		}
 	}
 
 	for _, mbr := range snapdata.RemovedMembers {
+		if mbr == nil || !mbr.IsValid() {
+			return false, ErrInvalidMember
+		}
 		cl.RemovedMembers().add(mbr)
 	}
 
@@ -395,9 +404,19 @@ func (cl *Cluster) getAnyPeerAddressToSync() (types.PeerID, error) {
 	return "", ErrNoEnableSyncPeer
 }
 
+func (cl *Cluster) getMemberPeerAddress(id uint64) (types.PeerID, error) {
+	cl.Lock()
+	defer cl.Unlock()
+	return cl.Members().getMemberPeerAddress(id)
+}
+
 func (cl *Cluster) isValidMember(member *consensus.Member) error {
 	cl.Lock()
 	defer cl.Unlock()
+
+	if member == nil || !member.IsValid() {
+		return ErrInvalidMember
+	}
 
 	mbrs := cl.members
 
@@ -493,9 +512,9 @@ func (cl *Cluster) ValidateAndMergeExistingCluster(existingCl *Cluster) bool {
 		return false
 	}
 
-	// TODO check my network config is equal to member of remote
 	if base58.Encode(remoteMember.PeerID) != cl.NodePeerID() {
 		logger.Error().Msg("peerid is different with peerid of member of existing cluster")
+		return false
 	}
 
 	cl.members = existingCl.Members()
@@ -534,6 +553,8 @@ func (cl *Cluster) getMemberAttrs() ([]*types.MemberAttr, error) {
 
 // IsIDRemoved return true if given raft id is not exist in cluster
 func (cl *Cluster) IsIDRemoved(id uint64) bool {
+	cl.Lock()
+	defer cl.Unlock()
 	return cl.RemovedMembers().isExist(id)
 }
 
@@ -842,6 +863,9 @@ func (cl *Cluster) toConsensusInfo() *types.ConsensusInfo {
 }
 
 func (cl *Cluster) NewMemberFromAddReq(req *types.MembershipChange) (*consensus.Member, error) {
+	if req == nil || req.Attr == nil {
+		return nil, consensus.ErrInvalidMemberAttr
+	}
 	if len(req.Attr.Name) == 0 || len(req.Attr.Address) == 0 || len(req.Attr.PeerID) == 0 {
 		return nil, consensus.ErrInvalidMemberAttr
 	}
@@ -850,6 +874,9 @@ func (cl *Cluster) NewMemberFromAddReq(req *types.MembershipChange) (*consensus.
 }
 
 func (cl *Cluster) NewMemberFromRemoveReq(req *types.MembershipChange) (*consensus.Member, error) {
+	if req == nil || req.Attr == nil {
+		return nil, consensus.ErrInvalidMemberAttr
+	}
 	if req.Attr.ID == consensus.InvalidMemberID {
 		return nil, consensus.ErrInvalidMemberID
 	}
@@ -902,6 +929,10 @@ func (cl *Cluster) makeProposal(req *types.MembershipChange, nowait bool) (*cons
 	if cl.savedChange != nil {
 		logger.Error().Str("cc", types.RaftConfChangeToString(cl.savedChange.Cc)).Msg("already exist pending conf change")
 		return nil, ErrPendingConfChange
+	}
+
+	if req == nil || req.Attr == nil {
+		return nil, consensus.ErrInvalidMemberAttr
 	}
 
 	var (
