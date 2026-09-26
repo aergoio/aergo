@@ -186,3 +186,5 @@ require (
 replace github.com/Sirupsen/logrus => github.com/sirupsen/logrus v1.8.1
 
 replace github.com/dgraph-io/badger/v3 => github.com/shepelt/badger/v3 v3.2104.5
+
+replace github.com/golang/protobuf => github.com/golang/protobuf v1.3.3
