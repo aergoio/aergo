@@ -153,6 +153,20 @@ func (mr *MockStreamMockRecorder) Reset() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Reset", reflect.TypeOf((*MockStream)(nil).Reset))
 }
 
+// ResetWithError mocks base method.
+func (m *MockStream) ResetWithError(arg0 network.StreamErrorCode) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ResetWithError", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ResetWithError indicates an expected call of ResetWithError.
+func (mr *MockStreamMockRecorder) ResetWithError(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResetWithError", reflect.TypeOf((*MockStream)(nil).ResetWithError), arg0)
+}
+
 // Scope mocks base method.
 func (m *MockStream) Scope() network.StreamScope {
 	m.ctrl.T.Helper()
@@ -275,6 +289,20 @@ func (m *MockConn) EXPECT() *MockConnMockRecorder {
 	return m.recorder
 }
 
+// As mocks base method.
+func (m *MockConn) As(arg0 interface{}) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "As", arg0)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// As indicates an expected call of As.
+func (mr *MockConnMockRecorder) As(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "As", reflect.TypeOf((*MockConn)(nil).As), arg0)
+}
+
 // Close mocks base method.
 func (m *MockConn) Close() error {
 	m.ctrl.T.Helper()
@@ -287,6 +315,20 @@ func (m *MockConn) Close() error {
 func (mr *MockConnMockRecorder) Close() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockConn)(nil).Close))
+}
+
+// CloseWithError mocks base method.
+func (m *MockConn) CloseWithError(arg0 network.ConnErrorCode) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CloseWithError", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// CloseWithError indicates an expected call of CloseWithError.
+func (mr *MockConnMockRecorder) CloseWithError(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CloseWithError", reflect.TypeOf((*MockConn)(nil).CloseWithError), arg0)
 }
 
 // ConnState mocks base method.

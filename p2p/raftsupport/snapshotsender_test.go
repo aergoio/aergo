@@ -178,6 +178,10 @@ func (*testStream) Reset() error {
 	panic("implement me")
 }
 
+func (*testStream) ResetWithError(network.StreamErrorCode) error {
+	panic("implement me")
+}
+
 func (*testStream) SetDeadline(time.Time) error {
 	panic("implement me")
 }
