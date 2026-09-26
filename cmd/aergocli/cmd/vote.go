@@ -150,7 +150,7 @@ func execVoteStat(cmd *cobra.Command, args []string) {
 		cmd.Println("[")
 		comma := ","
 		for i, r := range msg.GetVotes() {
-			cmd.Printf("{\"" + string(r.Candidate) + "\":" + r.GetAmountBigInt().String() + "}")
+			cmd.Printf("{\"%s\":%s}", string(r.Candidate), r.GetAmountBigInt().String())
 			if i+1 == len(msg.GetVotes()) {
 				comma = ""
 			}
@@ -176,7 +176,7 @@ func execBP(cmd *cobra.Command, args []string) {
 	cmd.Println("[")
 	comma := ","
 	for i, r := range msg.GetVotes() {
-		cmd.Printf("{\"" + base58.Encode(r.Candidate) + "\":" + r.GetAmountBigInt().String() + "}")
+		cmd.Printf("{\"%s\":%s}", base58.Encode(r.Candidate), r.GetAmountBigInt().String())
 		if i+1 == len(msg.GetVotes()) {
 			comma = ""
 		}
