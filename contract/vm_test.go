@@ -2821,7 +2821,7 @@ abi.register(Length)
 		t.Error("expected: the array length must be greater than zero")
 	}
 	if !strings.Contains(err.Error(), "the array length must be greater than zero") {
-		t.Errorf(err.Error())
+		t.Errorf("%s", err.Error())
 	}
 
 	dArr := `
