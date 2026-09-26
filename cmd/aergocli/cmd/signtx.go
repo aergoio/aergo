@@ -41,7 +41,7 @@ var signCmd = &cobra.Command{
 		if jsonTx == "" {
 			b, readerr := os.ReadFile(jsonPath)
 			if readerr != nil {
-				cmd.Printf("Failed to read --jsontxpath\n" + readerr.Error())
+				cmd.Printf("Failed to read --jsontxpath\n%s", readerr.Error())
 				return
 			}
 			jsonTx = string(b)
@@ -119,7 +119,7 @@ var verifyCmd = &cobra.Command{
 		if jsonTx == "" {
 			b, readerr := os.ReadFile(jsonPath)
 			if readerr != nil {
-				cmd.Printf("Failed to read --jsontxpath\n" + readerr.Error())
+				cmd.Printf("Failed to read --jsontxpath\n%s", readerr.Error())
 				return
 			}
 			jsonTx = string(b)
