@@ -6,7 +6,7 @@ toolchain go1.23.7
 
 require (
 	github.com/aergoio/aergo-actor v0.0.0-20190219030625-562037d5fec7
-	github.com/aergoio/aergo-lib v1.3.1-0.20260926020041-8b6736fa40de
+	github.com/aergoio/aergo-lib v1.3.1-0.20260926200830-31a6e9cfa3f6
 	github.com/aergoio/etcd v0.0.0-20190429013412-e8b3f96f6399
 	github.com/anaskhan96/base58check v0.0.0-20181220122047-b05365d494c4
 	github.com/bluele/gcache v0.0.0-20190518031135-bc40bd653833
@@ -50,7 +50,7 @@ require (
 
 require (
 	github.com/Workiva/go-datastructures v1.0.50 // indirect
-	github.com/aergoio/hashtabledb v0.0.0-20260926015451-bc2122590408 // indirect
+	github.com/aergoio/hashtabledb v0.0.0-20260926195727-6a78e52efda4 // indirect
 	github.com/benbjohnson/clock v1.3.5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bytedance/sonic v1.11.6 // indirect
