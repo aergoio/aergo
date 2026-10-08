@@ -55,12 +55,12 @@ github.com/Workiva/go-datastructures v1.0.50 h1:slDmfW6KCHcC7U+LP3DDBbm4fqTwZGn1
 github.com/Workiva/go-datastructures v1.0.50/go.mod h1:Z+F2Rca0qCsVYDS8z7bAGm8f3UkzuWYS/oBZz5a7VVA=
 github.com/aergoio/aergo-actor v0.0.0-20190219030625-562037d5fec7 h1:dYRi21hTS3fJwjSh/KZTAuLXUbV/Ijm2395Nf4b3wNs=
 github.com/aergoio/aergo-actor v0.0.0-20190219030625-562037d5fec7/go.mod h1:/nqZcvcM0UipJRnUm61LrQ8rC7IyBr8mfx5F00sCbvs=
-github.com/aergoio/aergo-lib v1.3.1-0.20260926200830-31a6e9cfa3f6 h1:ZuvAw5cGs3ScbcHrk0yTU8s1KHFVafGcOZHVg8O2nns=
-github.com/aergoio/aergo-lib v1.3.1-0.20260926200830-31a6e9cfa3f6/go.mod h1:67Jgk0TuFbOJ92Vzo/mYv9pMsw4arpxL8ovH+scEcIM=
+github.com/aergoio/aergo-lib v1.3.1-0.20261008073059-1c4e810c9dc0 h1:mAf9cokKYdfBcI1ILZOObWpu+xfWUKggFzh7pqscWMs=
+github.com/aergoio/aergo-lib v1.3.1-0.20261008073059-1c4e810c9dc0/go.mod h1:De0pEe2vvXpFGQ2iqEYV88fPrKuIx8vzTtuhEENyPu8=
 github.com/aergoio/etcd v0.0.0-20190429013412-e8b3f96f6399 h1:dJSTOiNe0xJFreGUBSh4bY3KGDxjilUVxAKqjij1pcw=
 github.com/aergoio/etcd v0.0.0-20190429013412-e8b3f96f6399/go.mod h1:Blp9ztau8P3FoDynvGUeKUD6qqW/2xQ80kNwU+ywPUM=
-github.com/aergoio/hashtabledb v0.0.0-20260926195727-6a78e52efda4 h1:gM5xsH7ntZkRJOnNp/e/Zf28ZWlDlE4JWSuUag8H/Ew=
-github.com/aergoio/hashtabledb v0.0.0-20260926195727-6a78e52efda4/go.mod h1:IqGin7i9MiVvVI1TnRSvtgxQygS9qIltYpT8VZaoT/w=
+github.com/aergoio/hashtabledb v0.0.0-20261008065253-807f7ec61bad h1:JJ23HCErjTX4qVwiW/r9GICtojYdqMcpJJJGneC7G9U=
+github.com/aergoio/hashtabledb v0.0.0-20261008065253-807f7ec61bad/go.mod h1:IqGin7i9MiVvVI1TnRSvtgxQygS9qIltYpT8VZaoT/w=
 github.com/afex/hystrix-go v0.0.0-20180502004556-fa1af6a1f4f5/go.mod h1:SkGFH1ia65gfNATL8TAiHDNxPzPdmEL5uirI2Uyuz6c=
 github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
 github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
