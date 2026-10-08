@@ -120,7 +120,7 @@ func (sl *networkTransport) GetOrCreateStreamWithTTL(meta p2pcommon.PeerMeta, tt
 	if err2 != nil {
 		return nil, err2
 	}
-	if resolved != peerAddr {
+	if !resolved.Equal(peerAddr) {
 		sl.logger.Debug().Stringer("original", peerAddr).Stringer("resolved", resolved).Msg("peer address is resolved to different address")
 	}
 

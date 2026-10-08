@@ -196,7 +196,7 @@ func (rpc *AergoRPCService) getChainInfo(ctx context.Context) (*types.ChainInfo,
 
 	cInfo, err := rpc.GetConsensusInfo(ctx, &types.Empty{})
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, err.Error())
+		return nil, status.Errorf(codes.Internal, "%s", err.Error())
 	}
 	chainInfo.BpNumber = uint32(len(cInfo.GetBps()))
 
@@ -249,7 +249,7 @@ func (rpc *AergoRPCService) ListBlockMetadata(ctx context.Context, in *types.Lis
 	}
 	blocks, err := rpc.getBlocks(ctx, in)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, err.Error())
+		return nil, status.Errorf(codes.Internal, "%s", err.Error())
 	}
 	var metas []*types.BlockMetadata
 	for _, block := range blocks {
@@ -496,7 +496,7 @@ func (rpc *AergoRPCService) GetBlock(ctx context.Context, in *types.SingleBytes)
 	}
 	found, err := rpc.msgHelper.ExtractBlockFromResponse(result)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, err.Error())
+		return nil, status.Errorf(codes.Internal, "%s", err.Error())
 	}
 	if found == nil {
 		return nil, status.Errorf(codes.NotFound, "Not found")
@@ -646,7 +646,7 @@ func (rpc *AergoRPCService) SendTX(ctx context.Context, tx *types.Tx) (*types.Co
 		if err == component.ErrHubUnregistered {
 			return nil, status.Errorf(codes.Unavailable, "Unavailable personal feature")
 		}
-		return nil, status.Errorf(codes.Internal, err.Error())
+		return nil, status.Errorf(codes.Internal, "%s", err.Error())
 	}
 
 	signTxRsp, ok := signTxResult.(*message.SignTxRsp)
@@ -754,7 +754,7 @@ func (rpc *AergoRPCService) CreateAccount(ctx context.Context, in *types.Persona
 		if err == component.ErrHubUnregistered {
 			return nil, status.Errorf(codes.Unavailable, "Unavailable personal feature")
 		}
-		return nil, status.Errorf(codes.Internal, err.Error())
+		return nil, status.Errorf(codes.Internal, "%s", err.Error())
 	}
 	/*
 		//same code but not good at folding in editor
@@ -763,7 +763,7 @@ func (rpc *AergoRPCService) CreateAccount(ctx context.Context, in *types.Persona
 		case component.ErrHubUnregistered:
 			return nil, status.Errorf(codes.Unavailable, "Unavailable personal feature")
 		default:
-			return nil, status.Errorf(codes.Internal, err.Error())
+			return nil, status.Errorf(codes.Internal, "%s", err.Error())
 		}
 	*/
 
@@ -794,7 +794,7 @@ func (rpc *AergoRPCService) GetAccounts(ctx context.Context, in *types.Empty) (*
 		if err == component.ErrHubUnregistered {
 			return nil, status.Errorf(codes.Unavailable, "Unavailable personal feature")
 		}
-		return nil, status.Errorf(codes.Internal, err.Error())
+		return nil, status.Errorf(codes.Internal, "%s", err.Error())
 	}
 
 	rsp, ok := result.(*message.GetAccountsRsp)
@@ -820,7 +820,7 @@ func (rpc *AergoRPCService) LockAccount(ctx context.Context, in *types.Personal)
 		if err == component.ErrHubUnregistered {
 			return nil, status.Errorf(codes.Unavailable, "Unavailable personal feature")
 		}
-		return nil, status.Errorf(codes.Internal, err.Error())
+		return nil, status.Errorf(codes.Internal, "%s", err.Error())
 	}
 
 	rsp, ok := result.(*message.AccountRsp)
@@ -846,7 +846,7 @@ func (rpc *AergoRPCService) UnlockAccount(ctx context.Context, in *types.Persona
 		if err == component.ErrHubUnregistered {
 			return nil, status.Errorf(codes.Unavailable, "Unavailable personal feature")
 		}
-		return nil, status.Errorf(codes.Internal, err.Error())
+		return nil, status.Errorf(codes.Internal, "%s", err.Error())
 	}
 
 	rsp, ok := result.(*message.AccountRsp)
@@ -875,7 +875,7 @@ func (rpc *AergoRPCService) ImportAccount(ctx context.Context, in *types.ImportF
 		if err == component.ErrHubUnregistered {
 			return nil, status.Errorf(codes.Unavailable, "Unavailable personal feature")
 		}
-		return nil, status.Errorf(codes.Internal, err.Error())
+		return nil, status.Errorf(codes.Internal, "%s", err.Error())
 	}
 
 	rsp, ok := result.(*message.ImportAccountRsp)
@@ -900,7 +900,7 @@ func (rpc *AergoRPCService) exportAccountWithFormat(ctx context.Context, in *typ
 		if err == component.ErrHubUnregistered {
 			return nil, status.Errorf(codes.Unavailable, "Unavailable personal feature")
 		}
-		return nil, status.Errorf(codes.Internal, err.Error())
+		return nil, status.Errorf(codes.Internal, "%s", err.Error())
 	}
 
 	rsp, ok := result.(*message.ExportAccountRsp)
@@ -933,7 +933,7 @@ func (rpc *AergoRPCService) SignTX(ctx context.Context, in *types.Tx) (*types.Tx
 		if err == component.ErrHubUnregistered {
 			return nil, status.Errorf(codes.Unavailable, "Unavailable personal feature")
 		}
-		return nil, status.Errorf(codes.Internal, err.Error())
+		return nil, status.Errorf(codes.Internal, "%s", err.Error())
 	}
 
 	rsp, ok := result.(*message.SignTxRsp)
@@ -959,7 +959,7 @@ func (rpc *AergoRPCService) VerifyTX(ctx context.Context, in *types.Tx) (*types.
 		if err == component.ErrHubUnregistered {
 			return nil, status.Errorf(codes.Unavailable, "Unavailable personal feature")
 		}
-		return nil, status.Errorf(codes.Internal, err.Error())
+		return nil, status.Errorf(codes.Internal, "%s", err.Error())
 	}
 
 	rsp, ok := result.(*message.VerifyTxRsp)
@@ -1109,7 +1109,7 @@ func (rpc *AergoRPCService) GetNameInfo(ctx context.Context, in *types.Name) (*t
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
 	}
 	if rsp.Err == types.ErrNameNotFound {
-		return rsp.Owner, status.Errorf(codes.NotFound, rsp.Err.Error())
+		return rsp.Owner, status.Errorf(codes.NotFound, "%s", rsp.Err.Error())
 	}
 	return rsp.Owner, rsp.Err
 }
