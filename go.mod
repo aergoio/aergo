@@ -4,7 +4,7 @@ go 1.25.7
 
 require (
 	github.com/aergoio/aergo-actor v0.0.0-20190219030625-562037d5fec7
-	github.com/aergoio/aergo-lib v1.3.1-0.20260808042153-fda1d5ca2a5d
+	github.com/aergoio/aergo-lib v1.3.1-0.20261015125421-57b2753b9e17
 	github.com/aergoio/etcd v0.0.0-20190429013412-e8b3f96f6399
 	github.com/anaskhan96/base58check v0.0.0-20181220122047-b05365d494c4
 	github.com/bluele/gcache v0.0.0-20190518031135-bc40bd653833
@@ -50,7 +50,7 @@ require (
 	filippo.io/bigmod v0.1.1-0.20260103110540-f8a47775ebe5 // indirect
 	filippo.io/keygen v1.0.0 // indirect
 	github.com/Workiva/go-datastructures v1.0.50 // indirect
-	github.com/aergoio/hashtabledb v0.0.0-20260808040708-13b4f29bcc3b // indirect
+	github.com/aergoio/hashtabledb v0.0.0-20261015074020-d2baa6fe0019 // indirect
 	github.com/benbjohnson/clock v1.3.5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bytedance/sonic v1.11.6 // indirect
