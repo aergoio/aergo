@@ -21,12 +21,12 @@ var (
 	ErrNilHardState       = errors.New("hardstateinfo must not be nil")
 )
 
-func (cdb *ChainDB) ResetWAL(hardStateInfo *types.HardStateInfo) error {
+func (cdb *ChainDB) ResetWAL(hardStateInfo *types.HardStateInfo, members []*consensus.Member) error {
 	if hardStateInfo == nil {
 		return ErrNilHardState
 	}
 
-	logger.Info().Str("hardstate", hardStateInfo.ToString()).Msg("reset wal with given hardstate")
+	logger.Info().Str("hardstate", hardStateInfo.ToString()).Int("members", len(members)).Msg("reset wal with given hardstate")
 
 	cdb.ClearWAL()
 
@@ -43,7 +43,10 @@ func (cdb *ChainDB) ResetWAL(hardStateInfo *types.HardStateInfo) error {
 		return err
 	}
 
-	snapData := consensus.NewSnapshotData(nil, nil, snapBlock)
+	// Populate SnapshotData.Members so that this snapshot is a valid
+	// catch-up source for any peer that later needs it, and so that a
+	// subsequent restart can recover cluster membership from the snapshot.
+	snapData := consensus.NewSnapshotData(members, nil, snapBlock)
 	if snapData == nil {
 		logger.Panic().Uint64("SnapBlockNo", snapBlock.BlockNo()).Msg("new snap failed")
 	}
@@ -53,9 +56,25 @@ func (cdb *ChainDB) ResetWAL(hardStateInfo *types.HardStateInfo) error {
 		return err
 	}
 
+	// Populate ConfState.Nodes with the raft IDs of all current members.
+	// The raft library uses this ConfState as the baseline when later
+	// compacting the log into a new snapshot (see triggerSnapshot). If
+	// left empty, a fatal will be triggered on the next compaction.
+	confState := raftpb.ConfState{}
+	for _, m := range members {
+		if m == nil || m.ID == 0 {
+			continue
+		}
+		confState.Nodes = append(confState.Nodes, m.ID)
+	}
+
 	tmpSnapshot := raftpb.Snapshot{
-		Metadata: raftpb.SnapshotMetadata{Index: hardStateInfo.Commit, Term: hardStateInfo.Term},
-		Data:     data,
+		Metadata: raftpb.SnapshotMetadata{
+			Index:     hardStateInfo.Commit,
+			Term:      hardStateInfo.Term,
+			ConfState: confState,
+		},
+		Data: data,
 	}
 
 	if err := cdb.WriteSnapshot(&tmpSnapshot); err != nil {
@@ -63,7 +82,7 @@ func (cdb *ChainDB) ResetWAL(hardStateInfo *types.HardStateInfo) error {
 	}
 
 	// write initial values
-	// last entry index = commit
+	// last entry index = commit (no log entries exist; the snapshot covers [1..commit])
 	dbTx := cdb.store.NewTx()
 	defer dbTx.Discard()
 
@@ -108,13 +127,66 @@ func (cdb *ChainDB) ClearWAL() {
 
 	dbTx.Commit()
 
+	// hashtabledb cannot honor range bounds in Iterator(start,end), so the
+	// prefix sweeps below would scan and tombstone the entire database.
+	// Skip them: r_identity/r_state/r_snap/r_last are mutable keys that
+	// ResetWAL will overwrite immediately after ClearWAL returns; the
+	// orphaned r_entry.*/r_inv.*/r_ccstatus.* records are never read by
+	// raft once the new snapshot covers [1..commit].
+	if cdb.store.Type() == "hashtabledb" {
+		logger.Debug().Msg("clear WAL done (hashtabledb fast-path)")
+		return // <-- skip removal of raft entries
+	}
+
 	// remove raft entries
 	if last, err := cdb.GetRaftEntryLastIdx(); err == nil {
 		// remove 1 ~ last raft entry
 		removeAllRaftEntries(last)
 	}
 
+	// Also remove the block-hash → raft-index inverted index and any
+	// conf-change progress records. These are Raft-specific and would
+	// otherwise leak stale mappings into the newly reset state (leading,
+	// e.g., to GetRaftEntryIndexOfBlock returning a bogus index for a
+	// block whose entry has just been deleted).
+	cdb.deleteByPrefix(dbkey.RaftEntryInvertPrefix())
+	cdb.deleteByPrefix(dbkey.RaftConfChangeProgressPrefix())
+
 	logger.Debug().Msg("clear WAL done")
+}
+
+// deleteByPrefix deletes every key in the store whose bytes start with `prefix`.
+// Assumes the last byte of `prefix` is < 0xFF (true for all current raft
+// prefixes, which end in '.'); the range end is `prefix` with its last byte
+// incremented by one.
+func (cdb *ChainDB) deleteByPrefix(prefix []byte) {
+	if len(prefix) == 0 {
+		return
+	}
+
+	end := append([]byte(nil), prefix...)
+	end[len(end)-1]++
+
+	// Collect keys first; it is unsafe to delete while iterating a live
+	// badger iterator on the same transaction.
+	var keys [][]byte
+	iter := cdb.store.Iterator(prefix, end)
+	for ; iter.Valid(); iter.Next() {
+		keys = append(keys, append([]byte(nil), iter.Key()...))
+	}
+
+	if len(keys) == 0 {
+		return
+	}
+
+	bulk := cdb.store.NewBulk()
+	defer bulk.DiscardLast()
+	for _, k := range keys {
+		bulk.Delete(k)
+	}
+	bulk.Flush()
+
+	logger.Debug().Int("count", len(keys)).Bytes("prefix", prefix).Msg("deleted keys by prefix")
 }
 
 func (cdb *ChainDB) WriteHardState(hardstate *raftpb.HardState) error {

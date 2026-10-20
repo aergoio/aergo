@@ -156,6 +156,9 @@ func TestConcurrentClusterInfoReceiver_ReceiveResp(t *testing.T) {
 
 	sampleChainID := []byte("testChain")
 	members := make([]*types.MemberAttr, 4)
+	for i := range members {
+		members[i] = &types.MemberAttr{ID: uint64(i + 1), Name: "member"}
+	}
 
 	type args struct {
 		retStats []retStat
@@ -226,6 +229,9 @@ func TestConcurrentClusterInfoReceiver_ReceiveResp(t *testing.T) {
 					body.Error = "getCluster failed"
 					fallthrough
 				default:
+					if st >= 0 {
+						body.BestBlockNo = uint64(st)
+					}
 					rHeads = append(rHeads, head)
 					rBodies = append(rBodies, body)
 				}
@@ -271,5 +277,87 @@ func TestConcurrentClusterInfoReceiver_ReceiveResp(t *testing.T) {
 
 			ctrl.Finish()
 		})
+	}
+}
+
+func TestConcurrentClusterInfoReceiverRequiresConfigurationAgreement(t *testing.T) {
+	logger := log.NewLogger("raft.support.test")
+	member := &types.MemberAttr{ID: 1, Name: "member", Address: "/ip4/127.0.0.1/tcp/11001", PeerID: []byte("peer")}
+	honest := func(commit, best uint64) *types.GetClusterInfoResponse {
+		return &types.GetClusterInfoResponse{
+			ChainID:       []byte("chain"),
+			ClusterID:     7,
+			MbrAttrs:      []*types.MemberAttr{member},
+			BestBlockNo:   best,
+			HardStateInfo: &types.HardStateInfo{Term: 2, Commit: commit},
+		}
+	}
+	malicious := honest(1<<60, 1<<60)
+	malicious.ClusterID = 999
+
+	receiver := &ConcurrentClusterInfoReceiver{
+		logger:       logger,
+		requiredResp: 2,
+		succResps: map[types.PeerID]*types.GetClusterInfoResponse{
+			types.RandomPeerID(): honest(11, 10),
+			types.RandomPeerID(): honest(11, 11),
+			types.RandomPeerID(): honest(11, 12),
+			types.RandomPeerID(): malicious,
+		},
+	}
+
+	result := receiver.calculate(nil)
+	if result.Err != nil {
+		t.Fatalf("calculate() error = %v", result.Err)
+	}
+	if result.ClusterID != 7 || result.HardStateInfo.Commit != 11 {
+		t.Fatalf("calculate() selected cluster %d commit %d, want cluster 7 commit 11",
+			result.ClusterID, result.HardStateInfo.Commit)
+	}
+}
+
+func TestConcurrentClusterInfoReceiverRejectsSplitConfiguration(t *testing.T) {
+	logger := log.NewLogger("raft.support.test")
+	response := func(clusterID uint64) *types.GetClusterInfoResponse {
+		return &types.GetClusterInfoResponse{
+			ChainID:   []byte("chain"),
+			ClusterID: clusterID,
+			MbrAttrs:  []*types.MemberAttr{{ID: clusterID, Name: "member"}},
+		}
+	}
+	receiver := &ConcurrentClusterInfoReceiver{
+		logger:       logger,
+		requiredResp: 2,
+		succResps: map[types.PeerID]*types.GetClusterInfoResponse{
+			types.RandomPeerID(): response(1),
+			types.RandomPeerID(): response(2),
+		},
+	}
+
+	if result := receiver.calculate(nil); result.Err == nil {
+		t.Fatal("calculate() accepted responses that disagree on cluster configuration")
+	}
+}
+
+func TestConcurrentClusterInfoReceiverRejectsSplitCheckpoint(t *testing.T) {
+	response := func(commit uint64) *types.GetClusterInfoResponse {
+		return &types.GetClusterInfoResponse{
+			ChainID:       []byte("chain"),
+			ClusterID:     1,
+			MbrAttrs:      []*types.MemberAttr{{ID: 1, Name: "member"}},
+			HardStateInfo: &types.HardStateInfo{Term: 1, Commit: commit},
+		}
+	}
+	receiver := &ConcurrentClusterInfoReceiver{
+		logger:       log.NewLogger("raft.support.test"),
+		requiredResp: 2,
+		succResps: map[types.PeerID]*types.GetClusterInfoResponse{
+			types.RandomPeerID(): response(10),
+			types.RandomPeerID(): response(11),
+		},
+	}
+
+	if result := receiver.calculate(nil); result.Err == nil {
+		t.Fatal("calculate() accepted responses that disagree on raft checkpoint")
 	}
 }

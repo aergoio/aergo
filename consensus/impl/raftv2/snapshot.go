@@ -107,7 +107,7 @@ func (chainsnap *ChainSnapshotter) createSnapshotData(cluster *Cluster, snapBloc
 
 // chainSnapshotter rece ives snapshot from http request
 // TODO replace rafthttp with p2p
-func (chainsnap *ChainSnapshotter) SaveFromRemote(r io.Reader, id uint64, msg raftpb.Message) (int64, error) {
+func (chainsnap *ChainSnapshotter) SaveFromRemote(r io.Reader, senderID uint64, msg raftpb.Message) (int64, error) {
 	defer RecoverExit()
 
 	if msg.Type != raftpb.MsgSnap {
@@ -117,10 +117,10 @@ func (chainsnap *ChainSnapshotter) SaveFromRemote(r io.Reader, id uint64, msg ra
 
 	// not return until block sync is complete
 	// receive chain & request sync & wait
-	return 0, chainsnap.syncSnap(&msg.Snapshot)
+	return 0, chainsnap.syncSnap(&msg.Snapshot, senderID)
 }
 
-func (chainsnap *ChainSnapshotter) syncSnap(snap *raftpb.Snapshot) error {
+func (chainsnap *ChainSnapshotter) syncSnap(snap *raftpb.Snapshot, senderID uint64) error {
 	var snapdata = &consensus.SnapshotData{}
 
 	err := snapdata.Decode(snap.Data)
@@ -133,7 +133,7 @@ func (chainsnap *ChainSnapshotter) syncSnap(snap *raftpb.Snapshot) error {
 	logger.Info().Str("snap", consensus.SnapToString(snap, snapdata)).Msg("start to sync snapshot")
 	// TODO	request sync for chain with snapshot.data
 	// wait to finish sync of chain
-	if err := chainsnap.requestSync(&snapdata.Chain); err != nil {
+	if err := chainsnap.requestSync(&snapdata.Chain, senderID); err != nil {
 		logger.Error().Err(err).Msg("failed to sync snapshot")
 		return err
 	}
@@ -153,12 +153,19 @@ func (chainsnap *ChainSnapshotter) checkPeerLive(peerID types.PeerID) bool {
 }
 
 // TODO handle error case that leader stops while synchronizing
-func (chainsnap *ChainSnapshotter) requestSync(snap *consensus.ChainSnapshot) error {
+func (chainsnap *ChainSnapshotter) requestSync(snap *consensus.ChainSnapshot, senderID uint64) error {
 
 	var leader uint64
 	getSyncLeader := func() (types.PeerID, error) {
 		var peerID types.PeerID
 		var err error
+
+		if senderID != HasNoLeader {
+			if peerID, err = chainsnap.cluster.getMemberPeerAddress(senderID); err == nil &&
+				chainsnap.checkPeerLive(peerID) {
+				return peerID, nil
+			}
+		}
 
 		for {
 			leader = chainsnap.getLeaderFunc()
@@ -170,7 +177,7 @@ func (chainsnap *ChainSnapshotter) requestSync(snap *consensus.ChainSnapshot) er
 					return "", err
 				}
 			} else {
-				peerID, err = chainsnap.cluster.Members().getMemberPeerAddress(leader)
+				peerID, err = chainsnap.cluster.getMemberPeerAddress(leader)
 				if err != nil {
 					logger.Error().Err(err).Str("leader", EtcdIDToString(leader)).Msg("can't get peeraddress of leader")
 					return "", err

@@ -96,7 +96,7 @@ func LoadKeyFile(keyFile string) (crypto.PrivKey, crypto.PubKey, error) {
 		}
 		return priv, priv.GetPublic(), nil
 	} else {
-		return nil, nil, fmt.Errorf("Invalid keyfile path '" + keyFile + "'. Check the key file exists.")
+		return nil, nil, fmt.Errorf("Invalid keyfile path '%s'. Check the key file exists.", keyFile)
 	}
 }
 

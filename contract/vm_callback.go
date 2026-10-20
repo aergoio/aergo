@@ -1382,7 +1382,6 @@ func luaDeployContract(
 	// increment the nonce of the creator
 	senderState.SetNonce(senderState.Nonce() + 1)
 
-	addr := C.CString(types.EncodeAddress(newContract.ID()))
 	ret = C.int(1)
 
 	if ce != nil {
@@ -1413,7 +1412,7 @@ func luaDeployContract(
 		}
 	}
 
-	return ret, addr
+	return ret, C.CString(types.EncodeAddress(newContract.ID()))
 }
 
 //export isPublic

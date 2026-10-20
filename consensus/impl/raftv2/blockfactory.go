@@ -34,10 +34,11 @@ var (
 )
 
 var (
-	ErrClusterNotReady      = errors.New("cluster is not ready")
-	ErrNotRaftLeader        = errors.New("this node is not leader")
-	ErrInvalidConsensusName = errors.New("invalid consensus name")
-	ErrCancelGenerate       = errors.New("cancel generating block because work becomes stale")
+	ErrClusterNotReady         = errors.New("cluster is not ready")
+	ErrNotRaftLeader           = errors.New("this node is not leader")
+	ErrInvalidConsensusName    = errors.New("invalid consensus name")
+	ErrCancelGenerate          = errors.New("cancel generating block because work becomes stale")
+	ErrUnauthorizedBlockSigner = errors.New("block signer is not a current raft member")
 )
 
 func init() {
@@ -228,6 +229,7 @@ func (bf *BlockFactory) newRaftServer(cfg *config.Config) error {
 
 	bf.bpc.rs = bf.raftServer
 	bf.raftOp.rs = bf.raftServer
+	bf.raftOp.leaderReadyFn = bf.isLeaderReady
 
 	return nil
 }
@@ -325,10 +327,17 @@ func (bf *BlockFactory) VerifySign(block *types.Block) error {
 
 // IsBlockValid checks the consensus level validity of a block.
 func (bf *BlockFactory) IsBlockValid(block *types.Block, bestBlock *types.Block) error {
-	// BlockFactory has no block valid check.
-	_, err := block.BPID()
+	producerID, err := block.BPID()
 	if err != nil {
 		return &consensus.ErrorConsensus{Msg: "bad public key in block", Err: err}
+	}
+	if bf.bpc != nil {
+		bf.bpc.Lock()
+		member := bf.bpc.Members().getMemberByPeerID(producerID)
+		bf.bpc.Unlock()
+		if member == nil {
+			return &consensus.ErrorConsensus{Msg: "unauthorized raft block signer", Err: ErrUnauthorizedBlockSigner}
+		}
 	}
 	return nil
 }
@@ -693,6 +702,9 @@ func (bf *BlockFactory) ConfChange(req *types.MembershipChange) (*consensus.Memb
 	if bf.bpc == nil {
 		return nil, ErrorMembershipChange{ErrClusterNotReady}
 	}
+	if req == nil || req.Attr == nil {
+		return nil, ErrorMembershipChange{consensus.ErrInvalidMemberAttr}
+	}
 
 	if !bf.raftServer.IsLeader() {
 		return nil, ErrorMembershipChange{ErrNotRaftLeader}
@@ -729,6 +741,9 @@ func (bf *BlockFactory) MakeConfChangeProposal(req *types.MembershipChange) (*co
 	if bf.bpc == nil {
 		return nil, ErrorMembershipChange{ErrClusterNotReady}
 	}
+	if req == nil || req.Attr == nil {
+		return nil, consensus.ErrInvalidMemberAttr
+	}
 
 	cl := bf.bpc
 
@@ -756,41 +771,47 @@ func (bf *BlockFactory) MakeConfChangeProposal(req *types.MembershipChange) (*co
 	return proposal, nil
 }
 
-// getHardStateOfBlock returns (term/commit) corresponding to best block hash.
-// To get hardstateinfo, it needs to search all raft indexes.
-func (bf *BlockFactory) getHardStateOfBlock(bestBlockHash []byte) (*types.HardStateInfo, error) {
-	var (
-		bestBlock *types.Block
-		err       error
-		hash      []byte
-	)
-	if bestBlock, err = bf.GetBlock(bestBlockHash); err != nil {
-		return nil, fmt.Errorf("block does not exist in chain")
+// getHardStateOfBlock returns only a checkpoint that represents the
+// requester's exact local best block. Pairing a newer raft index with an older
+// backup fabricates applied state and can let the recovering node vote or lead
+// before its chain reaches that index. Callers that still need to recover from
+// an older backup must sync the chain forward to a tip that still has an exact
+// checkpoint, then retry.
+func (bf *BlockFactory) getHardStateOfBlock(requesterBestHash []byte) (*types.HardStateInfo, error) {
+	requesterBlock, err := bf.GetBlock(requesterBestHash)
+	if err != nil {
+		return nil, fmt.Errorf("requested backup block %s is not in provider chain: %w",
+			base58.Encode(requesterBestHash), err)
 	}
 
-	entry, err := bf.ChainWAL.GetRaftEntryOfBlock(bestBlockHash)
-	if err == nil {
-		logger.Debug().Uint64("term", entry.Term).Uint64("commit", entry.Index).Msg("get hardstate of block")
-
+	if entry, err := bf.ChainWAL.GetRaftEntryOfBlock(requesterBestHash); err == nil &&
+		entry.Type == consensus.EntryBlock && entry.Term > 0 && entry.Index > 0 &&
+		bytes.Equal(entry.Data, requesterBestHash) {
+		logger.Debug().Uint64("term", entry.Term).Uint64("commit", entry.Index).Msg("get exact hardstate of backup block")
 		return &types.HardStateInfo{Term: entry.Term, Commit: entry.Index}, nil
 	}
 
-	logger.Warn().Uint64("request no", bestBlock.BlockNo()).Msg("can't find raft entry for requested hash. so try to find closest raft entry.")
-
-	// find best hash mapping (no < bestBlock no)
-	for i := bestBlock.BlockNo() - 1; i >= 1; i-- {
-		if hash, err = bf.GetHashByNo(i); err == nil {
-			if entry, err = bf.ChainWAL.GetRaftEntryOfBlock(hash); err == nil {
-				logger.Debug().Str("entry", entry.ToString()).Msg("find best closest entry")
-				return &types.HardStateInfo{Term: entry.Term, Commit: entry.Index}, nil
-			}
+	// A compacted WAL is still safe when its persisted snapshot names this
+	// exact block. Any newer snapshot belongs to application state the
+	// requester does not yet have and must not be used to reset its WAL.
+	if snap, err := bf.ChainWAL.GetSnapshot(); err == nil && snap != nil {
+		var data consensus.SnapshotData
+		if snap.Metadata.Term > 0 && snap.Metadata.Index > 0 &&
+			data.Decode(snap.Data) == nil &&
+			data.Chain.No == requesterBlock.BlockNo() &&
+			bytes.Equal(data.Chain.Hash, requesterBestHash) {
+			logger.Debug().Uint64("term", snap.Metadata.Term).Uint64("commit", snap.Metadata.Index).Msg("get exact hardstate from matching snapshot")
+			return &types.HardStateInfo{Term: snap.Metadata.Term, Commit: snap.Metadata.Index}, nil
 		}
 	}
 
-	return nil, fmt.Errorf("not exist proper raft entry for requested hash")
+	return nil, fmt.Errorf("backup block %d (%s) is older than retained raft history; sync chain forward then retry",
+		requesterBlock.BlockNo(), base58.Encode(requesterBestHash))
 }
 
-// ClusterInfo returns members of cluster and hardstate info corresponding to best block hash
+// ClusterInfo returns members of cluster and hardstate info corresponding to best block hash.
+// Hardstate lookup failures are non-fatal so a recovering node can still learn membership,
+// sync the missing chain delta, and retry for an exact checkpoint.
 func (bf *BlockFactory) ClusterInfo(bestBlockHash []byte) *types.GetClusterInfoResponse {
 	var (
 		hardStateInfo *types.HardStateInfo
@@ -803,18 +824,19 @@ func (bf *BlockFactory) ClusterInfo(bestBlockHash []byte) *types.GetClusterInfoR
 		return &types.GetClusterInfoResponse{Error: ErrClusterNotReady.Error()}
 	}
 
-	if bestBlockHash != nil {
-		if hardStateInfo, err = bf.getHardStateOfBlock(bestBlockHash); err != nil {
-			return &types.GetClusterInfoResponse{Error: err.Error()}
-		}
-	}
-
 	if mbrAttrs, err = bf.bpc.getMemberAttrs(); err != nil {
 		return &types.GetClusterInfoResponse{Error: err.Error()}
 	}
 
 	if bestBlock, err = bf.GetBestBlock(); err != nil {
 		return &types.GetClusterInfoResponse{Error: err.Error()}
+	}
+
+	if bestBlockHash != nil {
+		if hardStateInfo, err = bf.getHardStateOfBlock(bestBlockHash); err != nil {
+			logger.Warn().Err(err).Str("hash", base58.Encode(bestBlockHash)).
+				Msg("exact hardstate unavailable; returning cluster membership without hardstate")
+		}
 	}
 
 	return &types.GetClusterInfoResponse{ChainID: bf.bpc.chainID, ClusterID: bf.bpc.ClusterID(), MbrAttrs: mbrAttrs, BestBlockNo: bestBlock.BlockNo(), HardStateInfo: hardStateInfo}
@@ -847,6 +869,8 @@ type RaftOperator struct {
 	cl *Cluster
 	rs *raftServer
 
+	leaderReadyFn func() (bool, uint64)
+
 	proposed *Proposed
 }
 
@@ -861,6 +885,25 @@ func (rop *RaftOperator) propose(block *types.Block, blockState *state.BlockStat
 	if !rop.rs.IsLeaderOfTerm(term) {
 		logger.Info().Msg("dropped produced block because this bp became no longer leader")
 		return ErrNotRaftLeader
+	}
+
+	raftTerm := rop.rs.Status().Term
+	if term != raftTerm {
+		logger.Debug().Uint64("work", term).Uint64("raft", raftTerm).Msg("dropped block proposal with stale work term")
+		return ErrNotRaftLeader
+	}
+
+	if rop.leaderReadyFn != nil {
+		if ready, readyTerm := rop.leaderReadyFn(); !ready || readyTerm != raftTerm {
+			logger.Debug().Uint64("raft", raftTerm).Msg("dropped block proposal because leader is not ready")
+			return ErrNotRaftLeader
+		}
+	}
+
+	lastReq := rop.rs.commitProgress.GetRequest()
+	if lastReq != nil && lastReq.block != nil && lastReq.block.BlockNo() >= block.BlockNo() {
+		logger.Debug().Uint64("no", block.BlockNo()).Uint64("last", lastReq.block.BlockNo()).Msg("dropped duplicate height block proposal")
+		return ErrCancelGenerate
 	}
 
 	debugRaftProposeSleep()

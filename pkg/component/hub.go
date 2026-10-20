@@ -30,6 +30,7 @@ type ICompSyncRequester interface {
 // ComponentHub keeps a list of registered components
 type ComponentHub struct {
 	components map[string]IComponent
+	order      []IComponent
 	spanLock   sync.Mutex
 	spans      map[string]*opentracing.Span
 }
@@ -98,10 +99,15 @@ func (hub *ComponentHub) Start() {
 	hubInit.end()
 }
 
-// Stop invokes stop funcs of registered components at this hub
+// Stop invokes stop funcs of registered components at this hub in
+// reverse-registration order. Callers should therefore Register
+// components in dependency order (a component that others depend on
+// first), so Stop tears them down in the opposite order. In particular
+// ChainService should be registered first so it is stopped last, after
+// every component that may still talk to it has been drained.
 func (hub *ComponentHub) Stop() {
-	for _, comp := range hub.components {
-		comp.Stop()
+	for i := len(hub.order) - 1; i >= 0; i-- {
+		hub.order[i].Stop()
 	}
 }
 
@@ -110,6 +116,7 @@ func (hub *ComponentHub) Register(components ...IComponent) {
 	for _, component := range components {
 		if component != nil {
 			hub.components[component.GetName()] = component
+			hub.order = append(hub.order, component)
 			component.SetHub(hub)
 		}
 	}

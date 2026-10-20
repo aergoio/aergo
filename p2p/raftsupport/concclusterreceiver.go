@@ -6,6 +6,9 @@
 package raftsupport
 
 import (
+	"crypto/sha256"
+	"encoding/json"
+	"sort"
 	"strconv"
 	"sync"
 	"time"
@@ -157,10 +160,17 @@ func (r *ConcurrentClusterInfoReceiver) handleInWaiting(peer p2pcommon.RemotePee
 	// remote peer response malformed data.
 	body, ok := msgBody.(*types.GetClusterInfoResponse)
 	if !ok {
-		r.logger.Debug().Str(p2putil.LogPeerName, peer.Name()).Stringer(p2putil.LogMsgID, msg.ID()).Msg("get cluster invalid response data")
+		r.logger.Warn().Str(p2putil.LogPeerName, peer.Name()).Stringer(p2putil.LogMsgID, msg.ID()).Msg("get cluster invalid response data")
 		return
-	} else if len(body.MbrAttrs) == 0 || body.Error != "" {
-		r.logger.Debug().Str(p2putil.LogPeerName, peer.Name()).Stringer(p2putil.LogMsgID, msg.ID()).Err(errors.New(body.Error)).Msg("get cluster response empty member")
+	} else if body.Error != "" {
+		// Surface the remote peer's rejection reason at WARN so operators
+		// can diagnose why ImportExistingCluster failed. Previously this
+		// was logged at DEBUG, so a "too few responses" fatal elsewhere
+		// gave no hint about the actual cause (e.g. raft entry pruned).
+		r.logger.Warn().Str(p2putil.LogPeerName, peer.Name()).Stringer(p2putil.LogMsgID, msg.ID()).Str("err", body.Error).Msg("get cluster response returned error from peer")
+		return
+	} else if len(body.MbrAttrs) == 0 {
+		r.logger.Warn().Str(p2putil.LogPeerName, peer.Name()).Stringer(p2putil.LogMsgID, msg.ID()).Msg("get cluster response has empty member list")
 		return
 	}
 
@@ -198,6 +208,63 @@ func (r *ConcurrentClusterInfoReceiver) ignoreMsg(msg p2pcommon.Message, msgBody
 	// nothing to do for now
 }
 
+func clusterConfigFingerprint(resp *types.GetClusterInfoResponse) ([sha256.Size]byte, error) {
+	type canonicalMember struct {
+		ID      uint64
+		Name    string
+		Address string
+		PeerID  []byte
+	}
+	type canonicalCluster struct {
+		ChainID      []byte
+		ClusterID    uint64
+		Members      []canonicalMember
+		HasHardState bool
+		Term         uint64
+		Commit       uint64
+	}
+
+	cluster := canonicalCluster{
+		ChainID:   resp.ChainID,
+		ClusterID: resp.ClusterID,
+		Members:   make([]canonicalMember, len(resp.MbrAttrs)),
+	}
+	if resp.HardStateInfo != nil {
+		cluster.HasHardState = true
+		cluster.Term = resp.HardStateInfo.Term
+		cluster.Commit = resp.HardStateInfo.Commit
+	}
+	for i, member := range resp.MbrAttrs {
+		if member == nil {
+			return [sha256.Size]byte{}, errors.New("nil member in cluster response")
+		}
+		cluster.Members[i] = canonicalMember{
+			ID:      member.ID,
+			Name:    member.Name,
+			Address: member.Address,
+			PeerID:  member.PeerID,
+		}
+	}
+	sort.Slice(cluster.Members, func(i, j int) bool {
+		if cluster.Members[i].ID != cluster.Members[j].ID {
+			return cluster.Members[i].ID < cluster.Members[j].ID
+		}
+		if cluster.Members[i].Name != cluster.Members[j].Name {
+			return cluster.Members[i].Name < cluster.Members[j].Name
+		}
+		if cluster.Members[i].Address != cluster.Members[j].Address {
+			return cluster.Members[i].Address < cluster.Members[j].Address
+		}
+		return string(cluster.Members[i].PeerID) < string(cluster.Members[j].PeerID)
+	})
+
+	encoded, err := json.Marshal(cluster)
+	if err != nil {
+		return [sha256.Size]byte{}, err
+	}
+	return sha256.Sum256(encoded), nil
+}
+
 func (r *ConcurrentClusterInfoReceiver) calculate(err error) *message.GetClusterRsp {
 	rsp := &message.GetClusterRsp{}
 	if err != nil {
@@ -206,23 +273,37 @@ func (r *ConcurrentClusterInfoReceiver) calculate(err error) *message.GetCluster
 		rsp.Err = errors.New("too few responses: " + strconv.Itoa(len(r.succResps)) + " , required " + strconv.Itoa(r.requiredResp))
 	} else {
 		r.logger.Debug().Int("respCnt", len(r.succResps)).Msg("calculating collected responses")
-		var bestRsp *types.GetClusterInfoResponse = nil
-		var bestPid types.PeerID
-		for peerId, rsp := range r.succResps {
-			if bestRsp == nil || rsp.BestBlockNo > bestRsp.BestBlockNo {
-				bestRsp = rsp
-				bestPid = peerId
+		groups := make(map[[sha256.Size]byte][]*types.GetClusterInfoResponse)
+		for pid, peerRsp := range r.succResps {
+			fingerprint, ferr := clusterConfigFingerprint(peerRsp)
+			if ferr != nil {
+				r.logger.Warn().Stringer(p2putil.LogPeerID, types.LogPeerShort(pid)).Err(ferr).Msg("ignored invalid cluster response")
+				continue
+			}
+			groups[fingerprint] = append(groups[fingerprint], peerRsp)
+		}
+
+		var agreeing []*types.GetClusterInfoResponse
+		for _, group := range groups {
+			if len(group) > len(agreeing) {
+				agreeing = group
 			}
 		}
-		if bestRsp != nil {
-			r.logger.Debug().Stringer(p2putil.LogPeerID, types.LogPeerShort(bestPid)).Object("resp", bestRsp).Msg("chose best response")
-			rsp.ClusterID = bestRsp.GetClusterID()
-			rsp.ChainID = bestRsp.GetChainID()
-			rsp.Members = bestRsp.GetMbrAttrs()
-			rsp.HardStateInfo = bestRsp.HardStateInfo
-		} else {
-			rsp.Err = errors.New("no successful responses")
+		if len(agreeing) < r.requiredResp {
+			rsp.Err = errors.New("too few peers agree on cluster configuration and checkpoint")
+			return rsp
 		}
+
+		selected := agreeing[0]
+		for _, candidate := range agreeing[1:] {
+			if candidate.BestBlockNo > selected.BestBlockNo {
+				selected = candidate
+			}
+		}
+		rsp.ClusterID = selected.GetClusterID()
+		rsp.ChainID = selected.GetChainID()
+		rsp.Members = selected.GetMbrAttrs()
+		rsp.HardStateInfo = selected.HardStateInfo
 	}
 	return rsp
 }

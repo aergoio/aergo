@@ -519,7 +519,7 @@ func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 			account := tx.GetBody().GetAccount()
 			recipient := tx.GetBody().GetRecipient()
 			if tx.HasNameAccount() {
-				account = mp.getOwner(account) // it's for the case that tx sender is named smart contract
+				account = mp.getAddress(account)
 			}
 			if tx.HasNameRecipient() {
 				recipient = mp.getAddress(recipient)

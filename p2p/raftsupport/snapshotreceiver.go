@@ -21,7 +21,8 @@ import (
 )
 
 const (
-	SnapRespHeaderLength = 4
+	SnapRespHeaderLength       = 4
+	maxSnapshotRaftMessageSize = 16 * 1024 * 1024
 )
 
 // TODO consider the scope of type
@@ -42,9 +43,10 @@ func (s *snapshotReceiver) Receive() {
 	defer s.sendResp(s.rwc, resp)
 
 	dec := &RaftMsgDecoder{r: s.rwc}
-	// let snapshots be very large since they can exceed 512MB for large installations
-	m, err := dec.DecodeLimit(uint64(1 << 63))
-	from := rtypes.ID(m.From).String()
+	// Only the raft message envelope is decoded here. The potentially large
+	// database snapshot follows as a stream and must not influence this
+	// allocation limit.
+	m, err := dec.DecodeLimit(maxSnapshotRaftMessageSize)
 	if err != nil {
 		s.logger.Error().Str(p2putil.LogPeerName, s.peer.Name()).Err(err).Msg("failed to decode raft message")
 		resp.Status = types.ResultStatus_INVALID_ARGUMENT
@@ -55,6 +57,7 @@ func (s *snapshotReceiver) Receive() {
 		return
 	}
 
+	from := rtypes.ID(m.From).String()
 	//receivedBytes.WithLabelValues(from).Add(float64(m.Size()))
 
 	if m.Type != raftpb.MsgSnap {
@@ -67,9 +70,16 @@ func (s *snapshotReceiver) Receive() {
 		return
 	}
 
+	if err := s.rAcc.ValidateMessage(s.peer.ID(), m); err != nil {
+		s.logger.Warn().Str(p2putil.LogPeerName, s.peer.Name()).Err(err).Msg("rejected snapshot from unauthorized raft sender")
+		resp.Status = types.ResultStatus_PERMISSION_DENIED
+		resp.Message = "unauthorized raft sender"
+		return
+	}
+
 	s.logger.Info().Uint64("index", m.Snapshot.Metadata.Index).Str("from", from).Msg("receiving database snapshot")
 	// save incoming database snapshot.
-	_, err = s.rAcc.SaveFromRemote(s.rwc, m.Snapshot.Metadata.Index, m)
+	_, err = s.rAcc.SaveFromRemote(s.rwc, m.From, m)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("failed to save KV snapshot")
 		resp.Status = types.ResultStatus_INTERNAL
