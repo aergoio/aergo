@@ -172,19 +172,6 @@ func (bh *newBlockNoticeHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon
 	}
 }
 
-func max(a, b uint32) uint32 {
-	if a > b {
-		return a
-	}
-	return b
-}
-func min(a, b uint32) uint32 {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 // newGetAncestorReqHandler creates handler for GetAncestorRequest
 func NewGetAncestorReqHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService) *getAncestorRequestHandler {
 	bh := &getAncestorRequestHandler{BaseMsgHandler{protocol: p2pcommon.GetAncestorRequest, pm: pm, peer: peer, actor: actor, logger: logger}, newAsyncHelper()}
