@@ -204,7 +204,7 @@ func generateKeyJson(priv crypto.PrivKey, pub crypto.PubKey) error {
 		return err
 	}
 
-	fmt.Printf(string(jsonMarshalled))
+	fmt.Print(string(jsonMarshalled))
 
 	return nil
 }
