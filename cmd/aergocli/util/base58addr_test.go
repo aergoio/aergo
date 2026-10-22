@@ -3,7 +3,7 @@ package util
 import (
 	"testing"
 
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/mr-tron/base58/base58"
 	"github.com/stretchr/testify/assert"
 )

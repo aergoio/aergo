@@ -11,7 +11,7 @@ package context
 import (
 	"strconv"
 
-	"github.com/aergoio/aergo/contract"
+	"github.com/aergoio/aergo/v2/contract"
 )
 
 var CurrentCtx *context

@@ -8,16 +8,17 @@ package p2p
 import (
 	"bytes"
 	"encoding/binary"
-	"github.com/aergoio/aergo-lib/log"
-	"github.com/libp2p/go-libp2p-core/crypto"
 	"net"
 	"testing"
 	"time"
 
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2pmock"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo-lib/log"
+	"github.com/libp2p/go-libp2p-core/crypto"
+
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2pmock"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/gofrs/uuid"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"

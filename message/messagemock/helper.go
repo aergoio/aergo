@@ -5,7 +5,7 @@
 package messagemock
 
 import (
-	types "github.com/aergoio/aergo/types"
+	types "github.com/aergoio/aergo/v2/types"
 	gomock "github.com/golang/mock/gomock"
 	reflect "reflect"
 )

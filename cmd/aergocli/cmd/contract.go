@@ -10,12 +10,12 @@ import (
 	"math/big"
 	"strconv"
 
-	"github.com/aergoio/aergo/cmd/aergocli/util"
-	luacEncoding "github.com/aergoio/aergo/cmd/aergoluac/encoding"
-	luac "github.com/aergoio/aergo/cmd/aergoluac/util"
-	"github.com/aergoio/aergo/internal/common"
-	"github.com/aergoio/aergo/types"
-	aergorpc "github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
+	luacEncoding "github.com/aergoio/aergo/v2/cmd/aergoluac/encoding"
+	luac "github.com/aergoio/aergo/v2/cmd/aergoluac/util"
+	"github.com/aergoio/aergo/v2/internal/common"
+	"github.com/aergoio/aergo/v2/types"
+	aergorpc "github.com/aergoio/aergo/v2/types"
 	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
 )

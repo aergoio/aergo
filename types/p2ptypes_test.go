@@ -6,11 +6,12 @@
 package types
 
 import (
-	"github.com/aergoio/aergo/internal/network"
-	"github.com/multiformats/go-multiaddr"
 	"net"
 	"reflect"
 	"testing"
+
+	"github.com/aergoio/aergo/v2/internal/network"
+	"github.com/multiformats/go-multiaddr"
 )
 
 func TestParseMultiaddrWithResolve(t *testing.T) {

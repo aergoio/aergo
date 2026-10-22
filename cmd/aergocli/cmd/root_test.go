@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/aergoio/aergo/cmd/aergocli/cmd/mock_types"
-	"github.com/aergoio/aergo/cmd/aergocli/util"
+	"github.com/aergoio/aergo/v2/cmd/aergocli/cmd/mock_types"
+	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
 	"github.com/golang/mock/gomock"
 	"github.com/spf13/cobra"
 )

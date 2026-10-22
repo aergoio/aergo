@@ -2,11 +2,12 @@ package syncer
 
 import (
 	"fmt"
-	"github.com/aergoio/aergo/chain"
 	"testing"
 	"time"
 
-	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/v2/chain"
+
+	"github.com/aergoio/aergo/v2/message"
 	"github.com/stretchr/testify/assert"
 )
 

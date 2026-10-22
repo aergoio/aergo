@@ -3,17 +3,18 @@ package p2p
 import (
 	"container/list"
 	"fmt"
-	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/p2p/subproto"
-	"github.com/aergoio/aergo/types"
-	"github.com/golang/protobuf/proto"
-	lru "github.com/hashicorp/golang-lru"
 	"runtime/debug"
 	"sort"
 	"time"
+
+	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+	"github.com/aergoio/aergo/v2/p2p/subproto"
+	"github.com/aergoio/aergo/v2/types"
+	"github.com/golang/protobuf/proto"
+	lru "github.com/hashicorp/golang-lru"
 )
 
 const minimumTxQueryInterval = time.Second >> 1

@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 
-	"github.com/aergoio/aergo/contract"
+	"github.com/aergoio/aergo/v2/contract"
 )
 
 func main() {

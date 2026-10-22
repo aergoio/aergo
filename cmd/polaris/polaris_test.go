@@ -1,11 +1,11 @@
 package main
 
 import (
-	"github.com/aergoio/aergo/polaris/common"
+	"github.com/aergoio/aergo/v2/polaris/common"
 	_ "net/http/pprof"
 	"testing"
 
-	"github.com/aergoio/aergo/config"
+	"github.com/aergoio/aergo/v2/config"
 )
 
 func Test_arrangeDefaultCfgForPolaris(t *testing.T) {

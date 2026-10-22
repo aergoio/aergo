@@ -15,13 +15,13 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-lib/db"
-	"github.com/aergoio/aergo/cmd/aergoluac/util"
-	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/contract/system"
-	"github.com/aergoio/aergo/fee"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/cmd/aergoluac/util"
+	"github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/contract/system"
+	"github.com/aergoio/aergo/v2/fee"
+	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
 	sha256 "github.com/minio/sha256-simd"
 )
 

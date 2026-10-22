@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	crypto "github.com/aergoio/aergo/account/key/crypto"
-	"github.com/aergoio/aergo/types"
+	crypto "github.com/aergoio/aergo/v2/account/key/crypto"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/btcsuite/btcd/btcec"
 )
 

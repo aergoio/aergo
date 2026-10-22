@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aergoio/aergo/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/assert"
 )

@@ -6,16 +6,17 @@
 package types
 
 import (
-	"github.com/aergoio/aergo/internal/network"
+	"net"
+	"strconv"
+	"strings"
+
+	"github.com/aergoio/aergo/v2/internal/network"
 	core "github.com/libp2p/go-libp2p-core"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/test"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/pkg/errors"
-	"net"
-	"strconv"
-	"strings"
 )
 
 // ProducerID is identifier of block producer. It is same format with the PeerID at version 1.x, but might be changed to other format later.

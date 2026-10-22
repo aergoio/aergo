@@ -6,7 +6,7 @@
 package p2putil
 
 import (
-	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/golang/protobuf/proto"
 )
 

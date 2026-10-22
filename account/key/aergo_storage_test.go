@@ -11,7 +11,7 @@ import (
 	"reflect"
 	"testing"
 
-	crypto "github.com/aergoio/aergo/account/key/crypto"
+	crypto "github.com/aergoio/aergo/v2/account/key/crypto"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/stretchr/testify/assert"
 )

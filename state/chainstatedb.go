@@ -6,10 +6,10 @@ import (
 	"sync"
 
 	"github.com/aergoio/aergo-lib/db"
-	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/internal/common"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/internal/common"
+	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 // ChainStateDB manages statedb and additional informations about blocks like a state root hash

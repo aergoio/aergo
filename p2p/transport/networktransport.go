@@ -7,21 +7,22 @@ package transport
 
 import (
 	"context"
-	network2 "github.com/aergoio/aergo/internal/network"
-	"github.com/aergoio/aergo/types"
-	core "github.com/libp2p/go-libp2p-core"
-	"github.com/libp2p/go-libp2p-core/network"
 	"sync"
 	"time"
 
+	network2 "github.com/aergoio/aergo/v2/internal/network"
+	"github.com/aergoio/aergo/v2/types"
+	core "github.com/libp2p/go-libp2p-core"
+	"github.com/libp2p/go-libp2p-core/network"
+
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2pkey"
-	"github.com/aergoio/aergo/p2p/p2putil"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2pkey"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-peerstore/pstoremem"
 
-	cfg "github.com/aergoio/aergo/config"
+	cfg "github.com/aergoio/aergo/v2/config"
 	"github.com/libp2p/go-libp2p"
 	pstore "github.com/libp2p/go-libp2p-peerstore"
 	ma "github.com/multiformats/go-multiaddr"

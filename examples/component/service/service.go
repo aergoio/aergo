@@ -10,8 +10,8 @@ import (
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/examples/component/message"
-	"github.com/aergoio/aergo/pkg/component"
+	"github.com/aergoio/aergo/v2/examples/component/message"
+	"github.com/aergoio/aergo/v2/pkg/component"
 )
 
 type ExampleService struct {

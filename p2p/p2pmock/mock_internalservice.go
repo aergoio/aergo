@@ -5,9 +5,9 @@
 package p2pmock
 
 import (
-	consensus "github.com/aergoio/aergo/consensus"
-	p2pcommon "github.com/aergoio/aergo/p2p/p2pcommon"
-	types "github.com/aergoio/aergo/types"
+	consensus "github.com/aergoio/aergo/v2/consensus"
+	p2pcommon "github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	types "github.com/aergoio/aergo/v2/types"
 	gomock "github.com/golang/mock/gomock"
 	reflect "reflect"
 )

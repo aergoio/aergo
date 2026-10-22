@@ -13,7 +13,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 func skipNotOnAmd64(t *testing.T) {

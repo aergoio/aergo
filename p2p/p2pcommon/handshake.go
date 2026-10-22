@@ -8,7 +8,7 @@ package p2pcommon
 import (
 	"context"
 	"encoding/binary"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/types"
 	"io"
 	"time"
 )

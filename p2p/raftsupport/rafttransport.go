@@ -6,12 +6,18 @@
 package raftsupport
 
 import (
+	"io"
+	"net/http"
+	"strconv"
+	"sync"
+	"time"
+
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/consensus/impl/raftv2"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/consensus/impl/raftv2"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/etcd/etcdserver/stats"
 	rtypes "github.com/aergoio/etcd/pkg/types"
 	"github.com/aergoio/etcd/raft"
@@ -19,11 +25,6 @@ import (
 	"github.com/aergoio/etcd/snap"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/pkg/errors"
-	"io"
-	"net/http"
-	"strconv"
-	"sync"
-	"time"
 )
 
 // errors

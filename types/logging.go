@@ -1,7 +1,7 @@
 package types
 
 import (
-	"github.com/aergoio/aergo/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/rs/zerolog"
 )
 

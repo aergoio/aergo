@@ -2,9 +2,10 @@ package p2pcommon
 
 import (
 	"errors"
-	"github.com/aergoio/aergo/types"
-	"github.com/btcsuite/btcd/btcec"
 	"time"
+
+	"github.com/aergoio/aergo/v2/types"
+	"github.com/btcsuite/btcd/btcec"
 )
 
 var (
@@ -72,4 +73,4 @@ type CertificateManager interface {
 
 	CanHandle(bpID types.PeerID) bool
 }
-//go:generate sh -c "mockgen github.com/aergoio/aergo/p2p/p2pcommon CertificateManager | sed -e 's/^package mock_p2pcommon/package p2pmock/g' > ../p2pmock/mock_certificate.go"
+//go:generate sh -c "mockgen github.com/aergoio/aergo/v2/p2p/p2pcommon CertificateManager | sed -e 's/^package mock_p2pcommon/package p2pmock/g' > ../p2pmock/mock_certificate.go"

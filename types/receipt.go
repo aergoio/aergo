@@ -10,8 +10,8 @@ import (
 	"reflect"
 	"strconv"
 
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/internal/merkle"
+	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/merkle"
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/minio/sha256-simd"
 	"github.com/willf/bloom"

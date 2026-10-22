@@ -1,13 +1,14 @@
 package syncer
 
 import (
-	"github.com/aergoio/aergo/chain"
-	"github.com/aergoio/aergo/p2p/p2putil"
 	"runtime/debug"
 
+	"github.com/aergoio/aergo/v2/chain"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+
 	"github.com/aergoio/aergo-lib/log"
-	cfg "github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/pkg/component"
+	cfg "github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/pkg/component"
 
 	"fmt"
 	"reflect"
@@ -15,8 +16,8 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-actor/actor"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/pkg/errors"
 )
 

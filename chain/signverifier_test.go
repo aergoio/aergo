@@ -5,9 +5,9 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/aergoio/aergo/account/key"
-	crypto "github.com/aergoio/aergo/account/key/crypto"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/account/key"
+	crypto "github.com/aergoio/aergo/v2/account/key/crypto"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/stretchr/testify/assert"
 )
