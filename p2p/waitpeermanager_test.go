@@ -7,17 +7,17 @@ package p2p
 
 import (
 	"errors"
-	network2 "github.com/aergoio/aergo/internal/network"
-	"github.com/aergoio/aergo/p2p/list"
-	"github.com/aergoio/aergo/p2p/p2putil"
+	network2 "github.com/aergoio/aergo/v2/internal/network"
+	"github.com/aergoio/aergo/v2/p2p/list"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
 	"net"
 	"testing"
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2pmock"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2pmock"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/golang/mock/gomock"
 	"github.com/libp2p/go-libp2p-core/network"
 )

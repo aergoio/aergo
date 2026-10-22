@@ -1,6 +1,6 @@
 package util
 
-import "github.com/aergoio/aergo/types"
+import "github.com/aergoio/aergo/v2/types"
 
 type EncodingType int
 

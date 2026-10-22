@@ -12,9 +12,9 @@ import (
 	"reflect"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
 	rb "github.com/emirpasic/gods/trees/redblacktree"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/sanity-io/litter"

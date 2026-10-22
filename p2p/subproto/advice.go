@@ -6,11 +6,12 @@
 package subproto
 
 import (
-	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/rs/zerolog"
 	"time"
+
+	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+	"github.com/rs/zerolog"
 )
 
 func WithTimeLog(handler p2pcommon.MessageHandler, logger *log.Logger, level zerolog.Level) p2pcommon.MessageHandler {

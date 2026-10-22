@@ -7,8 +7,9 @@ package message
 
 import (
 	"fmt"
-	"github.com/aergoio/aergo/types"
 	"time"
+
+	"github.com/aergoio/aergo/v2/types"
 )
 
 const P2PSvc = "p2pSvc"

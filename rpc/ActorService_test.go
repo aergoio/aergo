@@ -6,7 +6,7 @@ import (
 	"time"
 )
 import (
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/types"
 	mock "github.com/stretchr/testify/mock"
 )
 

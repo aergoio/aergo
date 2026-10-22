@@ -6,10 +6,11 @@
 package p2putil
 
 import (
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/types"
 	"testing"
 	"time"
+
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 func TestClosedChannel(t *testing.T) {

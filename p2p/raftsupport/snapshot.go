@@ -6,9 +6,10 @@
 package raftsupport
 
 import (
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/etcd/snap"
 	"io"
+
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/etcd/snap"
 )
 
 // SnapshotIOFactory create SnapshotSender or SnapshotReceiver for a peer

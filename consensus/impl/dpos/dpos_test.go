@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aergoio/aergo/consensus/impl/dpos/slot"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/consensus/impl/dpos/slot"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/stretchr/testify/assert"
 )
 

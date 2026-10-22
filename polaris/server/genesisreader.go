@@ -8,8 +8,9 @@ package server
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/aergoio/aergo/types"
 	"os"
+
+	"github.com/aergoio/aergo/v2/types"
 )
 
 // readGenesis is based on code in cmd/aergosvr/cmd.go .

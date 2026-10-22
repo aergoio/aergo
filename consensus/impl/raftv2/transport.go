@@ -6,13 +6,14 @@
 package raftv2
 
 import (
-	"github.com/aergoio/aergo/types"
+	"net/http"
+	"time"
+
+	"github.com/aergoio/aergo/v2/types"
 	rtypes "github.com/aergoio/etcd/pkg/types"
 	"github.com/aergoio/etcd/raft/raftpb"
 	"github.com/aergoio/etcd/rafthttp"
 	"github.com/aergoio/etcd/snap"
-	"net/http"
-	"time"
 )
 
 type Transporter interface {

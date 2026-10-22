@@ -20,7 +20,7 @@ import (
 	"runtime"
 	"unsafe"
 
-	"github.com/aergoio/aergo/cmd/aergoluac/encoding"
+	"github.com/aergoio/aergo/v2/cmd/aergoluac/encoding"
 )
 
 func NewLState() *C.lua_State {

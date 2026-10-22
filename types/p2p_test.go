@@ -8,10 +8,11 @@ package types
 import (
 	"encoding/hex"
 	"fmt"
-	"github.com/aergoio/aergo/internal/enc"
+	"testing"
+
+	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestUnmarshalSize(t *testing.T) {

@@ -3,9 +3,9 @@ package state
 import (
 	"sort"
 
-	"github.com/aergoio/aergo/internal/common"
-	"github.com/aergoio/aergo/pkg/trie"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/internal/common"
+	"github.com/aergoio/aergo/v2/pkg/trie"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/golang/protobuf/proto"
 )
 

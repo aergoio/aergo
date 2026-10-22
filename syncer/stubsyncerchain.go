@@ -2,9 +2,9 @@ package syncer
 
 import (
 	"fmt"
-	"github.com/aergoio/aergo/chain"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/chain"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/types"
 	"time"
 )
 

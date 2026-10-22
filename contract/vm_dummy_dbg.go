@@ -3,8 +3,9 @@
 package contract
 
 import (
-	luacUtil "github.com/aergoio/aergo/cmd/aergoluac/util"
 	"math/big"
+
+	luacUtil "github.com/aergoio/aergo/v2/cmd/aergoluac/util"
 )
 
 func getCompiledABI(code string) ([]byte, error) {

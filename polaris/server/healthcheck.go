@@ -6,12 +6,12 @@
 package server
 
 import (
-	"github.com/aergoio/aergo/polaris/common"
+	"github.com/aergoio/aergo/v2/polaris/common"
 	"sync"
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 )
 
 type HealthCheckManager interface {

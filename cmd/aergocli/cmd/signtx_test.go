@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aergoio/aergo/cmd/aergocli/util"
-	"github.com/aergoio/aergo/cmd/aergocli/util/encoding/json"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
+	"github.com/aergoio/aergo/v2/cmd/aergocli/util/encoding/json"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/mr-tron/base58/base58"
 	"github.com/stretchr/testify/assert"
 )

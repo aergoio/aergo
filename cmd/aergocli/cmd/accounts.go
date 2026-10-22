@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/aergoio/aergo/account/key"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/account/key"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
 )

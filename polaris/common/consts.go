@@ -5,7 +5,7 @@
 
 package common
 
-import "github.com/aergoio/aergo/types"
+import "github.com/aergoio/aergo/v2/types"
 
 var (
 	// 89.16 is ceiling of declination of Polaris

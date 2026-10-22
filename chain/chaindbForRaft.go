@@ -6,8 +6,8 @@ import (
 	"encoding/gob"
 	"errors"
 	"github.com/aergoio/aergo-lib/db"
-	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/etcd/raft/raftpb"
 	"github.com/golang/protobuf/proto"
 )

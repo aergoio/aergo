@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aergoio/aergo/contract/system"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/contract/system"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 // txList is internal struct for transactions per account

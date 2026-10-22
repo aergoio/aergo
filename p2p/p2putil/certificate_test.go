@@ -2,14 +2,15 @@ package p2putil
 
 import (
 	"bytes"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/types"
-	"github.com/btcsuite/btcd/btcec"
-	"github.com/golang/protobuf/proto"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/types"
+	"github.com/btcsuite/btcd/btcec"
+	"github.com/golang/protobuf/proto"
 )
 
 func TestNewAgentCertV1(t *testing.T) {

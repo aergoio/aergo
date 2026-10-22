@@ -6,14 +6,14 @@
 package p2p
 
 import (
-	"github.com/aergoio/aergo/chain"
-	"github.com/aergoio/aergo/p2p/p2pmock"
+	"github.com/aergoio/aergo/v2/chain"
+	"github.com/aergoio/aergo/v2/p2p/p2pmock"
 	"github.com/golang/mock/gomock"
 	"reflect"
 	"testing"
 
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 func Test_defaultVersionManager_FindBestP2PVersion(t *testing.T) {

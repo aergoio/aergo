@@ -7,9 +7,10 @@
 package p2pcommon
 
 import (
-	"github.com/aergoio/aergo/types"
-	"github.com/golang/protobuf/proto"
 	"time"
+
+	"github.com/aergoio/aergo/v2/types"
+	"github.com/golang/protobuf/proto"
 )
 
 // Message is unit structure transferred from a peer to another peer.

@@ -4,7 +4,8 @@ package contract
 
 import (
 	"math/big"
-	"github.com/aergoio/aergo/cmd/aergoluac/util"
+
+	"github.com/aergoio/aergo/v2/cmd/aergoluac/util"
 )
 
 func NewLuaTxDefBig(sender, contract string, amount *big.Int, code string) *luaTxDef {

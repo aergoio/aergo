@@ -9,7 +9,7 @@ import (
 	"errors"
 	"os"
 
-	"github.com/aergoio/aergo/cmd/aergoluac/util"
+	"github.com/aergoio/aergo/v2/cmd/aergoluac/util"
 	"github.com/spf13/cobra"
 )
 

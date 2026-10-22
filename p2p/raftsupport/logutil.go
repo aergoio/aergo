@@ -6,7 +6,7 @@
 package raftsupport
 
 import (
-	"github.com/aergoio/aergo/consensus/impl/raftv2"
+	"github.com/aergoio/aergo/v2/consensus/impl/raftv2"
 	"github.com/aergoio/etcd/raft/raftpb"
 	"github.com/rs/zerolog"
 )

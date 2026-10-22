@@ -6,9 +6,10 @@
 package list
 
 import (
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/types"
 	"time"
+
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 // dummyListManager allows all remote nodes

@@ -6,7 +6,7 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 const proposalPrefixKey = "proposal" //aergo proposal format

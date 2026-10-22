@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/aergoio/aergo/cmd/brick/context"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/cmd/brick/context"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/fsnotify/fsnotify"
 	"github.com/mattn/go-colorable"
 	"github.com/rs/zerolog"
