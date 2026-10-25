@@ -10,21 +10,19 @@ import (
 	"sync"
 	"time"
 
-	network2 "github.com/aergoio/aergo/v2/internal/network"
-	"github.com/aergoio/aergo/v2/types"
-	core "github.com/libp2p/go-libp2p-core"
-	"github.com/libp2p/go-libp2p-core/network"
-
 	"github.com/aergoio/aergo-lib/log"
+	cfg "github.com/aergoio/aergo/v2/config"
+	network2 "github.com/aergoio/aergo/v2/internal/network"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/aergoio/aergo/v2/p2p/p2pkey"
 	"github.com/aergoio/aergo/v2/p2p/p2putil"
-	"github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/libp2p/go-libp2p-peerstore/pstoremem"
-
-	cfg "github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/libp2p/go-libp2p"
-	pstore "github.com/libp2p/go-libp2p-peerstore"
+	core "github.com/libp2p/go-libp2p-core"
+	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p-core/network"
+	"github.com/libp2p/go-libp2p-peerstore/pstoremem"
+	secio "github.com/libp2p/go-libp2p-secio"
 	ma "github.com/multiformats/go-multiaddr"
 )
 
@@ -172,9 +170,19 @@ func (sl *networkTransport) startListener() {
 	}
 	listens = append(listens, listen)
 
-	peerStore := pstore.NewPeerstore(pstoremem.NewKeyBook(), pstoremem.NewAddrBook(), pstoremem.NewProtoBook(),pstoremem.NewPeerMetadata())
+	// Just create peerstore with default options
+	peerStore := pstoremem.NewPeerstore()
+	if err != nil {
+		sl.logger.Fatal().Err(err).Msg("Failed to create peerstore")
+		panic(err.Error())
+	}
 
-	newHost, err := libp2p.New(context.Background(), libp2p.Identity(sl.privateKey), libp2p.Peerstore(peerStore), libp2p.ListenAddrs(listens...))
+	securityOptions := libp2p.DefaultSecurity
+	if sl.conf.AllowLegacy {
+		securityOptions = libp2p.ChainOptions(libp2p.DefaultSecurity, libp2p.Security(secio.ID, secio.New))
+	}
+
+	newHost, err := libp2p.New(context.Background(), libp2p.Identity(sl.privateKey), libp2p.Peerstore(peerStore), libp2p.ListenAddrs(listens...), securityOptions)
 	if err != nil {
 		sl.logger.Fatal().Err(err).Str("addr", listen.String()).Msg("Couldn't listen from")
 		panic(err.Error())
