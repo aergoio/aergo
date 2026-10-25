@@ -13,7 +13,7 @@ import (
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	peerstore "github.com/libp2p/go-libp2p-core/peerstore"
 	protocol "github.com/libp2p/go-libp2p-core/protocol"
-	go_multiaddr "github.com/multiformats/go-multiaddr"
+	multiaddr "github.com/multiformats/go-multiaddr"
 	reflect "reflect"
 )
 
@@ -41,10 +41,10 @@ func (m *MockHost) EXPECT() *MockHostMockRecorder {
 }
 
 // Addrs mocks base method
-func (m *MockHost) Addrs() []go_multiaddr.Multiaddr {
+func (m *MockHost) Addrs() []multiaddr.Multiaddr {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Addrs")
-	ret0, _ := ret[0].([]go_multiaddr.Multiaddr)
+	ret0, _ := ret[0].([]multiaddr.Multiaddr)
 	return ret0
 }
 

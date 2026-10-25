@@ -5,12 +5,13 @@
 package p2pmock
 
 import (
+	context "context"
 	gomock "github.com/golang/mock/gomock"
 	crypto "github.com/libp2p/go-libp2p-core/crypto"
 	network "github.com/libp2p/go-libp2p-core/network"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	protocol "github.com/libp2p/go-libp2p-core/protocol"
-	go_multiaddr "github.com/multiformats/go-multiaddr"
+	multiaddr "github.com/multiformats/go-multiaddr"
 	reflect "reflect"
 	time "time"
 )
@@ -52,6 +53,34 @@ func (mr *MockStreamMockRecorder) Close() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockStream)(nil).Close))
 }
 
+// CloseRead mocks base method
+func (m *MockStream) CloseRead() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CloseRead")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// CloseRead indicates an expected call of CloseRead
+func (mr *MockStreamMockRecorder) CloseRead() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CloseRead", reflect.TypeOf((*MockStream)(nil).CloseRead))
+}
+
+// CloseWrite mocks base method
+func (m *MockStream) CloseWrite() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CloseWrite")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// CloseWrite indicates an expected call of CloseWrite
+func (mr *MockStreamMockRecorder) CloseWrite() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CloseWrite", reflect.TypeOf((*MockStream)(nil).CloseWrite))
+}
+
 // Conn mocks base method
 func (m *MockStream) Conn() network.Conn {
 	m.ctrl.T.Helper()
@@ -64,6 +93,20 @@ func (m *MockStream) Conn() network.Conn {
 func (mr *MockStreamMockRecorder) Conn() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Conn", reflect.TypeOf((*MockStream)(nil).Conn))
+}
+
+// ID mocks base method
+func (m *MockStream) ID() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ID")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// ID indicates an expected call of ID
+func (mr *MockStreamMockRecorder) ID() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ID", reflect.TypeOf((*MockStream)(nil).ID))
 }
 
 // Protocol mocks base method
@@ -243,11 +286,25 @@ func (mr *MockConnMockRecorder) GetStreams() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStreams", reflect.TypeOf((*MockConn)(nil).GetStreams))
 }
 
+// ID mocks base method
+func (m *MockConn) ID() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ID")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// ID indicates an expected call of ID
+func (mr *MockConnMockRecorder) ID() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ID", reflect.TypeOf((*MockConn)(nil).ID))
+}
+
 // LocalMultiaddr mocks base method
-func (m *MockConn) LocalMultiaddr() go_multiaddr.Multiaddr {
+func (m *MockConn) LocalMultiaddr() multiaddr.Multiaddr {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "LocalMultiaddr")
-	ret0, _ := ret[0].(go_multiaddr.Multiaddr)
+	ret0, _ := ret[0].(multiaddr.Multiaddr)
 	return ret0
 }
 
@@ -286,25 +343,25 @@ func (mr *MockConnMockRecorder) LocalPrivateKey() *gomock.Call {
 }
 
 // NewStream mocks base method
-func (m *MockConn) NewStream() (network.Stream, error) {
+func (m *MockConn) NewStream(arg0 context.Context) (network.Stream, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "NewStream")
+	ret := m.ctrl.Call(m, "NewStream", arg0)
 	ret0, _ := ret[0].(network.Stream)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // NewStream indicates an expected call of NewStream
-func (mr *MockConnMockRecorder) NewStream() *gomock.Call {
+func (mr *MockConnMockRecorder) NewStream(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewStream", reflect.TypeOf((*MockConn)(nil).NewStream))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewStream", reflect.TypeOf((*MockConn)(nil).NewStream), arg0)
 }
 
 // RemoteMultiaddr mocks base method
-func (m *MockConn) RemoteMultiaddr() go_multiaddr.Multiaddr {
+func (m *MockConn) RemoteMultiaddr() multiaddr.Multiaddr {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RemoteMultiaddr")
-	ret0, _ := ret[0].(go_multiaddr.Multiaddr)
+	ret0, _ := ret[0].(multiaddr.Multiaddr)
 	return ret0
 }
 

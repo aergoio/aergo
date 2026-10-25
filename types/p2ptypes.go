@@ -15,6 +15,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/test"
+	"github.com/mr-tron/base58"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/pkg/errors"
 )
@@ -32,10 +33,10 @@ func RandomPeerID() PeerID {
 }
 
 func IDB58Decode(b58 string) (PeerID, error) {
-	return peer.IDB58Decode(b58)
+	return peer.Decode(b58)
 }
 func IDB58Encode(pid PeerID) string {
-	return peer.IDB58Encode(pid)
+	return base58.Encode([]byte(pid))
 }
 
 func IDFromBytes(b []byte) (PeerID, error) {
