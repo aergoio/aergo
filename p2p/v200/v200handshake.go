@@ -165,6 +165,7 @@ func (h *V200Handshaker) checkRemoteStatus(remotePeerStatus *types.Status) error
 	}
 	localID := h.vm.GetChainID(remotePeerStatus.BestHeight)
 	if !localID.Equals(remoteChainID) {
+		h.logger.Debug().Str("remote_chainID", remoteChainID.ToJSON()).Str("local_chainID", localID.ToJSON()).Msg("different chainID")
 		h.sendGoAway("different chainID")
 		return fmt.Errorf("different chainID : %s", remoteChainID.ToJSON())
 	}
