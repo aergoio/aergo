@@ -177,7 +177,12 @@ func (s *Status) Save(tx consensus.TxWriter) error {
 	s.Lock()
 	defer s.Unlock()
 
-	if err := s.libState.save(tx); err != nil {
+	var bestNo types.BlockNo
+	if s.bestBlock != nil {
+		bestNo = s.bestBlock.BlockNo()
+	}
+
+	if err := s.libState.save(tx, bestNo); err != nil {
 		return err
 	}
 

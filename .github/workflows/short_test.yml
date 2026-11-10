@@ -11,7 +11,7 @@ on:
 
 jobs:
   check_if_pull_request:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Check if Pull Request
         uses: 8BitJonny/gh-get-current-pr@2.2.0
@@ -23,7 +23,7 @@ jobs:
     needs: check_if_pull_request
     if: needs.check_if_pull_request.outputs.is_pull_request != 'true'
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
 

@@ -4,7 +4,7 @@ go 1.25.7
 
 require (
 	github.com/aergoio/aergo-actor v0.0.0-20190219030625-562037d5fec7
-	github.com/aergoio/aergo-lib v1.3.1-0.20261015125421-57b2753b9e17
+	github.com/aergoio/aergo-lib v1.3.1-0.20261110063421-cdeca16aa14e
 	github.com/aergoio/etcd v0.0.0-20190429013412-e8b3f96f6399
 	github.com/anaskhan96/base58check v0.0.0-20181220122047-b05365d494c4
 	github.com/bluele/gcache v0.0.0-20190518031135-bc40bd653833
