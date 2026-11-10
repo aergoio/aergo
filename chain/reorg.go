@@ -146,6 +146,13 @@ func (cs *ChainService) reorg(topBlock *types.Block, marker *ReorgMarker) error 
 		return err
 	}
 
+	// Nothing to roll back or forward: the best block already advanced to the
+	// branch top (for example, a concurrent connect won the race).
+	if len(reorg.newBlocks) == 0 && len(reorg.oldBlocks) == 0 {
+		logger.Info().Msg("reorg skipped: no rollback or rollforward blocks")
+		return nil
+	}
+
 	if reorg.gatherPostFn != nil {
 		reorg.gatherPostFn()
 	}
@@ -173,7 +180,11 @@ func (cs *ChainService) reorg(topBlock *types.Block, marker *ReorgMarker) error 
 		return err
 	}
 
-	cs.stat.updateEvent(ReorgStat, time.Since(begT), reorg.oldBlocks[0], reorg.newBlocks[0], reorg.brStartBlock)
+	oldBest := reorg.brStartBlock
+	if len(reorg.oldBlocks) > 0 {
+		oldBest = reorg.oldBlocks[0]
+	}
+	cs.stat.updateEvent(ReorgStat, time.Since(begT), oldBest, reorg.newBlocks[0], reorg.brStartBlock)
 	systemStateDB, err := cs.SDB().GetSystemAccountState()
 	system.InitSystemParams(systemStateDB, system.RESET)
 	logger.Info().Msg("reorg end")
@@ -204,8 +215,15 @@ func (reorg *reorganizer) initRecovery(marker *ReorgMarker) error {
 	}
 
 	if bestBlock.GetHeader().GetBlockNo() >= topBlock.GetHeader().GetBlockNo() ||
-		startBlock.GetHeader().GetBlockNo() >= bestBlock.GetHeader().GetBlockNo() ||
+		startBlock.GetHeader().GetBlockNo() > bestBlock.GetHeader().GetBlockNo() ||
 		startBlock.GetHeader().GetBlockNo() >= topBlock.GetHeader().GetBlockNo() {
+		return ErrInvalidReorgMarker
+	}
+
+	// A forward extension has start == best: the branch root is the current
+	// best block, so there is nothing to roll back.
+	if startBlock.GetHeader().GetBlockNo() == bestBlock.GetHeader().GetBlockNo() &&
+		!bytes.Equal(startBlock.GetHash(), bestBlock.GetHash()) {
 		return ErrInvalidReorgMarker
 	}
 
@@ -391,7 +409,16 @@ func (reorg *reorganizer) gather() error {
 			//found branch root
 			if bytes.Equal(brBlock.BlockHash(), mainBlock.BlockHash()) {
 				if curBestNo == brBlockNo {
-					return ErrInvalidBranchRoot
+					// The branch root is the current best block. This is not a
+					// fork: the gathered blocks simply extend the main chain.
+					// Roll forward from the current best without rolling back.
+					reorg.brStartBlock = brBlock
+
+					logger.Info().Str("hash", brBlock.ID()).Uint64("blockNo", brBlockNo).
+						Int("new blocks", len(reorg.newBlocks)).
+						Msg("branch extends current best block")
+
+					return nil
 				}
 				if len(reorg.newBlocks) == 0 || len(reorg.oldBlocks) == 0 {
 					return ErrGatherChain

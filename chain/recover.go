@@ -147,10 +147,6 @@ func (rm *ReorgMarker) RecoverChainMapping(cdb *ChainDB) error {
 		return err
 	}
 
-	if bytes.Equal(best.BlockHash(), rm.BrBestHash) {
-		return nil
-	}
-
 	logger.Info().Str("marker", rm.toString()).Str("curbest", best.ID()).Uint64("curbestno", best.GetHeader().GetBlockNo()).Msg("start to recover chain mapping")
 
 	bestBlock, err := cdb.getBlock(rm.BrBestHash)

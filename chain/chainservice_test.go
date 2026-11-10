@@ -245,6 +245,85 @@ func TestSideChainReorg(t *testing.T) {
 	assert.Equal(t, sideBestBlock.BlockHash(), mainBestBlock.BlockHash())
 }
 
+// TestForwardExtensionReorg covers a block whose ancestors are already in the
+// DB but not connected to the main chain, so the reorg branch root is the
+// current best block. The node must roll forward without rolling back.
+func TestForwardExtensionReorg(t *testing.T) {
+	cs, mainChain := testAddBlock(t, 5)
+
+	mainChain.GenAddBlock() // 6
+	mainChain.GenAddBlock() // 7
+	b6 := mainChain.GetBlockByNo(6)
+	b7 := mainChain.GetBlockByNo(7)
+
+	// Simulate the parent being present as block data only (e.g. written by
+	// the raft WAL or stored as a side block), without a main-chain mapping.
+	tx := cs.cdb.store.NewTx()
+	assert.NoError(t, cs.cdb.addBlock(tx, b6))
+	tx.Commit()
+
+	best, _ := cs.GetBestBlock()
+	assert.Equal(t, uint64(5), best.BlockNo())
+
+	// Adding 7 with 6 still unconnected used to fail with
+	// "best block can't be branch root block".
+	err := cs.addBlock(b7, nil, testPeer)
+	assert.NoError(t, err)
+
+	best, _ = cs.GetBestBlock()
+	assert.Equal(t, uint64(7), best.BlockNo())
+	assert.Equal(t, b7.BlockHash(), best.BlockHash())
+
+	for i := uint64(6); i <= 7; i++ {
+		mapped, err := cs.getBlockByNo(i)
+		assert.NoError(t, err)
+		assert.Equal(t, mainChain.GetBlockByNo(i).BlockHash(), mapped.BlockHash())
+	}
+}
+
+// TestForwardExtensionReorgRecovery stops after the forward-extension marker
+// is written, then recovers the mapping and replays the extension.
+func TestForwardExtensionReorgRecovery(t *testing.T) {
+	cs, mainChain := testAddBlock(t, 5)
+
+	mainChain.GenAddBlock() // 6
+	mainChain.GenAddBlock() // 7
+	b6 := mainChain.GetBlockByNo(6)
+	b7 := mainChain.GetBlockByNo(7)
+
+	tx := cs.cdb.store.NewTx()
+	assert.NoError(t, cs.cdb.addBlock(tx, b6))
+	tx.Commit()
+
+	TestDebugger = newDebugger()
+	TestDebugger.Set(DEBUG_CHAIN_STOP, 2, false)
+	err := cs.addBlock(b7, nil, testPeer)
+	assert.Error(t, &ErrReorg{})
+	assert.Equal(t, err.(*ErrReorg).err, &ErrDebug{cond: DEBUG_CHAIN_STOP, value: 2})
+
+	best, _ := cs.GetBestBlock()
+	assert.Equal(t, uint64(5), best.BlockNo())
+
+	TestDebugger.clear()
+	cs.errBlocks.Purge()
+
+	assert.NoError(t, cs.cdb.recover())
+	assert.NoError(t, cs.Recover())
+
+	best, _ = cs.GetBestBlock()
+	assert.Equal(t, uint64(7), best.BlockNo())
+	assert.Equal(t, b7.BlockHash(), best.BlockHash())
+	for i := uint64(6); i <= 7; i++ {
+		mapped, err := cs.getBlockByNo(i)
+		assert.NoError(t, err)
+		assert.Equal(t, mainChain.GetBlockByNo(i).BlockHash(), mapped.BlockHash())
+	}
+
+	marker, err := cs.cdb.getReorgMarker()
+	assert.NoError(t, err)
+	assert.Nil(t, marker)
+}
+
 func TestAddErroredBlock(t *testing.T) {
 	// make chain
 	cs, stubChain := testAddBlock(t, 10)
