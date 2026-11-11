@@ -237,15 +237,42 @@ func (ls *libStatus) load(endBlockNo types.BlockNo) {
 	}
 }
 
-func (ls *libStatus) save(tx consensus.TxWriter) error {
-	b, err := common.GobEncode(ls)
+// slim returns a copy suitable for persistence. Entries whose PlibBy block is
+// inside the startup replay window [begRecoBlockNo(bestNo), bestNo] are
+// recreated by load(), so they are omitted. A zero bestNo or missing Lib means
+// the window cannot be computed; the full map is kept to stay safe.
+func (ls *libStatus) slim(bestNo types.BlockNo) *libStatus {
+	out := *ls
+	out.Prpsd = make(proposed, len(ls.Prpsd))
+	if ls.Prpsd == nil || bestNo == 0 || ls.Lib == nil {
+		for bpID, p := range ls.Prpsd {
+			out.Prpsd[bpID] = p
+		}
+		return &out
+	}
+
+	cutoff := ls.begRecoBlockNo(bestNo)
+	for bpID, p := range ls.Prpsd {
+		if p == nil || p.PlibBy == nil || p.PlibBy.BlockNo < cutoff {
+			out.Prpsd[bpID] = p
+		}
+	}
+
+	return &out
+}
+
+func (ls *libStatus) save(tx consensus.TxWriter, bestNo types.BlockNo) error {
+	slim := ls.slim(bestNo)
+
+	b, err := common.GobEncode(slim)
 	if err != nil {
 		return err
 	}
 
 	tx.Set(LibStatusKey, b)
 
-	logger.Debug().Int("proposed lib len", len(ls.Prpsd)).Msg("lib status stored to DB")
+	logger.Debug().Int("proposed lib len", len(ls.Prpsd)).
+		Int("persisted", len(slim.Prpsd)).Msg("lib status stored to DB")
 
 	return nil
 }
